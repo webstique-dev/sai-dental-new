@@ -33,6 +33,7 @@ import Appointments from './pages/receptionist/Appointments.jsx';
 import Queue from './pages/receptionist/Queue.jsx';
 import Billing from './pages/receptionist/Billing.jsx';
 import FollowUps from './pages/receptionist/FollowUps.jsx';
+import ReceptionistReports from './pages/receptionist/Reports.jsx';
 import DoctorDashboard from './pages/doctor/DoctorDashboard.jsx';
 import DoctorQueue from './pages/doctor/Queue.jsx';
 import Consultation from './pages/doctor/Consultation.jsx';
@@ -88,7 +89,7 @@ export default function App() {
           <Route path="/reception/queue" element={<Queue />} />
           <Route path="/reception/billing" element={<Billing />} />
           <Route path="/reception/follow-ups" element={<FollowUps />} />
-          <Route path="/reception/reports" element={stub('Reports', 'Front-desk operational reports. Coming in Phase 2.', FileBarChart)} />
+          <Route path="/reception/reports" element={<ReceptionistReports />} />
         </Route>
       </Route>
 

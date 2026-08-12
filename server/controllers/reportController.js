@@ -32,37 +32,142 @@ function parseDateRange(dateFrom, dateTo) {
   return { start, end };
 }
 
-// GET /api/reports/reception-summary (Front Desk Dashboard)
+// GET /api/reports/reception-summary?dateFrom=&dateTo=
 async function getReceptionSummary(req, res, next) {
   try {
-    const { start, end } = getTodayDateRange();
+    const { dateFrom, dateTo } = req.query;
 
-    const todaysAppointments = await Appointment.countDocuments({
+    let start, end;
+    if (dateFrom || dateTo) {
+      const parsed = parseDateRange(dateFrom, dateTo);
+      start = parsed.start;
+      end = parsed.end;
+    } else {
+      const today = getTodayDateRange();
+      start = today.start;
+      end = today.end;
+    }
+
+    // 1. Appointment Summary (counts by Appointment.status within date range)
+    const scheduled = await Appointment.countDocuments({
       date: { $gte: start, $lte: end },
+      status: 'Scheduled',
     });
-
-    const patientsWaiting = await QueueEntry.countDocuments({
+    const checkedIn = await Appointment.countDocuments({
       date: { $gte: start, $lte: end },
-      status: { $in: ['Waiting', 'Checked-In'] },
+      status: { $in: ['Checked In', 'Checked-In'] },
+    });
+    const completed = await Appointment.countDocuments({
+      date: { $gte: start, $lte: end },
+      status: 'Completed',
+    });
+    const cancelled = await Appointment.countDocuments({
+      date: { $gte: start, $lte: end },
+      status: 'Cancelled',
+    });
+    const noShow = await Appointment.countDocuments({
+      date: { $gte: start, $lte: end },
+      status: { $in: ['No-Show', 'No Show'] },
     });
 
-    const newRegistrations = await Patient.countDocuments({
-      $or: [
-        { registrationDate: { $gte: start, $lte: end } },
-        { createdAt: { $gte: start, $lte: end } },
-      ],
+    const appointmentSummary = {
+      scheduled,
+      checkedIn,
+      completed,
+      cancelled,
+      noShow,
+    };
+
+    // 2. Queue Summary (total walk-ins vs appointment visits)
+    const totalWalkIns = await QueueEntry.countDocuments({
+      date: { $gte: start, $lte: end },
+      type: { $in: ['Walk-in', 'walk_in', 'Walk In'] },
+    });
+    const totalAppointmentVisits = await QueueEntry.countDocuments({
+      date: { $gte: start, $lte: end },
+      type: { $in: ['Appointment', 'appointment'] },
     });
 
-    const followUpsDue = await FollowUp.countDocuments({
+    // Note: averageWaitMinutes is omitted because QueueEntry tracks checkInTime but does not store a separate withDoctorTimestamp field.
+    const queueSummary = {
+      totalWalkIns,
+      totalAppointmentVisits,
+    };
+
+    // 3. Payments Collected (summed from Invoice.payments within date range)
+    const invoicesWithPayments = await Invoice.find({
+      'payments.date': { $gte: start, $lte: end },
+    });
+
+    let totalAmount = 0;
+    const byMethod = {
+      Cash: 0,
+      Card: 0,
+      UPI: 0,
+      Other: 0,
+    };
+
+    invoicesWithPayments.forEach((inv) => {
+      (inv.payments || []).forEach((p) => {
+        if (p.date && p.date >= start && p.date <= end && p.type !== 'refund') {
+          const amt = p.amount || 0;
+          totalAmount += amt;
+          const m = p.method || 'Cash';
+          if (byMethod[m] !== undefined) {
+            byMethod[m] += amt;
+          } else {
+            byMethod.Other += amt;
+          }
+        }
+      });
+    });
+
+    const paymentsCollected = {
+      totalAmount,
+      byMethod,
+    };
+
+    // 4. Pending Payments
+    const pendingInvoices = await Invoice.find({
+      paymentStatus: { $in: ['Pending', 'Partially Paid'] },
+      createdAt: { $gte: start, $lte: end },
+    });
+
+    const totalOutstanding = pendingInvoices.reduce((sum, inv) => sum + (inv.balance || 0), 0);
+
+    const pendingPayments = {
+      count: pendingInvoices.length,
+      totalOutstanding,
+    };
+
+    // 5. Follow-Up Compliance (counts by status within date range)
+    const due = await FollowUp.countDocuments({
+      recommendedDate: { $gte: start, $lte: end },
       status: 'Pending',
-      recommendedDate: { $lte: end },
     });
+    const scheduledFollowUps = await FollowUp.countDocuments({
+      recommendedDate: { $gte: start, $lte: end },
+      status: 'Scheduled',
+    });
+    const completedFollowUps = await FollowUp.countDocuments({
+      recommendedDate: { $gte: start, $lte: end },
+      status: 'Completed',
+    });
+
+    const followUpCompliance = {
+      due,
+      scheduled: scheduledFollowUps,
+      completed: completedFollowUps,
+    };
 
     return res.json({
-      todaysAppointments,
-      patientsWaiting,
-      newRegistrations,
-      followUpsDue,
+      dateFrom: start,
+      dateTo: end,
+      appointmentSummary,
+      queueSummary,
+      paymentsCollected,
+      pendingPayments,
+      followUpCompliance,
     });
   } catch (err) {
     next(err);
