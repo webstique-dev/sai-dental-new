@@ -22,7 +22,7 @@ const GINGIVAL_OPTIONS = [
   'Bleeding on Probing',
 ];
 
-export default function ExaminationTab({ consultation }) {
+export default function ExaminationTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
 
@@ -64,6 +64,7 @@ export default function ExaminationTab({ consultation }) {
   const isExtraoralSelected = (finding) => extraoral.some((e) => e.finding === finding);
 
   const toggleExtraoral = (finding) => {
+    if (isReadOnly) return;
     if (isExtraoralSelected(finding)) {
       setExtraoral(extraoral.filter((e) => e.finding !== finding));
     } else {
@@ -72,6 +73,7 @@ export default function ExaminationTab({ consultation }) {
   };
 
   const updateExtraoralNotes = (finding, notes) => {
+    if (isReadOnly) return;
     setExtraoral(extraoral.map((e) => (e.finding === finding ? { ...e, notes } : e)));
   };
 
@@ -79,6 +81,7 @@ export default function ExaminationTab({ consultation }) {
   const isSoftTissueSelected = (area) => softTissue.some((s) => s.area === area);
 
   const toggleSoftTissue = (area) => {
+    if (isReadOnly) return;
     if (isSoftTissueSelected(area)) {
       setSoftTissue(softTissue.filter((s) => s.area !== area));
     } else {
@@ -87,11 +90,13 @@ export default function ExaminationTab({ consultation }) {
   };
 
   const updateSoftTissueNotes = (area, notes) => {
+    if (isReadOnly) return;
     setSoftTissue(softTissue.map((s) => (s.area === area ? { ...s, notes } : s)));
   };
 
   // Gingival findings handlers
   const toggleGingival = (finding) => {
+    if (isReadOnly) return;
     if (gingivalFindings.includes(finding)) {
       setGingivalFindings(gingivalFindings.filter((g) => g !== finding));
     } else {
@@ -102,6 +107,7 @@ export default function ExaminationTab({ consultation }) {
   // Save handler (upserts single examination document per consultation)
   const handleSave = async (e) => {
     if (e) e.preventDefault();
+    if (isReadOnly) return;
     setSaving(true);
     setSuccessMessage('');
     setErrorMessage('');
@@ -162,12 +168,13 @@ export default function ExaminationTab({ consultation }) {
               <button
                 type="button"
                 key={finding}
+                disabled={isReadOnly}
                 onClick={() => toggleExtraoral(finding)}
                 className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   selected
                     ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
                     : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                }`}
+                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <span>{finding}</span>
                 {selected && <Check size={14} className="text-brand" />}
@@ -185,6 +192,7 @@ export default function ExaminationTab({ consultation }) {
                 <label className="block text-xs font-bold text-ink">{item.finding}</label>
                 <input
                   type="text"
+                  disabled={isReadOnly}
                   className="input-field py-1.5 text-xs"
                   placeholder={`Notes for ${item.finding}...`}
                   value={item.notes || ''}
@@ -214,12 +222,13 @@ export default function ExaminationTab({ consultation }) {
               <button
                 type="button"
                 key={area}
+                disabled={isReadOnly}
                 onClick={() => toggleSoftTissue(area)}
                 className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   selected
                     ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
                     : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                }`}
+                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <span>{area}</span>
                 {selected && <Check size={14} className="text-brand" />}
@@ -237,6 +246,7 @@ export default function ExaminationTab({ consultation }) {
                 <label className="block text-xs font-bold text-ink">{item.area}</label>
                 <input
                   type="text"
+                  disabled={isReadOnly}
                   className="input-field py-1.5 text-xs"
                   placeholder={`Observations for ${item.area}...`}
                   value={item.notes || ''}
@@ -266,12 +276,13 @@ export default function ExaminationTab({ consultation }) {
               <button
                 type="button"
                 key={finding}
+                disabled={isReadOnly}
                 onClick={() => toggleGingival(finding)}
                 className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   selected
                     ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
                     : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                }`}
+                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <span>{finding}</span>
                 {selected && <Check size={14} className="text-brand" />}
@@ -282,16 +293,18 @@ export default function ExaminationTab({ consultation }) {
       </div>
 
       {/* SAVE BUTTON BAR */}
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={saving}
-          className="btn-primary px-6 py-2.5 text-xs flex items-center gap-2"
-        >
-          <Save size={16} />
-          <span>{saving ? 'Saving Examination...' : 'Save Examination Findings'}</span>
-        </button>
-      </div>
+      {!isReadOnly && (
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="btn-primary px-6 py-2.5 text-xs flex items-center gap-2"
+          >
+            <Save size={16} />
+            <span>{saving ? 'Saving Examination...' : 'Save Examination Findings'}</span>
+          </button>
+        </div>
+      )}
     </form>
   );
 }

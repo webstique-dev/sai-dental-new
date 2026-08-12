@@ -18,7 +18,7 @@ const PRIORITY_BADGE_CLASSES = {
   High: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
-export default function TreatmentPlanTab({ consultation }) {
+export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
 
@@ -65,6 +65,7 @@ export default function TreatmentPlanTab({ consultation }) {
 
   const handleAddPlan = async (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (!treatmentName || !treatmentName.trim()) {
       setErrorMessage('Treatment name is required.');
       return;
@@ -110,6 +111,7 @@ export default function TreatmentPlanTab({ consultation }) {
   };
 
   const handleStatusChange = async (planId, newStatus) => {
+    if (isReadOnly) return;
     setUpdatingId(planId);
     setSuccessMessage('');
     setErrorMessage('');
@@ -147,134 +149,136 @@ export default function TreatmentPlanTab({ consultation }) {
         </div>
       )}
 
-      {/* FORM: ADD TREATMENT PLAN */}
-      <div className="card p-5 space-y-4">
-        <div className="border-b border-border pb-3">
-          <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-            <Activity size={18} className="text-brand" /> Add Treatment Plan Procedure
-          </h3>
-          <p className="text-xs text-ink-soft">
-            Define procedure steps, link to diagnosis/tooth, set priority, and estimate costs.
-          </p>
+      {/* FORM: ADD TREATMENT PLAN (Hidden when read-only) */}
+      {!isReadOnly && (
+        <div className="card p-5 space-y-4">
+          <div className="border-b border-border pb-3">
+            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+              <Activity size={18} className="text-brand" /> Add Treatment Plan Procedure
+            </h3>
+            <p className="text-xs text-ink-soft">
+              Define procedure steps, link to diagnosis/tooth, set priority, and estimate costs.
+            </p>
+          </div>
+
+          <form onSubmit={handleAddPlan} className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block font-semibold text-ink-soft mb-1">Treatment Procedure Name *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Root Canal Therapy, Composite Restoration, Scaling & Polishing"
+                  value={treatmentName}
+                  onChange={(e) => setTreatmentName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Tooth Number (Optional)</label>
+                <input
+                  type="number"
+                  className="input-field font-mono"
+                  placeholder="e.g. 16"
+                  value={toothNumber}
+                  onChange={(e) => setToothNumber(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Linked Diagnosis (Optional)</label>
+                <select
+                  className="input-field"
+                  value={selectedDiagnosisId}
+                  onChange={(e) => setSelectedDiagnosisId(e.target.value)}
+                >
+                  <option value="">Select Diagnosis (Optional)</option>
+                  {diagnosesOptions.map((d) => {
+                    const dId = d._id || d.id;
+                    return (
+                      <option key={dId} value={dId}>
+                        {d.diagnosis} {d.relatedTeeth?.length ? `(Teeth: #${d.relatedTeeth.join(', #')})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Estimated Cost (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="input-field"
+                  placeholder="e.g. 2500"
+                  value={estimatedCost}
+                  onChange={(e) => setEstimatedCost(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Priority</label>
+                <select
+                  className="input-field"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  <option value="Low">Low Priority</option>
+                  <option value="Medium">Medium Priority</option>
+                  <option value="High">High Priority</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Description / Procedure Steps</label>
+                <textarea
+                  rows={2}
+                  className="input-field"
+                  placeholder="Access cavity, biomechanical preparation, obturation details..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Notes</label>
+                <textarea
+                  rows={2}
+                  className="input-field"
+                  placeholder="Post-procedure instructions or consent notes..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <div className="flex items-center gap-2">
+                <label className="font-semibold text-ink-soft">Initial Status:</label>
+                <select
+                  className="input-field py-1 text-xs w-36"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="Planned">Planned</option>
+                  <option value="Approved">Approved</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+
+              <button type="submit" disabled={submitting} className="btn-primary">
+                <Plus size={16} />
+                <span>{submitting ? 'Adding Plan...' : 'Add Treatment Plan'}</span>
+              </button>
+            </div>
+          </form>
         </div>
-
-        <form onSubmit={handleAddPlan} className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block font-semibold text-ink-soft mb-1">Treatment Procedure Name *</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="e.g. Root Canal Therapy, Composite Restoration, Scaling & Polishing"
-                value={treatmentName}
-                onChange={(e) => setTreatmentName(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Tooth Number (Optional)</label>
-              <input
-                type="number"
-                className="input-field font-mono"
-                placeholder="e.g. 16"
-                value={toothNumber}
-                onChange={(e) => setToothNumber(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Linked Diagnosis (Optional)</label>
-              <select
-                className="input-field"
-                value={selectedDiagnosisId}
-                onChange={(e) => setSelectedDiagnosisId(e.target.value)}
-              >
-                <option value="">Select Diagnosis (Optional)</option>
-                {diagnosesOptions.map((d) => {
-                  const dId = d._id || d.id;
-                  return (
-                    <option key={dId} value={dId}>
-                      {d.diagnosis} {d.relatedTeeth?.length ? `(Teeth: #${d.relatedTeeth.join(', #')})` : ''}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Estimated Cost (₹)</label>
-              <input
-                type="number"
-                min="0"
-                className="input-field"
-                placeholder="e.g. 2500"
-                value={estimatedCost}
-                onChange={(e) => setEstimatedCost(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Priority</label>
-              <select
-                className="input-field"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-              >
-                <option value="Low">Low Priority</option>
-                <option value="Medium">Medium Priority</option>
-                <option value="High">High Priority</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Description / Procedure Steps</label>
-              <textarea
-                rows={2}
-                className="input-field"
-                placeholder="Access cavity, biomechanical preparation, obturation details..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Notes</label>
-              <textarea
-                rows={2}
-                className="input-field"
-                placeholder="Post-procedure instructions or consent notes..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <div className="flex items-center gap-2">
-              <label className="font-semibold text-ink-soft">Initial Status:</label>
-              <select
-                className="input-field py-1 text-xs w-36"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="Planned">Planned</option>
-                <option value="Approved">Approved</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </div>
-
-            <button type="submit" disabled={submitting} className="btn-primary">
-              <Plus size={16} />
-              <span>{submitting ? 'Adding Plan...' : 'Add Treatment Plan'}</span>
-            </button>
-          </div>
-        </form>
-      </div>
+      )}
 
       {/* RUNNING LIST OF TREATMENT PLANS AS CARDS */}
       <div className="card p-5 space-y-4">
@@ -294,8 +298,7 @@ export default function TreatmentPlanTab({ consultation }) {
         ) : treatmentPlans.length === 0 ? (
           <div className="p-8 text-center text-xs text-ink-soft space-y-2">
             <Activity size={28} className="mx-auto text-ink-soft/40" />
-            <p className="font-semibold text-ink">No treatment plans recorded yet.</p>
-            <p>Fill out the form above to add procedures to this consultation.</p>
+            <p className="font-semibold text-ink">No treatment plans recorded for this visit.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
@@ -351,21 +354,23 @@ export default function TreatmentPlanTab({ consultation }) {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-ink-soft">Change Status:</span>
-                      <select
-                        disabled={updatingId === planId}
-                        className="input-field py-1 text-xs font-semibold w-36"
-                        value={plan.status}
-                        onChange={(e) => handleStatusChange(planId, e.target.value)}
-                      >
-                        <option value="Planned">Planned</option>
-                        <option value="Approved">Approved</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </div>
+                    {!isReadOnly && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-ink-soft">Change Status:</span>
+                        <select
+                          disabled={updatingId === planId}
+                          className="input-field py-1 text-xs font-semibold w-36"
+                          value={plan.status}
+                          onChange={(e) => handleStatusChange(planId, e.target.value)}
+                        >
+                          <option value="Planned">Planned</option>
+                          <option value="Approved">Approved</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

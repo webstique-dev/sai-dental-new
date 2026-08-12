@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Diagnosis = require('../models/Diagnosis');
+const { checkConsultationNotClosed } = require('./consultationController');
 
 // GET /api/diagnoses?consultation=
 async function listDiagnoses(req, res, next) {
@@ -37,6 +38,9 @@ async function createDiagnosis(req, res, next) {
       return res.status(400).json({ message: 'Diagnosis description is required.' });
     }
 
+    // Immutability Guard
+    await checkConsultationNotClosed(consultation);
+
     const newDiagnosis = new Diagnosis({
       consultation,
       patient,
@@ -73,6 +77,9 @@ async function updateDiagnosis(req, res, next) {
       return res.status(404).json({ message: 'Diagnosis not found.' });
     }
 
+    // Immutability Guard
+    await checkConsultationNotClosed(diag.consultation);
+
     if (diagnosis !== undefined) diag.diagnosis = diagnosis.trim();
     if (clinicalFindings !== undefined) diag.clinicalFindings = clinicalFindings.trim();
     if (notes !== undefined) diag.notes = notes.trim();
@@ -94,10 +101,18 @@ async function updateDiagnosis(req, res, next) {
   }
 }
 
-// DELETE /api/diagnoses/:id (Blocked if referenced by a Treatment Plan)
+// DELETE /api/diagnoses/:id (Blocked if referenced by a Treatment Plan or if Consultation is Closed)
 async function deleteDiagnosis(req, res, next) {
   try {
     const diagId = req.params.id;
+
+    const diag = await Diagnosis.findById(diagId);
+    if (!diag) {
+      return res.status(404).json({ message: 'Diagnosis not found.' });
+    }
+
+    // Immutability Guard
+    await checkConsultationNotClosed(diag.consultation);
 
     // Check if referenced by TreatmentPlan if model is registered
     try {
@@ -120,10 +135,7 @@ async function deleteDiagnosis(req, res, next) {
       // Model not compiled yet, ignore
     }
 
-    const deleted = await Diagnosis.findByIdAndDelete(diagId);
-    if (!deleted) {
-      return res.status(404).json({ message: 'Diagnosis not found.' });
-    }
+    await Diagnosis.findByIdAndDelete(diagId);
 
     return res.json({ message: 'Diagnosis deleted successfully' });
   } catch (err) {

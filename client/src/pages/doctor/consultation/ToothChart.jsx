@@ -25,7 +25,7 @@ const CONDITION_CODES = {
   Other: { code: 'O', color: 'bg-gray-100 text-gray-800 border-gray-300', dot: 'bg-gray-400' },
 };
 
-export default function ToothChart({ patientId, consultationId }) {
+export default function ToothChart({ patientId, consultationId, isReadOnly = false }) {
   const [teethMap, setTeethMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -87,6 +87,7 @@ export default function ToothChart({ patientId, consultationId }) {
 
   const handleSaveCondition = async (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (selectedTeeth.length === 0) {
       setErrorMessage('Please click one or more teeth on the chart first.');
       return;
@@ -291,86 +292,88 @@ export default function ToothChart({ patientId, consultationId }) {
 
       {/* DETAIL INSPECTION & UPDATE FORM PANEL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Col: Update Form */}
-        <div className="lg:col-span-5 card p-5 space-y-4">
-          <div className="border-b border-border pb-3">
-            <h4 className="font-display text-sm font-bold text-ink">
-              {selectedTeeth.length === 0
-                ? 'Record Finding for Selected Teeth'
-                : selectedTeeth.length === 1
-                ? `Update Tooth #${selectedTeeth[0]}`
-                : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
-            </h4>
-            <p className="text-xs text-ink-soft">
-              Select teeth on the chart above and assign new conditions.
-            </p>
-          </div>
+        {/* Left Col: Update Form (Hidden when read-only) */}
+        {!isReadOnly && (
+          <div className="lg:col-span-5 card p-5 space-y-4">
+            <div className="border-b border-border pb-3">
+              <h4 className="font-display text-sm font-bold text-ink">
+                {selectedTeeth.length === 0
+                  ? 'Record Finding for Selected Teeth'
+                  : selectedTeeth.length === 1
+                  ? `Update Tooth #${selectedTeeth[0]}`
+                  : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
+              </h4>
+              <p className="text-xs text-ink-soft">
+                Select teeth on the chart above and assign new conditions.
+              </p>
+            </div>
 
-          <form onSubmit={handleSaveCondition} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">New Condition *</label>
-              <select
-                className="input-field"
-                value={formCondition}
-                onChange={(e) => setFormCondition(e.target.value)}
+            <form onSubmit={handleSaveCondition} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">New Condition *</label>
+                <select
+                  className="input-field"
+                  value={formCondition}
+                  onChange={(e) => setFormCondition(e.target.value)}
+                >
+                  <option value="Healthy">Healthy [H]</option>
+                  <option value="Caries">Caries / Cavity [D]</option>
+                  <option value="Decayed">Decayed [Dec]</option>
+                  <option value="Filling">Filling [F]</option>
+                  <option value="RCT">Root Canal Therapy [RCT]</option>
+                  <option value="Crown">Crown [Cr]</option>
+                  <option value="Bridge">Bridge [Br]</option>
+                  <option value="Implant">Implant [I]</option>
+                  <option value="Missing">Missing [M]</option>
+                  <option value="Extraction">Extraction Indicated / Done [X]</option>
+                  <option value="Restored">Restored [Res]</option>
+                  <option value="Prosthetic">Prosthetic [P]</option>
+                  <option value="Other">Other [O]</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Treatment Performed / Planned</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Composite Restoration, Pulpectomy"
+                  value={formTreatment}
+                  onChange={(e) => setFormTreatment(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Clinical Notes</label>
+                <textarea
+                  rows={2}
+                  className="input-field"
+                  placeholder="Diagnostic observations, surface details (MO, DO, MOD)..."
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || selectedTeeth.length === 0}
+                className="btn-primary w-full py-2.5 text-xs flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <option value="Healthy">Healthy [H]</option>
-                <option value="Caries">Caries / Cavity [D]</option>
-                <option value="Decayed">Decayed [Dec]</option>
-                <option value="Filling">Filling [F]</option>
-                <option value="RCT">Root Canal Therapy [RCT]</option>
-                <option value="Crown">Crown [Cr]</option>
-                <option value="Bridge">Bridge [Br]</option>
-                <option value="Implant">Implant [I]</option>
-                <option value="Missing">Missing [M]</option>
-                <option value="Extraction">Extraction Indicated / Done [X]</option>
-                <option value="Restored">Restored [Res]</option>
-                <option value="Prosthetic">Prosthetic [P]</option>
-                <option value="Other">Other [O]</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Treatment Performed / Planned</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="e.g. Composite Restoration, Pulpectomy"
-                value={formTreatment}
-                onChange={(e) => setFormTreatment(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Clinical Notes</label>
-              <textarea
-                rows={2}
-                className="input-field"
-                placeholder="Diagnostic observations, surface details (MO, DO, MOD)..."
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving || selectedTeeth.length === 0}
-              className="btn-primary w-full py-2.5 text-xs flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Save size={16} />
-              <span>
-                {saving
-                  ? 'Saving Records...'
-                  : selectedTeeth.length === 0
-                  ? 'Click Teeth Above First'
-                  : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
-              </span>
-            </button>
-          </form>
-        </div>
+                <Save size={16} />
+                <span>
+                  {saving
+                    ? 'Saving Records...'
+                    : selectedTeeth.length === 0
+                    ? 'Click Teeth Above First'
+                    : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
+                </span>
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Right Col: Treatment History Log */}
-        <div className="lg:col-span-7 card p-5 space-y-4">
+        <div className={`${isReadOnly ? 'lg:col-span-12' : 'lg:col-span-7'} card p-5 space-y-4`}>
           <div className="border-b border-border pb-3 flex items-center justify-between">
             <div>
               <h4 className="font-display text-sm font-bold text-ink flex items-center gap-2">

@@ -17,7 +17,7 @@ const SEVERITY_BADGES = {
   Severe: 'bg-rose-100 text-rose-800 border-rose-200',
 };
 
-export default function DiagnosisTab({ consultation }) {
+export default function DiagnosisTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
 
@@ -55,6 +55,7 @@ export default function DiagnosisTab({ consultation }) {
   }, [consultationId]);
 
   const toggleTooth = (tNum) => {
+    if (isReadOnly) return;
     if (relatedTeeth.includes(tNum)) {
       setRelatedTeeth(relatedTeeth.filter((t) => t !== tNum));
     } else {
@@ -64,6 +65,7 @@ export default function DiagnosisTab({ consultation }) {
 
   const handleAddDiagnosis = async (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (!diagnosisText || !diagnosisText.trim()) {
       setErrorMessage('Diagnosis description is required.');
       return;
@@ -103,6 +105,7 @@ export default function DiagnosisTab({ consultation }) {
   };
 
   const handleDelete = async (diagId) => {
+    if (isReadOnly) return;
     setDeletingId(diagId);
     setSuccessMessage('');
     setErrorMessage('');
@@ -134,115 +137,117 @@ export default function DiagnosisTab({ consultation }) {
         </div>
       )}
 
-      {/* Form: Add Diagnosis */}
-      <div className="card p-5 space-y-4">
-        <div className="border-b border-border pb-3">
-          <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-            <Stethoscope size={18} className="text-brand" /> Add Clinical Diagnosis
-          </h3>
-          <p className="text-xs text-ink-soft">
-            Record findings, select severity rating, and link related FDI teeth.
-          </p>
-        </div>
-
-        <form onSubmit={handleAddDiagnosis} className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block font-semibold text-ink-soft mb-1">Diagnosis Title / Condition *</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="e.g. Irreversible Pulpitis, Class II Dental Caries, Chronic Periodontitis"
-                value={diagnosisText}
-                onChange={(e) => setDiagnosisText(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Severity Rating</label>
-              <select
-                className="input-field"
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value)}
-              >
-                <option value="">Unspecified</option>
-                <option value="Mild">Mild</option>
-                <option value="Moderate">Moderate</option>
-                <option value="Severe">Severe</option>
-              </select>
-            </div>
+      {/* Form: Add Diagnosis (Hidden when read-only) */}
+      {!isReadOnly && (
+        <div className="card p-5 space-y-4">
+          <div className="border-b border-border pb-3">
+            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+              <Stethoscope size={18} className="text-brand" /> Add Clinical Diagnosis
+            </h3>
+            <p className="text-xs text-ink-soft">
+              Record findings, select severity rating, and link related FDI teeth.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Clinical Findings</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="e.g. Tenderness on percussion, deep occlusal cavity"
-                value={clinicalFindings}
-                onChange={(e) => setClinicalFindings(e.target.value)}
-              />
-            </div>
+          <form onSubmit={handleAddDiagnosis} className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block font-semibold text-ink-soft mb-1">Diagnosis Title / Condition *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Irreversible Pulpitis, Class II Dental Caries, Chronic Periodontitis"
+                  value={diagnosisText}
+                  onChange={(e) => setDiagnosisText(e.target.value)}
+                />
+              </div>
 
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Notes & Recommendations</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Additional notes for treatment planning..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Interactive Tooth Chip Selector */}
-          <div className="space-y-2 pt-1 border-t border-border/60">
-            <div className="flex items-center justify-between">
-              <label className="block font-semibold text-ink-soft">
-                Related Teeth ({relatedTeeth.length} selected):
-              </label>
-              {relatedTeeth.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setRelatedTeeth([])}
-                  className="text-rose-600 text-[11px] font-semibold hover:underline"
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Severity Rating</label>
+                <select
+                  className="input-field"
+                  value={severity}
+                  onChange={(e) => setSeverity(e.target.value)}
                 >
-                  Clear Selection
-                </button>
-              )}
+                  <option value="">Unspecified</option>
+                  <option value="Mild">Mild</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Severe">Severe</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-border bg-bg/40 max-h-32 overflow-y-auto">
-              {ALL_FDI_TEETH.map((tNum) => {
-                const isSel = relatedTeeth.includes(tNum);
-                return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Clinical Findings</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Tenderness on percussion, deep occlusal cavity"
+                  value={clinicalFindings}
+                  onChange={(e) => setClinicalFindings(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Notes & Recommendations</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Additional notes for treatment planning..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Interactive Tooth Chip Selector */}
+            <div className="space-y-2 pt-1 border-t border-border/60">
+              <div className="flex items-center justify-between">
+                <label className="block font-semibold text-ink-soft">
+                  Related Teeth ({relatedTeeth.length} selected):
+                </label>
+                {relatedTeeth.length > 0 && (
                   <button
                     type="button"
-                    key={tNum}
-                    onClick={() => toggleTooth(tNum)}
-                    className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
-                      isSel
-                        ? 'bg-brand text-white shadow-sm'
-                        : 'bg-surface border border-border text-ink-soft hover:bg-bg'
-                    }`}
+                    onClick={() => setRelatedTeeth([])}
+                    className="text-rose-600 text-[11px] font-semibold hover:underline"
                   >
-                    #{tNum}
+                    Clear Selection
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                )}
+              </div>
 
-          <div className="flex justify-end pt-2">
-            <button type="submit" disabled={submitting} className="btn-primary">
-              <Plus size={16} />
-              <span>{submitting ? 'Adding...' : 'Add Diagnosis Entry'}</span>
-            </button>
-          </div>
-        </form>
-      </div>
+              <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-border bg-bg/40 max-h-32 overflow-y-auto">
+                {ALL_FDI_TEETH.map((tNum) => {
+                  const isSel = relatedTeeth.includes(tNum);
+                  return (
+                    <button
+                      type="button"
+                      key={tNum}
+                      onClick={() => toggleTooth(tNum)}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
+                        isSel
+                          ? 'bg-brand text-white shadow-sm'
+                          : 'bg-surface border border-border text-ink-soft hover:bg-bg'
+                      }`}
+                    >
+                      #{tNum}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button type="submit" disabled={submitting} className="btn-primary">
+                <Plus size={16} />
+                <span>{submitting ? 'Adding...' : 'Add Diagnosis Entry'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* RUNNING LIST OF DIAGNOSES */}
       <div className="card p-5 space-y-4">
@@ -262,8 +267,7 @@ export default function DiagnosisTab({ consultation }) {
         ) : diagnoses.length === 0 ? (
           <div className="p-8 text-center text-xs text-ink-soft space-y-2">
             <Stethoscope size={28} className="mx-auto text-ink-soft/40" />
-            <p className="font-semibold text-ink">No diagnoses recorded for this visit yet.</p>
-            <p>Use the form above to add clinical diagnoses.</p>
+            <p className="font-semibold text-ink">No diagnoses recorded for this visit.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -301,14 +305,16 @@ export default function DiagnosisTab({ consultation }) {
                       )}
                     </div>
 
-                    <button
-                      disabled={deletingId === diagId}
-                      onClick={() => handleDelete(diagId)}
-                      title="Delete Diagnosis"
-                      className="p-1.5 text-ink-soft hover:text-rose-600 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {!isReadOnly && (
+                      <button
+                        disabled={deletingId === diagId}
+                        onClick={() => handleDelete(diagId)}
+                        title="Delete Diagnosis"
+                        className="p-1.5 text-ink-soft hover:text-rose-600 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
 
                   {diag.clinicalFindings && (

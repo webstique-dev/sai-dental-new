@@ -25,6 +25,7 @@ import FollowUps from './pages/receptionist/FollowUps.jsx';
 import DoctorDashboard from './pages/doctor/DoctorDashboard.jsx';
 import DoctorQueue from './pages/doctor/Queue.jsx';
 import Consultation from './pages/doctor/Consultation.jsx';
+import PatientHistory from './pages/doctor/PatientHistory.jsx';
 
 // Small helper so Phase 2+ pages (not yet built) render a clean
 // "coming soon" state instead of a blank/broken route.
@@ -84,14 +85,14 @@ export default function App() {
           <Route path="/doctor" element={<DoctorDashboard />} />
           <Route path="/doctor/queue" element={<DoctorQueue />} />
           <Route path="/doctor/consultation/:consultationId" element={<Consultation />} />
-          <Route path="/doctor/patients" element={stub('Patients', 'Your assigned patients. Coming in Phase 2.', UserSquare2)} />
-          <Route path="/doctor/history" element={stub('Patient History', 'Full clinical history per patient. Coming in Phase 2.', History)} />
-          <Route path="/doctor/examination" element={stub('Clinical Examination', 'Structured examination forms. Coming in Phase 2.', FileHeart)} />
-          <Route path="/doctor/tooth-chart" element={stub('Tooth Chart', 'Interactive FDI tooth charting. Coming in Phase 2.', Grid3x3)} />
-          <Route path="/doctor/diagnosis" element={stub('Diagnosis', 'Diagnosis entry linked to tooth chart. Coming in Phase 2.', Stethoscope)} />
-          <Route path="/doctor/treatment-plans" element={stub('Treatment Plans', 'Multi-step treatment planning. Coming in Phase 2.', Activity)} />
-          <Route path="/doctor/prescriptions" element={stub('Prescriptions', 'Prescription writing and history. Coming in Phase 2.', Pill)} />
-          <Route path="/doctor/follow-ups" element={stub('Follow-Ups', 'Patient recall scheduling. Coming in Phase 2.', Bell)} />
+          <Route path="/doctor/patients" element={<PatientHistory />} />
+          <Route path="/doctor/history" element={<PatientHistory />} />
+          <Route path="/doctor/examination" element={<Navigate to="/doctor/queue" replace />} />
+          <Route path="/doctor/tooth-chart" element={<Navigate to="/doctor/queue" replace />} />
+          <Route path="/doctor/diagnosis" element={<Navigate to="/doctor/queue" replace />} />
+          <Route path="/doctor/treatment-plans" element={<Navigate to="/doctor/queue" replace />} />
+          <Route path="/doctor/prescriptions" element={<Navigate to="/doctor/queue" replace />} />
+          <Route path="/doctor/follow-ups" element={<Navigate to="/doctor/queue" replace />} />
         </Route>
       </Route>
 

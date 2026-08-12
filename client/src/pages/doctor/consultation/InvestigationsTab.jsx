@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 
-export default function InvestigationsTab({ consultation }) {
+export default function InvestigationsTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
 
@@ -46,6 +46,7 @@ export default function InvestigationsTab({ consultation }) {
 
   const handleCreateInvestigation = async (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     if (!reason || !reason.trim()) {
       setErrorMessage('Reason for investigation is required.');
       return;
@@ -83,6 +84,7 @@ export default function InvestigationsTab({ consultation }) {
   };
 
   const openResultModal = (item) => {
+    if (isReadOnly) return;
     setActiveResultItem(item);
     setResultText(item.result || '');
     setResultAttachment(item.attachment || '');
@@ -91,7 +93,7 @@ export default function InvestigationsTab({ consultation }) {
 
   const handleSaveResult = async (e) => {
     e.preventDefault();
-    if (!activeResultItem) return;
+    if (isReadOnly || !activeResultItem) return;
 
     setSubmitting(true);
     setSuccessMessage('');
@@ -130,76 +132,78 @@ export default function InvestigationsTab({ consultation }) {
         </div>
       )}
 
-      {/* FORM: CREATE INVESTIGATION ORDER */}
-      <div className="card p-5 space-y-4">
-        <div className="border-b border-border pb-3">
-          <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-            <Search size={18} className="text-brand" /> Order Diagnostic Investigation
-          </h3>
-          <p className="text-xs text-ink-soft">
-            Request X-Rays (IOPAR/OPG), Blood Tests, or other diagnostic imaging.
-          </p>
+      {/* FORM: CREATE INVESTIGATION ORDER (Hidden when read-only) */}
+      {!isReadOnly && (
+        <div className="card p-5 space-y-4">
+          <div className="border-b border-border pb-3">
+            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+              <Search size={18} className="text-brand" /> Order Diagnostic Investigation
+            </h3>
+            <p className="text-xs text-ink-soft">
+              Request X-Rays (IOPAR/OPG), Blood Tests, or other diagnostic imaging.
+            </p>
+          </div>
+
+          <form onSubmit={handleCreateInvestigation} className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Investigation Type *</label>
+                <select
+                  className="input-field"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                >
+                  <option value="X-Ray">X-Ray (IOPAR / OPG / CBCT)</option>
+                  <option value="Blood Tests">Blood Tests (CBC / Bleeding Time)</option>
+                  <option value="Other">Other Diagnostic Test</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block font-semibold text-ink-soft mb-1">Reason / Region of Interest *</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. IOPAR wrt #16, Periapical evaluation, Bleeding Time test"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Clinical Notes & Instructions</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Special positioning or lab instructions..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Attachment URL (Optional)</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="https://... file reference URL"
+                  value={attachment}
+                  onChange={(e) => setAttachment(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-border">
+              <button type="submit" disabled={submitting} className="btn-primary">
+                <Plus size={16} />
+                <span>{submitting ? 'Ordering...' : 'Order Investigation'}</span>
+              </button>
+            </div>
+          </form>
         </div>
-
-        <form onSubmit={handleCreateInvestigation} className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Investigation Type *</label>
-              <select
-                className="input-field"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                <option value="X-Ray">X-Ray (IOPAR / OPG / CBCT)</option>
-                <option value="Blood Tests">Blood Tests (CBC / Bleeding Time)</option>
-                <option value="Other">Other Diagnostic Test</option>
-              </select>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block font-semibold text-ink-soft mb-1">Reason / Region of Interest *</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="e.g. IOPAR wrt #16, Periapical evaluation, Bleeding Time test"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Clinical Notes & Instructions</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Special positioning or lab instructions..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Attachment URL (Optional)</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="https://... file reference URL"
-                value={attachment}
-                onChange={(e) => setAttachment(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-2 border-t border-border">
-            <button type="submit" disabled={submitting} className="btn-primary">
-              <Plus size={16} />
-              <span>{submitting ? 'Ordering...' : 'Order Investigation'}</span>
-            </button>
-          </div>
-        </form>
-      </div>
+      )}
 
       {/* RUNNING LIST OF INVESTIGATIONS */}
       <div className="card p-5 space-y-4">

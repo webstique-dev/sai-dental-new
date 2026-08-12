@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 
-export default function PrescriptionsTab({ consultation }) {
+export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
 
@@ -40,6 +40,7 @@ export default function PrescriptionsTab({ consultation }) {
   }, [consultationId]);
 
   const handleAddRow = () => {
+    if (isReadOnly) return;
     setMedicines([
       ...medicines,
       { medicine: '', dosage: '', frequency: '', duration: '', instructions: '' },
@@ -47,11 +48,12 @@ export default function PrescriptionsTab({ consultation }) {
   };
 
   const handleRemoveRow = (index) => {
-    if (medicines.length === 1) return;
+    if (isReadOnly || medicines.length === 1) return;
     setMedicines(medicines.filter((_, i) => i !== index));
   };
 
   const handleRowChange = (index, field, value) => {
+    if (isReadOnly) return;
     const updated = [...medicines];
     updated[index][field] = value;
     setMedicines(updated);
@@ -59,6 +61,7 @@ export default function PrescriptionsTab({ consultation }) {
 
   const handleSavePrescription = async (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
     const validMedicines = medicines.filter((m) => m.medicine && m.medicine.trim());
     if (validMedicines.length === 0) {
       setErrorMessage('Please add at least one medicine name.');
@@ -108,104 +111,106 @@ export default function PrescriptionsTab({ consultation }) {
         </div>
       )}
 
-      {/* FORM: REPEATABLE MEDICINES PRESCRIPTION FORM */}
-      <div className="card p-5 space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div>
-            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-              <Pill size={18} className="text-brand" /> Issue New Prescription (Rx)
-            </h3>
-            <p className="text-xs text-ink-soft">
-              Add multiple medicine rows with dosage, frequency, duration, and instructions.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleAddRow}
-            className="btn-secondary text-xs flex items-center gap-1"
-          >
-            <Plus size={14} /> Add Medicine Row
-          </button>
-        </div>
-
-        <form onSubmit={handleSavePrescription} className="space-y-4">
-          <div className="space-y-2 border border-border rounded-xl p-3 bg-bg/30 max-h-72 overflow-y-auto">
-            <div className="grid grid-cols-12 gap-2 text-xs font-bold text-ink-soft uppercase px-1 pb-1 border-b border-border/50">
-              <span className="col-span-4">Medicine Name *</span>
-              <span className="col-span-2">Dosage</span>
-              <span className="col-span-2">Frequency</span>
-              <span className="col-span-2">Duration</span>
-              <span className="col-span-2">Action</span>
+      {/* FORM: REPEATABLE MEDICINES PRESCRIPTION FORM (Hidden when read-only) */}
+      {!isReadOnly && (
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div>
+              <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+                <Pill size={18} className="text-brand" /> Issue New Prescription (Rx)
+              </h3>
+              <p className="text-xs text-ink-soft">
+                Add multiple medicine rows with dosage, frequency, duration, and instructions.
+              </p>
             </div>
 
-            {medicines.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
-                <div className="col-span-4">
-                  <input
-                    type="text"
-                    className="input-field py-1.5 text-xs"
-                    placeholder="Medicine Name (e.g. Amoxicillin)"
-                    value={item.medicine}
-                    onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    className="input-field py-1.5 text-xs"
-                    placeholder="Dosage (500mg)"
-                    value={item.dosage}
-                    onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    className="input-field py-1.5 text-xs"
-                    placeholder="Freq (1-0-1)"
-                    value={item.frequency}
-                    onChange={(e) => handleRowChange(idx, 'frequency', e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    className="input-field py-1.5 text-xs"
-                    placeholder="Duration (5 days)"
-                    value={item.duration}
-                    onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2 flex items-center justify-between gap-1">
-                  <input
-                    type="text"
-                    className="input-field py-1.5 text-xs"
-                    placeholder="Instructions (After food)"
-                    value={item.instructions}
-                    onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    disabled={medicines.length === 1}
-                    onClick={() => handleRemoveRow(idx)}
-                    className="p-1 text-ink-soft hover:text-rose-600 disabled:opacity-30 shrink-0"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-end">
-            <button type="submit" disabled={submitting} className="btn-primary">
-              <Pill size={16} />
-              <span>{submitting ? 'Saving Prescription...' : 'Issue Prescription'}</span>
+            <button
+              type="button"
+              onClick={handleAddRow}
+              className="btn-secondary text-xs flex items-center gap-1"
+            >
+              <Plus size={14} /> Add Medicine Row
             </button>
           </div>
-        </form>
-      </div>
+
+          <form onSubmit={handleSavePrescription} className="space-y-4">
+            <div className="space-y-2 border border-border rounded-xl p-3 bg-bg/30 max-h-72 overflow-y-auto">
+              <div className="grid grid-cols-12 gap-2 text-xs font-bold text-ink-soft uppercase px-1 pb-1 border-b border-border/50">
+                <span className="col-span-4">Medicine Name *</span>
+                <span className="col-span-2">Dosage</span>
+                <span className="col-span-2">Frequency</span>
+                <span className="col-span-2">Duration</span>
+                <span className="col-span-2">Action</span>
+              </div>
+
+              {medicines.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
+                  <div className="col-span-4">
+                    <input
+                      type="text"
+                      className="input-field py-1.5 text-xs"
+                      placeholder="Medicine Name (e.g. Amoxicillin)"
+                      value={item.medicine}
+                      onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="text"
+                      className="input-field py-1.5 text-xs"
+                      placeholder="Dosage (500mg)"
+                      value={item.dosage}
+                      onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="text"
+                      className="input-field py-1.5 text-xs"
+                      placeholder="Freq (1-0-1)"
+                      value={item.frequency}
+                      onChange={(e) => handleRowChange(idx, 'frequency', e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="text"
+                      className="input-field py-1.5 text-xs"
+                      placeholder="Duration (5 days)"
+                      value={item.duration}
+                      onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between gap-1">
+                    <input
+                      type="text"
+                      className="input-field py-1.5 text-xs"
+                      placeholder="Instructions (After food)"
+                      value={item.instructions}
+                      onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      disabled={medicines.length === 1}
+                      onClick={() => handleRemoveRow(idx)}
+                      className="p-1 text-ink-soft hover:text-rose-600 disabled:opacity-30 shrink-0"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <button type="submit" disabled={submitting} className="btn-primary">
+                <Pill size={16} />
+                <span>{submitting ? 'Saving Prescription...' : 'Issue Prescription'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* SAVED PRESCRIPTIONS PRINT-READY LIST */}
       <div className="card p-5 space-y-4">

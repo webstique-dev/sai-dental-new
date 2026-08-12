@@ -1,4 +1,5 @@
 const ToothRecord = require('../models/ToothRecord');
+const { checkConsultationNotClosed } = require('./consultationController');
 
 const ALL_FDI_TEETH = [
   // Upper Right (18 - 11)
@@ -46,6 +47,11 @@ async function getPatientToothChart(req, res, next) {
 // Helper to push history entry and update current condition
 async function applyToothUpdate(patientId, toothNum, body, userId) {
   const { condition, treatment, notes, consultationId } = body;
+
+  // Immutability Guard
+  if (consultationId) {
+    await checkConsultationNotClosed(consultationId);
+  }
 
   let record = await ToothRecord.findOne({
     patient: patientId,

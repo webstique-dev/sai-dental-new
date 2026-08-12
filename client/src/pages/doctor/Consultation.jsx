@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, UserSquare2, Phone, Calendar, Stethoscope, FileText,
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
+  Check, Lock, X, LogOut,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
@@ -23,10 +24,16 @@ const CLINICAL_TABS = [
 
 export default function Consultation() {
   const { consultationId } = useParams();
+  const navigate = useNavigate();
+
   const [consultation, setConsultation] = useState(null);
   const [activeTab, setActiveTab] = useState('examination');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Close Consultation Modal State
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     async function fetchConsultation() {
@@ -45,6 +52,19 @@ export default function Consultation() {
       fetchConsultation();
     }
   }, [consultationId]);
+
+  const handleConfirmClose = async () => {
+    setClosing(true);
+    try {
+      await api.post(`/consultations/${consultationId}/close`);
+      setShowCloseModal(false);
+      navigate('/doctor/queue');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to close consultation.');
+    } finally {
+      setClosing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -73,18 +93,43 @@ export default function Consultation() {
 
   const patient = consultation.patient || {};
   const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+  const isCompleted = consultation.status === 'Completed';
 
   return (
     <div className="space-y-6 max-w-6xl">
-      {/* Back Link */}
-      <div>
+      {/* Top Header Navigation & Action Bar */}
+      <div className="flex items-center justify-between">
         <Link
           to="/doctor/queue"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline mb-1"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
         >
           <ArrowLeft size={15} /> Back to My Queue
         </Link>
+
+        {!isCompleted ? (
+          <button
+            onClick={() => setShowCloseModal(true)}
+            className="btn-primary bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 text-xs"
+          >
+            <CheckCircle2 size={16} /> Close Consultation
+          </button>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+            <Lock size={14} className="text-emerald-600" /> Closed & Read-Only
+          </div>
+        )}
       </div>
+
+      {/* Read-Only Notice Banner if Completed */}
+      {isCompleted && (
+        <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs font-medium text-amber-900 border border-amber-200">
+          <Lock size={16} className="text-amber-700 shrink-0" />
+          <span>
+            This consultation was completed and closed on{' '}
+            {consultation.closedAt ? new Date(consultation.closedAt).toLocaleString() : 'earlier visit'}. Clinical records are locked and cannot be edited.
+          </span>
+        </div>
+      )}
 
       {/* Patient Header Card */}
       <div className="card p-5 space-y-4 bg-surface border-brand/20">
@@ -96,7 +141,13 @@ export default function Consultation() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-xl font-bold text-ink">{fullName}</h2>
-                <span className="badge bg-purple-100 text-purple-800 border border-purple-200">
+                <span
+                  className={`badge border ${
+                    isCompleted
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                      : 'bg-purple-100 text-purple-800 border-purple-200'
+                  }`}
+                >
                   {consultation.status}
                 </span>
               </div>
@@ -173,33 +224,71 @@ export default function Consultation() {
 
         {/* ACTIVE TAB CONTENT */}
         {activeTab === 'examination' ? (
-          <ExaminationTab consultation={consultation} />
+          <ExaminationTab consultation={consultation} isReadOnly={isCompleted} />
         ) : activeTab === 'tooth-chart' ? (
           <ToothChart
             patientId={consultation.patient?._id || consultation.patient?.id}
             consultationId={consultation._id || consultation.id}
+            isReadOnly={isCompleted}
           />
         ) : activeTab === 'diagnosis' ? (
-          <DiagnosisTab consultation={consultation} />
+          <DiagnosisTab consultation={consultation} isReadOnly={isCompleted} />
         ) : activeTab === 'treatment-plan' ? (
-          <TreatmentPlanTab consultation={consultation} />
+          <TreatmentPlanTab consultation={consultation} isReadOnly={isCompleted} />
         ) : activeTab === 'prescriptions' ? (
-          <PrescriptionsTab consultation={consultation} />
+          <PrescriptionsTab consultation={consultation} isReadOnly={isCompleted} />
         ) : activeTab === 'investigations' ? (
-          <InvestigationsTab consultation={consultation} />
+          <InvestigationsTab consultation={consultation} isReadOnly={isCompleted} />
         ) : (
           <div className="card p-8 text-center space-y-3">
             <Stethoscope size={36} className="mx-auto text-brand/60" />
             <h3 className="font-display text-base font-bold text-ink">
               {CLINICAL_TABS.find((t) => t.id === activeTab)?.label} Module
             </h3>
-            <p className="text-xs text-ink-soft max-w-md mx-auto">
-              Clinical entries for {CLINICAL_TABS.find((t) => t.id === activeTab)?.label} reference Consultation ID{' '}
-              <span className="font-mono text-brand font-bold">{consultation._id}</span>.
-            </p>
           </div>
         )}
       </div>
+
+      {/* CONFIRM CLOSE CONSULTATION DIALOG */}
+      {showCloseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+          <div className="card w-full max-w-md p-6 space-y-4 bg-surface">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <CheckCircle2 size={20} className="text-emerald-600" /> Close Consultation
+              </h3>
+              <button onClick={() => setShowCloseModal(false)} className="rounded-lg p-1 hover:bg-bg">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="text-xs text-ink space-y-2">
+              <p className="font-semibold text-ink">Are you sure you want to close this consultation?</p>
+              <p className="text-ink-soft">
+                Closing this consultation will mark the visit as completed and lock clinical records for this patient. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                className="btn-secondary text-xs"
+                onClick={() => setShowCloseModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={closing}
+                className="btn-primary bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                onClick={handleConfirmClose}
+              >
+                {closing ? 'Closing...' : 'Confirm & Close Consultation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

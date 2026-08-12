@@ -9,6 +9,35 @@ function getTodayDateRange() {
   return { start, end };
 }
 
+// Immutability Guard Helper: Rejects write actions on closed consultations with HTTP 403
+async function checkConsultationNotClosed(consultationId) {
+  if (!consultationId) return;
+  const consultation = await Consultation.findById(consultationId);
+  if (consultation && consultation.status === 'Completed') {
+    const err = new Error('This consultation has been closed and cannot be modified. Reopening closed consultations is not supported.');
+    err.status = 403;
+    throw err;
+  }
+}
+
+// GET /api/consultations?patient=
+async function listConsultations(req, res, next) {
+  try {
+    const { patient } = req.query;
+    const filter = {};
+    if (patient) filter.patient = patient;
+
+    const consultations = await Consultation.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('doctor', 'name email specialization');
+
+    return res.json({ consultations });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/consultations/queue/today (Checked-In or With Doctor, doctor-scoped)
 async function getDoctorTodayQueue(req, res, next) {
   try {
@@ -124,8 +153,42 @@ async function getConsultationById(req, res, next) {
   }
 }
 
+// POST /api/consultations/:id/close (Sets status = Completed, closedAt = now, updates QueueEntry/Appointment)
+async function closeConsultation(req, res, next) {
+  try {
+    const consultation = await Consultation.findById(req.params.id);
+    if (!consultation) {
+      return res.status(404).json({ message: 'Consultation not found.' });
+    }
+
+    consultation.status = 'Completed';
+    consultation.closedAt = new Date();
+    await consultation.save();
+
+    // Flip linked QueueEntry status to Completed
+    if (consultation.queueEntry) {
+      await QueueEntry.findByIdAndUpdate(consultation.queueEntry, { status: 'Completed' });
+    }
+
+    // Flip linked Appointment status to Completed
+    if (consultation.appointment) {
+      await Appointment.findByIdAndUpdate(consultation.appointment, { status: 'Completed' });
+    }
+
+    return res.json({
+      message: 'Consultation closed successfully.',
+      consultation,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  listConsultations,
   getDoctorTodayQueue,
   startConsultation,
   getConsultationById,
+  closeConsultation,
+  checkConsultationNotClosed,
 };

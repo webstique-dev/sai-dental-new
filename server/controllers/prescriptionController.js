@@ -1,4 +1,5 @@
 const Prescription = require('../models/Prescription');
+const { checkConsultationNotClosed } = require('./consultationController');
 
 // GET /api/prescriptions?consultation=
 async function listPrescriptions(req, res, next) {
@@ -31,6 +32,9 @@ async function createPrescription(req, res, next) {
     if (!Array.isArray(medicines) || medicines.length === 0) {
       return res.status(400).json({ message: 'At least one medicine is required.' });
     }
+
+    // Immutability Guard
+    await checkConsultationNotClosed(consultation);
 
     const newPrescription = new Prescription({
       consultation,

@@ -1,4 +1,5 @@
 const Investigation = require('../models/Investigation');
+const { checkConsultationNotClosed } = require('./consultationController');
 
 // GET /api/investigations?consultation=
 async function listInvestigations(req, res, next) {
@@ -28,6 +29,9 @@ async function createInvestigation(req, res, next) {
     if (!consultation) {
       return res.status(400).json({ message: 'consultation is required.' });
     }
+
+    // Immutability Guard
+    await checkConsultationNotClosed(consultation);
 
     const newInvestigation = new Investigation({
       consultation,
@@ -64,6 +68,9 @@ async function updateInvestigation(req, res, next) {
     if (!item) {
       return res.status(404).json({ message: 'Investigation not found.' });
     }
+
+    // Immutability Guard
+    await checkConsultationNotClosed(item.consultation);
 
     if (type !== undefined) item.type = type;
     if (reason !== undefined) item.reason = reason.trim();

@@ -1,5 +1,6 @@
 const TreatmentPlan = require('../models/TreatmentPlan');
 const { applyToothUpdate } = require('./toothChartController');
+const { checkConsultationNotClosed } = require('./consultationController');
 
 // GET /api/treatment-plans?consultation=&patient=
 async function listTreatmentPlans(req, res, next) {
@@ -45,6 +46,9 @@ async function createTreatmentPlan(req, res, next) {
       return res.status(400).json({ message: 'Treatment name is required.' });
     }
 
+    // Immutability Guard
+    await checkConsultationNotClosed(consultation);
+
     const toothNum = tooth ? Number(tooth) : null;
     const targetStatus = status || 'Planned';
 
@@ -64,7 +68,6 @@ async function createTreatmentPlan(req, res, next) {
 
     await newPlan.save();
 
-    // Critical rule: If created directly with status Completed & tooth set, append tooth-chart history entry!
     if (targetStatus === 'Completed' && toothNum) {
       await applyToothUpdate(
         patient,
@@ -112,6 +115,9 @@ async function updateTreatmentPlan(req, res, next) {
       return res.status(404).json({ message: 'Treatment plan not found.' });
     }
 
+    // Immutability Guard
+    await checkConsultationNotClosed(plan.consultation);
+
     const oldStatus = plan.status;
     const newStatus = status !== undefined ? status : plan.status;
     const targetTooth = tooth !== undefined ? (tooth ? Number(tooth) : null) : plan.tooth;
@@ -127,7 +133,6 @@ async function updateTreatmentPlan(req, res, next) {
 
     await plan.save();
 
-    // Critical rule: When status transitions to 'Completed' and tooth is set, append to tooth-chart history!
     if (oldStatus !== 'Completed' && newStatus === 'Completed' && targetTooth) {
       await applyToothUpdate(
         plan.patient,
@@ -156,8 +161,62 @@ async function updateTreatmentPlan(req, res, next) {
   }
 }
 
+// PATCH /api/treatment-plans/:id/execute
+async function executeTreatmentPlan(req, res, next) {
+  try {
+    const { status, clinicalNotes } = req.body;
+
+    const plan = await TreatmentPlan.findById(req.params.id);
+    if (!plan) {
+      return res.status(404).json({ message: 'Treatment plan not found.' });
+    }
+
+    // Immutability Guard
+    await checkConsultationNotClosed(plan.consultation);
+
+    const oldStatus = plan.status;
+    const newStatus = status || 'Completed';
+
+    plan.status = newStatus;
+    if (clinicalNotes && clinicalNotes.trim()) {
+      plan.notes = plan.notes
+        ? `${plan.notes}\n[${new Date().toLocaleDateString()}] ${clinicalNotes.trim()}`
+        : clinicalNotes.trim();
+    }
+
+    await plan.save();
+
+    if (oldStatus !== 'Completed' && newStatus === 'Completed' && plan.tooth) {
+      await applyToothUpdate(
+        plan.patient,
+        plan.tooth,
+        {
+          condition: 'Restored',
+          treatment: plan.treatment,
+          notes: clinicalNotes || plan.notes || 'Treatment plan executed & completed',
+          consultationId: plan.consultation,
+        },
+        req.user ? req.user._id : undefined
+      );
+    }
+
+    const populated = await TreatmentPlan.findById(plan._id)
+      .populate('diagnosis', 'diagnosis clinicalFindings severity')
+      .populate('patient', 'firstName lastName opNumber')
+      .populate('recordedBy', 'name email');
+
+    return res.json({
+      message: 'Treatment plan execution updated',
+      treatmentPlan: populated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listTreatmentPlans,
   createTreatmentPlan,
   updateTreatmentPlan,
+  executeTreatmentPlan,
 };

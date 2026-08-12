@@ -1,4 +1,5 @@
 const Examination = require('../models/Examination');
+const { checkConsultationNotClosed } = require('./consultationController');
 
 // GET /api/examinations?consultation=
 async function getExamination(req, res, next) {
@@ -27,6 +28,9 @@ async function upsertExamination(req, res, next) {
     if (!consultation) {
       return res.status(400).json({ message: 'consultation is required.' });
     }
+
+    // Immutability Guard
+    await checkConsultationNotClosed(consultation);
 
     const payload = {
       consultation,
