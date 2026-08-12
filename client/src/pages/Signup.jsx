@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, Building2, Stethoscope, AlertTriangle, ArrowRight, UserPlus } from 'lucide-react';
+import { ShieldCheck, Building2, Stethoscope, AlertTriangle, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
 
 const ROLES_CONFIG = [
@@ -39,6 +39,8 @@ export default function Signup() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState('');
 
   const [error, setError] = useState('');
@@ -188,30 +190,50 @@ export default function Signup() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">Password * (Min 6 chars)</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  className="input-field font-mono"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    className="input-field font-mono pr-10"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-soft hover:text-ink"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">Confirm Password *</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  className={`input-field font-mono ${
-                    confirmPassword && password !== confirmPassword ? 'border-rose-400 focus:ring-rose-200' : ''
-                  }`}
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    className={`input-field font-mono pr-10 ${
+                      confirmPassword && password !== confirmPassword ? 'border-rose-400 focus:ring-rose-200' : ''
+                    }`}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-soft hover:text-ink"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 {confirmPassword && password !== confirmPassword && (
                   <p className="text-[11px] text-rose-600 font-semibold mt-1">Passwords do not match.</p>
                 )}
