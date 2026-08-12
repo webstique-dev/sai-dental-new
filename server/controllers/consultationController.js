@@ -193,6 +193,98 @@ async function closeConsultation(req, res, next) {
   }
 }
 
+// GET /api/consultations/doctor-summary?doctorId=
+async function getDoctorSummary(req, res, next) {
+  try {
+    let targetDoctorId = req.user ? req.user._id : null;
+    if (req.user && req.user.role === 'admin' && req.query.doctorId) {
+      targetDoctorId = req.query.doctorId;
+    }
+
+    const { start, end } = getTodayDateRange();
+
+    // 1. patientsInQueue: count of QueueEntry with status Waiting or Checked-In, assigned to this doctor, for today
+    const queueFilter = {
+      date: { $gte: start, $lte: end },
+      status: { $in: ['Waiting', 'Checked-In', 'Checked In'] },
+    };
+    if (targetDoctorId) {
+      queueFilter.doctor = targetDoctorId;
+    }
+    const patientsInQueue = await QueueEntry.countDocuments(queueFilter);
+
+    // 2. todaysConsultations: count of Consultation for this doctor with startedAt today (In Progress and Completed)
+    const consultFilter = {
+      startedAt: { $gte: start, $lte: end },
+    };
+    if (targetDoctorId) {
+      consultFilter.doctor = targetDoctorId;
+    }
+    const todaysConsultations = await Consultation.countDocuments(consultFilter);
+
+    // 3. activeTreatmentPlans: count of TreatmentPlan for this doctor's patients with status in [Planned, Approved, In Progress]
+    const TreatmentPlan = require('../models/TreatmentPlan');
+    const tpFilter = {
+      status: { $in: ['Planned', 'Approved', 'In Progress'] },
+    };
+    if (targetDoctorId) {
+      tpFilter.$or = [{ doctor: targetDoctorId }, { recordedBy: targetDoctorId }];
+    }
+    const activeTreatmentPlans = await TreatmentPlan.countDocuments(tpFilter);
+
+    // 4. followUpsDue: count of FollowUp with status Pending, recommendedDate <= today
+    // Note: FollowUp tracks createdBy (doctor). For complete coverage, we match createdBy or join via patient's consultations for this doctor.
+    const FollowUp = require('../models/FollowUp');
+    const fuFilter = {
+      status: 'Pending',
+      recommendedDate: { $lte: end },
+    };
+
+    if (targetDoctorId) {
+      const patientIdsForDoctor = await Consultation.distinct('patient', { doctor: targetDoctorId });
+      fuFilter.$or = [
+        { createdBy: targetDoctorId },
+        { patient: { $in: patientIdsForDoctor } },
+      ];
+    }
+    const followUpsDue = await FollowUp.countDocuments(fuFilter);
+
+    // 5. nextInQueue: single next patient in this doctor's queue (lowest token number with status Waiting or Checked-In today)
+    const nextQueueEntry = await QueueEntry.findOne(queueFilter)
+      .sort({ token: 1 })
+      .populate('patient', 'firstName lastName opNumber phone age sex');
+
+    let nextInQueue = null;
+    if (nextQueueEntry) {
+      nextInQueue = {
+        _id: nextQueueEntry._id,
+        id: nextQueueEntry._id,
+        token: nextQueueEntry.token,
+        checkInTime: nextQueueEntry.checkInTime || nextQueueEntry.createdAt,
+        patient: nextQueueEntry.patient
+          ? {
+              _id: nextQueueEntry.patient._id,
+              id: nextQueueEntry.patient._id,
+              firstName: nextQueueEntry.patient.firstName,
+              lastName: nextQueueEntry.patient.lastName,
+              opNumber: nextQueueEntry.patient.opNumber,
+            }
+          : null,
+      };
+    }
+
+    return res.json({
+      patientsInQueue,
+      todaysConsultations,
+      activeTreatmentPlans,
+      followUpsDue,
+      nextInQueue,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listConsultations,
   getDoctorTodayQueue,
@@ -200,4 +292,5 @@ module.exports = {
   getConsultationById,
   closeConsultation,
   checkConsultationNotClosed,
+  getDoctorSummary,
 };

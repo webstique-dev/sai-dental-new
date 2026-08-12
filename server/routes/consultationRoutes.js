@@ -5,6 +5,7 @@ const {
   startConsultation,
   getConsultationById,
   closeConsultation,
+  getDoctorSummary,
 } = require('../controllers/consultationController');
 const protect = require('../middleware/auth');
 const allowRoles = require('../middleware/roleCheck');
@@ -16,6 +17,7 @@ router.use(protect, allowRoles('doctor', 'admin'));
 
 router.get('/', listConsultations);
 router.get('/queue/today', getDoctorTodayQueue);
+router.get('/doctor-summary', getDoctorSummary);
 router.post('/start', startConsultation);
 router.get('/:id', getConsultationById);
 router.post('/:id/close', closeConsultation);
