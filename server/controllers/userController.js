@@ -77,7 +77,18 @@ async function disableUser(req, res) {
 async function listDoctors(req, res) {
   try {
     const doctors = await User.find({ role: 'doctor', status: 'active' }).select('name email phone specialization role');
-    res.json({ doctors: doctors.map((d) => d.toSafeObject()) });
+    res.json({
+      doctors: doctors.map((d) => ({
+        _id: d._id,
+        id: d._id,
+        name: d.name,
+        email: d.email,
+        phone: d.phone,
+        specialization: d.specialization,
+        role: d.role,
+        status: d.status,
+      })),
+    });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch doctors' });
   }

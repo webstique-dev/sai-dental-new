@@ -32,8 +32,8 @@ export default function ReceptionistDashboard() {
         <h3 className="font-display text-sm font-bold text-ink">Quick actions</h3>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link to="/reception/patients/register" className="btn-primary">Register Patient</Link>
-          <button className="btn-secondary">Book Appointment</button>
-          <button className="btn-secondary">Check In Patient</button>
+          <Link to="/reception/appointments" className="btn-secondary">Book Appointment</Link>
+          <Link to="/reception/queue" className="btn-secondary">Check In Patient</Link>
         </div>
       </div>
     </div>

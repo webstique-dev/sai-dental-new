@@ -121,9 +121,10 @@ export default function Appointments() {
   const openCreateModal = () => {
     setSelectedPatient(null);
     setPatientSearch('');
+    const firstDocId = doctors[0]?._id || doctors[0]?.id || '';
     setFormData({
       patient: '',
-      doctor: doctors[0]?._id || '',
+      doctor: firstDocId,
       date: new Date().toISOString().split('T')[0],
       time: '09:30',
       type: 'Appointment',
@@ -157,7 +158,7 @@ export default function Appointments() {
   const openEditModal = (apt) => {
     setEditingAppointment(apt);
     setFormData({
-      doctor: apt.doctor?._id || '',
+      doctor: apt.doctor?._id || apt.doctor?.id || '',
       date: apt.date ? new Date(apt.date).toISOString().split('T')[0] : '',
       time: apt.time || '',
       type: apt.type || 'Appointment',
@@ -294,11 +295,14 @@ export default function Appointments() {
             onChange={(e) => setDoctorFilter(e.target.value)}
           >
             <option value="">All Doctors</option>
-            {doctors.map((d) => (
-              <option key={d._id} value={d._id}>
-                Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-              </option>
-            ))}
+            {doctors.map((d) => {
+              const docId = d._id || d.id;
+              return (
+                <option key={docId} value={docId}>
+                  Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -346,13 +350,14 @@ export default function Appointments() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {appointments.map((apt) => {
+                    const aptId = apt._id || apt.id;
                     const patientName = apt.patient
                       ? `${apt.patient.firstName} ${apt.patient.lastName}`.trim()
                       : 'Unknown Patient';
                     const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned';
 
                     return (
-                      <tr key={apt._id} className="hover:bg-bg/60 transition-colors">
+                      <tr key={aptId} className="hover:bg-bg/60 transition-colors">
                         <td className="px-5 py-4 whitespace-nowrap">
                           <div className="font-semibold text-ink text-xs">
                             {formatDateDisplay(apt.date)}
@@ -500,12 +505,14 @@ export default function Appointments() {
                     {dayAppointments.length === 0 ? (
                       <p className="text-[11px] text-ink-soft italic pt-2">No slots</p>
                     ) : (
-                      dayAppointments.map((apt) => (
-                        <div
-                          key={apt._id}
-                          onClick={() => openEditModal(apt)}
-                          className="rounded-lg border border-border bg-bg/80 p-2 text-xs cursor-pointer hover:border-brand transition-colors"
-                        >
+                      dayAppointments.map((apt) => {
+                        const aptId = apt._id || apt.id;
+                        return (
+                          <div
+                            key={aptId}
+                            onClick={() => openEditModal(apt)}
+                            className="rounded-lg border border-border bg-bg/80 p-2 text-xs cursor-pointer hover:border-brand transition-colors"
+                          >
                           <div className="font-semibold text-ink truncate">
                             {apt.time || '—'} {apt.patient?.firstName}
                           </div>
@@ -520,7 +527,8 @@ export default function Appointments() {
                             {apt.status}
                           </span>
                         </div>
-                      ))
+                      );
+                    })
                     )}
                   </div>
                 </div>
@@ -576,20 +584,23 @@ export default function Appointments() {
                     />
                     {patientOptions.length > 0 && (
                       <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-xl border border-border bg-surface shadow-card max-h-48 overflow-y-auto">
-                        {patientOptions.map((p) => (
-                          <div
-                            key={p._id}
-                            onClick={() => {
-                              setSelectedPatient(p);
-                              setPatientSearch('');
-                              setPatientOptions([]);
-                            }}
-                            className="p-3 text-xs border-b border-border/50 hover:bg-brand-light/30 cursor-pointer"
-                          >
-                            <span className="font-bold text-ink">{p.firstName} {p.lastName}</span>{' '}
-                            <span className="text-brand font-mono">({p.opNumber})</span> — {p.phone || 'No phone'}
-                          </div>
-                        ))}
+                        {patientOptions.map((p) => {
+                          const pId = p._id || p.id;
+                          return (
+                            <div
+                              key={pId}
+                              onClick={() => {
+                                setSelectedPatient(p);
+                                setPatientSearch('');
+                                setPatientOptions([]);
+                              }}
+                              className="p-3 text-xs border-b border-border/50 hover:bg-brand-light/30 cursor-pointer"
+                            >
+                              <span className="font-bold text-ink">{p.firstName} {p.lastName}</span>{' '}
+                              <span className="text-brand font-mono">({p.opNumber})</span> — {p.phone || 'No phone'}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -605,11 +616,14 @@ export default function Appointments() {
                   onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
                 >
                   <option value="">Select Doctor</option>
-                  {doctors.map((d) => (
-                    <option key={d._id} value={d._id}>
-                      Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                    </option>
-                  ))}
+                  {doctors.map((d) => {
+                    const docId = d._id || d.id;
+                    return (
+                      <option key={docId} value={docId}>
+                        Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -726,11 +740,14 @@ export default function Appointments() {
                   onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
                 >
                   <option value="">Select Doctor</option>
-                  {doctors.map((d) => (
-                    <option key={d._id} value={d._id}>
-                      Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                    </option>
-                  ))}
+                  {doctors.map((d) => {
+                    const docId = d._id || d.id;
+                    return (
+                      <option key={docId} value={docId}>
+                        Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

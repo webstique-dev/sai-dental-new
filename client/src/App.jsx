@@ -19,6 +19,7 @@ import Patients from './pages/receptionist/Patients.jsx';
 import PatientRegistration from './pages/receptionist/PatientRegistration.jsx';
 import PatientDetail from './pages/receptionist/PatientDetail.jsx';
 import Appointments from './pages/receptionist/Appointments.jsx';
+import Queue from './pages/receptionist/Queue.jsx';
 import DoctorDashboard from './pages/doctor/DoctorDashboard.jsx';
 
 // Small helper so Phase 2+ pages (not yet built) render a clean
@@ -66,7 +67,7 @@ export default function App() {
           <Route path="/reception/patients/register" element={<PatientRegistration />} />
           <Route path="/reception/patients/:id" element={<PatientDetail />} />
           <Route path="/reception/appointments" element={<Appointments />} />
-          <Route path="/reception/queue" element={stub('Check-In / Queue', 'Walk-in and check-in queue. Coming in Phase 2.', ClipboardList)} />
+          <Route path="/reception/queue" element={<Queue />} />
           <Route path="/reception/billing" element={stub('Billing & Payments', 'Invoices and payment collection. Coming in Phase 2.', Wallet)} />
           <Route path="/reception/follow-ups" element={stub('Follow-Ups', 'Recall and follow-up reminders. Coming in Phase 2.', Bell)} />
           <Route path="/reception/reports" element={stub('Reports', 'Front-desk operational reports. Coming in Phase 2.', FileBarChart)} />
