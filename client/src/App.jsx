@@ -17,6 +17,7 @@ import AdminUsers from './pages/admin/AdminUsers.jsx';
 import ClinicSettings from './pages/admin/ClinicSettings.jsx';
 import AdminDocuments from './pages/admin/Documents.jsx';
 import AuditLogs from './pages/admin/AuditLogs.jsx';
+import Reports from './pages/admin/Reports.jsx';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard.jsx';
 import Patients from './pages/receptionist/Patients.jsx';
 import PatientRegistration from './pages/receptionist/PatientRegistration.jsx';
@@ -60,7 +61,7 @@ export default function App() {
           <Route path="/admin/doctors" element={stub('Doctors', 'Doctor schedules and specializations. Coming in Phase 2.', Stethoscope)} />
           <Route path="/admin/billing" element={stub('Billing', 'Clinic-wide billing overview. Coming in Phase 2.', Wallet)} />
           <Route path="/admin/treatments" element={stub('Treatments', 'Treatment and procedure catalog. Coming in Phase 2.', Activity)} />
-          <Route path="/admin/reports" element={stub('Reports & Analytics', 'Revenue, patient, and treatment analytics. Coming in Phase 2.', FileBarChart)} />
+          <Route path="/admin/reports" element={<Reports />} />
           <Route path="/admin/settings" element={<ClinicSettings />} />
           <Route path="/admin/documents" element={<AdminDocuments />} />
           <Route path="/admin/audit-logs" element={<AuditLogs />} />
