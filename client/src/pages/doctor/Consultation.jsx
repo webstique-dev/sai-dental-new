@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
+import ToothChart from './consultation/ToothChart.jsx';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
@@ -169,6 +170,11 @@ export default function Consultation() {
         {/* ACTIVE TAB CONTENT */}
         {activeTab === 'examination' ? (
           <ExaminationTab consultation={consultation} />
+        ) : activeTab === 'tooth-chart' ? (
+          <ToothChart
+            patientId={consultation.patient?._id || consultation.patient?.id}
+            consultationId={consultation._id || consultation.id}
+          />
         ) : (
           <div className="card p-8 text-center space-y-3">
             <Stethoscope size={36} className="mx-auto text-brand/60" />
