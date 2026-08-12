@@ -24,6 +24,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
 
   const [treatmentPlans, setTreatmentPlans] = useState([]);
   const [diagnosesOptions, setDiagnosesOptions] = useState([]);
+  const [catalogItems, setCatalogItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
@@ -46,12 +47,14 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
     if (!consultationId) return;
     try {
       setLoading(true);
-      const [plansRes, diagRes] = await Promise.all([
+      const [plansRes, diagRes, catalogRes] = await Promise.all([
         api.get(`/treatment-plans?consultation=${consultationId}`),
         api.get(`/diagnoses?consultation=${consultationId}`),
+        api.get('/treatments?active=true').catch(() => ({ data: { treatments: [] } })),
       ]);
       setTreatmentPlans(plansRes.data?.treatmentPlans || []);
       setDiagnosesOptions(diagRes.data?.diagnoses || []);
+      setCatalogItems(catalogRes.data?.treatments || []);
     } catch (err) {
       console.error('Failed to load treatment plans:', err);
     } finally {
@@ -167,11 +170,26 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                 <label className="block font-semibold text-ink-soft mb-1">Treatment Procedure Name *</label>
                 <input
                   type="text"
+                  list="doctor-treatment-catalog-list"
                   className="input-field"
                   placeholder="e.g. Root Canal Therapy, Composite Restoration, Scaling & Polishing"
                   value={treatmentName}
-                  onChange={(e) => setTreatmentName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTreatmentName(val);
+                    const match = catalogItems.find((c) => c.name.toLowerCase() === val.toLowerCase());
+                    if (match && match.defaultCost !== undefined) {
+                      setEstimatedCost(match.defaultCost);
+                    }
+                  }}
                 />
+                <datalist id="doctor-treatment-catalog-list">
+                  {catalogItems.map((item) => (
+                    <option key={item._id || item.id} value={item.name}>
+                      {item.category ? `[${item.category}] ` : ''}₹{item.defaultCost || 0}
+                    </option>
+                  ))}
+                </datalist>
               </div>
 
               <div>

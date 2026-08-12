@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { DatabaseBackup, Download, CheckCircle2, ShieldAlert, FileCode, Clock, Server, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { DatabaseBackup, Download, CheckCircle2, ShieldAlert, FileSpreadsheet, Clock, Server } from 'lucide-react';
 import api from '../../api/axios.js';
 
 export default function Backup() {
@@ -18,9 +18,11 @@ export default function Backup() {
     try {
       const res = await api.get('/backup/export', { responseType: 'blob' });
       const todayStr = new Date().toISOString().split('T')[0];
-      const filename = `dental_clinic_backup_${todayStr}.json`;
+      const filename = `clinic-backup-${todayStr}.xlsx`;
 
-      const blob = new Blob([res.data], { type: 'application/json' });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -33,10 +35,10 @@ export default function Backup() {
       const nowIso = new Date().toLocaleString();
       localStorage.setItem('dental_last_backup_time', nowIso);
       setLastBackupTime(nowIso);
-      setSuccessMessage('Clinic backup JSON successfully generated and downloaded.');
+      setSuccessMessage('Clinic Excel workbook backup successfully generated and downloaded.');
     } catch (err) {
       console.error('Backup download failed:', err);
-      setErrorMessage('Failed to generate clinic backup. Please try again.');
+      setErrorMessage('Failed to generate clinic Excel backup. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -47,10 +49,10 @@ export default function Backup() {
       {/* Header Banner */}
       <div>
         <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-          <DatabaseBackup size={26} className="text-brand" /> Clinic Data Backup & Export
+          <DatabaseBackup size={26} className="text-brand" /> Clinic Data Backup & Excel Export
         </h1>
         <p className="text-xs text-ink-soft mt-0.5">
-          Generate an instant snapshot export of all clinic patients, clinical charts, billing records, and settings.
+          Generate a single multi-sheet Excel workbook (.xlsx) containing clinical, financial, and patient records.
         </p>
       </div>
 
@@ -59,20 +61,20 @@ export default function Backup() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
           <div className="space-y-1">
             <h2 className="font-display text-base font-bold text-ink flex items-center gap-2">
-              <FileCode className="text-brand" size={18} /> Manual JSON Backup Export
+              <FileSpreadsheet className="text-emerald-700" size={20} /> Excel Workbook (.xlsx) Backup
             </h2>
             <p className="text-xs text-ink-soft">
-              Creates a structured JSON document containing full relational clinic records.
+              Includes frozen styled headers, auto-fit columns, Excel date & currency formatting, and auto-filters.
             </p>
           </div>
 
           <button
             disabled={downloading}
             onClick={handleDownloadBackup}
-            className="btn-primary py-2.5 px-5 text-xs font-bold flex items-center justify-center gap-2 shadow-sm shrink-0"
+            className="btn-primary bg-emerald-700 hover:bg-emerald-800 border-transparent py-2.5 px-5 text-xs font-bold flex items-center justify-center gap-2 shadow-sm shrink-0"
           >
             <Download size={16} className={downloading ? 'animate-bounce' : ''} />
-            {downloading ? 'Generating JSON Export...' : 'Download Clinic Backup'}
+            {downloading ? 'Building Excel Workbook...' : 'Download Backup (Excel)'}
           </button>
         </div>
 
@@ -108,19 +110,19 @@ export default function Backup() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="card p-5 space-y-3">
           <h3 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
-            <Server size={15} className="text-brand" /> Included Data Collections
+            <Server size={15} className="text-brand" /> Excel Workbook Sheets Included
           </h3>
           <ul className="text-xs text-ink space-y-2">
             {[
-              'Patients Directory & Medical Histories',
-              'Appointments & Queue Entries',
-              'Invoices & Payment Log History',
-              'Doctor Consultations & Examinations',
-              'FDI Tooth Chart Condition Records',
-              'Diagnoses, Treatment Plans & Procedures',
-              'Prescriptions & Investigation Orders',
-              'Follow-Up Schedules & Patient Notes',
-              'Clinical Document Metadata & Clinic Settings',
+              'Summary — Cover sheet with clinic metadata & collection record counts',
+              'Patients — OP #, age, sex, phone, address, registration dates, & histories',
+              'Appointments — Patient & doctor names, dates, times, reasons, & status',
+              'Invoices — Itemized services, discounts, taxes, totals, paid, & balances',
+              'TreatmentPlans — FDI teeth, procedure estimates, priorities, & statuses',
+              'Consultations — Doctor visit logs, start timestamps, & close times',
+              'Diagnoses — Clinical findings, severity, & affected tooth numbers',
+              'Prescriptions — Flattened medicine schedules & dosages per patient',
+              'FollowUps — Scheduled return dates, reasons, & pending status',
             ].map((item, idx) => (
               <li key={idx} className="flex items-start gap-2 text-ink-soft">
                 <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />

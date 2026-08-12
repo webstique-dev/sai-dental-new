@@ -47,12 +47,18 @@ export default function Billing() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
 
-  // Fetch doctors & invoices
+  const [catalogItems, setCatalogItems] = useState([]);
+
+  // Fetch doctors & catalog items
   const fetchDoctors = async () => {
     try {
-      const res = await api.get('/users/doctors');
-      const docs = res.data?.doctors || [];
+      const [docRes, catRes] = await Promise.all([
+        api.get('/users/doctors'),
+        api.get('/treatments?active=true').catch(() => ({ data: { treatments: [] } })),
+      ]);
+      const docs = docRes.data?.doctors || [];
       setDoctors(docs);
+      setCatalogItems(catRes.data?.treatments || []);
       if (docs.length > 0) {
         setSelectedDoctorId(docs[0]._id || docs[0].id);
       }
@@ -517,11 +523,31 @@ export default function Billing() {
                       <div className="col-span-5">
                         <input
                           type="text"
+                          list="receptionist-treatment-catalog-list"
                           className="input-field py-1.5 text-xs"
                           placeholder="Service / Procedure"
                           value={item.service}
-                          onChange={(e) => handleItemChange(idx, 'service', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleItemChange(idx, 'service', val);
+                            const match = catalogItems.find((c) => c.name.toLowerCase() === val.toLowerCase());
+                            if (match) {
+                              if (match.defaultCost !== undefined) {
+                                handleItemChange(idx, 'unitPrice', match.defaultCost);
+                              }
+                              if (match.category) {
+                                handleItemChange(idx, 'treatment', match.category);
+                              }
+                            }
+                          }}
                         />
+                        <datalist id="receptionist-treatment-catalog-list">
+                          {catalogItems.map((c) => (
+                            <option key={c._id || c.id} value={c.name}>
+                              {c.category ? `[${c.category}] ` : ''}₹{c.defaultCost || 0}
+                            </option>
+                          ))}
+                        </datalist>
                       </div>
                       <div className="col-span-3">
                         <input
