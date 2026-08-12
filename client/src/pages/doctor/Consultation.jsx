@@ -9,6 +9,8 @@ import ExaminationTab from './consultation/ExaminationTab.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
 import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
+import PrescriptionsTab from './consultation/PrescriptionsTab.jsx';
+import InvestigationsTab from './consultation/InvestigationsTab.jsx';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
@@ -181,6 +183,10 @@ export default function Consultation() {
           <DiagnosisTab consultation={consultation} />
         ) : activeTab === 'treatment-plan' ? (
           <TreatmentPlanTab consultation={consultation} />
+        ) : activeTab === 'prescriptions' ? (
+          <PrescriptionsTab consultation={consultation} />
+        ) : activeTab === 'investigations' ? (
+          <InvestigationsTab consultation={consultation} />
         ) : (
           <div className="card p-8 text-center space-y-3">
             <Stethoscope size={36} className="mx-auto text-brand/60" />
