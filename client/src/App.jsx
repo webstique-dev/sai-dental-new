@@ -14,6 +14,7 @@ import Login from './pages/Login.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminUsers from './pages/admin/AdminUsers.jsx';
+import ClinicSettings from './pages/admin/ClinicSettings.jsx';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard.jsx';
 import Patients from './pages/receptionist/Patients.jsx';
 import PatientRegistration from './pages/receptionist/PatientRegistration.jsx';
@@ -58,7 +59,7 @@ export default function App() {
           <Route path="/admin/billing" element={stub('Billing', 'Clinic-wide billing overview. Coming in Phase 2.', Wallet)} />
           <Route path="/admin/treatments" element={stub('Treatments', 'Treatment and procedure catalog. Coming in Phase 2.', Activity)} />
           <Route path="/admin/reports" element={stub('Reports & Analytics', 'Revenue, patient, and treatment analytics. Coming in Phase 2.', FileBarChart)} />
-          <Route path="/admin/settings" element={stub('Clinic Settings', 'Clinic profile, hours, and configuration. Coming in Phase 2.', Settings)} />
+          <Route path="/admin/settings" element={<ClinicSettings />} />
           <Route path="/admin/audit-logs" element={stub('Audit Logs', 'Full activity trail across the system. Coming in Phase 2.', ScrollText)} />
           <Route path="/admin/backup" element={stub('Backup', 'Data backup and export tools. Coming in Phase 2.', DatabaseBackup)} />
         </Route>
