@@ -312,10 +312,53 @@ async function getDoctorAnalytics(req, res, next) {
   }
 }
 
+// GET /api/reports/admin-overview (Admin Overview Dashboard Stats)
+async function getAdminOverview(req, res, next) {
+  try {
+    const { start: startToday, end: endToday } = getTodayDateRange();
+
+    // 1. Today's Appointments across all doctors today
+    const todaysAppointments = await Appointment.countDocuments({
+      date: { $gte: startToday, $lte: endToday },
+    });
+
+    // 2. Active Patients: Defined as total registered patients in the clinic database
+    const activePatients = await Patient.countDocuments();
+
+    // 3. Revenue This Month: sum of Invoice.amountPaid for invoices created in current calendar month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const monthInvoices = await Invoice.find({
+      createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+    });
+
+    const revenueThisMonth = monthInvoices.reduce((acc, inv) => acc + (inv.amountPaid || 0), 0);
+
+    // 4. Doctors On Duty: Count of active doctor staff accounts in system.
+    // Tradeoff note: We count active doctor accounts (status !== 'inactive').
+    const doctorsOnDuty = await User.countDocuments({
+      role: 'doctor',
+      status: { $ne: 'inactive' },
+    });
+
+    return res.json({
+      todaysAppointments,
+      activePatients,
+      revenueThisMonth,
+      doctorsOnDuty,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getReceptionSummary,
   getClinicPerformance,
   getFinancialReport,
   getTreatmentAnalytics,
   getDoctorAnalytics,
+  getAdminOverview,
 };

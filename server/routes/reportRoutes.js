@@ -5,6 +5,7 @@ const {
   getFinancialReport,
   getTreatmentAnalytics,
   getDoctorAnalytics,
+  getAdminOverview,
 } = require('../controllers/reportController');
 const protect = require('../middleware/auth');
 const allowRoles = require('../middleware/roleCheck');
@@ -15,6 +16,7 @@ const router = express.Router();
 router.get('/reception-summary', protect, allowRoles('receptionist', 'admin'), getReceptionSummary);
 
 // Full admin analytics — admin only
+router.get('/admin-overview', protect, allowRoles('admin'), getAdminOverview);
 router.get('/clinic-performance', protect, allowRoles('admin'), getClinicPerformance);
 router.get('/financial', protect, allowRoles('admin'), getFinancialReport);
 router.get('/treatment-analytics', protect, allowRoles('admin'), getTreatmentAnalytics);
