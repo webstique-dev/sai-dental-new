@@ -5,6 +5,7 @@ import {
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import ExaminationTab from './consultation/ExaminationTab.jsx';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
@@ -142,7 +143,7 @@ export default function Consultation() {
         </div>
       </div>
 
-      {/* CLINICAL TAB BAR PLACEHOLDERS */}
+      {/* CLINICAL TAB BAR */}
       <div className="space-y-4">
         <div className="flex border-b border-border space-x-1 overflow-x-auto">
           {CLINICAL_TABS.map((tab) => {
@@ -165,17 +166,21 @@ export default function Consultation() {
           })}
         </div>
 
-        {/* TAB CONTENT PLACEHOLDER */}
-        <div className="card p-8 text-center space-y-3">
-          <Stethoscope size={36} className="mx-auto text-brand/60" />
-          <h3 className="font-display text-base font-bold text-ink">
-            {CLINICAL_TABS.find((t) => t.id === activeTab)?.label} Module
-          </h3>
-          <p className="text-xs text-ink-soft max-w-md mx-auto">
-            Clinical entries for {CLINICAL_TABS.find((t) => t.id === activeTab)?.label} reference Consultation ID{' '}
-            <span className="font-mono text-brand font-bold">{consultation._id}</span>.
-          </p>
-        </div>
+        {/* ACTIVE TAB CONTENT */}
+        {activeTab === 'examination' ? (
+          <ExaminationTab consultation={consultation} />
+        ) : (
+          <div className="card p-8 text-center space-y-3">
+            <Stethoscope size={36} className="mx-auto text-brand/60" />
+            <h3 className="font-display text-base font-bold text-ink">
+              {CLINICAL_TABS.find((t) => t.id === activeTab)?.label} Module
+            </h3>
+            <p className="text-xs text-ink-soft max-w-md mx-auto">
+              Clinical entries for {CLINICAL_TABS.find((t) => t.id === activeTab)?.label} reference Consultation ID{' '}
+              <span className="font-mono text-brand font-bold">{consultation._id}</span>.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
