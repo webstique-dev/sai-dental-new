@@ -95,7 +95,7 @@ async function generateBackupWorkbook(data, adminUser) {
   workbook.creator = adminUser?.name || 'Admin';
   workbook.created = new Date();
 
-  const clinicName = data.settings?.clinicName || 'Dental Care Clinic';
+  const clinicName = data.settings?.clinicName || 'Sai Dental Clinic – Digital Platform';
   const currencySymbol = data.settings?.currency === 'INR' ? '₹' : (data.settings?.currency || '₹');
   const currencyNumFmt = `"${currencySymbol}"#,##0.00`;
   const dateNumFmt = 'dd mmm yyyy';

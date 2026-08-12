@@ -36,7 +36,7 @@ export default function Login() {
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-white">
             <Activity size={22} strokeWidth={2.5} />
           </div>
-          <h1 className="font-display text-xl font-bold text-ink">DentalOS</h1>
+          <h1 className="font-display text-lg font-bold text-ink">Sai Dental Clinic – Digital Platform</h1>
           <p className="mt-1 text-sm text-ink-soft">Sign in to your clinic workspace</p>
         </div>
 

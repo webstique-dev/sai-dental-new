@@ -75,8 +75,8 @@ export default function Sidebar({ role, open, onClose }) {
               <Activity size={18} strokeWidth={2.5} />
             </div>
             <div>
-              <p className="font-display text-[15px] font-bold leading-tight text-ink">DentalOS</p>
-              <p className="text-[11px] font-medium text-ink-soft">Clinic Management</p>
+              <p className="font-display text-[14px] font-bold leading-tight text-ink">Sai Dental Clinic</p>
+              <p className="text-[11px] font-medium text-ink-soft">Digital Platform</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-bg lg:hidden" aria-label="Close menu">
@@ -84,12 +84,12 @@ export default function Sidebar({ role, open, onClose }) {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+        {/* <div className="flex items-center gap-2 border-b border-border px-5 py-3">
           <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
           <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
             {meta.label} workspace
           </span>
-        </div>
+        </div> */}
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {items.map(({ to, label, icon: Icon, end }) => (
@@ -99,10 +99,9 @@ export default function Sidebar({ role, open, onClose }) {
               end={end}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-brand-light text-brand-dark'
-                    : 'text-ink-soft hover:bg-bg hover:text-ink'
+                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${isActive
+                  ? 'bg-brand-light text-brand-dark'
+                  : 'text-ink-soft hover:bg-bg hover:text-ink'
                 }`
               }
             >

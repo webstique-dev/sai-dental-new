@@ -1,4 +1,4 @@
-# DentalOS — Dental Clinic Management System
+# Sai Dental Clinic – Digital Platform
 
 Phase 1 scaffold: authentication, role-based access control (Admin /
 Receptionist / Doctor), and the three role dashboards + navigation shells,

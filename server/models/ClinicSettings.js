@@ -15,7 +15,7 @@ const clinicSettingsSchema = new mongoose.Schema(
     clinicName: {
       type: String,
       required: true,
-      default: 'Dental Care & Implant Centre',
+      default: 'Sai Dental Clinic – Digital Platform',
       trim: true,
     },
     address: {

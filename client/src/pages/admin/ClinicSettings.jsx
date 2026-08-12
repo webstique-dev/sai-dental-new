@@ -178,7 +178,7 @@ export default function ClinicSettings() {
                 required
                 type="text"
                 className="input-field"
-                placeholder="e.g. Dental Care Clinic"
+                placeholder="e.g. Sai Dental Clinic – Digital Platform"
                 value={clinicName}
                 onChange={(e) => setClinicName(e.target.value)}
               />
