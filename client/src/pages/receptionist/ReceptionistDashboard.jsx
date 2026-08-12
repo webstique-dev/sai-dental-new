@@ -1,24 +1,65 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, ClipboardList, UserPlus, Bell } from 'lucide-react';
 import StatCard from '../../components/common/StatCard.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import api from '../../api/axios.js';
 
 export default function ReceptionistDashboard() {
   const { user } = useAuth();
+  const [summaryData, setSummaryData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSummary() {
+      try {
+        setLoading(true);
+        const res = await api.get('/reports/reception-summary');
+        setSummaryData(res.data);
+      } catch (err) {
+        console.error('Failed to load reception summary:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSummary();
+  }, []);
+
+  const skeleton = <span className="inline-block h-7 w-12 rounded bg-border animate-pulse" />;
 
   const stats = [
-    { label: "Today's Appointments", value: '—', icon: CalendarDays, tone: 'brand' },
-    { label: 'Patients Waiting', value: '—', icon: ClipboardList, tone: 'warning' },
-    { label: 'New Registrations', value: '—', icon: UserPlus, tone: 'info' },
-    { label: 'Follow-Ups Due', value: '—', icon: Bell, tone: 'danger' },
+    {
+      label: "Today's Appointments",
+      value: loading ? skeleton : summaryData?.todaysAppointments ?? 0,
+      icon: CalendarDays,
+      tone: 'brand',
+    },
+    {
+      label: 'Patients Waiting',
+      value: loading ? skeleton : summaryData?.patientsWaiting ?? 0,
+      icon: ClipboardList,
+      tone: 'warning',
+    },
+    {
+      label: 'New Registrations',
+      value: loading ? skeleton : summaryData?.newRegistrations ?? 0,
+      icon: UserPlus,
+      tone: 'info',
+    },
+    {
+      label: 'Follow-Ups Due',
+      value: loading ? skeleton : summaryData?.followUpsDue ?? 0,
+      icon: Bell,
+      tone: 'danger',
+    },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-xl font-bold text-ink">Good to see you, {user.name.split(' ')[0]}</h2>
+        <h2 className="font-display text-xl font-bold text-ink">Good to see you, {user?.name ? user.name.split(' ')[0] : 'Receptionist'}</h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Front desk overview.
+          Front desk operations overview & summary.
         </p>
       </div>
 
