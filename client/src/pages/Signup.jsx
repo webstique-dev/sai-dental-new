@@ -1,0 +1,243 @@
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { ShieldCheck, Building2, Stethoscope, AlertTriangle, ArrowRight, UserPlus } from 'lucide-react';
+import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
+
+const ROLES_CONFIG = [
+  {
+    role: 'admin',
+    title: 'Admin',
+    description: 'Manages users, settings, and clinic-wide oversight',
+    icon: ShieldCheck,
+    selectedClasses: 'border-role-admin bg-role-adminSoft/50 text-role-admin shadow-sm',
+    badgeClass: 'bg-role-admin text-white',
+  },
+  {
+    role: 'receptionist',
+    title: 'Receptionist',
+    description: 'Manages patient flow, appointments, and billing',
+    icon: Building2,
+    selectedClasses: 'border-role-reception bg-role-receptionSoft/50 text-role-reception shadow-sm',
+    badgeClass: 'bg-role-reception text-white',
+  },
+  {
+    role: 'doctor',
+    title: 'Doctor',
+    description: 'Manages clinical care, diagnosis, and treatment',
+    icon: Stethoscope,
+    selectedClasses: 'border-role-doctor bg-role-doctorSoft/50 text-role-doctor shadow-sm',
+    badgeClass: 'bg-role-doctor text-white',
+  },
+];
+
+export default function Signup() {
+  const navigate = useNavigate();
+  const { signup } = useAuth();
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
+
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!selectedRole) {
+      setError('Please select a role for your account.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const user = await signup({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        password,
+        role: selectedRole,
+      });
+
+      const home = ROLE_HOME[user.role] || '/';
+      navigate(home, { replace: true });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to create account. Please try again.';
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-bg flex items-center justify-center p-4 sm:p-6 font-body">
+      <div className="w-full max-w-xl space-y-6">
+        {/* Header Branding */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand text-white font-display text-xl font-extrabold shadow-md mb-1">
+            DC
+          </div>
+          <h1 className="font-display text-2xl font-bold text-ink">Create Clinic Staff Account</h1>
+          <p className="text-xs text-ink-soft">
+            Register your account to access your assigned role dashboard.
+          </p>
+        </div>
+
+        {/* Server / Validation Error Alert Banner */}
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-xs font-medium text-rose-800 border border-rose-200 animate-in fade-in duration-150">
+            <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="card p-6 space-y-5 bg-surface">
+          {/* Step 1: Select Role */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-ink uppercase tracking-wider">
+              Select Your Operational Role *
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {ROLES_CONFIG.map((rc) => {
+                const Icon = rc.icon;
+                const isSelected = selectedRole === rc.role;
+
+                return (
+                  <div
+                    key={rc.role}
+                    onClick={() => setSelectedRole(rc.role)}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
+                      isSelected
+                        ? rc.selectedClasses
+                        : 'border-border bg-bg/40 text-ink-soft hover:border-border/80 hover:bg-bg'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Icon size={20} className={isSelected ? 'text-current' : 'text-ink-soft'} />
+                      {isSelected && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${rc.badgeClass}`}>
+                          Selected
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="font-display text-sm font-bold text-ink">{rc.title}</h3>
+                      <p className="text-[11px] text-ink-soft leading-snug mt-0.5">{rc.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step 2: Credentials Inputs */}
+          <div className="space-y-4 text-xs border-t border-border pt-4">
+            <div>
+              <label className="block font-semibold text-ink-soft mb-1">Full Name *</label>
+              <input
+                type="text"
+                required
+                className="input-field"
+                placeholder="e.g. Dr. Sarah Jenkins or John Smith"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  className="input-field"
+                  placeholder="name@clinic.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Phone Number (Optional)</label>
+                <input
+                  type="tel"
+                  className="input-field"
+                  placeholder="+91 98765 43210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Password * (Min 6 chars)</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  className="input-field font-mono"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Confirm Password *</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  className={`input-field font-mono ${
+                    confirmPassword && password !== confirmPassword ? 'border-rose-400 focus:ring-rose-200' : ''
+                  }`}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1">Passwords do not match.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={submitting || !selectedRole}
+            className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm mt-2"
+          >
+            <UserPlus size={16} />
+            {submitting ? 'Creating Account...' : 'Complete Registration & Sign In'}
+          </button>
+        </form>
+
+        {/* Footer Navigation */}
+        <div className="text-center text-xs text-ink-soft">
+          Already have an account?{' '}
+          <Link to="/login" className="font-semibold text-brand hover:underline inline-flex items-center gap-1">
+            Log in here <ArrowRight size={13} />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}

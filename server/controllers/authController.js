@@ -33,17 +33,60 @@ async function login(req, res) {
   });
 }
 
+// POST /api/auth/signup (Public registration)
+async function signup(req, res, next) {
+  try {
+    const { name, email, phone, password, role } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: 'Name, email, password, and role are required.' });
+    }
+
+    const validRoles = User.ROLES || ['admin', 'receptionist', 'doctor'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: 'Invalid role selected.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const existing = await User.findOne({ email: cleanEmail });
+    if (existing) {
+      return res.status(409).json({ message: 'A user account with this email already exists.' });
+    }
+
+    const user = new User({
+      name: name.trim(),
+      email: cleanEmail,
+      phone: phone ? phone.trim() : '',
+      password,
+      role,
+      status: 'active',
+    });
+
+    await user.save();
+
+    const token = generateToken(user);
+
+    return res.status(201).json({
+      token,
+      user: user.toSafeObject(),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/auth/me
 async function getMe(req, res) {
   res.json({ user: req.user.toSafeObject() });
 }
 
 // POST /api/auth/logout
-// Stateless JWT: logout is handled client-side by discarding the token.
-// This endpoint exists so the frontend has a consistent call to make,
-// and so it's easy to extend later with token-blocklisting if needed.
 async function logout(req, res) {
   res.json({ message: 'Logged out successfully.' });
 }
 
-module.exports = { login, getMe, logout };
+module.exports = { login, signup, getMe, logout };

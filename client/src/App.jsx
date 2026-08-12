@@ -11,6 +11,7 @@ import DashboardLayout from './components/layout/DashboardLayout.jsx';
 import PlaceholderPage from './components/common/PlaceholderPage.jsx';
 
 import Login from './pages/Login.jsx';
+import Signup from './pages/Signup.jsx';
 import Unauthorized from './pages/Unauthorized.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminUsers from './pages/admin/AdminUsers.jsx';
@@ -55,6 +56,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to={ROLE_HOME[user.role]} replace /> : <Login />} />
+      <Route path="/signup" element={user ? <Navigate to={ROLE_HOME[user.role]} replace /> : <Signup />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
       {/* ---------------- Admin ---------------- */}

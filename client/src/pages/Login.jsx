@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Activity, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
 
@@ -96,7 +96,10 @@ export default function Login() {
         </form>
 
         <p className="mt-4 text-center text-xs text-ink-soft">
-          Accounts are created by your clinic administrator. Contact them if you need access.
+          Don't have an account?{' '}
+          <Link to="/signup" className="font-semibold text-brand hover:underline">
+            Create one
+          </Link>
         </p>
       </div>
     </div>
