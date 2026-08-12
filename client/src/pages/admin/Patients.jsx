@@ -1,0 +1,532 @@
+import { useState, useEffect } from 'react';
+import {
+  Users, Search, Filter, Edit3, ArrowUpDown, ChevronLeft, ChevronRight,
+  ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import api from '../../api/axios.js';
+import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
+
+export default function AdminPatients() {
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const [sortBy, setSortBy] = useState('registrationDate');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  // Selected patient for Profile drawer/modal
+  const [selectedPatient, setSelectedPatient] = useState(null);
+
+  // Edit patient modal state
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    age: '',
+    sex: 'Male',
+    address: '',
+    medicalHistory: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState({ type: '', msg: '' });
+
+  const fetchPatients = async (targetPage = 1) => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.append('page', targetPage);
+      params.append('limit', 15);
+      if (search.trim()) params.append('search', search.trim());
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+
+      const res = await api.get(`/patients?${params.toString()}`);
+      const data = res.data || {};
+      setPatients(data.patients || []);
+      setTotal(data.total || 0);
+      setPage(data.page || 1);
+      setTotalPages(data.totalPages || 1);
+    } catch (err) {
+      console.error('Failed to fetch patients:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients(1);
+  }, [search, sortBy, sortOrder]);
+
+  const handleSortToggle = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
+
+  const handleOpenEdit = (e, patient) => {
+    e.stopPropagation();
+    setEditingPatient(patient);
+    setEditForm({
+      firstName: patient.firstName || '',
+      lastName: patient.lastName || '',
+      phone: patient.phone || '',
+      age: patient.age || '',
+      sex: patient.sex || 'Male',
+      address: patient.address || '',
+      medicalHistory: Array.isArray(patient.medicalHistory) ? patient.medicalHistory.join(', ') : patient.medicalHistory || '',
+    });
+    setFeedback({ type: '', msg: '' });
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingPatient) return;
+
+    setSaving(true);
+    setFeedback({ type: '', msg: '' });
+
+    try {
+      const payload = {
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        phone: editForm.phone.trim(),
+        age: editForm.age ? Number(editForm.age) : undefined,
+        sex: editForm.sex,
+        address: editForm.address.trim(),
+        medicalHistory: editForm.medicalHistory ? editForm.medicalHistory.split(',').map((s) => s.trim()) : [],
+      };
+
+      const res = await api.patch(`/patients/${editingPatient._id}`, payload);
+      const updated = res.data?.patient;
+
+      setPatients((prev) => prev.map((p) => (p._id === editingPatient._id ? updated : p)));
+      if (selectedPatient?._id === editingPatient._id) {
+        setSelectedPatient(updated);
+      }
+
+      setFeedback({ type: 'success', msg: 'Patient details updated successfully.' });
+      setTimeout(() => {
+        setEditingPatient(null);
+      }, 1000);
+    } catch (err) {
+      setFeedback({ type: 'error', msg: err.response?.data?.message || 'Failed to update patient details.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-7xl">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
+            <Users size={26} className="text-brand" /> Clinic-Wide Patient Directory
+          </h1>
+          <p className="text-xs text-ink-soft mt-0.5">
+            Read-only oversight directory across all registered clinic patients with administrative record correction.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to="/reception/patients"
+            className="btn-secondary text-xs flex items-center gap-1.5"
+            title="Jump to Receptionist Patient Registration Page"
+          >
+            <ExternalLink size={14} /> Receptionist Registration Workflow
+          </Link>
+        </div>
+      </div>
+
+      {/* SEARCH AND CONTROLS */}
+      <div className="card p-4 space-y-3 bg-surface">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-2.5 text-ink-soft" />
+            <input
+              type="text"
+              className="input-field pl-9 py-2 text-xs w-full"
+              placeholder="Search by Patient Name, OP Number, or Phone Number..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-ink-soft font-semibold whitespace-nowrap">Sort By:</span>
+            <button
+              onClick={() => handleSortToggle('registrationDate')}
+              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${
+                sortBy === 'registrationDate' ? 'border-brand text-brand font-bold' : ''
+              }`}
+            >
+              Reg Date <ArrowUpDown size={13} />
+            </button>
+            <button
+              onClick={() => handleSortToggle('name')}
+              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${
+                sortBy === 'name' ? 'border-brand text-brand font-bold' : ''
+              }`}
+            >
+              Name <ArrowUpDown size={13} />
+            </button>
+            <button
+              onClick={() => handleSortToggle('opNumber')}
+              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${
+                sortBy === 'opNumber' ? 'border-brand text-brand font-bold' : ''
+              }`}
+            >
+              OP # <ArrowUpDown size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* PATIENTS TABLE */}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-border bg-bg font-semibold text-ink-soft">
+              <tr>
+                <th className="px-4 py-3">OP Number</th>
+                <th className="px-4 py-3">Patient Name</th>
+                <th className="px-4 py-3">Phone</th>
+                <th className="px-4 py-3">Age / Sex</th>
+                <th className="px-4 py-3">Registration Date</th>
+                <th className="px-4 py-3">Registered By</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-ink-soft">
+                    Loading patient directory...
+                  </td>
+                </tr>
+              ) : patients.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-ink-soft">
+                    No patients match your search query.
+                  </td>
+                </tr>
+              ) : (
+                patients.map((p) => {
+                  const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+                  const regDateStr = p.registrationDate || p.createdAt
+                    ? new Date(p.registrationDate || p.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : 'N/A';
+
+                  return (
+                    <tr
+                      key={p._id}
+                      onClick={() => setSelectedPatient(p)}
+                      className="hover:bg-bg/60 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3 font-mono font-bold text-brand whitespace-nowrap">
+                        {p.opNumber || '—'}
+                      </td>
+
+                      <td className="px-4 py-3 font-bold text-ink whitespace-nowrap">
+                        {pName}
+                      </td>
+
+                      <td className="px-4 py-3 font-mono text-ink-soft whitespace-nowrap">
+                        {p.phone || '—'}
+                      </td>
+
+                      <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
+                        {p.age ? `${p.age} yrs` : '—'} / {p.sex || '—'}
+                      </td>
+
+                      <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
+                        {regDateStr}
+                      </td>
+
+                      <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
+                        {p.registeredBy?.name || 'Staff'}
+                      </td>
+
+                      <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedPatient(p)}
+                            className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1"
+                            title="View Full Profile"
+                          >
+                            <Eye size={13} /> View Profile
+                          </button>
+                          <button
+                            onClick={(e) => handleOpenEdit(e, p)}
+                            className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1 border-amber-300 text-amber-800 hover:bg-amber-50"
+                            title="Edit Basic Details (Admin Only)"
+                          >
+                            <Edit3 size={13} /> Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINATION */}
+        {!loading && patients.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-bg/40 text-xs">
+            <div className="text-ink-soft font-medium">
+              Showing Page <span className="font-bold text-ink">{page}</span> of{' '}
+              <span className="font-bold text-ink">{totalPages}</span> ({total} Total Patients)
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => fetchPatients(page - 1)}
+                className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => fetchPatients(page + 1)}
+                className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* PATIENT PROFILE DRAWER/MODAL */}
+      {selectedPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="card max-w-3xl w-full p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between border-b border-border pb-3">
+              <div>
+                <span className="badge bg-brand/10 text-brand font-mono font-bold text-xs mb-1 inline-block">
+                  OP #{selectedPatient.opNumber}
+                </span>
+                <h2 className="font-display text-xl font-bold text-ink">
+                  {selectedPatient.firstName} {selectedPatient.lastName}
+                </h2>
+                <p className="text-xs text-ink-soft">Registered Patient Overview</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => handleOpenEdit(e, selectedPatient)}
+                  className="btn-secondary text-xs flex items-center gap-1 text-amber-800 border-amber-300"
+                >
+                  <Edit3 size={14} /> Edit Basic Details
+                </button>
+                <button
+                  onClick={() => setSelectedPatient(null)}
+                  className="p-1 rounded text-ink-soft hover:text-ink hover:bg-bg"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Profile Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs bg-bg p-4 rounded-lg border border-border">
+              <div>
+                <div className="text-ink-soft font-semibold">Phone</div>
+                <div className="font-bold text-ink">{selectedPatient.phone || '—'}</div>
+              </div>
+              <div>
+                <div className="text-ink-soft font-semibold">Age / Sex</div>
+                <div className="font-bold text-ink">
+                  {selectedPatient.age ? `${selectedPatient.age} yrs` : '—'} / {selectedPatient.sex || '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-ink-soft font-semibold">Registration Date</div>
+                <div className="font-bold text-ink">
+                  {selectedPatient.registrationDate
+                    ? new Date(selectedPatient.registrationDate).toLocaleDateString()
+                    : 'N/A'}
+                </div>
+              </div>
+              <div>
+                <div className="text-ink-soft font-semibold">Registered Staff</div>
+                <div className="font-bold text-ink">{selectedPatient.registeredBy?.name || 'Staff'}</div>
+              </div>
+            </div>
+
+            {selectedPatient.address && (
+              <div className="text-xs">
+                <div className="font-semibold text-ink-soft mb-1">Residential Address</div>
+                <div className="p-2.5 bg-bg rounded border border-border text-ink">{selectedPatient.address}</div>
+              </div>
+            )}
+
+            {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 && (
+              <div className="text-xs">
+                <div className="font-semibold text-ink-soft mb-1">Medical History Alerts</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(Array.isArray(selectedPatient.medicalHistory)
+                    ? selectedPatient.medicalHistory
+                    : [selectedPatient.medicalHistory]
+                  ).map((m, i) => (
+                    <span key={i} className="badge bg-amber-100 text-amber-800 border-amber-200">
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Embedded Clinical Documents Panel */}
+            <div className="pt-2">
+              <DocumentsPanel patientId={selectedPatient._id} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT BASIC DETAILS MODAL (ADMIN ONLY) */}
+      {editingPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
+          <div className="card max-w-lg w-full p-6 space-y-4 bg-surface animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <Edit3 size={18} className="text-amber-600" /> Edit Patient Basic Details
+              </h3>
+              <button onClick={() => setEditingPatient(null)} className="p-1 text-ink-soft hover:text-ink">
+                <X size={18} />
+              </button>
+            </div>
+
+            {feedback.msg && (
+              <div
+                className={`p-3 rounded text-xs flex items-center gap-2 ${
+                  feedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {feedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
+                <span>{feedback.msg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">First Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field py-1.5"
+                    value={editForm.firstName}
+                    onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5"
+                    value={editForm.lastName}
+                    onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Phone</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5 font-mono"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Age</label>
+                  <input
+                    type="number"
+                    className="input-field py-1.5"
+                    value={editForm.age}
+                    onChange={(e) => setEditForm({ ...editForm, age: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Sex</label>
+                  <select
+                    className="input-field py-1.5"
+                    value={editForm.sex}
+                    onChange={(e) => setEditForm({ ...editForm, sex: e.target.value })}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Address</label>
+                <textarea
+                  rows={2}
+                  className="input-field py-1.5"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">
+                  Medical History (Comma separated)
+                </label>
+                <input
+                  type="text"
+                  className="input-field py-1.5"
+                  placeholder="e.g. Diabetes, Hypertension, Allergy to Penicillin"
+                  value={editForm.medicalHistory}
+                  onChange={(e) => setEditForm({ ...editForm, medicalHistory: e.target.value })}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setEditingPatient(null)}
+                  className="btn-secondary py-1.5 px-3 text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="btn-primary py-1.5 px-4 text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Save size={14} /> {saving ? 'Saving...' : 'Save Corrections'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

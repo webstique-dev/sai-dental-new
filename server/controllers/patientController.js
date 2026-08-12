@@ -1,10 +1,10 @@
 const Patient = require('../models/Patient');
 const { logAction } = require('../middleware/auditLog');
 
-// GET /api/patients?search=&page=&limit=
+// GET /api/patients?search=&page=&limit=&sortBy=&sortOrder=
 async function listPatients(req, res, next) {
   try {
-    const { search, page = 1, limit = 20 } = req.query;
+    const { search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 20;
     const skip = (pageNum - 1) * limitNum;
@@ -23,9 +23,21 @@ async function listPatients(req, res, next) {
       };
     }
 
+    const sortOptions = {};
+    const order = sortOrder === 'asc' ? 1 : -1;
+    if (sortBy === 'registrationDate' || sortBy === 'createdAt') {
+      sortOptions.createdAt = order;
+    } else if (sortBy === 'name') {
+      sortOptions.firstName = order;
+    } else if (sortBy === 'opNumber') {
+      sortOptions.opNumber = order;
+    } else {
+      sortOptions[sortBy] = order;
+    }
+
     const total = await Patient.countDocuments(filter);
     const patients = await Patient.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(sortOptions)
       .skip(skip)
       .limit(limitNum)
       .populate('registeredBy', 'name email role');
