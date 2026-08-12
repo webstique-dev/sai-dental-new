@@ -131,4 +131,5 @@ module.exports = {
   getPatientToothChart,
   updateToothRecord,
   bulkUpdateTeeth,
+  applyToothUpdate,
 };

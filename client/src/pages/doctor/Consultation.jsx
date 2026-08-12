@@ -8,6 +8,7 @@ import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
+import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
@@ -178,6 +179,8 @@ export default function Consultation() {
           />
         ) : activeTab === 'diagnosis' ? (
           <DiagnosisTab consultation={consultation} />
+        ) : activeTab === 'treatment-plan' ? (
+          <TreatmentPlanTab consultation={consultation} />
         ) : (
           <div className="card p-8 text-center space-y-3">
             <Stethoscope size={36} className="mx-auto text-brand/60" />
