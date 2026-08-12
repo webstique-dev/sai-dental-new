@@ -24,6 +24,7 @@ const investigationRoutes = require('./routes/investigationRoutes');
 const clinicSettingsRoutes = require('./routes/clinicSettingsRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const auditLogRoutes = require('./routes/auditLogRoutes');
+const backupRoutes = require('./routes/backupRoutes');
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/investigations', investigationRoutes);
 app.use('/api/settings', clinicSettingsRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/backup', backupRoutes);
 
 // Phase 2+ routes (patients, appointments, consultations, tooth chart,
 // billing, follow-ups, reports) get mounted here in the same pattern:

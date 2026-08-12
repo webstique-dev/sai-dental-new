@@ -18,6 +18,7 @@ import ClinicSettings from './pages/admin/ClinicSettings.jsx';
 import AdminDocuments from './pages/admin/Documents.jsx';
 import AuditLogs from './pages/admin/AuditLogs.jsx';
 import Reports from './pages/admin/Reports.jsx';
+import Backup from './pages/admin/Backup.jsx';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard.jsx';
 import Patients from './pages/receptionist/Patients.jsx';
 import PatientRegistration from './pages/receptionist/PatientRegistration.jsx';
@@ -65,7 +66,7 @@ export default function App() {
           <Route path="/admin/settings" element={<ClinicSettings />} />
           <Route path="/admin/documents" element={<AdminDocuments />} />
           <Route path="/admin/audit-logs" element={<AuditLogs />} />
-          <Route path="/admin/backup" element={stub('Backup', 'Data backup and export tools. Coming in Phase 2.', DatabaseBackup)} />
+          <Route path="/admin/backup" element={<Backup />} />
         </Route>
       </Route>
 
