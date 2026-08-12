@@ -4,6 +4,8 @@ import {
   Clock, User, Stethoscope, FileText, Trash2, Edit3, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import AppointmentList from '../../components/common/AppointmentList.jsx';
+import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -326,216 +328,29 @@ export default function Appointments() {
       {/* VIEW: LIST */}
       {viewMode === 'list' && (
         <div className="card overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center text-sm text-ink-soft">Loading appointments...</div>
-          ) : appointments.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
-              <CalendarDays size={36} className="mx-auto text-ink-soft/50" />
-              <p className="font-display text-base font-semibold text-ink">No appointments found</p>
-              <p className="text-sm text-ink-soft">Try clearing your search or date filters.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                  <tr>
-                    <th className="px-5 py-3.5">Date & Time</th>
-                    <th className="px-5 py-3.5">Patient</th>
-                    <th className="px-5 py-3.5">Doctor</th>
-                    <th className="px-5 py-3.5">Type</th>
-                    <th className="px-5 py-3.5">Reason</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {appointments.map((apt) => {
-                    const aptId = apt._id || apt.id;
-                    const patientName = apt.patient
-                      ? `${apt.patient.firstName} ${apt.patient.lastName}`.trim()
-                      : 'Unknown Patient';
-                    const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned';
-
-                    return (
-                      <tr key={aptId} className="hover:bg-bg/60 transition-colors">
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <div className="font-semibold text-ink text-xs">
-                            {formatDateDisplay(apt.date)}
-                          </div>
-                          <div className="text-xs text-ink-soft flex items-center gap-1 mt-0.5">
-                            <Clock size={12} /> {apt.time || '—'}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="font-medium text-ink">{patientName}</div>
-                          {apt.patient?.opNumber && (
-                            <div className="text-xs text-brand font-mono">{apt.patient.opNumber}</div>
-                          )}
-                        </td>
-                        <td className="px-5 py-4 text-ink-soft text-xs">
-                          {docName}
-                        </td>
-                        <td className="px-5 py-4 text-xs">
-                          <span
-                            className={`badge ${
-                              apt.type === 'Walk-in'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-blue-50 text-blue-700'
-                            }`}
-                          >
-                            {apt.type}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-xs text-ink-soft max-w-[200px] truncate">
-                          {apt.reason || '—'}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`badge border ${
-                              STATUS_BADGE_CLASSES[apt.status] || 'bg-slate-100 text-slate-800'
-                            }`}
-                          >
-                            {apt.status}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right whitespace-nowrap space-x-1">
-                          <button
-                            onClick={() => openEditModal(apt)}
-                            title="Reschedule / Edit"
-                            className="inline-flex items-center gap-1 rounded-lg border border-border p-1.5 text-xs font-semibold text-ink-soft hover:bg-bg hover:text-ink"
-                          >
-                            <Edit3 size={14} /> Edit
-                          </button>
-
-                          {apt.status !== 'Cancelled' && (
-                            <button
-                              onClick={() => setCancellingAppointment(apt)}
-                              title="Cancel Appointment"
-                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 p-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
-                            >
-                              <Trash2 size={14} /> Cancel
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <AppointmentList
+            appointments={appointments}
+            loading={loading}
+            allowEdit={true}
+            allowCancel={true}
+            onEdit={openEditModal}
+            onCancel={(apt) => setCancellingAppointment(apt)}
+            statusBadgeClasses={STATUS_BADGE_CLASSES}
+            formatDateDisplay={formatDateDisplay}
+          />
         </div>
       )}
 
       {/* VIEW: CALENDAR */}
       {viewMode === 'calendar' && (
-        <div className="card p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-4">
-            <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-              <CalendarDays size={18} className="text-brand" /> Calendar Overview
-            </h3>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  const prev = new Date(calendarDate);
-                  prev.setDate(prev.getDate() - 7);
-                  setCalendarDate(prev);
-                }}
-                className="btn-secondary py-1 px-2.5 text-xs"
-              >
-                <ChevronLeft size={16} /> Prev Week
-              </button>
-              <button
-                onClick={() => setCalendarDate(new Date())}
-                className="btn-secondary py-1 px-2.5 text-xs"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => {
-                  const next = new Date(calendarDate);
-                  next.setDate(next.getDate() + 7);
-                  setCalendarDate(next);
-                }}
-                className="btn-secondary py-1 px-2.5 text-xs"
-              >
-                Next Week <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-
-          {/* 7-day grid */}
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-            {Array.from({ length: 7 }).map((_, idx) => {
-              const currentDay = new Date(calendarDate);
-              const dayOfWeek = currentDay.getDay(); // 0 is Sun
-              const startOfWeek = new Date(currentDay);
-              startOfWeek.setDate(currentDay.getDate() - dayOfWeek + idx);
-
-              const dateStr = startOfWeek.toISOString().split('T')[0];
-              const dayAppointments = appointments.filter((a) => {
-                if (!a.date) return false;
-                const aDateStr = new Date(a.date).toISOString().split('T')[0];
-                return aDateStr === dateStr;
-              });
-
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-              return (
-                <div
-                  key={dateStr}
-                  className={`rounded-xl border p-3 flex flex-col min-h-[180px] ${
-                    isToday ? 'border-brand bg-brand-light/10' : 'border-border bg-surface'
-                  }`}
-                >
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-2">
-                    <span className="text-xs font-semibold text-ink-soft">
-                      {startOfWeek.toLocaleDateString(undefined, { weekday: 'short' })}
-                    </span>
-                    <span
-                      className={`text-xs font-bold ${
-                        isToday ? 'bg-brand text-white rounded-full h-5 w-5 flex items-center justify-center' : 'text-ink'
-                      }`}
-                    >
-                      {startOfWeek.getDate()}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 space-y-1.5 overflow-y-auto">
-                    {dayAppointments.length === 0 ? (
-                      <p className="text-[11px] text-ink-soft italic pt-2">No slots</p>
-                    ) : (
-                      dayAppointments.map((apt) => {
-                        const aptId = apt._id || apt.id;
-                        return (
-                          <div
-                            key={aptId}
-                            onClick={() => openEditModal(apt)}
-                            className="rounded-lg border border-border bg-bg/80 p-2 text-xs cursor-pointer hover:border-brand transition-colors"
-                          >
-                          <div className="font-semibold text-ink truncate">
-                            {apt.time || '—'} {apt.patient?.firstName}
-                          </div>
-                          <div className="text-[10px] text-ink-soft truncate">
-                            Dr. {apt.doctor?.name?.split(' ')[0]}
-                          </div>
-                          <span
-                            className={`badge text-[9px] px-1 py-0 mt-1 inline-block border ${
-                              STATUS_BADGE_CLASSES[apt.status] || ''
-                            }`}
-                          >
-                            {apt.status}
-                          </span>
-                        </div>
-                      );
-                    })
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <AppointmentCalendar
+          calendarDate={calendarDate}
+          setCalendarDate={setCalendarDate}
+          appointments={appointments}
+          allowEdit={true}
+          onEdit={openEditModal}
+          statusBadgeClasses={STATUS_BADGE_CLASSES}
+        />
       )}
 
       {/* CREATE APPOINTMENT MODAL */}

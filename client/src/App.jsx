@@ -20,6 +20,7 @@ import AuditLogs from './pages/admin/AuditLogs.jsx';
 import Reports from './pages/admin/Reports.jsx';
 import Backup from './pages/admin/Backup.jsx';
 import AdminPatients from './pages/admin/Patients.jsx';
+import AdminAppointments from './pages/admin/Appointments.jsx';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard.jsx';
 import Patients from './pages/receptionist/Patients.jsx';
 import PatientRegistration from './pages/receptionist/PatientRegistration.jsx';
@@ -59,7 +60,7 @@ export default function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/patients" element={<AdminPatients />} />
-          <Route path="/admin/appointments" element={stub('Appointments', 'Clinic-wide appointment calendar. Coming in Phase 2.', CalendarDays)} />
+          <Route path="/admin/appointments" element={<AdminAppointments />} />
           <Route path="/admin/doctors" element={stub('Doctors', 'Doctor schedules and specializations. Coming in Phase 2.', Stethoscope)} />
           <Route path="/admin/billing" element={stub('Billing', 'Clinic-wide billing overview. Coming in Phase 2.', Wallet)} />
           <Route path="/admin/treatments" element={stub('Treatments', 'Treatment and procedure catalog. Coming in Phase 2.', Activity)} />
