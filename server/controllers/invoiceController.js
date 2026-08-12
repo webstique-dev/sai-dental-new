@@ -1,5 +1,6 @@
 const Invoice = require('../models/Invoice');
 const Patient = require('../models/Patient');
+const { logAction } = require('../middleware/auditLog');
 
 // GET /api/invoices?patient=&status=
 async function listInvoices(req, res, next) {
@@ -68,6 +69,19 @@ async function createInvoice(req, res, next) {
     });
 
     await newInvoice.save();
+
+    await logAction(req, {
+      action: 'generated invoice',
+      entityType: 'Invoice',
+      entityId: newInvoice._id,
+      patient: newInvoice.patient,
+      newValue: {
+        totalAmount: newInvoice.totalAmount,
+        paidAmount: newInvoice.amountPaid,
+        balance: newInvoice.balance,
+        status: newInvoice.paymentStatus,
+      },
+    });
 
     const populated = await Invoice.findById(newInvoice._id)
       .populate('patient', 'firstName lastName opNumber phone age sex')

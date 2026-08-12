@@ -1,5 +1,6 @@
 const ToothRecord = require('../models/ToothRecord');
 const { checkConsultationNotClosed } = require('./consultationController');
+const { logAction } = require('../middleware/auditLog');
 
 const ALL_FDI_TEETH = [
   // Upper Right (18 - 11)
@@ -93,6 +94,14 @@ async function updateToothRecord(req, res, next) {
 
     const updated = await applyToothUpdate(patientId, toothNumber, req.body, userId);
 
+    await logAction(req, {
+      action: `updated tooth ${toothNumber}`,
+      entityType: 'ToothRecord',
+      entityId: updated._id,
+      patient: patientId,
+      newValue: { condition: req.body.condition, treatment: req.body.treatment, notes: req.body.notes },
+    });
+
     return res.json({
       message: `Tooth #${toothNumber} updated successfully`,
       record: updated,
@@ -123,6 +132,13 @@ async function bulkUpdateTeeth(req, res, next) {
       );
       updatedRecords.push(rec);
     }
+
+    await logAction(req, {
+      action: `bulk updated teeth #${teeth.join(', #')}`,
+      entityType: 'ToothRecord',
+      patient: patientId,
+      newValue: { teeth, condition, treatment, notes },
+    });
 
     return res.json({
       message: `${updatedRecords.length} teeth updated successfully`,

@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { logAction } = require('../middleware/auditLog');
 
 // All routes here are mounted behind protect + allowRoles('admin') in routes/userRoutes.js
 // per PRD section 27 (Admin User Management) and section 4 (only Admin manages users/roles).
@@ -35,12 +36,26 @@ async function updateUser(req, res) {
     return res.status(404).json({ message: 'User not found.' });
   }
 
+  const oldRole = user.role;
+  const isRoleChanged = role !== undefined && role !== oldRole;
+
   if (name !== undefined) user.name = name;
   if (phone !== undefined) user.phone = phone;
   if (role !== undefined) user.role = role;
   if (status !== undefined) user.status = status;
 
   await user.save();
+
+  if (isRoleChanged) {
+    await logAction(req, {
+      action: 'changed user role',
+      entityType: 'User',
+      entityId: user._id,
+      previousValue: { role: oldRole },
+      newValue: { role: user.role, name: user.name },
+    });
+  }
+
   res.json({ user: user.toSafeObject() });
 }
 

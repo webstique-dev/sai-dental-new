@@ -1,6 +1,7 @@
 const Consultation = require('../models/Consultation');
 const QueueEntry = require('../models/QueueEntry');
 const Appointment = require('../models/Appointment');
+const { logAction } = require('../middleware/auditLog');
 
 function getTodayDateRange() {
   const now = new Date();
@@ -174,6 +175,14 @@ async function closeConsultation(req, res, next) {
     if (consultation.appointment) {
       await Appointment.findByIdAndUpdate(consultation.appointment, { status: 'Completed' });
     }
+
+    await logAction(req, {
+      action: 'closed consultation',
+      entityType: 'Consultation',
+      entityId: consultation._id,
+      patient: consultation.patient,
+      newValue: { status: 'Completed', closedAt: consultation.closedAt },
+    });
 
     return res.json({
       message: 'Consultation closed successfully.',

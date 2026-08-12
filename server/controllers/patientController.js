@@ -1,4 +1,5 @@
 const Patient = require('../models/Patient');
+const { logAction } = require('../middleware/auditLog');
 
 // GET /api/patients?search=&page=&limit=
 async function listPatients(req, res, next) {
@@ -50,6 +51,18 @@ async function createPatient(req, res, next) {
 
     const patient = new Patient(data);
     await patient.save();
+
+    await logAction(req, {
+      action: 'registered patient',
+      entityType: 'Patient',
+      entityId: patient._id,
+      patient: patient._id,
+      newValue: {
+        opNumber: patient.opNumber,
+        name: `${patient.firstName || ''} ${patient.lastName || ''}`.trim(),
+        phone: patient.phone,
+      },
+    });
 
     return res.status(201).json({
       message: 'Patient registered successfully',

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Diagnosis = require('../models/Diagnosis');
 const { checkConsultationNotClosed } = require('./consultationController');
+const { logAction } = require('../middleware/auditLog');
 
 // GET /api/diagnoses?consultation=
 async function listDiagnoses(req, res, next) {
@@ -53,6 +54,14 @@ async function createDiagnosis(req, res, next) {
     });
 
     await newDiagnosis.save();
+
+    await logAction(req, {
+      action: 'added diagnosis',
+      entityType: 'Diagnosis',
+      entityId: newDiagnosis._id,
+      patient: patient || null,
+      newValue: { diagnosis: newDiagnosis.diagnosis, severity: newDiagnosis.severity, relatedTeeth: newDiagnosis.relatedTeeth },
+    });
 
     const populated = await Diagnosis.findById(newDiagnosis._id)
       .populate('patient', 'firstName lastName opNumber')
