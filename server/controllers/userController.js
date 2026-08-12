@@ -4,9 +4,13 @@ const { logAction } = require('../middleware/auditLog');
 // All routes here are mounted behind protect + allowRoles('admin') in routes/userRoutes.js
 // per PRD section 27 (Admin User Management) and section 4 (only Admin manages users/roles).
 
-// GET /api/users
+// GET /api/users?role=
 async function listUsers(req, res) {
-  const users = await User.find().sort({ createdAt: -1 });
+  const filter = {};
+  if (req.query.role) {
+    filter.role = req.query.role;
+  }
+  const users = await User.find(filter).sort({ createdAt: -1 });
   res.json({ users: users.map((u) => u.toSafeObject()) });
 }
 
