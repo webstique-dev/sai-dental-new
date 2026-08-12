@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, UserSquare2, Phone, Calendar, Hash, User, ShieldAlert } from 'lucide-react';
 import api from '../../api/axios.js';
+import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 
 export default function PatientDetail() {
   const { id } = useParams();
@@ -180,6 +181,9 @@ export default function PatientDetail() {
           </div>
         </div>
       </div>
+
+      {/* Patient Documents Panel (Shared view/upload for Receptionist) */}
+      <DocumentsPanel patientId={patient._id || patient.id} title="Patient Attached Files & Invoices" />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   FileHeart, IndianRupee, ArrowRight, CheckCircle2, Clock, ChevronRight, Filter, AlertTriangle, FileText,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 
 export default function PatientHistory() {
   const [patients, setPatients] = useState([]);
@@ -154,6 +155,11 @@ export default function PatientHistory() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PATIENT DOCUMENTS VAULT */}
+      {selectedPatientId && (
+        <DocumentsPanel patientId={selectedPatientId} title="Patient Clinical & Diagnostic Documents" />
       )}
 
       {/* CHRONOLOGICAL MULTI-VISIT TIMELINE */}

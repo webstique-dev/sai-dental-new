@@ -4,6 +4,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
 
+const path = require('path');
+
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const patientRoutes = require('./routes/patientRoutes');
@@ -20,6 +22,7 @@ const treatmentPlanRoutes = require('./routes/treatmentPlanRoutes');
 const prescriptionRoutes = require('./routes/prescriptionRoutes');
 const investigationRoutes = require('./routes/investigationRoutes');
 const clinicSettingsRoutes = require('./routes/clinicSettingsRoutes');
+const documentRoutes = require('./routes/documentRoutes');
 
 const app = express();
 
@@ -38,6 +41,9 @@ app.use(express.json());
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
+
+// Serve uploaded documents statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Health check ---
 app.get('/api/health', (req, res) => {
@@ -61,6 +67,7 @@ app.use('/api/treatment-plans', treatmentPlanRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/investigations', investigationRoutes);
 app.use('/api/settings', clinicSettingsRoutes);
+app.use('/api/documents', documentRoutes);
 
 // Phase 2+ routes (patients, appointments, consultations, tooth chart,
 // billing, follow-ups, reports) get mounted here in the same pattern:
