@@ -22,6 +22,7 @@ import Backup from './pages/admin/Backup.jsx';
 import AdminPatients from './pages/admin/Patients.jsx';
 import AdminAppointments from './pages/admin/Appointments.jsx';
 import AdminDoctors from './pages/admin/Doctors.jsx';
+import AdminBilling from './pages/admin/Billing.jsx';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard.jsx';
 import Patients from './pages/receptionist/Patients.jsx';
 import PatientRegistration from './pages/receptionist/PatientRegistration.jsx';
@@ -63,7 +64,7 @@ export default function App() {
           <Route path="/admin/patients" element={<AdminPatients />} />
           <Route path="/admin/appointments" element={<AdminAppointments />} />
           <Route path="/admin/doctors" element={<AdminDoctors />} />
-          <Route path="/admin/billing" element={stub('Billing', 'Clinic-wide billing overview. Coming in Phase 2.', Wallet)} />
+          <Route path="/admin/billing" element={<AdminBilling />} />
           <Route path="/admin/treatments" element={stub('Treatments', 'Treatment and procedure catalog. Coming in Phase 2.', Activity)} />
           <Route path="/admin/reports" element={<Reports />} />
           <Route path="/admin/settings" element={<ClinicSettings />} />

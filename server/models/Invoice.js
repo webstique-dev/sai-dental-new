@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const paymentStatusOptions = ['Pending', 'Partially Paid', 'Paid', 'Refunded'];
-const paymentMethodOptions = ['Cash', 'Card', 'UPI', 'Other'];
+const paymentMethodOptions = ['Cash', 'Card', 'UPI', 'Refund', 'Other'];
 
 const invoiceItemSchema = new mongoose.Schema(
   {
@@ -34,12 +34,20 @@ const paymentRecordSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
-      min: 0,
     },
     method: {
       type: String,
-      enum: paymentMethodOptions,
       default: 'Cash',
+    },
+    type: {
+      type: String,
+      enum: ['payment', 'refund'],
+      default: 'payment',
+    },
+    reason: {
+      type: String,
+      trim: true,
+      default: '',
     },
     date: {
       type: Date,
@@ -121,7 +129,7 @@ invoiceSchema.pre('save', function (next) {
   const taxVal = this.tax || 0;
   this.total = Math.max(0, subtotal - disc + taxVal);
 
-  // 3. Compute amountPaid from payments array
+  // 3. Compute amountPaid from payments array (net payments minus refunds)
   this.amountPaid = (this.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
 
   // 4. Compute balance = total - amountPaid

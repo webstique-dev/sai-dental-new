@@ -2,10 +2,10 @@ const Invoice = require('../models/Invoice');
 const Patient = require('../models/Patient');
 const { logAction } = require('../middleware/auditLog');
 
-// GET /api/invoices?patient=&status=
+// GET /api/invoices?patient=&doctor=&status=&search=&dateFrom=&dateTo=
 async function listInvoices(req, res, next) {
   try {
-    const { patient, status, search } = req.query;
+    const { patient, doctor, status, search, dateFrom, dateTo } = req.query;
     const filter = {};
 
     if (status) {
@@ -14,6 +14,22 @@ async function listInvoices(req, res, next) {
 
     if (patient) {
       filter.patient = patient;
+    }
+
+    if (doctor) {
+      filter.doctor = doctor;
+    }
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) {
+        filter.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = end;
+      }
     }
 
     if (search && search.trim()) {
@@ -114,6 +130,7 @@ async function recordPayment(req, res, next) {
     invoice.payments.push({
       amount: Number(amount),
       method: method || 'Cash',
+      type: 'payment',
       date: new Date(),
       recordedBy: req.user ? req.user._id : undefined,
     });
@@ -136,8 +153,62 @@ async function recordPayment(req, res, next) {
   }
 }
 
+// POST /api/invoices/:id/refund (Admin Only — Issue a refund)
+async function refundInvoice(req, res, next) {
+  try {
+    const { amount, reason } = req.body;
+
+    const refundAmount = Number(amount);
+    if (isNaN(refundAmount) || refundAmount <= 0) {
+      return res.status(400).json({ message: 'Valid refund amount greater than zero is required.' });
+    }
+
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found.' });
+    }
+
+    // Set paymentStatus = 'Refunded'
+    invoice.paymentStatus = 'Refunded';
+
+    // Append refund payment record with negative amount
+    invoice.payments.push({
+      amount: -Math.abs(refundAmount),
+      method: 'Refund',
+      type: 'refund',
+      reason: reason || 'Administrative Refund',
+      date: new Date(),
+      recordedBy: req.user ? req.user._id : undefined,
+    });
+
+    await invoice.save();
+
+    await logAction(req, {
+      action: 'issued invoice refund',
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      patient: invoice.patient,
+      newValue: { refundAmount, reason: reason || 'Administrative Refund', status: 'Refunded' },
+    });
+
+    const updated = await Invoice.findById(invoice._id)
+      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('doctor', 'name email role specialization')
+      .populate('createdBy', 'name email')
+      .populate('payments.recordedBy', 'name email');
+
+    return res.json({
+      message: 'Invoice refund processed successfully',
+      invoice: updated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listInvoices,
   createInvoice,
   recordPayment,
+  refundInvoice,
 };
