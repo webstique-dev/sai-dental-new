@@ -10,6 +10,7 @@ const patientRoutes = require('./routes/patientRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const queueRoutes = require('./routes/queueRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const followUpRoutes = require('./routes/followUpRoutes');
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/follow-ups', followUpRoutes);
 
 // Phase 2+ routes (patients, appointments, consultations, tooth chart,
 // billing, follow-ups, reports) get mounted here in the same pattern:
