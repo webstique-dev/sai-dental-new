@@ -158,7 +158,7 @@ export default function AdminDoctors() {
         </button>
       </div>
 
-      {/* DOCTORS GRID */}
+      {/* DOCTORS TABLE */}
       {loading ? (
         <div className="card p-8 text-center text-sm text-ink-soft">Loading doctor roster & stats...</div>
       ) : doctors.length === 0 ? (
@@ -168,80 +168,116 @@ export default function AdminDoctors() {
           <p className="text-xs text-ink-soft">Go to Admin &gt; Users to create new staff accounts with the 'doctor' role.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {doctors.map((doc) => {
-            const dId = doc._id || doc.id;
-            const prof = profilesMap[dId] || {};
-            const stats = statsMap[dId] || { patientsHandled: 0, consultationsCount: 0, treatmentsCompleted: 0, followUpsCount: 0 };
-            const isActive = doc.status !== 'inactive';
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft text-[11px] uppercase tracking-wider">
+                <tr>
+                  <th className="px-5 py-3.5">Doctor</th>
+                  <th className="px-5 py-3.5">Specialization</th>
+                  <th className="px-5 py-3.5">Fee</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">Performance Snapshot</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {doctors.map((doc) => {
+                  const dId = doc._id || doc.id;
+                  const prof = profilesMap[dId] || {};
+                  const stats = statsMap[dId] || { patientsHandled: 0, consultationsCount: 0, treatmentsCompleted: 0, followUpsCount: 0 };
+                  const isActive = doc.status !== 'inactive';
 
-            return (
-              <div
-                key={dId}
-                onClick={() => handleOpenEdit(doc)}
-                className="card p-5 space-y-4 hover:border-brand/40 transition-all cursor-pointer relative group"
-              >
-                {/* Status Indicator */}
-                <div className="flex items-start justify-between">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display text-base font-bold text-ink group-hover:text-brand transition-colors">
-                        Dr. {doc.name}
-                      </h3>
-                    </div>
-                    <p className="text-xs text-ink-soft font-medium">{prof.specialization || doc.specialization || 'General Dentistry'}</p>
-                    <p className="text-[11px] text-ink-soft/70">{prof.qualification || 'BDS'}</p>
-                  </div>
+                  return (
+                    <tr
+                      key={dId}
+                      onClick={() => handleOpenEdit(doc)}
+                      className="hover:bg-bg/60 transition-colors cursor-pointer group"
+                    >
+                      {/* Doctor Name & Email */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-xl bg-brand-light/40 text-brand flex items-center justify-center font-bold text-sm shrink-0">
+                            <Stethoscope size={18} />
+                          </div>
+                          <div>
+                            <div className="font-bold text-ink text-sm group-hover:text-brand transition-colors flex items-center gap-2">
+                              Dr. {doc.name}
+                              <span className="text-[10px] font-normal text-ink-soft bg-bg px-1.5 py-0.5 rounded border border-border">
+                                {prof.qualification || 'BDS'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-ink-soft">{doc.email}</div>
+                          </div>
+                        </div>
+                      </td>
 
-                  <span
-                    className={`badge text-[10px] ${
-                      isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
+                      {/* Specialization */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className="font-semibold text-ink">
+                          {prof.specialization || doc.specialization || 'General Dentistry'}
+                        </span>
+                      </td>
 
-                {/* Consultation Fee & Schedule info */}
-                <div className="flex items-center justify-between text-xs bg-bg p-2.5 rounded-lg border border-border">
-                  <div className="flex items-center gap-1 font-semibold text-ink">
-                    <DollarSign size={14} className="text-emerald-600" />
-                    <span>Fee: ₹{prof.consultationFee ?? 500}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-ink-soft">
-                    <Clock size={14} className="text-brand" />
-                    <span>Schedule Configured</span>
-                  </div>
-                </div>
+                      {/* Consultation Fee */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                          ₹{prof.consultationFee ?? 500}
+                        </span>
+                      </td>
 
-                {/* Stats Snapshot */}
-                <div className="grid grid-cols-4 gap-2 pt-1 text-center border-t border-border/60">
-                  <div className="space-y-0.5">
-                    <div className="text-[10px] text-ink-soft font-semibold">Patients</div>
-                    <div className="text-sm font-bold text-ink">{stats.patientsHandled}</div>
-                  </div>
-                  <div className="space-y-0.5">
-                    <div className="text-[10px] text-ink-soft font-semibold">Visits</div>
-                    <div className="text-sm font-bold text-brand">{stats.consultationsCount}</div>
-                  </div>
-                  <div className="space-y-0.5">
-                    <div className="text-[10px] text-ink-soft font-semibold">Treatments</div>
-                    <div className="text-sm font-bold text-indigo-700">{stats.treatmentsCompleted}</div>
-                  </div>
-                  <div className="space-y-0.5">
-                    <div className="text-[10px] text-ink-soft font-semibold">Followups</div>
-                    <div className="text-sm font-bold text-emerald-700">{stats.followUpsCount}</div>
-                  </div>
-                </div>
+                      {/* Status */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span
+                          className={`badge text-[10px] ${
+                            isActive ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          {isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
 
-                <div className="pt-2 flex justify-end">
-                  <span className="text-xs text-brand font-semibold group-hover:underline flex items-center gap-1">
-                    <Edit3 size={13} /> Edit Profile & Schedule
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+                      {/* Performance Stats */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3 text-[11px]">
+                          <div className="bg-bg px-2.5 py-1 rounded-lg border border-border text-center">
+                            <span className="text-[10px] text-ink-soft block font-semibold">Patients</span>
+                            <span className="font-bold text-ink">{stats.patientsHandled}</span>
+                          </div>
+                          <div className="bg-bg px-2.5 py-1 rounded-lg border border-border text-center">
+                            <span className="text-[10px] text-ink-soft block font-semibold">Visits</span>
+                            <span className="font-bold text-brand">{stats.consultationsCount}</span>
+                          </div>
+                          <div className="bg-bg px-2.5 py-1 rounded-lg border border-border text-center">
+                            <span className="text-[10px] text-ink-soft block font-semibold">Treatments</span>
+                            <span className="font-bold text-indigo-700">{stats.treatmentsCompleted}</span>
+                          </div>
+                          <div className="bg-bg px-2.5 py-1 rounded-lg border border-border text-center">
+                            <span className="text-[10px] text-ink-soft block font-semibold">Followups</span>
+                            <span className="font-bold text-emerald-700">{stats.followUpsCount}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Action */}
+                      <td className="px-5 py-4 whitespace-nowrap text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(doc);
+                          }}
+                          className="btn-secondary text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-semibold"
+                        >
+                          <Edit3 size={14} /> Edit Profile
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
