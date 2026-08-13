@@ -7,6 +7,7 @@ import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -281,12 +282,12 @@ export default function Appointments() {
         </div>
 
         {/* Date Filter */}
-        <div className="relative">
-          <input
-            type="date"
-            className="input-field py-2 text-xs"
+        <div className="w-40">
+          <DatePicker
             value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
+            onChange={(date, dateStr) => setDateFilter(dateStr)}
+            placeholder="Filter by Date"
+            inputClassName="py-1 text-xs"
           />
         </div>
 
@@ -396,12 +397,10 @@ export default function Appointments() {
               {/* Date & Time */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Date</label>
-                  <input
-                    type="date"
-                    className="input-field"
+                  <DatePicker
+                    label="Date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
                   />
                 </div>
                 <div>
@@ -520,12 +519,10 @@ export default function Appointments() {
               {/* Date & Time */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Date</label>
-                  <input
-                    type="date"
-                    className="input-field"
+                  <DatePicker
+                    label="Date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
                   />
                 </div>
                 <div>

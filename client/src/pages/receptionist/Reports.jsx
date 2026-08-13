@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 export default function ReceptionistReports() {
   const getTodayISO = () => new Date().toISOString().split('T')[0];
@@ -125,24 +126,24 @@ export default function ReceptionistReports() {
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-ink-soft">From:</span>
-          <input
-            type="date"
-            className="input-field py-1.5 text-xs font-mono w-36"
+          <DatePicker
             value={dateFrom}
-            onChange={(e) => {
+            onChange={(date, dateStr) => {
               setActiveQuickFilter('custom');
-              setDateFrom(e.target.value);
+              setDateFrom(dateStr);
             }}
+            wrapperClassName="w-36"
+            inputClassName="py-1 text-xs"
           />
           <span className="text-xs font-semibold text-ink-soft">To:</span>
-          <input
-            type="date"
-            className="input-field py-1.5 text-xs font-mono w-36"
+          <DatePicker
             value={dateTo}
-            onChange={(e) => {
+            onChange={(date, dateStr) => {
               setActiveQuickFilter('custom');
-              setDateTo(e.target.value);
+              setDateTo(dateStr);
             }}
+            wrapperClassName="w-36"
+            inputClassName="py-1 text-xs"
           />
         </div>
       </div>

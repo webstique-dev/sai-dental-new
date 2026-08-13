@@ -6,6 +6,7 @@ import {
 import api from '../../api/axios.js';
 import InvoiceList from '../../components/common/InvoiceList.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 export default function AdminBilling() {
   const [invoices, setInvoices] = useState([]);
@@ -215,22 +216,20 @@ export default function AdminBilling() {
         </div>
 
         <div>
-          <input
-            type="date"
-            className="input-field py-2 text-xs font-mono"
-            placeholder="From Date"
+          <DatePicker
             value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
+            onChange={(date, dateStr) => setDateFrom(dateStr)}
+            placeholder="From Date"
+            inputClassName="py-1 text-xs"
           />
         </div>
 
         <div>
-          <input
-            type="date"
-            className="input-field py-2 text-xs font-mono"
-            placeholder="To Date"
+          <DatePicker
             value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
+            onChange={(date, dateStr) => setDateTo(dateStr)}
+            placeholder="To Date"
+            inputClassName="py-1 text-xs"
           />
         </div>
       </div>

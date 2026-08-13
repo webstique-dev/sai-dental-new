@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CheckCircle2, UserPlus } from 'lucide-react';
 import api from '../../api/axios.js';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -239,12 +240,11 @@ export default function PatientRegistration() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Date of Birth</label>
-              <input
-                type="date"
-                className="input-field"
+              <DatePicker
+                label="Date of Birth"
                 value={formData.dateOfBirth}
-                onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                onChange={(date, dateStr) => handleChange('dateOfBirth', dateStr)}
+                maxDate={new Date()}
               />
             </div>
             <div>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 export default function DoctorPatients() {
   const { user } = useAuth();
@@ -155,28 +156,26 @@ export default function DoctorPatients() {
         {/* Filter Controls Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           <div>
-            <label className="block font-semibold text-ink-soft mb-1">Last Visit From</label>
-            <input
-              type="date"
-              className="input-field py-1.5 font-mono text-xs"
+            <DatePicker
+              label="Last Visit From"
               value={lastVisitFrom}
-              onChange={(e) => {
-                setLastVisitFrom(e.target.value);
+              onChange={(date, dateStr) => {
+                setLastVisitFrom(dateStr);
                 setPage(1);
               }}
+              inputClassName="py-1 text-xs"
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-ink-soft mb-1">Last Visit To</label>
-            <input
-              type="date"
-              className="input-field py-1.5 font-mono text-xs"
+            <DatePicker
+              label="Last Visit To"
               value={lastVisitTo}
-              onChange={(e) => {
-                setLastVisitTo(e.target.value);
+              onChange={(date, dateStr) => {
+                setLastVisitTo(dateStr);
                 setPage(1);
               }}
+              inputClassName="py-1 text-xs"
             />
           </div>
 

@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import StateDiffViewer from '../../components/common/StateDiffViewer.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 const ROLE_BADGES = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -141,22 +142,20 @@ export default function AuditLogs() {
           </div>
 
           <div>
-            <label className="block font-semibold text-ink-soft mb-1">From Date</label>
-            <input
-              type="date"
-              className="input-field py-1.5 text-xs font-mono"
+            <DatePicker
+              label="From Date"
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(date, dateStr) => setDateFrom(dateStr)}
+              inputClassName="py-1 text-xs"
             />
           </div>
 
           <div>
-            <label className="block font-semibold text-ink-soft mb-1">To Date</label>
-            <input
-              type="date"
-              className="input-field py-1.5 text-xs font-mono"
+            <DatePicker
+              label="To Date"
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(date, dateStr) => setDateTo(dateStr)}
+              inputClassName="py-1 text-xs"
             />
           </div>
         </div>

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Pending: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -397,12 +398,10 @@ export default function FollowUps() {
 
               {/* Recommended Date */}
               <div>
-                <label className="block font-semibold text-ink-soft mb-1">Recommended Date</label>
-                <input
-                  type="date"
-                  className="input-field"
+                <DatePicker
+                  label="Recommended Date"
                   value={addFormData.recommendedDate}
-                  onChange={(e) => setAddFormData({ ...addFormData, recommendedDate: e.target.value })}
+                  onChange={(date, dateStr) => setAddFormData({ ...addFormData, recommendedDate: dateStr })}
                 />
               </div>
 
@@ -509,12 +508,10 @@ export default function FollowUps() {
               {/* Date & Time */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Appointment Date</label>
-                  <input
-                    type="date"
-                    className="input-field"
+                  <DatePicker
+                    label="Appointment Date"
                     value={scheduleFormData.date}
-                    onChange={(e) => setScheduleFormData({ ...scheduleFormData, date: e.target.value })}
+                    onChange={(date, dateStr) => setScheduleFormData({ ...scheduleFormData, date: dateStr })}
                   />
                 </div>
                 <div>

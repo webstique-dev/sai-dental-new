@@ -5,6 +5,7 @@ import {
 import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -150,12 +151,12 @@ export default function AdminAppointments() {
           />
         </div>
 
-        <div>
-          <input
-            type="date"
-            className="input-field py-2 text-xs font-mono"
+        <div className="w-40">
+          <DatePicker
             value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
+            onChange={(date, dateStr) => setDateFilter(dateStr)}
+            placeholder="Filter by Date"
+            inputClassName="py-1 text-xs"
           />
         </div>
 

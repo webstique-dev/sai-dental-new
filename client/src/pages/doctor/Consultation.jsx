@@ -8,6 +8,7 @@ import {
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
 import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
 import PrescriptionsTab from './consultation/PrescriptionsTab.jsx';
@@ -448,15 +449,12 @@ export default function Consultation() {
                   <div className="space-y-3 pt-2 border-t border-border/60 animate-in fade-in duration-150">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-semibold text-ink-soft mb-1">
-                          Recommended Date <span className="text-rose-600">*</span>
-                        </label>
-                        <input
-                          type="date"
-                          required={enableFollowUp}
-                          className="input-field py-1.5 font-mono"
+                        <DatePicker
+                          label="Recommended Date"
+                          isRequired={enableFollowUp}
                           value={followUpForm.recommendedDate}
-                          onChange={(e) => setFollowUpForm({ ...followUpForm, recommendedDate: e.target.value })}
+                          onChange={(date, dateStr) => setFollowUpForm({ ...followUpForm, recommendedDate: dateStr })}
+                          minDate={new Date()}
                         />
                       </div>
 

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -469,12 +470,12 @@ export default function PatientDetail() {
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Date of Birth</label>
-                    <input
-                      type="date"
-                      className="input-field py-1.5"
+                    <DatePicker
+                      label="Date of Birth"
                       value={editForm.dateOfBirth}
-                      onChange={(e) => handleEditChange('dateOfBirth', e.target.value)}
+                      onChange={(date, dateStr) => handleEditChange('dateOfBirth', dateStr)}
+                      maxDate={new Date()}
+                      inputClassName="py-1.5"
                     />
                   </div>
                   <div>
