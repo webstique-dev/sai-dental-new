@@ -3,6 +3,7 @@ import {
   ScrollText, Filter, Calendar, User, ShieldCheck, UserSquare2, RefreshCw, ChevronLeft, ChevronRight, ArrowRight, Activity, Search, X,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import StateDiffViewer from '../../components/common/StateDiffViewer.jsx';
 
 const ROLE_BADGES = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -68,18 +69,6 @@ export default function AuditLogs() {
     setEntityFilter('');
     setDateFrom('');
     setDateTo('');
-  };
-
-  const renderValuePreview = (val) => {
-    if (!val) return <span className="text-ink-soft/50 italic">—</span>;
-    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
-      return <span className="font-semibold text-ink">{String(val)}</span>;
-    }
-    return (
-      <pre className="font-mono text-[10px] bg-bg/80 p-1.5 rounded border border-border/60 max-w-[220px] overflow-x-auto whitespace-pre-wrap">
-        {JSON.stringify(val, null, 1)}
-      </pre>
-    );
   };
 
   return (
@@ -259,15 +248,7 @@ export default function AuditLogs() {
                       </td>
 
                       <td className="px-4 py-3 text-xs">
-                        <div className="flex items-center gap-2 max-w-sm overflow-x-auto">
-                          {log.previousValue ? (
-                            <>
-                              <div>{renderValuePreview(log.previousValue)}</div>
-                              <ArrowRight size={13} className="text-ink-soft shrink-0" />
-                            </>
-                          ) : null}
-                          <div>{renderValuePreview(log.newValue)}</div>
-                        </div>
+                        <StateDiffViewer previousValue={log.previousValue} newValue={log.newValue} />
                       </td>
                     </tr>
                   );
