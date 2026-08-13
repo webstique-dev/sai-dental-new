@@ -413,7 +413,7 @@ export default function Queue() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-[360px] flex flex-col items-center justify-center">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-[360px]">
               {/* Error Banner inside Modal */}
               {errorMessage && (
                 <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
