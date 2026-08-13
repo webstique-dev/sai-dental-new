@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, UserPlus, Plus, X } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 
@@ -15,7 +15,6 @@ const MEDICAL_HISTORY_OPTIONS = [
   'Thyroid Disorder',
   'Hepatitis',
   'Bleeding Disorder',
-  'Any Other',
 ];
 
 const HABITS_OPTIONS = ['Smoking', 'Tobacco', 'Alcohol', 'Pan'];
@@ -43,6 +42,57 @@ export default function PatientRegistration() {
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [customMedicalInput, setCustomMedicalInput] = useState('');
+  const [customHabitInput, setCustomHabitInput] = useState('');
+  const [customVitalLabel, setCustomVitalLabel] = useState('');
+  const [customVitalValue, setCustomVitalValue] = useState('');
+
+  const handleAddCustomMedicalHistory = () => {
+    const trimmed = customMedicalInput.trim();
+    if (!trimmed) return;
+    if (!formData.medicalHistory.includes(trimmed)) {
+      setFormData((prev) => ({
+        ...prev,
+        medicalHistory: [...prev.medicalHistory, trimmed],
+      }));
+    }
+    setCustomMedicalInput('');
+  };
+
+  const handleAddCustomHabit = () => {
+    const trimmed = customHabitInput.trim();
+    if (!trimmed) return;
+    if (!formData.habits.includes(trimmed)) {
+      setFormData((prev) => ({
+        ...prev,
+        habits: [...prev.habits, trimmed],
+      }));
+    }
+    setCustomHabitInput('');
+  };
+
+  const handleAddCustomVital = () => {
+    const labelTrimmed = customVitalLabel.trim();
+    const valueTrimmed = customVitalValue.trim();
+    if (!labelTrimmed) return;
+    setFormData((prev) => ({
+      ...prev,
+      vitals: {
+        ...(prev.vitals || {}),
+        [labelTrimmed]: valueTrimmed,
+      },
+    }));
+    setCustomVitalLabel('');
+    setCustomVitalValue('');
+  };
+
+  const handleRemoveCustomVital = (key) => {
+    setFormData((prev) => {
+      const updated = { ...(prev.vitals || {}) };
+      delete updated[key];
+      return { ...prev, vitals: updated };
+    });
+  };
 
   // Live duplicate check on name or phone change (debounced)
   useEffect(() => {
@@ -298,6 +348,65 @@ export default function PatientRegistration() {
               );
             })}
           </div>
+
+          {/* Custom Medical History Input & Add Option */}
+          <div className="pt-3 border-t border-border/70 space-y-3">
+            <label className="block text-xs font-semibold text-ink-soft">
+              Add Custom Medical History / Condition
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                className="input-field py-2 text-sm flex-1"
+                placeholder="Enter additional medical condition (e.g. Penicillin Allergy, Glaucoma)..."
+                value={customMedicalInput}
+                onChange={(e) => setCustomMedicalInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomMedicalHistory();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomMedicalHistory}
+                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <Plus size={14} /> Add
+              </button>
+            </div>
+
+            {/* Display Added Custom Items */}
+            {formData.medicalHistory.some((item) => !MEDICAL_HISTORY_OPTIONS.includes(item)) && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">
+                  Added Custom Conditions:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {formData.medicalHistory.map((item) => {
+                    if (MEDICAL_HISTORY_OPTIONS.includes(item)) return null;
+                    return (
+                      <span
+                        key={item}
+                        className="inline-flex items-center gap-1.5 bg-teal-50 text-teal-800 border border-teal-200 px-3 py-1 rounded-full text-xs font-medium"
+                      >
+                        <span>{item}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCheckboxToggle('medicalHistory', item)}
+                          className="text-teal-600 hover:text-teal-900 rounded-full p-0.5"
+                          title="Remove condition"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 3. Current Medications */}
@@ -328,7 +437,7 @@ export default function PatientRegistration() {
                 type="text"
                 className="input-field"
                 placeholder="e.g. 120/80 mmHg"
-                value={formData.vitals.bp}
+                value={formData.vitals?.bp || ''}
                 onChange={(e) => handleVitalsChange('bp', e.target.value)}
               />
             </div>
@@ -338,9 +447,71 @@ export default function PatientRegistration() {
                 type="text"
                 className="input-field"
                 placeholder="e.g. 110 mg/dL"
-                value={formData.vitals.rbs}
+                value={formData.vitals?.rbs || ''}
                 onChange={(e) => handleVitalsChange('rbs', e.target.value)}
               />
+            </div>
+
+            {/* Render Any Added Custom Vitals */}
+            {Object.entries(formData.vitals || {}).map(([key, val]) => {
+              if (key === 'bp' || key === 'rbs') return null;
+              return (
+                <div key={key} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">{key}</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={val || ''}
+                      onChange={(e) => handleVitalsChange(key, e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCustomVital(key)}
+                    className="p-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                    title={`Remove ${key}`}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Custom Vital Input Row */}
+          <div className="pt-3 border-t border-border/70 space-y-3">
+            <label className="block text-xs font-semibold text-ink-soft">
+              Add Custom Vital (e.g. Pulse, SpO2, Weight, Temperature)
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+              <input
+                type="text"
+                className="input-field py-2 text-sm sm:col-span-2"
+                placeholder="Vital Name (e.g. Pulse, SpO2)..."
+                value={customVitalLabel}
+                onChange={(e) => setCustomVitalLabel(e.target.value)}
+              />
+              <input
+                type="text"
+                className="input-field py-2 text-sm sm:col-span-2"
+                placeholder="Value (e.g. 72 bpm, 98%)..."
+                value={customVitalValue}
+                onChange={(e) => setCustomVitalValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomVital();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomVital}
+                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                <Plus size={14} /> Add
+              </button>
             </div>
           </div>
         </div>
@@ -372,6 +543,65 @@ export default function PatientRegistration() {
                 </label>
               );
             })}
+          </div>
+
+          {/* Custom Habit Input & Add Option */}
+          <div className="pt-3 border-t border-border/70 space-y-3">
+            <label className="block text-xs font-semibold text-ink-soft">
+              Add Custom Habit
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                className="input-field py-2 text-sm flex-1"
+                placeholder="Enter additional habit (e.g. Vaping, Betel Nut, E-Cigarette)..."
+                value={customHabitInput}
+                onChange={(e) => setCustomHabitInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomHabit();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomHabit}
+                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <Plus size={14} /> Add
+              </button>
+            </div>
+
+            {/* Display Added Custom Habits */}
+            {formData.habits.some((item) => !HABITS_OPTIONS.includes(item)) && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">
+                  Added Custom Habits:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {formData.habits.map((item) => {
+                    if (HABITS_OPTIONS.includes(item)) return null;
+                    return (
+                      <span
+                        key={item}
+                        className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-xs font-medium"
+                      >
+                        <span>{item}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCheckboxToggle('habits', item)}
+                          className="text-amber-600 hover:text-amber-900 rounded-full p-0.5"
+                          title="Remove habit"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -61,7 +61,6 @@ const patientSchema = new mongoose.Schema(
     },
     medicalHistory: {
       type: [String],
-      enum: medicalHistoryOptions,
       default: [],
     },
     currentMedications: {
@@ -69,12 +68,11 @@ const patientSchema = new mongoose.Schema(
       default: '',
     },
     vitals: {
-      bp: { type: String, default: '' },
-      rbs: { type: String, default: '' },
+      type: mongoose.Schema.Types.Mixed,
+      default: { bp: '', rbs: '' },
     },
     habits: {
       type: [String],
-      enum: habitOptions,
       default: [],
     },
     dentalHistory: {
