@@ -1,6 +1,7 @@
 const Consultation = require('../models/Consultation');
 const QueueEntry = require('../models/QueueEntry');
 const Appointment = require('../models/Appointment');
+const FollowUp = require('../models/FollowUp');
 const { logAction } = require('../middleware/auditLog');
 
 function getTodayDateRange() {
@@ -154,12 +155,54 @@ async function getConsultationById(req, res, next) {
   }
 }
 
-// POST /api/consultations/:id/close (Sets status = Completed, closedAt = now, updates QueueEntry/Appointment)
+// POST /api/consultations/:id/close (Sets status = Completed, closedAt = now, creates/updates followUp, updates QueueEntry/Appointment)
 async function closeConsultation(req, res, next) {
   try {
     const consultation = await Consultation.findById(req.params.id);
     if (!consultation) {
       return res.status(404).json({ message: 'Consultation not found.' });
+    }
+
+    const { closeNotes, followUp } = req.body || {};
+    let savedFollowUp = null;
+
+    // Handle optional Follow-Up payload
+    if (followUp && typeof followUp === 'object') {
+      const { recommendedDate, reason, instructions, treatmentStatus, notes } = followUp;
+
+      // Check if a FollowUp document already exists for this consultation
+      let existingFollowUp = await FollowUp.findOne({ consultation: consultation._id });
+
+      if (existingFollowUp) {
+        if (recommendedDate) existingFollowUp.recommendedDate = recommendedDate;
+        if (reason !== undefined) existingFollowUp.reason = reason;
+        if (instructions !== undefined) existingFollowUp.instructions = instructions;
+        if (notes !== undefined) existingFollowUp.notes = notes;
+        if (treatmentStatus !== undefined) existingFollowUp.treatmentStatus = treatmentStatus;
+        await existingFollowUp.save();
+        savedFollowUp = existingFollowUp;
+      } else {
+        savedFollowUp = new FollowUp({
+          patient: consultation.patient,
+          consultation: consultation._id,
+          recommendedDate: recommendedDate || new Date(),
+          reason: reason || 'Follow-up Visit',
+          instructions: instructions || '',
+          notes: notes || '',
+          treatmentStatus: treatmentStatus || '',
+          status: 'Pending',
+          createdBy: req.user ? req.user._id : undefined,
+        });
+        await savedFollowUp.save();
+      }
+
+      savedFollowUp = await FollowUp.findById(savedFollowUp._id)
+        .populate('patient', 'firstName lastName opNumber phone age sex')
+        .populate('createdBy', 'name email');
+    }
+
+    if (closeNotes) {
+      consultation.notes = closeNotes;
     }
 
     consultation.status = 'Completed';
@@ -181,12 +224,17 @@ async function closeConsultation(req, res, next) {
       entityType: 'Consultation',
       entityId: consultation._id,
       patient: consultation.patient,
-      newValue: { status: 'Completed', closedAt: consultation.closedAt },
+      newValue: {
+        status: 'Completed',
+        closedAt: consultation.closedAt,
+        followUp: savedFollowUp ? savedFollowUp._id : null,
+      },
     });
 
     return res.json({
       message: 'Consultation closed successfully.',
       consultation,
+      followUp: savedFollowUp,
     });
   } catch (err) {
     next(err);

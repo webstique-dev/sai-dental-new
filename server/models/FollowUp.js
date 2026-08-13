@@ -8,6 +8,11 @@ const followUpSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
     },
+    consultation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Consultation',
+      default: null,
+    },
     recommendedDate: {
       type: Date,
     },

@@ -2,14 +2,20 @@ const FollowUp = require('../models/FollowUp');
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 
-// GET /api/follow-ups?status=
+// GET /api/follow-ups?status=&consultation=&patient=
 async function listFollowUps(req, res, next) {
   try {
-    const { status, search } = req.query;
+    const { status, search, consultation, patient } = req.query;
     const filter = {};
 
     if (status) {
       filter.status = status;
+    }
+    if (consultation) {
+      filter.consultation = consultation;
+    }
+    if (patient) {
+      filter.patient = patient;
     }
 
     if (search && search.trim()) {
@@ -45,7 +51,7 @@ async function listFollowUps(req, res, next) {
 // POST /api/follow-ups (Manual add by receptionist or doctor)
 async function createFollowUp(req, res, next) {
   try {
-    const { patient, recommendedDate, reason, instructions, notes, treatmentStatus } = req.body;
+    const { patient, consultation, recommendedDate, reason, instructions, notes, treatmentStatus } = req.body;
 
     if (!patient) {
       return res.status(400).json({ message: 'Patient is required.' });
@@ -53,6 +59,7 @@ async function createFollowUp(req, res, next) {
 
     const followUp = new FollowUp({
       patient,
+      consultation: consultation || null,
       recommendedDate: recommendedDate || new Date(),
       reason: reason || '',
       instructions: instructions || '',

@@ -31,8 +31,19 @@ export default function Consultation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Close Consultation Modal State
+  // Close Consultation & Follow-Up Modal State
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [enableFollowUp, setEnableFollowUp] = useState(false);
+  const [closeNotes, setCloseNotes] = useState('');
+  const [followUpForm, setFollowUpForm] = useState({
+    recommendedDate: '',
+    reason: '',
+    instructions: '',
+    treatmentStatus: '',
+  });
+  const [existingFollowUpId, setExistingFollowUpId] = useState(null);
+  const [closeModalError, setCloseModalError] = useState('');
+  const [closeSuccessMsg, setCloseSuccessMsg] = useState('');
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
@@ -53,14 +64,112 @@ export default function Consultation() {
     }
   }, [consultationId]);
 
-  const handleConfirmClose = async () => {
+  const formatDateForInput = (d) => {
+    if (!d) return '';
+    const dateObj = new Date(d);
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toISOString().split('T')[0];
+  };
+
+  const handleOpenCloseModal = async () => {
+    setCloseModalError('');
+    setCloseSuccessMsg('');
+    setCloseNotes('');
+
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 7);
+    const defaultDateStr = defaultDate.toISOString().split('T')[0];
+
+    try {
+      // Check if a follow-up already exists for this consultation
+      const res = await api.get(`/follow-ups?consultation=${consultationId}`);
+      const list = res.data?.followUps || [];
+      if (list.length > 0) {
+        const existing = list[0];
+        setExistingFollowUpId(existing._id || existing.id);
+        setEnableFollowUp(true);
+        setFollowUpForm({
+          recommendedDate: formatDateForInput(existing.recommendedDate) || defaultDateStr,
+          reason: existing.reason || '',
+          instructions: existing.instructions || '',
+          treatmentStatus: existing.treatmentStatus || '',
+        });
+      } else {
+        setExistingFollowUpId(null);
+        setEnableFollowUp(false);
+        setFollowUpForm({
+          recommendedDate: defaultDateStr,
+          reason: '',
+          instructions: '',
+          treatmentStatus: '',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to check existing follow-up:', err);
+      setExistingFollowUpId(null);
+      setEnableFollowUp(false);
+      setFollowUpForm({
+        recommendedDate: defaultDateStr,
+        reason: '',
+        instructions: '',
+        treatmentStatus: '',
+      });
+    }
+
+    setShowCloseModal(true);
+  };
+
+  const handleConfirmClose = async (e) => {
+    if (e) e.preventDefault();
+    setCloseModalError('');
+    setCloseSuccessMsg('');
+
+    if (enableFollowUp) {
+      if (!followUpForm.recommendedDate) {
+        setCloseModalError('Please select a recommended follow-up date.');
+        return;
+      }
+      if (!followUpForm.reason || !followUpForm.reason.trim()) {
+        setCloseModalError('Please specify a reason for the follow-up.');
+        return;
+      }
+    }
+
     setClosing(true);
     try {
-      await api.post(`/consultations/${consultationId}/close`);
-      setShowCloseModal(false);
-      navigate('/doctor/queue');
+      const payload = {
+        closeNotes: closeNotes.trim(),
+        followUp: enableFollowUp
+          ? {
+              recommendedDate: followUpForm.recommendedDate,
+              reason: followUpForm.reason.trim(),
+              instructions: followUpForm.instructions.trim(),
+              treatmentStatus: followUpForm.treatmentStatus.trim(),
+            }
+          : null,
+      };
+
+      const res = await api.post(`/consultations/${consultationId}/close`, payload);
+
+      const savedFu = res.data?.followUp;
+      let successStr = 'Consultation closed successfully.';
+      if (savedFu && savedFu.recommendedDate) {
+        const recDateStr = new Date(savedFu.recommendedDate).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+        successStr = `Consultation closed • Follow-up scheduled for ${recDateStr}`;
+      }
+
+      setCloseSuccessMsg(successStr);
+
+      setTimeout(() => {
+        setShowCloseModal(false);
+        navigate('/doctor/queue');
+      }, 1400);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to close consultation.');
+      setCloseModalError(err.response?.data?.message || 'Failed to close consultation.');
     } finally {
       setClosing(false);
     }
@@ -108,8 +217,8 @@ export default function Consultation() {
 
         {!isCompleted ? (
           <button
-            onClick={() => setShowCloseModal(true)}
-            className="btn-primary bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 text-xs"
+            onClick={handleOpenCloseModal}
+            className="btn-primary bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 text-xs font-bold"
           >
             <CheckCircle2 size={16} /> Close Consultation
           </button>
@@ -274,43 +383,159 @@ export default function Consultation() {
         )}
       </div>
 
-      {/* CONFIRM CLOSE CONSULTATION DIALOG */}
+      {/* 2-PART CLOSE CONSULTATION MODAL */}
       {showCloseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-md p-6 space-y-4 bg-surface">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm">
+          <div className="card w-full max-w-xl p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-                <CheckCircle2 size={20} className="text-emerald-600" /> Close Consultation
-              </h3>
-              <button onClick={() => setShowCloseModal(false)} className="rounded-lg p-1 hover:bg-bg">
+              <div>
+                <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                  <CheckCircle2 size={20} className="text-emerald-600" /> Close Consultation
+                </h3>
+                <p className="text-xs text-ink-soft">
+                  Review follow-up recommendation and add optional closing notes for this visit.
+                </p>
+              </div>
+              <button onClick={() => setShowCloseModal(false)} className="rounded-lg p-1 text-ink-soft hover:text-ink">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="text-xs text-ink space-y-2">
-              <p className="font-semibold text-ink">Are you sure you want to close this consultation?</p>
-              <p className="text-ink-soft">
-                Closing this consultation will mark the visit as completed and lock clinical records for this patient. This action cannot be undone.
-              </p>
-            </div>
+            {closeSuccessMsg && (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-800 border border-emerald-200">
+                <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                <span>{closeSuccessMsg}</span>
+              </div>
+            )}
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-              <button
-                type="button"
-                className="btn-secondary text-xs"
-                onClick={() => setShowCloseModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={closing}
-                className="btn-primary bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-                onClick={handleConfirmClose}
-              >
-                {closing ? 'Closing...' : 'Confirm & Close Consultation'}
-              </button>
-            </div>
+            {closeModalError && (
+              <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
+                <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                <span>{closeModalError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmClose} className="space-y-5 text-xs">
+              {/* PART A: FOLLOW-UP SECTION (SHOWN FIRST) */}
+              <div className="rounded-xl border border-border bg-bg/40 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={18} className="text-brand" />
+                    <span className="font-bold text-ink text-xs">Follow-Up Recommendation</span>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableFollowUp}
+                      onChange={(e) => setEnableFollowUp(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
+                    <span className="ml-2 text-xs font-semibold text-ink">
+                      {enableFollowUp ? 'Follow-Up Recommended' : 'No Follow-Up Required'}
+                    </span>
+                  </label>
+                </div>
+
+                {existingFollowUpId && (
+                  <p className="text-[11px] text-brand font-medium italic">
+                    ℹ️ Pre-filled from existing follow-up created for this visit. Updating fields here will update the scheduled follow-up.
+                  </p>
+                )}
+
+                {enableFollowUp && (
+                  <div className="space-y-3 pt-2 border-t border-border/60 animate-in fade-in duration-150">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold text-ink-soft mb-1">
+                          Recommended Date <span className="text-rose-600">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          required={enableFollowUp}
+                          className="input-field py-1.5 font-mono"
+                          value={followUpForm.recommendedDate}
+                          onChange={(e) => setFollowUpForm({ ...followUpForm, recommendedDate: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-ink-soft mb-1">
+                          Reason for Follow-Up <span className="text-rose-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required={enableFollowUp}
+                          className="input-field py-1.5"
+                          placeholder="e.g. Suture removal, Crown fit check"
+                          value={followUpForm.reason}
+                          onChange={(e) => setFollowUpForm({ ...followUpForm, reason: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Patient Instructions</label>
+                      <textarea
+                        rows={2}
+                        className="input-field py-1.5"
+                        placeholder="e.g. Continue warm saline rinses. Avoid chewing on right side."
+                        value={followUpForm.instructions}
+                        onChange={(e) => setFollowUpForm({ ...followUpForm, instructions: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Treatment Status Note (Optional)</label>
+                      <input
+                        type="text"
+                        className="input-field py-1.5"
+                        placeholder="e.g. Root canal step 1 completed, awaiting final obturation"
+                        value={followUpForm.treatmentStatus}
+                        onChange={(e) => setFollowUpForm({ ...followUpForm, treatmentStatus: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* PART B: CONSULTATION SUMMARY SECTION */}
+              <div className="space-y-2">
+                <label className="block font-semibold text-ink-soft">
+                  Closing Summary Notes (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  className="input-field py-1.5"
+                  placeholder="Enter optional clinical summary, post-op care advice, or final diagnosis notes..."
+                  value={closeNotes}
+                  onChange={(e) => setCloseNotes(e.target.value)}
+                />
+                <p className="text-[11px] text-ink-soft">
+                  Closing this consultation will complete the visit and lock clinical records for editing.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  className="btn-secondary text-xs py-1.5 px-3"
+                  onClick={() => setShowCloseModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={closing}
+                  className="btn-primary bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1.5 px-4 font-bold flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={15} />
+                  <span>{closing ? 'Closing Consultation...' : 'Confirm & Close Consultation'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
