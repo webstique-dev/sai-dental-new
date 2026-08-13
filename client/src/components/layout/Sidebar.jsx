@@ -33,7 +33,7 @@ const NAV = {
     { to: '/doctor', label: 'Dashboard', icon: LayoutGrid, end: true },
     { to: '/doctor/queue', label: 'My Queue', icon: ClipboardList },
     { to: '/doctor/patients', label: 'Patients', icon: UserSquare2 },
-    { to: '/doctor/history', label: 'Patient History', icon: History },
+    // { to: '/doctor/history', label: 'Patient History', icon: History },
     { to: '/doctor/examination', label: 'Clinical Examination', icon: FileHeart },
     { to: '/doctor/tooth-chart', label: 'Tooth Chart', icon: Grid3x3 },
     { to: '/doctor/diagnosis', label: 'Diagnosis', icon: Stethoscope },

@@ -9,8 +9,8 @@ const allowRoles = require('../middleware/roleCheck');
 
 const router = express.Router();
 
-// Protected for Receptionist and Admin
-router.use(protect, allowRoles('receptionist', 'admin'));
+// Protected for Receptionist, Admin, and Doctor
+router.use(protect, allowRoles('receptionist', 'admin', 'doctor'));
 
 router.get('/', listFollowUps);
 router.post('/', createFollowUp);

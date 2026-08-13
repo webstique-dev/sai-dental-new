@@ -38,6 +38,7 @@ import DoctorDashboard from './pages/doctor/DoctorDashboard.jsx';
 import DoctorQueue from './pages/doctor/Queue.jsx';
 import Consultation from './pages/doctor/Consultation.jsx';
 import PatientHistory from './pages/doctor/PatientHistory.jsx';
+import DoctorPatients from './pages/doctor/Patients.jsx';
 
 // Small helper so Phase 2+ pages (not yet built) render a clean
 // "coming soon" state instead of a blank/broken route.
@@ -99,7 +100,7 @@ export default function App() {
           <Route path="/doctor" element={<DoctorDashboard />} />
           <Route path="/doctor/queue" element={<DoctorQueue />} />
           <Route path="/doctor/consultation/:consultationId" element={<Consultation />} />
-          <Route path="/doctor/patients" element={<PatientHistory />} />
+          <Route path="/doctor/patients" element={<DoctorPatients />} />
           <Route path="/doctor/patients/:patientId" element={<PatientHistory />} />
           <Route path="/doctor/history" element={<PatientHistory />} />
           <Route path="/doctor/history/:patientId" element={<PatientHistory />} />
@@ -108,7 +109,7 @@ export default function App() {
           <Route path="/doctor/diagnosis" element={<Navigate to="/doctor/queue" replace />} />
           <Route path="/doctor/treatment-plans" element={<Navigate to="/doctor/queue" replace />} />
           <Route path="/doctor/prescriptions" element={<Navigate to="/doctor/queue" replace />} />
-          <Route path="/doctor/follow-ups" element={<Navigate to="/doctor/queue" replace />} />
+          <Route path="/doctor/follow-ups" element={<FollowUps />} />
         </Route>
       </Route>
 

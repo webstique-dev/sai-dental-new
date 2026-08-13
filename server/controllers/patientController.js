@@ -1,46 +1,212 @@
 const Patient = require('../models/Patient');
 const { logAction } = require('../middleware/auditLog');
 
-// GET /api/patients?search=&page=&limit=&sortBy=&sortOrder=
+// GET /api/patients?search=&lastVisitFrom=&lastVisitTo=&doctorId=&sort=&sortBy=&sortOrder=&page=&limit=
 async function listPatients(req, res, next) {
   try {
-    const { search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const {
+      search,
+      lastVisitFrom,
+      lastVisitTo,
+      doctorId,
+      sort,
+      sortBy,
+      sortOrder,
+      page = 1,
+      limit = 20,
+    } = req.query;
+
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 20;
     const skip = (pageNum - 1) * limitNum;
 
-    let filter = {};
+    // Determine effective doctor filter
+    let effectiveDoctorId = null;
+    if (req.user && req.user.role === 'doctor') {
+      effectiveDoctorId = req.user._id.toString();
+    } else if (doctorId && doctorId.trim()) {
+      effectiveDoctorId = doctorId.trim();
+    }
+
+    const mongoose = require('mongoose');
+
+    // Build aggregation pipeline
+    const pipeline = [];
+
+    // 1. Initial Match (Search by name, phone, OP number)
+    const matchStage = {};
     if (search && search.trim()) {
       const q = search.trim();
       const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      filter = {
-        $or: [
-          { firstName: regex },
-          { lastName: regex },
-          { phone: regex },
-          { opNumber: regex },
-        ],
-      };
+      matchStage.$or = [
+        { firstName: regex },
+        { lastName: regex },
+        { phone: regex },
+        { opNumber: regex },
+      ];
+    }
+    pipeline.push({ $match: matchStage });
+
+    // 2. Lookup consultations for each patient
+    pipeline.push({
+      $lookup: {
+        from: 'consultations',
+        localField: '_id',
+        foreignField: 'patient',
+        as: 'consultations',
+      },
+    });
+
+    // 3. If filtered by doctorId, ensure patient has at least one consultation with this doctor
+    if (effectiveDoctorId && mongoose.Types.ObjectId.isValid(effectiveDoctorId)) {
+      pipeline.push({
+        $match: {
+          'consultations.doctor': new mongoose.Types.ObjectId(effectiveDoctorId),
+        },
+      });
     }
 
-    const sortOptions = {};
+    // 4. Calculate lastVisitDoc, lastVisitDate, and lastVisitDoctorId
+    pipeline.push({
+      $addFields: {
+        lastVisitDoc: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: {
+                  $sortArray: {
+                    input: '$consultations',
+                    sortBy: { startedAt: -1, createdAt: -1 },
+                  },
+                },
+                as: 'c',
+                cond:
+                  effectiveDoctorId && mongoose.Types.ObjectId.isValid(effectiveDoctorId)
+                    ? { $eq: ['$$c.doctor', new mongoose.Types.ObjectId(effectiveDoctorId)] }
+                    : true,
+              },
+            },
+            0,
+          ],
+        },
+      },
+    });
+
+    pipeline.push({
+      $addFields: {
+        lastVisitDate: {
+          $ifNull: ['$lastVisitDoc.startedAt', '$lastVisitDoc.createdAt'],
+        },
+        lastVisitDoctorId: '$lastVisitDoc.doctor',
+      },
+    });
+
+    // 5. Filter by lastVisitFrom and lastVisitTo
+    if (lastVisitFrom || lastVisitTo) {
+      const dateMatch = {};
+      if (lastVisitFrom) {
+        dateMatch.$gte = new Date(lastVisitFrom);
+      }
+      if (lastVisitTo) {
+        const toDate = new Date(lastVisitTo);
+        toDate.setHours(23, 59, 59, 999);
+        dateMatch.$lte = toDate;
+      }
+      pipeline.push({
+        $match: {
+          lastVisitDate: dateMatch,
+        },
+      });
+    }
+
+    // 6. Lookup Doctor details for lastVisitDoctor and RegisteredBy User
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'lastVisitDoctorId',
+        foreignField: '_id',
+        as: 'lastVisitDoctorArr',
+      },
+    });
+
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'registeredBy',
+        foreignField: '_id',
+        as: 'registeredByArr',
+      },
+    });
+
+    pipeline.push({
+      $addFields: {
+        lastVisitDoctor: {
+          $arrayElemAt: [
+            {
+              $map: {
+                input: '$lastVisitDoctorArr',
+                as: 'd',
+                in: { _id: '$$d._id', name: '$$d.name', email: '$$d.email' },
+              },
+            },
+            0,
+          ],
+        },
+        registeredBy: {
+          $arrayElemAt: [
+            {
+              $map: {
+                input: '$registeredByArr',
+                as: 'r',
+                in: { _id: '$$r._id', name: '$$r.name', email: '$$r.email', role: '$$r.role' },
+              },
+            },
+            0,
+          ],
+        },
+      },
+    });
+
+    // Clean up temporary join fields
+    pipeline.push({
+      $project: {
+        consultations: 0,
+        lastVisitDoc: 0,
+        lastVisitDoctorArr: 0,
+        registeredByArr: 0,
+      },
+    });
+
+    // 7. Sorting
+    const sortField = sort || sortBy || 'lastVisit';
     const order = sortOrder === 'asc' ? 1 : -1;
-    if (sortBy === 'registrationDate' || sortBy === 'createdAt') {
-      sortOptions.createdAt = order;
-    } else if (sortBy === 'name') {
+    const sortOptions = {};
+
+    if (sortField === 'name') {
       sortOptions.firstName = order;
-    } else if (sortBy === 'opNumber') {
+      sortOptions.lastName = order;
+    } else if (sortField === 'registrationDate' || sortField === 'createdAt') {
+      sortOptions.createdAt = order;
+    } else if (sortField === 'opNumber') {
       sortOptions.opNumber = order;
     } else {
-      sortOptions[sortBy] = order;
+      // Default: lastVisit desc
+      sortOptions.lastVisitDate = order;
+      sortOptions.createdAt = order;
     }
 
-    const total = await Patient.countDocuments(filter);
-    const patients = await Patient.find(filter)
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(limitNum)
-      .populate('registeredBy', 'name email role');
+    // 8. Facet for Total Count and Paginated Items
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [{ $sort: sortOptions }, { $skip: skip }, { $limit: limitNum }],
+      },
+    });
+
+    const result = await Patient.aggregate(pipeline);
+    const facetRes = result[0] || {};
+    const total = facetRes.metadata && facetRes.metadata.length > 0 ? facetRes.metadata[0].total : 0;
+    const patients = facetRes.data || [];
 
     return res.json({
       patients,

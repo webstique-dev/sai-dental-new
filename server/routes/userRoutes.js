@@ -12,8 +12,8 @@ const allowRoles = require('../middleware/roleCheck');
 
 const router = express.Router();
 
-// Doctor listing for appointments (Receptionist & Admin)
-router.get('/doctors', protect, allowRoles('admin', 'receptionist'), listDoctors);
+// Doctor listing for appointments (Receptionist, Admin & Doctor)
+router.get('/doctors', protect, allowRoles('admin', 'receptionist', 'doctor'), listDoctors);
 
 // Every route below is Admin-only per PRD section 4 & 27.
 router.use(protect, allowRoles('admin'));
