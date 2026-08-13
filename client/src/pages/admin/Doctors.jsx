@@ -229,9 +229,8 @@ export default function AdminDoctors() {
                       {/* Status */}
                       <td className="px-5 py-4 whitespace-nowrap">
                         <span
-                          className={`badge text-[10px] ${
-                            isActive ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}
+                          className={`badge text-[10px] ${isActive ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}
                         >
                           {isActive ? 'Active' : 'Inactive'}
                         </span>
@@ -299,11 +298,10 @@ export default function AdminDoctors() {
 
             {feedback.msg && (
               <div
-                className={`p-3 rounded text-xs flex items-center gap-2 ${
-                  feedback.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
+                className={`p-3 rounded text-xs flex items-center gap-2 ${feedback.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
               >
                 {feedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
                 <span>{feedback.msg}</span>
@@ -355,9 +353,8 @@ export default function AdminDoctors() {
                   {profileForm.workingHours.map((wh, idx) => (
                     <div
                       key={wh.day}
-                      className={`flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-2.5 rounded-lg border text-xs ${
-                        wh.isAvailable ? 'bg-bg border-border' : 'bg-slate-100/60 border-slate-200 opacity-60'
-                      }`}
+                      className={`flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-2.5 rounded-lg border text-xs ${wh.isAvailable ? 'bg-bg border-border' : 'bg-slate-100/60 border-slate-200 opacity-60'
+                        }`}
                     >
                       <div className="w-24 font-bold text-ink flex items-center gap-2">
                         <input
