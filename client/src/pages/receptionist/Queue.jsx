@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import {
   ClipboardList, UserPlus, Search, CheckCircle2, AlertTriangle, X,
   User, Stethoscope, ChevronRight, ChevronLeft, ArrowRight, ShieldCheck,
+  UserCheck, Loader2,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
+import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const QUEUE_STATUS_OPTIONS = ['Waiting', 'Checked-In', 'With Doctor', 'Completed', 'Cancelled'];
 
@@ -17,9 +20,13 @@ const STATUS_BADGE_CLASSES = {
 };
 
 export default function Queue() {
+  const { showSuccess, showError } = useNotification();
   const [queueEntries, setQueueEntries] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pendingCancelQueueEntry, setPendingCancelQueueEntry] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [cancellingQueue, setCancellingQueue] = useState(false);
 
   // Modal State for 4-Step Walk-In Flow
   const [showWalkInModal, setShowWalkInModal] = useState(false);
@@ -162,13 +169,30 @@ export default function Queue() {
   };
 
   const handleStatusChange = async (queueId, newStatus) => {
+    setUpdatingStatusId(queueId);
     try {
       await api.patch(`/queue/${queueId}/status`, { status: newStatus });
-      setSuccessMessage(`Queue status updated to ${newStatus}`);
+      showSuccess(`Queue status updated to "${newStatus}".`);
       fetchTodayQueue();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to update status');
+      showError(err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  const confirmCancelQueueEntry = async () => {
+    if (!pendingCancelQueueEntry) return;
+    setCancellingQueue(true);
+    try {
+      await api.patch(`/queue/${pendingCancelQueueEntry._id}/status`, { status: 'Cancelled' });
+      showSuccess('Queue check-in cancelled successfully.');
+      setPendingCancelQueueEntry(null);
+      fetchTodayQueue();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to cancel queue entry.');
+    } finally {
+      setCancellingQueue(false);
     }
   };
 
@@ -301,21 +325,66 @@ export default function Queue() {
                       </td>
 
                       {/* Action */}
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-5 py-4 text-right whitespace-nowrap">
                         {['Completed', 'Cancelled'].includes(entry.status) ? (
                           <span className="text-xs text-ink-soft/40 italic">—</span>
                         ) : (
-                          <select
-                            className="input-field py-1 px-2.5 text-xs w-auto inline-block"
-                            value={entry.status}
-                            onChange={(e) => handleStatusChange(entry._id, e.target.value)}
-                          >
-                            {QUEUE_STATUS_OPTIONS.map((st) => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex items-center justify-end gap-2">
+                            {entry.status === 'Waiting' && (
+                              <button
+                                disabled={updatingStatusId === entry._id}
+                                onClick={() => handleStatusChange(entry._id, 'Checked-In')}
+                                className="inline-flex items-center gap-1 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                              >
+                                {updatingStatusId === entry._id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <UserCheck size={13} />
+                                )}
+                                Check In
+                              </button>
+                            )}
+
+                            {entry.status === 'Checked-In' && (
+                              <button
+                                disabled={updatingStatusId === entry._id}
+                                onClick={() => handleStatusChange(entry._id, 'With Doctor')}
+                                className="inline-flex items-center gap-1 rounded-xl bg-purple-50 border border-purple-200 px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-100 transition-colors disabled:opacity-50"
+                              >
+                                {updatingStatusId === entry._id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <Stethoscope size={13} />
+                                )}
+                                Send to Doctor
+                              </button>
+                            )}
+
+                            {entry.status === 'With Doctor' && (
+                              <button
+                                disabled={updatingStatusId === entry._id}
+                                onClick={() => handleStatusChange(entry._id, 'Completed')}
+                                className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                              >
+                                {updatingStatusId === entry._id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <CheckCircle2 size={13} />
+                                )}
+                                Complete
+                              </button>
+                            )}
+
+                            <button
+                              disabled={updatingStatusId === entry._id}
+                              onClick={() => setPendingCancelQueueEntry(entry)}
+                              className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                              title="Cancel Check-in"
+                            >
+                              <X size={13} />
+                              Cancel
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -329,22 +398,22 @@ export default function Queue() {
 
       {/* 4-STEP WALK-IN MODAL */}
       {showWalkInModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
-          <div className="card w-full max-w-xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="card w-full max-w-xl my-auto flex flex-col bg-surface shadow-2xl rounded-2xl border border-border overflow-visible min-h-[480px] max-h-[calc(100vh-2rem)]">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3.5 sm:px-6 sm:py-4 bg-surface shrink-0 rounded-t-2xl">
               <div>
                 <h3 className="font-display text-base sm:text-lg font-bold text-ink">Walk-In Patient Check-In</h3>
                 <p className="text-xs text-ink-soft">
                   Step {step} of 4: {step === 1 ? 'Patient Selection' : step === 2 ? 'Assign Doctor' : step === 3 ? 'Confirmation' : 'Token Issued'}
                 </p>
               </div>
-              <button onClick={resetWalkInModal} className="rounded-lg p-1 hover:bg-bg">
+              <button onClick={resetWalkInModal} className="rounded-lg p-1.5 text-ink-soft hover:bg-bg hover:text-ink transition-colors">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-[360px] flex flex-col items-center justify-center">
               {/* Error Banner inside Modal */}
               {errorMessage && (
                 <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
@@ -355,7 +424,7 @@ export default function Queue() {
 
               {/* STEP 1: Search or Register Patient */}
               {step === 1 && (
-                <div className="space-y-4">
+                <div className="space-y-4 min-h-[300px]">
                   <div className="flex rounded-xl border border-border p-1 bg-bg">
                     <button
                       type="button"
@@ -376,14 +445,16 @@ export default function Queue() {
                   </div>
 
                   {patientMode === 'search' ? (
-                    <PatientSearchInput
-                      selectedPatient={selectedPatient}
-                      onSelect={setSelectedPatient}
-                      required
-                    />
+                    <div className="pb-12">
+                      <PatientSearchInput
+                        selectedPatient={selectedPatient}
+                        onSelect={setSelectedPatient}
+                        required
+                      />
+                    </div>
                   ) : (
                     /* New Patient Form (All optional) */
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
                         <label className="block text-ink-soft font-semibold mb-1">First Name</label>
                         <input
@@ -434,18 +505,18 @@ export default function Queue() {
 
               {/* STEP 2: Assign Doctor */}
               {step === 2 && (
-                <div className="space-y-4 text-xs">
+                <div className="space-y-4 text-xs min-h-[300px]">
                   <div>
                     <label className="block font-semibold text-ink-soft mb-1">Assigned Doctor *</label>
                     <select
-                      className="input-field"
+                      className="input-field font-semibold py-2.5 text-xs"
                       value={selectedDoctorId}
                       onChange={(e) => setSelectedDoctorId(e.target.value)}
                     >
                       <option value="">Select Doctor</option>
                       {doctors.map((d) => (
                         <option key={d._id} value={d._id}>
-                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                          Dr. {d.name} {d.specialization ? `— ${d.specialization}` : ''}
                         </option>
                       ))}
                     </select>
@@ -455,7 +526,7 @@ export default function Queue() {
                     <label className="block font-semibold text-ink-soft mb-1">Reason for Visit</label>
                     <input
                       type="text"
-                      className="input-field"
+                      className="input-field py-2.5 text-xs"
                       placeholder="e.g. Tooth ache, Urgent scaling, Walk-in consultation"
                       value={visitReason}
                       onChange={(e) => setVisitReason(e.target.value)}
@@ -549,7 +620,7 @@ export default function Queue() {
               )}
 
               <div className="flex items-center gap-2">
-                {step < 3 && (
+                {step < 2 && (
                   <button
                     type="button"
                     disabled={!selectedPatient}
@@ -595,6 +666,30 @@ export default function Queue() {
           </div>
         </div>
       )}
+      {/* REUSABLE QUEUE CANCEL CONFIRMATION POPUP */}
+      <ConfirmModal
+        isOpen={Boolean(pendingCancelQueueEntry)}
+        onClose={() => setPendingCancelQueueEntry(null)}
+        onConfirm={confirmCancelQueueEntry}
+        title="Confirm Queue Cancellation"
+        message={
+          pendingCancelQueueEntry ? (
+            <p>
+              Are you sure you want to cancel the queue check-in for{' '}
+              <strong className="text-ink font-bold">
+                {pendingCancelQueueEntry.patient?.firstName} {pendingCancelQueueEntry.patient?.lastName}
+              </strong>
+              ?
+            </p>
+          ) : (
+            'Are you sure you want to cancel this check-in entry?'
+          )
+        }
+        confirmText="Yes, Cancel Check-In"
+        cancelText="Keep in Queue"
+        variant="cancel"
+        loading={cancellingQueue}
+      />
     </div>
   );
 }

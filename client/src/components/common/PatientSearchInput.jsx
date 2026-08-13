@@ -96,35 +96,32 @@ export default function PatientSearchInput({
   };
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative ${isOpen ? 'z-40' : 'z-10'} ${className}`}>
       {label && (
         <label className="block text-xs font-semibold text-ink-soft mb-1">
-          {label} {required && <span className="text-rose-500">*</span>}
+          {label} {required && <span className="text-rose-600">*</span>}
         </label>
       )}
 
+      {/* Selected Patient Pill State */}
       {selectedPatient ? (
-        /* Selected Patient Summary Card */
-        <div className="flex items-center justify-between rounded-xl border border-brand bg-brand-light/20 p-3 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-light text-brand-dark font-bold text-sm">
-              <UserSquare2 size={20} />
+        <div className="flex items-center justify-between rounded-xl border border-brand bg-brand-light/20 p-2.5 text-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-white font-bold text-xs">
+              {selectedPatient.firstName?.[0]}
+              {selectedPatient.lastName?.[0]}
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-ink">
+                <span className="font-bold text-ink truncate">
                   {selectedPatient.firstName} {selectedPatient.lastName}
-                </p>
-                <span className="badge bg-brand/10 text-brand font-mono text-[11px] font-bold">
-                  {selectedPatient.opNumber || 'N/A'}
+                </span>
+                <span className="badge bg-brand text-white font-mono text-[10px] font-bold">
+                  {selectedPatient.opNumber}
                 </span>
               </div>
-              <p className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
-                <span className="flex items-center gap-1">
-                  <Phone size={12} /> {selectedPatient.phone || 'No phone'}
-                </span>
-                {selectedPatient.age ? <span>• {selectedPatient.age}y</span> : null}
-                {selectedPatient.sex ? <span>• {selectedPatient.sex}</span> : null}
+              <p className="text-[11px] text-ink-soft truncate">
+                {selectedPatient.phone || 'No phone'} {selectedPatient.sex ? `• ${selectedPatient.sex}` : ''}
               </p>
             </div>
           </div>
@@ -132,29 +129,23 @@ export default function PatientSearchInput({
           <button
             type="button"
             onClick={handleClearSelection}
-            className="btn-secondary py-1 px-2.5 text-xs font-semibold text-rose-700 border-rose-200 hover:bg-rose-50 flex items-center gap-1"
+            className="rounded-lg p-1.5 text-ink-soft hover:bg-surface hover:text-ink shrink-0 transition-colors"
+            title="Change Selected Patient"
           >
-            <X size={14} /> Change
+            <X size={16} />
           </button>
         </div>
       ) : (
-        /* Input & Dropdown Container */
-        <div
-          className="relative"
-          onMouseEnter={handleOpenDropdown}
-        >
+        <div className="relative">
           <div className="relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft pointer-events-none" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input
               type="text"
-              className="input-field pl-9 pr-8"
+              className="input-field pl-9 pr-8 py-2 text-xs font-medium focus:ring-2 focus:ring-brand/20"
               placeholder={placeholder}
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setIsOpen(true);
-              }}
               onFocus={handleOpenDropdown}
+              onChange={(e) => setQuery(e.target.value)}
             />
             {query && (
               <button
@@ -169,7 +160,7 @@ export default function PatientSearchInput({
 
           {/* Floating Dropdown Menu */}
           {isOpen && (
-            <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-border bg-surface shadow-lg max-h-72 overflow-y-auto divide-y divide-border/60 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-border bg-surface shadow-2xl max-h-64 overflow-y-auto divide-y divide-border/60 animate-in fade-in zoom-in-95 duration-150">
               {/* Header */}
               <div className="px-3.5 py-2 bg-bg/80 border-b border-border flex items-center justify-between text-[11px] font-semibold text-ink-soft">
                 <span className="flex items-center gap-1.5 text-ink font-bold">
