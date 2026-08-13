@@ -4,6 +4,7 @@ import {
   Clock, User, Stethoscope, FileText, CalendarDays, ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Pending: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -388,59 +389,11 @@ export default function FollowUps() {
 
             <form onSubmit={handleCreateFollowUp} className="space-y-4 text-xs">
               {/* Patient Search */}
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Select Patient *</label>
-                {selectedPatient ? (
-                  <div className="flex items-center justify-between rounded-xl border border-brand bg-brand-light/20 p-3">
-                    <div>
-                      <p className="text-xs font-bold text-ink">
-                        {selectedPatient.firstName} {selectedPatient.lastName}
-                      </p>
-                      <p className="text-[11px] text-ink-soft">
-                        OP: <span className="font-mono text-brand">{selectedPatient.opNumber}</span>
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPatient(null)}
-                      className="text-xs font-semibold text-rose-600 hover:underline"
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <input
-                      type="text"
-                      className="input-field text-xs"
-                      placeholder="Search patient name, OP, phone..."
-                      value={patientSearch}
-                      onChange={(e) => setPatientSearch(e.target.value)}
-                    />
-                    {patientOptions.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-xl border border-border bg-surface shadow-card max-h-44 overflow-y-auto">
-                        {patientOptions.map((p) => {
-                          const pId = p._id || p.id;
-                          return (
-                            <div
-                              key={pId}
-                              onClick={() => {
-                                setSelectedPatient(p);
-                                setPatientSearch('');
-                                setPatientOptions([]);
-                              }}
-                              className="p-2.5 text-xs border-b border-border/50 hover:bg-brand-light/30 cursor-pointer"
-                            >
-                              <span className="font-bold text-ink">{p.firstName} {p.lastName}</span>{' '}
-                              <span className="text-brand font-mono">({p.opNumber})</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <PatientSearchInput
+                selectedPatient={selectedPatient}
+                onSelect={setSelectedPatient}
+                required
+              />
 
               {/* Recommended Date */}
               <div>

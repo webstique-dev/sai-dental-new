@@ -6,6 +6,7 @@ import {
 import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
+import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -366,61 +367,11 @@ export default function Appointments() {
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               {/* Patient Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-ink-soft mb-1">
-                  Select Patient
-                </label>
-                {selectedPatient ? (
-                  <div className="flex items-center justify-between rounded-xl border border-brand bg-brand-light/20 p-3">
-                    <div>
-                      <p className="text-sm font-bold text-ink">
-                        {selectedPatient.firstName} {selectedPatient.lastName}
-                      </p>
-                      <p className="text-xs text-ink-soft">
-                        OP: {selectedPatient.opNumber} | Phone: {selectedPatient.phone || 'N/A'}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPatient(null)}
-                      className="text-xs font-semibold text-rose-600 hover:underline"
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="Type patient name, OP number or phone..."
-                      value={patientSearch}
-                      onChange={(e) => setPatientSearch(e.target.value)}
-                    />
-                    {patientOptions.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-xl border border-border bg-surface shadow-card max-h-48 overflow-y-auto">
-                        {patientOptions.map((p) => {
-                          const pId = p._id || p.id;
-                          return (
-                            <div
-                              key={pId}
-                              onClick={() => {
-                                setSelectedPatient(p);
-                                setPatientSearch('');
-                                setPatientOptions([]);
-                              }}
-                              className="p-3 text-xs border-b border-border/50 hover:bg-brand-light/30 cursor-pointer"
-                            >
-                              <span className="font-bold text-ink">{p.firstName} {p.lastName}</span>{' '}
-                              <span className="text-brand font-mono">({p.opNumber})</span> — {p.phone || 'No phone'}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <PatientSearchInput
+                selectedPatient={selectedPatient}
+                onSelect={setSelectedPatient}
+                required
+              />
 
               {/* Doctor Selector */}
               <div>

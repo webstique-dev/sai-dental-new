@@ -4,6 +4,7 @@ import {
   User, Stethoscope, ChevronRight, ChevronLeft, ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 
 const QUEUE_STATUS_OPTIONS = ['Waiting', 'Checked-In', 'With Doctor', 'Completed', 'Cancelled'];
 
@@ -374,57 +375,11 @@ export default function Queue() {
                 </div>
 
                 {patientMode === 'search' ? (
-                  <div className="space-y-3">
-                    {selectedPatient ? (
-                      <div className="flex items-center justify-between rounded-xl border border-brand bg-brand-light/20 p-3.5">
-                        <div>
-                          <p className="text-sm font-bold text-ink">
-                            {selectedPatient.firstName} {selectedPatient.lastName}
-                          </p>
-                          <p className="text-xs text-ink-soft">
-                            OP: <span className="font-mono text-brand">{selectedPatient.opNumber}</span> | Phone: {selectedPatient.phone || 'N/A'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPatient(null)}
-                          className="text-xs font-semibold text-rose-600 hover:underline"
-                        >
-                          Change
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
-                        <input
-                          type="text"
-                          className="input-field pl-9"
-                          placeholder="Search patient name, phone number, or OP number..."
-                          value={patientSearch}
-                          onChange={(e) => setPatientSearch(e.target.value)}
-                        />
-
-                        {patientOptions.length > 0 && (
-                          <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-xl border border-border bg-surface shadow-card max-h-48 overflow-y-auto">
-                            {patientOptions.map((p) => (
-                              <div
-                                key={p._id}
-                                onClick={() => {
-                                  setSelectedPatient(p);
-                                  setPatientSearch('');
-                                  setPatientOptions([]);
-                                }}
-                                className="p-3 text-xs border-b border-border/50 hover:bg-brand-light/30 cursor-pointer"
-                              >
-                                <span className="font-bold text-ink">{p.firstName} {p.lastName}</span>{' '}
-                                <span className="text-brand font-mono">({p.opNumber})</span> — {p.phone || 'No phone'}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <PatientSearchInput
+                    selectedPatient={selectedPatient}
+                    onSelect={setSelectedPatient}
+                    required
+                  />
                 ) : (
                   /* New Patient Form (All optional) */
                   <div className="grid grid-cols-2 gap-3 text-xs">
