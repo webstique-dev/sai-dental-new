@@ -12,8 +12,8 @@ async function listPrescriptions(req, res, next) {
 
     const prescriptions = await Prescription.find(filter)
       .sort({ createdAt: -1 })
-      .populate('patient', 'firstName lastName opNumber age sex')
-      .populate('recordedBy', 'name email specialization');
+      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth address vitals medicalHistory currentMedications')
+      .populate('recordedBy', 'name email role specialization');
 
     return res.json({ prescriptions });
   } catch (err) {
@@ -52,8 +52,8 @@ async function createPrescription(req, res, next) {
     await newPrescription.save();
 
     const populated = await Prescription.findById(newPrescription._id)
-      .populate('patient', 'firstName lastName opNumber age sex')
-      .populate('recordedBy', 'name email specialization');
+      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth address vitals medicalHistory currentMedications')
+      .populate('recordedBy', 'name email role specialization');
 
     return res.status(201).json({
       message: 'Prescription recorded successfully',
