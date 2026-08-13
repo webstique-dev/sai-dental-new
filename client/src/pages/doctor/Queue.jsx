@@ -142,11 +142,10 @@ export default function DoctorQueue() {
                       {/* Type */}
                       <td className="px-5 py-4 text-xs">
                         <span
-                          className={`badge ${
-                            entry.type === 'Walk-in'
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-blue-50 text-blue-700'
-                          }`}
+                          className={`badge ${entry.type === 'Walk-in'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-blue-50 text-blue-700'
+                            }`}
                         >
                           {entry.type}
                         </span>
@@ -162,9 +161,8 @@ export default function DoctorQueue() {
                       {/* Status */}
                       <td className="px-5 py-4">
                         <span
-                          className={`badge border ${
-                            STATUS_BADGE_CLASSES[entry.status] || 'bg-slate-100 text-slate-800'
-                          }`}
+                          className={`badge border ${STATUS_BADGE_CLASSES[entry.status] || 'bg-slate-100 text-slate-800'
+                            }`}
                         >
                           {entry.status}
                         </span>
@@ -175,19 +173,18 @@ export default function DoctorQueue() {
                         <button
                           disabled={submittingId === entryId}
                           onClick={() => handleStartConsultation(entry)}
-                          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${
-                            isWithDoctor
-                              ? 'bg-purple-600 text-white hover:bg-purple-700'
-                              : 'bg-brand text-white hover:bg-brand-dark'
-                          }`}
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${isWithDoctor
+                            ? 'bg-purple-600 text-white hover:bg-purple-700'
+                            : 'bg-brand text-white hover:bg-brand-dark'
+                            }`}
                         >
                           <Play size={14} fill="currentColor" />
                           <span>
                             {submittingId === entryId
                               ? 'Starting...'
                               : isWithDoctor
-                              ? 'Continue Consultation'
-                              : 'Start Consultation'}
+                                ? 'Continue Consultation'
+                                : 'Start Consultation'}
                           </span>
                         </button>
                       </td>

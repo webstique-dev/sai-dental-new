@@ -176,9 +176,9 @@ export default function StateDiffViewer({ previousValue, newValue }) {
 
       {/* DETAILED INSPECT DIFF MODAL */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm">
-          <div className="card w-full max-w-xl p-6 space-y-4 bg-surface max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
                 <FileDiff size={18} className="text-brand" /> Detailed Audit State Diff ({diffs.length} Fields Changed)
               </h3>
@@ -190,44 +190,46 @@ export default function StateDiffViewer({ previousValue, newValue }) {
               </button>
             </div>
 
-            <div className="overflow-hidden border border-border rounded-xl">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
-                  <tr>
-                    <th className="py-2.5 px-3">Field</th>
-                    <th className="py-2.5 px-3">Previous State</th>
-                    <th className="py-2.5 px-3">New State</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {diffs.map((d, i) => (
-                    <tr key={i} className="hover:bg-bg/40">
-                      <td className="py-2.5 px-3 font-bold text-ink whitespace-nowrap">{d.key}</td>
-                      <td className="py-2.5 px-3">
-                        {d.prev ? (
-                          <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded font-mono font-medium border border-rose-200 block w-fit">
-                            {d.prev}
-                          </span>
-                        ) : (
-                          <span className="text-ink-soft/40 italic">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        {d.next ? (
-                          <span className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-mono font-bold border border-emerald-200 block w-fit">
-                            {d.next}
-                          </span>
-                        ) : (
-                          <span className="text-ink-soft/40 italic">—</span>
-                        )}
-                      </td>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 text-xs space-y-4">
+              <div className="overflow-hidden border border-border rounded-xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
+                    <tr>
+                      <th className="py-2.5 px-3">Field</th>
+                      <th className="py-2.5 px-3">Previous State</th>
+                      <th className="py-2.5 px-3">New State</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {diffs.map((d, i) => (
+                      <tr key={i} className="hover:bg-bg/40">
+                        <td className="py-2.5 px-3 font-bold text-ink whitespace-nowrap">{d.key}</td>
+                        <td className="py-2.5 px-3">
+                          {d.prev ? (
+                            <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded font-mono font-medium border border-rose-200 block w-fit">
+                              {d.prev}
+                            </span>
+                          ) : (
+                            <span className="text-ink-soft/40 italic">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {d.next ? (
+                            <span className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-mono font-bold border border-emerald-200 block w-fit">
+                              {d.next}
+                            </span>
+                          ) : (
+                            <span className="text-ink-soft/40 italic">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}

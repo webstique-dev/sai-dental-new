@@ -170,11 +170,10 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                 key={finding}
                 disabled={isReadOnly}
                 onClick={() => toggleExtraoral(finding)}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  selected
-                    ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
-                    : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${selected
+                  ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
+                  : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                  } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <span>{finding}</span>
                 {selected && <Check size={14} className="text-brand" />}
@@ -224,11 +223,10 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                 key={area}
                 disabled={isReadOnly}
                 onClick={() => toggleSoftTissue(area)}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  selected
-                    ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
-                    : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${selected
+                  ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
+                  : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                  } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <span>{area}</span>
                 {selected && <Check size={14} className="text-brand" />}
@@ -278,11 +276,10 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                 key={finding}
                 disabled={isReadOnly}
                 onClick={() => toggleGingival(finding)}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  selected
-                    ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
-                    : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${selected
+                  ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
+                  : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                  } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
                 <span>{finding}</span>
                 {selected && <Check size={14} className="text-brand" />}

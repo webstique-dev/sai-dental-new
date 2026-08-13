@@ -409,8 +409,8 @@ export default function PatientHistory() {
               type="button"
               onClick={() => setViewMode('timeline')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'timeline'
-                  ? 'bg-surface text-brand shadow-sm border border-border/80'
-                  : 'text-ink-soft hover:text-ink'
+                ? 'bg-surface text-brand shadow-sm border border-border/80'
+                : 'text-ink-soft hover:text-ink'
                 }`}
             >
               <CalendarDays size={14} /> Timeline View
@@ -419,8 +419,8 @@ export default function PatientHistory() {
               type="button"
               onClick={() => setViewMode('table')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'table'
-                  ? 'bg-surface text-brand shadow-sm border border-border/80'
-                  : 'text-ink-soft hover:text-ink'
+                ? 'bg-surface text-brand shadow-sm border border-border/80'
+                : 'text-ink-soft hover:text-ink'
                 }`}
             >
               <LayoutList size={14} /> Table View
@@ -561,8 +561,8 @@ export default function PatientHistory() {
                           <span className="font-display text-sm font-bold text-ink">{row.dateStr}</span>
                           <span
                             className={`badge border text-[10px] ${isCompleted
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                : 'bg-purple-100 text-purple-800 border-purple-200'
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                              : 'bg-purple-100 text-purple-800 border-purple-200'
                               }`}
                           >
                             {c.status}
@@ -916,10 +916,10 @@ export default function PatientHistory() {
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         <span
                           className={`badge border text-[10px] ${fu.status === 'Completed'
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                              : fu.status === 'Scheduled'
-                                ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                : 'bg-amber-100 text-amber-800 border-amber-200'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : fu.status === 'Scheduled'
+                              ? 'bg-blue-100 text-blue-800 border-blue-200'
+                              : 'bg-amber-100 text-amber-800 border-amber-200'
                             }`}
                         >
                           {fu.status}

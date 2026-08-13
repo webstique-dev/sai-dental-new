@@ -248,9 +248,9 @@ export default function AdminBilling() {
 
       {/* ADMIN REFUND MODAL */}
       {refundingInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-          <div className="card max-w-md w-full p-6 space-y-4 bg-surface animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
+          <div className="card max-w-md w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-rose-700 flex items-center gap-2">
                 <RefreshCcw size={18} /> Issue Administrative Refund
               </h3>
@@ -259,42 +259,44 @@ export default function AdminBilling() {
               </button>
             </div>
 
-            <div className="bg-rose-50 p-3 rounded-lg border border-rose-200 text-xs text-rose-800 space-y-1">
-              <p className="font-bold flex items-center gap-1">
-                <ShieldAlert size={14} /> Admin Authorization Required
-              </p>
-              <p>
-                Refunding will mark invoice <strong className="font-mono">OP #{refundingInvoice.opNumber}</strong> as{' '}
-                <strong>Refunded</strong> and append a negative refund entry to payment history.
-              </p>
-            </div>
+            <form onSubmit={handleExecuteRefund} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
+                <div className="bg-rose-50 p-3 rounded-lg border border-rose-200 text-xs text-rose-800 space-y-1">
+                  <p className="font-bold flex items-center gap-1">
+                    <ShieldAlert size={14} /> Admin Authorization Required
+                  </p>
+                  <p>
+                    Refunding will mark invoice <strong className="font-mono">OP #{refundingInvoice.opNumber}</strong> as{' '}
+                    <strong>Refunded</strong> and append a negative refund entry to payment history.
+                  </p>
+                </div>
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Refund Amount (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    className="input-field py-1.5 font-mono"
+                    value={refundForm.amount}
+                    onChange={(e) => setRefundForm({ ...refundForm, amount: e.target.value })}
+                  />
+                </div>
 
-            <form onSubmit={handleExecuteRefund} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Refund Amount (₹)</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  className="input-field py-1.5 font-mono"
-                  value={refundForm.amount}
-                  onChange={(e) => setRefundForm({ ...refundForm, amount: e.target.value })}
-                />
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Reason for Refund</label>
+                  <textarea
+                    rows={2}
+                    required
+                    className="input-field py-1.5"
+                    placeholder="State reason (e.g. Service cancellation, billing correction)..."
+                    value={refundForm.reason}
+                    onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })}
+                  />
+                </div>
+
               </div>
 
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Reason for Refund</label>
-                <textarea
-                  rows={2}
-                  required
-                  className="input-field py-1.5"
-                  placeholder="State reason (e.g. Service cancellation, billing correction)..."
-                  value={refundForm.reason}
-                  onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setRefundingInvoice(null)}
@@ -305,7 +307,7 @@ export default function AdminBilling() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn-primary bg-rose-600 hover:bg-rose-700 text-white border-transparent py-1.5 px-4 text-xs font-bold"
+                  className="btn-primary bg-rose-600 hover:bg-rose-700 py-1.5 px-4 text-xs font-bold"
                 >
                   {submitting ? 'Processing...' : 'Confirm Refund'}
                 </button>
@@ -317,9 +319,9 @@ export default function AdminBilling() {
 
       {/* VIEW INVOICE DETAIL MODAL */}
       {selectedInvoiceDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-          <div className="card max-w-lg w-full p-6 space-y-4 bg-surface animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
+          <div className="card max-w-lg w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <div>
                 <span className="badge bg-brand/10 text-brand font-mono font-bold text-xs mb-1 inline-block">
                   OP #{selectedInvoiceDetail.opNumber}
@@ -331,62 +333,72 @@ export default function AdminBilling() {
               </button>
             </div>
 
-            <div className="text-xs space-y-2">
-              <div className="flex justify-between border-b border-border/60 pb-2">
-                <span className="text-ink-soft font-semibold">Patient Name:</span>
-                <span className="font-bold text-ink">
-                  {selectedInvoiceDetail.patient?.firstName} {selectedInvoiceDetail.patient?.lastName}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-border/60 pb-2">
-                <span className="text-ink-soft font-semibold">Doctor:</span>
-                <span className="font-bold text-ink">Dr. {selectedInvoiceDetail.doctor?.name || 'Unassigned'}</span>
-              </div>
-              <div className="flex justify-between border-b border-border/60 pb-2">
-                <span className="text-ink-soft font-semibold">Payment Status:</span>
-                <span className="font-bold text-brand">{selectedInvoiceDetail.paymentStatus}</span>
-              </div>
-            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 text-xs space-y-4">
 
-            {/* Line Items */}
-            <div className="space-y-2 border-t border-border pt-2">
-              <h4 className="font-bold text-xs text-ink uppercase tracking-wider">Line Items</h4>
-              <div className="space-y-1 text-xs">
-                {(selectedInvoiceDetail.items || []).map((item, idx) => (
-                  <div key={idx} className="flex justify-between p-2 bg-bg rounded">
-                    <span>
-                      {item.service} {item.treatment ? `(${item.treatment})` : ''} x{item.quantity || 1}
-                    </span>
-                    <span className="font-mono font-bold">₹{((item.quantity || 1) * (item.unitPrice || 0)).toLocaleString()}</span>
-                  </div>
-                ))}
+              <div className="text-xs space-y-2">
+                <div className="flex justify-between border-b border-border/60 pb-2">
+                  <span className="text-ink-soft font-semibold">Patient Name:</span>
+                  <span className="font-bold text-ink">
+                    {selectedInvoiceDetail.patient?.firstName} {selectedInvoiceDetail.patient?.lastName}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-border/60 pb-2">
+                  <span className="text-ink-soft font-semibold">Doctor:</span>
+                  <span className="font-bold text-ink">Dr. {selectedInvoiceDetail.doctor?.name || 'Unassigned'}</span>
+                </div>
+                <div className="flex justify-between border-b border-border/60 pb-2">
+                  <span className="text-ink-soft font-semibold">Payment Status:</span>
+                  <span className="font-bold text-brand">{selectedInvoiceDetail.paymentStatus}</span>
+                </div>
               </div>
-            </div>
 
-            {/* Payments History */}
-            <div className="space-y-2 border-t border-border pt-2">
-              <h4 className="font-bold text-xs text-ink uppercase tracking-wider">Payment / Refund Log</h4>
-              <div className="space-y-1 text-xs">
-                {(!selectedInvoiceDetail.payments || selectedInvoiceDetail.payments.length === 0) ? (
-                  <p className="text-ink-soft italic">No payments logged yet.</p>
-                ) : (
-                  selectedInvoiceDetail.payments.map((p, idx) => (
+              {/* Line Items */}
+              <div className="space-y-2 border-t border-border pt-2">
+                <h4 className="font-bold text-xs text-ink uppercase tracking-wider">Line Items</h4>
+                <div className="space-y-1 text-xs">
+                  {(selectedInvoiceDetail.items || []).map((item, idx) => (
                     <div key={idx} className="flex justify-between p-2 bg-bg rounded">
                       <span>
-                        {p.method} {p.reason ? `— ${p.reason}` : ''} ({new Date(p.date).toLocaleDateString()})
+                        {item.service} {item.treatment ? `(${item.treatment})` : ''} x{item.quantity || 1}
                       </span>
-                      <span className={`font-mono font-bold ${p.amount < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                        ₹{p.amount.toLocaleString()}
-                      </span>
+                      <span className="font-mono font-bold">₹{((item.quantity || 1) * (item.unitPrice || 0)).toLocaleString()}</span>
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
+              </div>
+
+              {/* Payments History */}
+              <div className="space-y-2 border-t border-border pt-2">
+                <h4 className="font-bold text-xs text-ink uppercase tracking-wider">Payment / Refund Log</h4>
+                <div className="space-y-1 text-xs">
+                  {(!selectedInvoiceDetail.payments || selectedInvoiceDetail.payments.length === 0) ? (
+                    <p className="text-ink-soft italic">No payments logged yet.</p>
+                  ) : (
+                    selectedInvoiceDetail.payments.map((p, idx) => (
+                      <div key={idx} className="flex justify-between p-2 bg-bg rounded">
+                        <span>
+                          {p.method} {p.reason ? `— ${p.reason}` : ''} ({new Date(p.date).toLocaleDateString()})
+                        </span>
+                        <span className={`font-mono font-bold ${p.amount < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                          ₹{p.amount.toLocaleString()}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="flex justify-between border-t border-border pt-3 font-bold text-sm text-ink">
+                  <span>Grand Total:</span>
+                  <span className="text-brand">₹{selectedInvoiceDetail.total?.toLocaleString()}</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button onClick={() => setSelectedInvoiceDetail(null)} className="btn-secondary text-xs">
-                Close
+            <div className="flex justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <button
+                onClick={() => setSelectedInvoiceDetail(null)}
+                className="btn-secondary py-1.5 px-3 text-xs"
+              >
+                Close Breakdown
               </button>
             </div>
           </div>

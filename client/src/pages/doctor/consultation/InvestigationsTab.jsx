@@ -304,9 +304,9 @@ export default function InvestigationsTab({ consultation, isReadOnly = false }) 
 
       {/* FILL IN RESULTS MODAL */}
       {activeResultItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-lg p-6 space-y-4 bg-surface">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <Edit3 size={18} className="text-brand" /> Record Investigation Results
               </h3>
@@ -315,50 +315,52 @@ export default function InvestigationsTab({ consultation, isReadOnly = false }) 
               </button>
             </div>
 
-            {errorMessage && (
-              <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
+            <form onSubmit={handleSaveResult} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+                {errorMessage && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
+                    <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
 
-            <form onSubmit={handleSaveResult} className="space-y-4 text-xs">
-              <div className="rounded-xl border border-border bg-bg p-3">
-                <p className="font-bold text-ink">{activeResultItem.type} Order</p>
-                <p className="text-ink-soft">{activeResultItem.reason}</p>
+                <div className="rounded-xl border border-border bg-bg p-3">
+                  <p className="font-bold text-ink">{activeResultItem.type} Order</p>
+                  <p className="text-ink-soft">{activeResultItem.reason}</p>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Diagnostic Report / Findings *</label>
+                  <textarea
+                    rows={4}
+                    className="input-field"
+                    placeholder="e.g. IOPAR shows well-defined periapical radiolucency wrt #16 root apex. No bone loss."
+                    value={resultText}
+                    onChange={(e) => setResultText(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Report Image / Attachment URL</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="https://... attachment link"
+                    value={resultAttachment}
+                    onChange={(e) => setResultAttachment(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Diagnostic Report / Findings *</label>
-                <textarea
-                  rows={4}
-                  className="input-field"
-                  placeholder="e.g. IOPAR shows well-defined periapical radiolucency wrt #16 root apex. No bone loss."
-                  value={resultText}
-                  onChange={(e) => setResultText(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Report Image / Attachment URL</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="https://... attachment link"
-                  value={resultAttachment}
-                  onChange={(e) => setResultAttachment(e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-secondary text-xs"
                   onClick={() => setActiveResultItem(null)}
                 >
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="btn-primary">
+                <button type="submit" disabled={submitting} className="btn-primary text-xs">
                   {submitting ? 'Saving...' : 'Save Results'}
                 </button>
               </div>

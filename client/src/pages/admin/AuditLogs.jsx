@@ -195,13 +195,13 @@ export default function AuditLogs() {
                   const logId = log._id || log.id;
                   const dateStr = log.timestamp
                     ? new Date(log.timestamp).toLocaleString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                      })
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })
                     : 'N/A';
 
                   const patientName = log.patient

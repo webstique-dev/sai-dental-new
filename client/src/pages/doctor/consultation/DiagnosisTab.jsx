@@ -226,11 +226,10 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                       type="button"
                       key={tNum}
                       onClick={() => toggleTooth(tNum)}
-                      className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
-                        isSel
-                          ? 'bg-brand text-white shadow-sm'
-                          : 'bg-surface border border-border text-ink-soft hover:bg-bg'
-                      }`}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${isSel
+                        ? 'bg-brand text-white shadow-sm'
+                        : 'bg-surface border border-border text-ink-soft hover:bg-bg'
+                        }`}
                     >
                       #{tNum}
                     </button>

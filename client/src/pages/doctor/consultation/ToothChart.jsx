@@ -142,11 +142,10 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         type="button"
         key={tNum}
         onClick={() => handleToothClick(tNum)}
-        className={`flex flex-col items-center justify-between p-2 rounded-xl border transition-all duration-150 relative select-none min-w-[42px] sm:min-w-[48px] h-20 ${
-          isSelected
-            ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
-            : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
-        }`}
+        className={`flex flex-col items-center justify-between p-2 rounded-xl border transition-all duration-150 relative select-none min-w-[42px] sm:min-w-[48px] h-20 ${isSelected
+          ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
+          : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
+          }`}
       >
         {/* Top: Tooth Number */}
         <span className="font-mono text-xs font-bold text-ink">{tNum}</span>
@@ -207,11 +206,10 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
             <button
               type="button"
               onClick={() => setMultiSelectMode(!multiSelectMode)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                multiSelectMode
-                  ? 'bg-purple-600 text-white border-purple-700'
-                  : 'bg-surface border-border text-ink-soft hover:text-ink'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${multiSelectMode
+                ? 'bg-purple-600 text-white border-purple-700'
+                : 'bg-surface border-border text-ink-soft hover:text-ink'
+                }`}
             >
               {multiSelectMode ? 'Multi-Select Enabled' : 'Enable Multi-Select'}
             </button>
@@ -300,8 +298,8 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                 {selectedTeeth.length === 0
                   ? 'Record Finding for Selected Teeth'
                   : selectedTeeth.length === 1
-                  ? `Update Tooth #${selectedTeeth[0]}`
-                  : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
+                    ? `Update Tooth #${selectedTeeth[0]}`
+                    : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
               </h4>
               <p className="text-xs text-ink-soft">
                 Select teeth on the chart above and assign new conditions.
@@ -364,8 +362,8 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                   {saving
                     ? 'Saving Records...'
                     : selectedTeeth.length === 0
-                    ? 'Click Teeth Above First'
-                    : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
+                      ? 'Click Teeth Above First'
+                      : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
                 </span>
               </button>
             </form>

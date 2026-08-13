@@ -140,8 +140,8 @@ export default function DoctorDashboard() {
             {starting
               ? 'Starting Consultation...'
               : nextPatient
-              ? `Start: Token #${nextPatient.token} — ${nextPatientName}`
-              : 'No Patients Waiting'}
+                ? `Start: Token #${nextPatient.token} — ${nextPatientName}`
+                : 'No Patients Waiting'}
           </button>
 
           <Link to="/doctor/queue" className="btn-secondary text-xs py-2.5 px-4 flex items-center gap-1.5">

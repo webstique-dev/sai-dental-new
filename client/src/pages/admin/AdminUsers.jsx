@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { UserPlus, Power, AlertCircle, Edit3, KeyRound, CheckCircle2, X, ShieldAlert } from 'lucide-react';
 import api from '../../api/axios.js';
+import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const ROLE_BADGE = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -9,6 +11,7 @@ const ROLE_BADGE = {
 };
 
 export default function AdminUsers() {
+  const { showSuccess, showError } = useNotification();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -103,22 +106,20 @@ export default function AdminUsers() {
     setError('');
     try {
       const { data } = await api.patch(`/users/${id}`, payload);
-      // Update state without full page reload
       setUsers((prev) =>
         prev.map((u) => ((u.id === id || u._id === id) ? data.user : u))
       );
       setEditingUser(null);
       setPendingRoleChange(null);
-      setSuccessMsg(`Updated details for ${data.user.name} successfully.`);
-      setTimeout(() => setSuccessMsg(''), 3500);
+      showSuccess(`Updated role for ${data.user.name} successfully.`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update user details.');
+      showError(err.response?.data?.message || 'Failed to update user details.');
     }
   }
 
-  function confirmRoleChange() {
+  async function confirmRoleChange() {
     if (!pendingRoleChange) return;
-    submitUserUpdate(pendingRoleChange.id, {
+    await submitUserUpdate(pendingRoleChange.id, {
       name: editForm.name,
       phone: editForm.phone,
       role: pendingRoleChange.newRole,
@@ -334,9 +335,9 @@ export default function AdminUsers() {
 
       {/* EDIT USER MODAL */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-md p-6 space-y-4 bg-surface">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <Edit3 size={18} className="text-brand" /> Edit Staff User Details
               </h3>
@@ -345,7 +346,8 @@ export default function AdminUsers() {
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">Email (Read-Only)</label>
                 <input
@@ -390,15 +392,17 @@ export default function AdminUsers() {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-secondary text-xs"
                   onClick={() => setEditingUser(null)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary text-xs">
                   Save Changes
                 </button>
               </div>
@@ -407,16 +411,15 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {/* ROLE CHANGE CONFIRMATION MODAL */}
-      {pendingRoleChange && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-md p-6 space-y-4 bg-surface border-amber-300">
-            <div className="flex items-center gap-2 text-amber-700 border-b border-border pb-3">
-              <ShieldAlert size={22} className="shrink-0" />
-              <h3 className="font-display text-base font-bold text-ink">Confirm Role Change</h3>
-            </div>
-
-            <div className="text-xs text-ink space-y-2">
+      {/* REUSABLE ROLE CHANGE CONFIRMATION POPUP */}
+      <ConfirmModal
+        isOpen={Boolean(pendingRoleChange)}
+        onClose={() => setPendingRoleChange(null)}
+        onConfirm={confirmRoleChange}
+        title="Confirm User Role Change"
+        message={
+          pendingRoleChange ? (
+            <div className="space-y-2">
               <p>
                 Change <strong>{pendingRoleChange.name}</strong>'s role from{' '}
                 <span className="badge capitalize bg-slate-100 text-slate-800">{pendingRoleChange.oldRole}</span> to{' '}
@@ -425,36 +428,24 @@ export default function AdminUsers() {
                 </span>
                 ?
               </p>
-              <p className="text-ink-soft">
+              <p className="text-[11px] text-ink-soft">
                 Changing a user's role modifies what clinic features, patient records, and operational tabs they can access.
               </p>
             </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setPendingRoleChange(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-primary bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={confirmRoleChange}
-              >
-                Confirm Role Change
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          ) : (
+            'Are you sure you want to change this user role?'
+          )
+        }
+        confirmText="Confirm Role Change"
+        cancelText="Cancel"
+        variant="warning"
+      />
 
       {/* RESET PASSWORD MODAL */}
       {resetUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-md p-6 space-y-4 bg-surface">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <KeyRound size={18} className="text-amber-600" /> Reset Password for {resetUser.name}
               </h3>
@@ -464,15 +455,17 @@ export default function AdminUsers() {
             </div>
 
             {resetSuccess ? (
-              <div className="space-y-4">
-                <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-4 text-xs font-medium text-emerald-900 border border-emerald-200">
-                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>{resetSuccess}</span>
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 text-xs space-y-4">
+                  <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-4 font-medium text-emerald-900 border border-emerald-200">
+                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{resetSuccess}</span>
+                  </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                   <button
                     type="button"
-                    className="btn-primary"
+                    className="btn-primary text-xs"
                     onClick={() => setResetUser(null)}
                   >
                     Done
@@ -480,53 +473,55 @@ export default function AdminUsers() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleResetPasswordSubmit} className="space-y-4 text-xs">
-                {resetError && (
-                  <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                    <AlertCircle size={16} className="text-rose-600 shrink-0" />
-                    <span>{resetError}</span>
+              <form onSubmit={handleResetPasswordSubmit} className="flex flex-col flex-1 overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+                  {resetError && (
+                    <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
+                      <AlertCircle size={16} className="text-rose-600 shrink-0" />
+                      <span>{resetError}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">New Password *</label>
+                    <input
+                      required
+                      minLength={6}
+                      type="text"
+                      className="input-field"
+                      placeholder="Minimum 6 characters"
+                      value={resetPasswords.newPassword}
+                      onChange={(e) =>
+                        setResetPasswords({ ...resetPasswords, newPassword: e.target.value })
+                      }
+                    />
                   </div>
-                )}
 
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">New Password *</label>
-                  <input
-                    required
-                    minLength={6}
-                    type="text"
-                    className="input-field"
-                    placeholder="Minimum 6 characters"
-                    value={resetPasswords.newPassword}
-                    onChange={(e) =>
-                      setResetPasswords({ ...resetPasswords, newPassword: e.target.value })
-                    }
-                  />
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Confirm New Password *</label>
+                    <input
+                      required
+                      minLength={6}
+                      type="text"
+                      className="input-field"
+                      placeholder="Re-enter new password"
+                      value={resetPasswords.confirmPassword}
+                      onChange={(e) =>
+                        setResetPasswords({ ...resetPasswords, confirmPassword: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Confirm New Password *</label>
-                  <input
-                    required
-                    minLength={6}
-                    type="text"
-                    className="input-field"
-                    placeholder="Re-enter new password"
-                    value={resetPasswords.confirmPassword}
-                    onChange={(e) =>
-                      setResetPasswords({ ...resetPasswords, confirmPassword: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                   <button
                     type="button"
-                    className="btn-secondary"
+                    className="btn-secondary text-xs"
                     onClick={() => setResetUser(null)}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn-primary bg-amber-600 hover:bg-amber-700 text-white">
+                  <button type="submit" className="btn-primary text-xs bg-amber-600 hover:bg-amber-700 text-white">
                     Reset Password
                   </button>
                 </div>

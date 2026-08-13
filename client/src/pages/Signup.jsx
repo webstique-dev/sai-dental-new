@@ -123,11 +123,10 @@ export default function Signup() {
                   <div
                     key={rc.role}
                     onClick={() => setSelectedRole(rc.role)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                      isSelected
-                        ? rc.selectedClasses
-                        : 'border-border bg-bg/40 text-ink-soft hover:border-border/80 hover:bg-bg'
-                    }`}
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${isSelected
+                      ? rc.selectedClasses
+                      : 'border-border bg-bg/40 text-ink-soft hover:border-border/80 hover:bg-bg'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <Icon size={20} className={isSelected ? 'text-current' : 'text-ink-soft'} />
@@ -218,9 +217,8 @@ export default function Signup() {
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
                     minLength={6}
-                    className={`input-field font-mono pr-10 ${
-                      confirmPassword && password !== confirmPassword ? 'border-rose-400 focus:ring-rose-200' : ''
-                    }`}
+                    className={`input-field font-mono pr-10 ${confirmPassword && password !== confirmPassword ? 'border-rose-400 focus:ring-rose-200' : ''
+                      }`}
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

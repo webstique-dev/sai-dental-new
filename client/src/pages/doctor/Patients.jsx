@@ -270,10 +270,10 @@ export default function DoctorPatients() {
                   const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
                   const lastVisitStr = p.lastVisitDate
                     ? new Date(p.lastVisitDate).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
                     : null;
 
                   return (

@@ -64,6 +64,7 @@ export default function AppointmentList({
               ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim()
               : 'Unknown Patient';
             const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned';
+            const isLockedStatus = ['Completed', 'Cancelled', 'No Show'].includes(apt.status);
 
             return (
               <tr key={aptId} className="hover:bg-bg/60 transition-colors">
@@ -109,7 +110,7 @@ export default function AppointmentList({
 
                 {(allowEdit || allowCancel) && (
                   <td className="px-5 py-4 text-right whitespace-nowrap space-x-1">
-                    {allowEdit && (
+                    {allowEdit && !isLockedStatus && (
                       <button
                         onClick={() => onEdit(apt)}
                         title="Reschedule / Edit"
@@ -119,7 +120,7 @@ export default function AppointmentList({
                       </button>
                     )}
 
-                    {allowCancel && apt.status !== 'Cancelled' && (
+                    {allowCancel && !isLockedStatus && (
                       <button
                         onClick={() => onCancel(apt)}
                         title="Cancel Appointment"

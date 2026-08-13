@@ -93,12 +93,15 @@ export default function AppointmentCalendar({
                 ) : (
                   dayAppointments.map((apt) => {
                     const aptId = apt._id || apt.id;
+                    const isLockedStatus = ['Completed', 'Cancelled', 'No Show'].includes(apt.status);
+                    const canEdit = allowEdit && !isLockedStatus;
+
                     return (
                       <div
                         key={aptId}
-                        onClick={() => allowEdit && onEdit(apt)}
+                        onClick={() => canEdit && onEdit(apt)}
                         className={`rounded-lg border border-border bg-bg/80 p-2 text-xs transition-colors ${
-                          allowEdit ? 'cursor-pointer hover:border-brand' : ''
+                          canEdit ? 'cursor-pointer hover:border-brand' : 'opacity-80'
                         }`}
                       >
                         <div className="font-semibold text-ink truncate">

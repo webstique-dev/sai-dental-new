@@ -281,11 +281,10 @@ export default function Queue() {
                       {/* Type */}
                       <td className="px-5 py-4 text-xs">
                         <span
-                          className={`badge ${
-                            entry.type === 'Walk-in'
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-blue-50 text-blue-700'
-                          }`}
+                          className={`badge ${entry.type === 'Walk-in'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-blue-50 text-blue-700'
+                            }`}
                         >
                           {entry.type}
                         </span>
@@ -294,9 +293,8 @@ export default function Queue() {
                       {/* Status */}
                       <td className="px-5 py-4">
                         <span
-                          className={`badge border ${
-                            STATUS_BADGE_CLASSES[entry.status] || 'bg-slate-100 text-slate-800'
-                          }`}
+                          className={`badge border ${STATUS_BADGE_CLASSES[entry.status] || 'bg-slate-100 text-slate-800'
+                            }`}
                         >
                           {entry.status}
                         </span>
@@ -327,12 +325,12 @@ export default function Queue() {
 
       {/* 4-STEP WALK-IN MODAL */}
       {showWalkInModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-xl p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <div>
-                <h3 className="font-display text-lg font-bold text-ink">Walk-In Patient Check-In</h3>
+                <h3 className="font-display text-base sm:text-lg font-bold text-ink">Walk-In Patient Check-In</h3>
                 <p className="text-xs text-ink-soft">
                   Step {step} of 4: {step === 1 ? 'Patient Selection' : step === 2 ? 'Assign Doctor' : step === 3 ? 'Confirmation' : 'Token Issued'}
                 </p>
@@ -342,215 +340,229 @@ export default function Queue() {
               </button>
             </div>
 
-            {/* Error Banner inside Modal */}
-            {errorMessage && (
-              <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* STEP 1: Search or Register Patient */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <div className="flex rounded-xl border border-border p-1 bg-bg">
-                  <button
-                    type="button"
-                    onClick={() => setPatientMode('search')}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                      patientMode === 'search' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
-                    }`}
-                  >
-                    Search Existing Patient
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPatientMode('new')}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                      patientMode === 'new' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
-                    }`}
-                  >
-                    Register New Patient
-                  </button>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              {/* Error Banner inside Modal */}
+              {errorMessage && (
+                <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
+                  <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                  <span>{errorMessage}</span>
                 </div>
+              )}
 
-                {patientMode === 'search' ? (
-                  <PatientSearchInput
-                    selectedPatient={selectedPatient}
-                    onSelect={setSelectedPatient}
-                    required
-                  />
-                ) : (
-                  /* New Patient Form (All optional) */
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <label className="block text-ink-soft font-semibold mb-1">First Name</label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="e.g. Alex"
-                        value={newPatientData.firstName}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, firstName: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-ink-soft font-semibold mb-1">Last Name</label>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="e.g. Smith"
-                        value={newPatientData.lastName}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, lastName: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-ink-soft font-semibold mb-1">Phone Number</label>
-                      <input
-                        type="tel"
-                        className="input-field"
-                        placeholder="e.g. 9876543210"
-                        value={newPatientData.phone}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-ink-soft font-semibold mb-1">Sex</label>
-                      <select
-                        className="input-field"
-                        value={newPatientData.sex}
-                        onChange={(e) => setNewPatientData({ ...newPatientData, sex: e.target.value })}
-                      >
-                        <option value="">Select Sex</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
+              {/* STEP 1: Search or Register Patient */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div className="flex rounded-xl border border-border p-1 bg-bg">
+                    <button
+                      type="button"
+                      onClick={() => setPatientMode('search')}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${patientMode === 'search' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+                        }`}
+                    >
+                      Search Existing Patient
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPatientMode('new')}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${patientMode === 'new' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+                        }`}
+                    >
+                      Register New Patient
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
 
-            {/* STEP 2: Assign Doctor */}
-            {step === 2 && (
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Assigned Doctor *</label>
-                  <select
-                    className="input-field"
-                    value={selectedDoctorId}
-                    onChange={(e) => setSelectedDoctorId(e.target.value)}
-                  >
-                    <option value="">Select Doctor</option>
-                    {doctors.map((d) => (
-                      <option key={d._id} value={d._id}>
-                        Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  {patientMode === 'search' ? (
+                    <PatientSearchInput
+                      selectedPatient={selectedPatient}
+                      onSelect={setSelectedPatient}
+                      required
+                    />
+                  ) : (
+                    /* New Patient Form (All optional) */
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-ink-soft font-semibold mb-1">First Name</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="e.g. Alex"
+                          value={newPatientData.firstName}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, firstName: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-ink-soft font-semibold mb-1">Last Name</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="e.g. Smith"
+                          value={newPatientData.lastName}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, lastName: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-ink-soft font-semibold mb-1">Phone Number</label>
+                        <input
+                          type="tel"
+                          className="input-field"
+                          placeholder="e.g. 9876543210"
+                          value={newPatientData.phone}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-ink-soft font-semibold mb-1">Sex</label>
+                        <select
+                          className="input-field"
+                          value={newPatientData.sex}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, sex: e.target.value })}
+                        >
+                          <option value="">Select Sex</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
+              )}
 
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Reason for Visit</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g. Tooth ache, Urgent scaling, Walk-in consultation"
-                    value={visitReason}
-                    onChange={(e) => setVisitReason(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
+              {/* STEP 2: Assign Doctor */}
+              {step === 2 && (
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Assigned Doctor *</label>
+                    <select
+                      className="input-field"
+                      value={selectedDoctorId}
+                      onChange={(e) => setSelectedDoctorId(e.target.value)}
+                    >
+                      <option value="">Select Doctor</option>
+                      {doctors.map((d) => (
+                        <option key={d._id} value={d._id}>
+                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            {/* STEP 3: Confirm Details before Check-In */}
-            {step === 3 && (
-              <div className="space-y-4 text-xs">
-                <div className="rounded-xl border border-border bg-bg p-4 space-y-3">
-                  <h4 className="font-display font-bold text-ink text-sm border-b border-border pb-2">
-                    Walk-In Summary Review
-                  </h4>
-
-                  <div className="grid grid-cols-2 gap-3 text-ink">
-                    <div>
-                      <span className="text-ink-soft block font-medium">Patient Name</span>
-                      <span className="font-bold text-sm">
-                        {patientMode === 'search' && selectedPatient
-                          ? `${selectedPatient.firstName} ${selectedPatient.lastName}`
-                          : `${newPatientData.firstName} ${newPatientData.lastName}` || 'Unnamed Walk-in'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-ink-soft block font-medium">Phone / OP#</span>
-                      <span>
-                        {patientMode === 'search' && selectedPatient
-                          ? `${selectedPatient.opNumber} | ${selectedPatient.phone || 'N/A'}`
-                          : newPatientData.phone || 'New Patient'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-ink-soft block font-medium">Assigned Doctor</span>
-                      <span className="font-semibold text-brand">
-                        Dr. {doctors.find((d) => d._id === selectedDoctorId)?.name || 'Selected Doctor'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-ink-soft block font-medium">Reason</span>
-                      <span>{visitReason || 'Walk-in Consultation'}</span>
-                    </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Reason for Visit</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="e.g. Tooth ache, Urgent scaling, Walk-in consultation"
+                      value={visitReason}
+                      onChange={(e) => setVisitReason(e.target.value)}
+                    />
                   </div>
                 </div>
+              )}
 
-                <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-amber-900 border border-amber-200">
-                  <ShieldCheck size={18} className="text-amber-600 shrink-0" />
-                  <span>
-                    Confirming will automatically generate today's next sequential Token and mark status as <strong>Checked-In</strong>.
-                  </span>
+              {/* STEP 3: Confirm Details before Check-In */}
+              {step === 3 && (
+                <div className="space-y-4 text-xs">
+                  <div className="rounded-xl border border-border bg-bg p-4 space-y-3">
+                    <h4 className="font-display font-bold text-ink text-sm border-b border-border pb-2">
+                      Walk-In Summary Review
+                    </h4>
+
+                    <div className="grid grid-cols-2 gap-3 text-ink">
+                      <div>
+                        <span className="text-ink-soft block font-medium">Patient Name</span>
+                        <span className="font-bold text-sm">
+                          {patientMode === 'search' && selectedPatient
+                            ? `${selectedPatient.firstName} ${selectedPatient.lastName}`
+                            : `${newPatientData.firstName} ${newPatientData.lastName}` || 'Unnamed Walk-in'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-ink-soft block font-medium">Phone / OP#</span>
+                        <span>
+                          {patientMode === 'search' && selectedPatient
+                            ? `${selectedPatient.opNumber} | ${selectedPatient.phone || 'N/A'}`
+                            : newPatientData.phone || 'New Patient'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-ink-soft block font-medium">Assigned Doctor</span>
+                        <span className="font-semibold text-brand">
+                          Dr. {doctors.find((d) => d._id === selectedDoctorId)?.name || 'Selected Doctor'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-ink-soft block font-medium">Reason</span>
+                        <span>{visitReason || 'Walk-in Consultation'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-amber-900 border border-amber-200">
+                    <ShieldCheck size={18} className="text-amber-600 shrink-0" />
+                    <span>
+                      Confirming will automatically generate today's next sequential Token and mark status as <strong>Checked-In</strong>.
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* STEP 4: Token Issued Success State */}
-            {step === 4 && issuedToken && (
-              <div className="text-center py-4 space-y-4">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand text-white shadow-lg">
-                  <span className="font-mono text-3xl font-extrabold">#{issuedToken.token}</span>
+              {/* STEP 4: Token Issued Success State */}
+              {step === 4 && issuedToken && (
+                <div className="text-center py-4 space-y-4">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand text-white shadow-lg">
+                    <span className="font-mono text-3xl font-extrabold">#{issuedToken.token}</span>
+                  </div>
+
+                  <div>
+                    <h4 className="font-display text-lg font-bold text-ink">
+                      Token #{issuedToken.token} Issued!
+                    </h4>
+                    <p className="text-xs text-ink-soft mt-1">
+                      Patient <span className="font-semibold text-ink">{issuedToken.patient?.firstName} {issuedToken.patient?.lastName}</span> has been checked in for <span className="font-semibold text-brand">Dr. {issuedToken.doctor?.name}</span>.
+                    </p>
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <h4 className="font-display text-lg font-bold text-ink">
-                    Token #{issuedToken.token} Issued!
-                  </h4>
-                  <p className="text-xs text-ink-soft mt-1">
-                    Patient <span className="font-semibold text-ink">{issuedToken.patient?.firstName} {issuedToken.patient?.lastName}</span> has been checked in for <span className="font-semibold text-brand">Dr. {issuedToken.doctor?.name}</span>.
-                  </p>
-                </div>
-              </div>
-            )}
+            </div>
 
-            {/* Footer Buttons */}
-            <div className="flex items-center justify-between border-t border-border pt-4">
-              {step > 1 && step < 4 && (
+            {/* Footer Navigation Buttons */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              {step > 1 && step < 4 ? (
                 <button
                   type="button"
                   onClick={() => setStep((s) => s - 1)}
                   className="btn-secondary text-xs"
                 >
-                  <ChevronLeft size={16} /> Back
+                  Back
                 </button>
+              ) : (
+                <div />
               )}
 
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 {step < 3 && (
                   <button
                     type="button"
-                    onClick={handleNextStep}
+                    disabled={!selectedPatient}
+                    onClick={() => setStep(2)}
                     className="btn-primary text-xs"
                   >
-                    Next Step <ChevronRight size={16} />
+                    Next: Assign Doctor
+                  </button>
+                )}
+
+                {step === 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setStep(3)}
+                    className="btn-primary text-xs"
+                  >
+                    Next: Confirm
                   </button>
                 )}
 

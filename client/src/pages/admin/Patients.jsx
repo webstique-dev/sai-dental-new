@@ -186,25 +186,22 @@ export default function AdminPatients() {
             <span className="text-ink-soft font-semibold whitespace-nowrap">Sort By:</span>
             <button
               onClick={() => handleSortToggle('registrationDate')}
-              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${
-                sortBy === 'registrationDate' ? 'border-brand text-brand font-bold' : ''
-              }`}
+              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${sortBy === 'registrationDate' ? 'border-brand text-brand font-bold' : ''
+                }`}
             >
               Reg Date <ArrowUpDown size={13} />
             </button>
             <button
               onClick={() => handleSortToggle('name')}
-              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${
-                sortBy === 'name' ? 'border-brand text-brand font-bold' : ''
-              }`}
+              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${sortBy === 'name' ? 'border-brand text-brand font-bold' : ''
+                }`}
             >
               Name <ArrowUpDown size={13} />
             </button>
             <button
               onClick={() => handleSortToggle('opNumber')}
-              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${
-                sortBy === 'opNumber' ? 'border-brand text-brand font-bold' : ''
-              }`}
+              className={`btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ${sortBy === 'opNumber' ? 'border-brand text-brand font-bold' : ''
+                }`}
             >
               OP # <ArrowUpDown size={13} />
             </button>
@@ -245,10 +242,10 @@ export default function AdminPatients() {
                   const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
                   const regDateStr = p.registrationDate || p.createdAt
                     ? new Date(p.registrationDate || p.createdAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
                     : 'N/A';
 
                   return (
@@ -344,14 +341,14 @@ export default function AdminPatients() {
 
       {/* PATIENT PROFILE DRAWER/MODAL */}
       {selectedPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="card max-w-3xl w-full p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
+          <div className="card max-w-3xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <div>
                 <span className="badge bg-brand/10 text-brand font-mono font-bold text-xs mb-1 inline-block">
                   OP #{selectedPatient.opNumber}
                 </span>
-                <h2 className="font-display text-xl font-bold text-ink">
+                <h2 className="font-display text-lg sm:text-xl font-bold text-ink">
                   {selectedPatient.firstName} {selectedPatient.lastName}
                 </h2>
                 <p className="text-xs text-ink-soft">Registered Patient Overview</p>
@@ -368,111 +365,123 @@ export default function AdminPatients() {
                   onClick={() => setSelectedPatient(null)}
                   className="p-1 rounded text-ink-soft hover:text-ink hover:bg-bg"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            {/* Profile Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs bg-bg p-4 rounded-lg border border-border">
-              <div>
-                <div className="text-ink-soft font-semibold">Phone Number</div>
-                <div className="font-bold text-ink">{selectedPatient.phone || 'Not specified'}</div>
-              </div>
-              <div>
-                <div className="text-ink-soft font-semibold">Age / Sex</div>
-                <div className="font-bold text-ink">
-                  {selectedPatient.age !== undefined && selectedPatient.age !== null ? `${selectedPatient.age} yrs` : '—'} / {selectedPatient.sex || '—'}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {/* Profile Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs bg-bg p-4 rounded-lg border border-border">
+                <div>
+                  <div className="text-ink-soft font-semibold">Phone Number</div>
+                  <div className="font-bold text-ink">{selectedPatient.phone || 'Not specified'}</div>
+                </div>
+                <div>
+                  <div className="text-ink-soft font-semibold">Age / Sex</div>
+                  <div className="font-bold text-ink">
+                    {selectedPatient.age !== undefined && selectedPatient.age !== null ? `${selectedPatient.age} yrs` : '—'} / {selectedPatient.sex || '—'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-ink-soft font-semibold">Date of Birth</div>
+                  <div className="font-bold text-ink">
+                    {selectedPatient.dateOfBirth ? new Date(selectedPatient.dateOfBirth).toLocaleDateString() : 'Not specified'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-ink-soft font-semibold">Registration Date</div>
+                  <div className="font-bold text-ink">
+                    {selectedPatient.registrationDate || selectedPatient.createdAt
+                      ? new Date(selectedPatient.registrationDate || selectedPatient.createdAt).toLocaleDateString()
+                      : 'N/A'}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-ink-soft font-semibold">Date of Birth</div>
-                <div className="font-bold text-ink">
-                  {selectedPatient.dateOfBirth ? new Date(selectedPatient.dateOfBirth).toLocaleDateString() : 'Not specified'}
-                </div>
-              </div>
-              <div>
-                <div className="text-ink-soft font-semibold">Registration Date</div>
-                <div className="font-bold text-ink">
-                  {selectedPatient.registrationDate || selectedPatient.createdAt
-                    ? new Date(selectedPatient.registrationDate || selectedPatient.createdAt).toLocaleDateString()
-                    : 'N/A'}
-                </div>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div>
-                <div className="font-semibold text-ink-soft mb-1">Occupation</div>
-                <div className="p-2.5 bg-bg rounded border border-border text-ink font-medium">
-                  {selectedPatient.occupation || 'Not specified'}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <div className="font-semibold text-ink-soft mb-1">Occupation</div>
+                  <div className="p-2.5 bg-bg rounded border border-border text-ink font-medium">
+                    {selectedPatient.occupation || 'Not specified'}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold text-ink-soft mb-1">Residential Address</div>
+                  <div className="p-2.5 bg-bg rounded border border-border text-ink font-medium">
+                    {selectedPatient.address || 'Not specified'}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="font-semibold text-ink-soft mb-1">Residential Address</div>
-                <div className="p-2.5 bg-bg rounded border border-border text-ink font-medium">
-                  {selectedPatient.address || 'Not specified'}
-                </div>
-              </div>
-            </div>
 
-            {/* Vitals & Habits */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div>
-                <div className="font-semibold text-ink-soft mb-1">Vitals</div>
-                <div className="p-2.5 bg-bg rounded border border-border text-ink flex gap-4">
-                  <span>BP: <strong>{selectedPatient.vitals?.bp || 'N/A'}</strong></span>
-                  <span>RBS: <strong>{selectedPatient.vitals?.rbs || 'N/A'}</strong></span>
+              {/* Vitals & Habits */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <div className="font-semibold text-ink-soft mb-1">Vitals</div>
+                  <div className="p-2.5 bg-bg rounded border border-border text-ink flex gap-4">
+                    <span>BP: <strong>{selectedPatient.vitals?.bp || 'N/A'}</strong></span>
+                    <span>RBS: <strong>{selectedPatient.vitals?.rbs || 'N/A'}</strong></span>
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold text-ink-soft mb-1">Habits</div>
+                  <div className="p-2.5 bg-bg rounded border border-border text-ink">
+                    {selectedPatient.habits && selectedPatient.habits.length > 0
+                      ? (Array.isArray(selectedPatient.habits) ? selectedPatient.habits.join(', ') : selectedPatient.habits)
+                      : 'None reported'}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="font-semibold text-ink-soft mb-1">Habits</div>
+
+              {/* Medical History */}
+              <div className="text-xs">
+                <div className="font-semibold text-ink-soft mb-1">Medical History Alerts</div>
+                {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(Array.isArray(selectedPatient.medicalHistory)
+                      ? selectedPatient.medicalHistory
+                      : [selectedPatient.medicalHistory]
+                    ).map((m, i) => (
+                      <span key={i} className="badge bg-amber-100 text-amber-900 border-amber-300 font-medium">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-ink-soft italic">No pre-existing medical conditions reported.</p>
+                )}
+              </div>
+
+              {/* Current Medications */}
+              <div className="text-xs">
+                <div className="font-semibold text-ink-soft mb-1">Current Medications & Allergies</div>
                 <div className="p-2.5 bg-bg rounded border border-border text-ink">
-                  {selectedPatient.habits && selectedPatient.habits.length > 0
-                    ? (Array.isArray(selectedPatient.habits) ? selectedPatient.habits.join(', ') : selectedPatient.habits)
-                    : 'None reported'}
+                  {selectedPatient.currentMedications || <span className="italic text-ink-soft">None reported</span>}
                 </div>
               </div>
-            </div>
 
-            {/* Medical History */}
-            <div className="text-xs">
-              <div className="font-semibold text-ink-soft mb-1">Medical History Alerts</div>
-              {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {(Array.isArray(selectedPatient.medicalHistory)
-                    ? selectedPatient.medicalHistory
-                    : [selectedPatient.medicalHistory]
-                  ).map((m, i) => (
-                    <span key={i} className="badge bg-amber-100 text-amber-900 border-amber-300 font-medium">
-                      {m}
-                    </span>
-                  ))}
+              {/* Dental History */}
+              <div className="text-xs">
+                <div className="font-semibold text-ink-soft mb-1">Dental History & Chief Complaints</div>
+                <div className="p-2.5 bg-bg rounded border border-border text-ink">
+                  {selectedPatient.dentalHistory || <span className="italic text-ink-soft">No previous dental history reported</span>}
                 </div>
-              ) : (
-                <p className="text-ink-soft italic">No pre-existing medical conditions reported.</p>
-              )}
-            </div>
+              </div>
 
-            {/* Current Medications */}
-            <div className="text-xs">
-              <div className="font-semibold text-ink-soft mb-1">Current Medications & Allergies</div>
-              <div className="p-2.5 bg-bg rounded border border-border text-ink">
-                {selectedPatient.currentMedications || <span className="italic text-ink-soft">None reported</span>}
+              {/* Embedded Clinical Documents Panel */}
+              <div className="pt-2">
+                <DocumentsPanel patientId={selectedPatient._id} />
               </div>
             </div>
 
-            {/* Dental History */}
-            <div className="text-xs">
-              <div className="font-semibold text-ink-soft mb-1">Dental History & Chief Complaints</div>
-              <div className="p-2.5 bg-bg rounded border border-border text-ink">
-                {selectedPatient.dentalHistory || <span className="italic text-ink-soft">No previous dental history reported</span>}
-              </div>
-            </div>
-
-            {/* Embedded Clinical Documents Panel */}
-            <div className="pt-2">
-              <DocumentsPanel patientId={selectedPatient._id} />
+            <div className="flex justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedPatient(null)}
+                className="btn-secondary text-xs"
+              >
+                Close Profile
+              </button>
             </div>
           </div>
         </div>
@@ -480,9 +489,9 @@ export default function AdminPatients() {
 
       {/* EDIT BASIC DETAILS MODAL (ADMIN ONLY) */}
       {editingPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="card max-w-xl w-full p-6 space-y-4 bg-surface max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
+          <div className="card max-w-xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <Edit3 size={18} className="text-amber-600" /> Edit Patient Profile Details
               </h3>
@@ -491,176 +500,177 @@ export default function AdminPatients() {
               </button>
             </div>
 
-            {feedback.msg && (
-              <div
-                className={`p-3 rounded text-xs flex items-center gap-2 ${
-                  feedback.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {feedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
-                <span>{feedback.msg}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">First Name</label>
-                  <input
-                    type="text"
-                    required
-                    className="input-field py-1.5"
-                    value={editForm.firstName}
-                    onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    className="input-field py-1.5"
-                    value={editForm.lastName}
-                    onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Phone</label>
-                  <input
-                    type="text"
-                    className="input-field py-1.5 font-mono"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Age</label>
-                  <input
-                    type="number"
-                    className="input-field py-1.5"
-                    value={editForm.age}
-                    onChange={(e) => setEditForm({ ...editForm, age: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Sex</label>
-                  <select
-                    className="input-field py-1.5"
-                    value={editForm.sex}
-                    onChange={(e) => setEditForm({ ...editForm, sex: e.target.value })}
+            <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
+                {feedback.msg && (
+                  <div
+                    className={`p-3 rounded text-xs flex items-center gap-2 ${feedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                      }`}
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
+                    {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <ShieldAlert size={16} />}
+                    <span>{feedback.msg}</span>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">First Name</label>
+                    <input
+                      type="text"
+                      required
+                      className="input-field py-1.5"
+                      value={editForm.firstName}
+                      onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Last Name</label>
+                    <input
+                      type="text"
+                      className="input-field py-1.5"
+                      value={editForm.lastName}
+                      onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Phone</label>
+                    <input
+                      type="text"
+                      className="input-field py-1.5 font-mono"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Age</label>
+                    <input
+                      type="number"
+                      className="input-field py-1.5"
+                      value={editForm.age}
+                      onChange={(e) => setEditForm({ ...editForm, age: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Sex</label>
+                    <select
+                      className="input-field py-1.5"
+                      value={editForm.sex}
+                      onChange={(e) => setEditForm({ ...editForm, sex: e.target.value })}
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <DatePicker
+                      label="Date of Birth"
+                      value={editForm.dateOfBirth}
+                      onChange={(date, dateStr) => setEditForm({ ...editForm, dateOfBirth: dateStr })}
+                      maxDate={new Date()}
+                      inputClassName="py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Occupation</label>
+                    <input
+                      type="text"
+                      className="input-field py-1.5"
+                      value={editForm.occupation}
+                      onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <DatePicker
-                    label="Date of Birth"
-                    value={editForm.dateOfBirth}
-                    onChange={(date, dateStr) => setEditForm({ ...editForm, dateOfBirth: dateStr })}
-                    maxDate={new Date()}
-                    inputClassName="py-1.5"
+                  <label className="block font-semibold text-ink-soft mb-1">Address</label>
+                  <textarea
+                    rows={2}
+                    className="input-field py-1.5"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Blood Pressure (BP)</label>
+                    <input
+                      type="text"
+                      className="input-field py-1.5"
+                      placeholder="e.g. 120/80"
+                      value={editForm.bp}
+                      onChange={(e) => setEditForm({ ...editForm, bp: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Random Blood Sugar (RBS)</label>
+                    <input
+                      type="text"
+                      className="input-field py-1.5"
+                      placeholder="e.g. 110"
+                      value={editForm.rbs}
+                      onChange={(e) => setEditForm({ ...editForm, rbs: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Occupation</label>
+                  <label className="block font-semibold text-ink-soft mb-1">
+                    Medical History (Comma separated)
+                  </label>
                   <input
                     type="text"
                     className="input-field py-1.5"
-                    value={editForm.occupation}
-                    onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
+                    placeholder="e.g. Diabetes Mellitus, Hypertension, Asthma"
+                    value={editForm.medicalHistory}
+                    onChange={(e) => setEditForm({ ...editForm, medicalHistory: e.target.value })}
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Address</label>
-                <textarea
-                  rows={2}
-                  className="input-field py-1.5"
-                  value={editForm.address}
-                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Blood Pressure (BP)</label>
+                  <label className="block font-semibold text-ink-soft mb-1">
+                    Habits (Comma separated)
+                  </label>
                   <input
                     type="text"
                     className="input-field py-1.5"
-                    placeholder="e.g. 120/80"
-                    value={editForm.bp}
-                    onChange={(e) => setEditForm({ ...editForm, bp: e.target.value })}
+                    placeholder="e.g. Smoking, Alcohol"
+                    value={editForm.habits}
+                    onChange={(e) => setEditForm({ ...editForm, habits: e.target.value })}
                   />
                 </div>
+
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Random Blood Sugar (RBS)</label>
-                  <input
-                    type="text"
+                  <label className="block font-semibold text-ink-soft mb-1">Current Medications & Allergies</label>
+                  <textarea
+                    rows={2}
                     className="input-field py-1.5"
-                    placeholder="e.g. 110"
-                    value={editForm.rbs}
-                    onChange={(e) => setEditForm({ ...editForm, rbs: e.target.value })}
+                    value={editForm.currentMedications}
+                    onChange={(e) => setEditForm({ ...editForm, currentMedications: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Dental History</label>
+                  <textarea
+                    rows={2}
+                    className="input-field py-1.5"
+                    value={editForm.dentalHistory}
+                    onChange={(e) => setEditForm({ ...editForm, dentalHistory: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">
-                  Medical History (Comma separated)
-                </label>
-                <input
-                  type="text"
-                  className="input-field py-1.5"
-                  placeholder="e.g. Diabetes Mellitus, Hypertension, Asthma"
-                  value={editForm.medicalHistory}
-                  onChange={(e) => setEditForm({ ...editForm, medicalHistory: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">
-                  Habits (Comma separated)
-                </label>
-                <input
-                  type="text"
-                  className="input-field py-1.5"
-                  placeholder="e.g. Smoking, Alcohol"
-                  value={editForm.habits}
-                  onChange={(e) => setEditForm({ ...editForm, habits: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Current Medications & Allergies</label>
-                <textarea
-                  rows={2}
-                  className="input-field py-1.5"
-                  value={editForm.currentMedications}
-                  onChange={(e) => setEditForm({ ...editForm, currentMedications: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Dental History</label>
-                <textarea
-                  rows={2}
-                  className="input-field py-1.5"
-                  value={editForm.dentalHistory}
-                  onChange={(e) => setEditForm({ ...editForm, dentalHistory: e.target.value })}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setEditingPatient(null)}

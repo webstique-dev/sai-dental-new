@@ -6,6 +6,8 @@ import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -17,6 +19,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AdminAppointments() {
+  const { showSuccess, showError } = useNotification();
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -30,8 +33,7 @@ export default function AdminAppointments() {
 
   // Modals & Notifications
   const [cancellingAppointment, setCancellingAppointment] = useState(null);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Calendar View helper
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -75,14 +77,16 @@ export default function AdminAppointments() {
 
   const confirmCancelAppointment = async () => {
     if (!cancellingAppointment) return;
+    setIsCancelling(true);
     try {
       await api.delete(`/appointments/${cancellingAppointment._id}`);
-      setSuccessMessage('Appointment cancelled by Admin.');
+      showSuccess('Appointment cancelled successfully.');
       setCancellingAppointment(null);
       fetchAppointments();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to cancel appointment');
+      showError(err.response?.data?.message || 'Failed to cancel appointment');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -103,17 +107,15 @@ export default function AdminAppointments() {
           <div className="inline-flex rounded-xl border border-border bg-surface p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                viewMode === 'list' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
-              }`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'list' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
+                }`}
             >
               <List size={15} /> List View
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                viewMode === 'calendar' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
-              }`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'calendar' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
+                }`}
             >
               <CalendarDays size={15} /> Calendar View
             </button>
@@ -214,38 +216,30 @@ export default function AdminAppointments() {
         />
       )}
 
-      {/* CANCEL CONFIRMATION MODAL */}
-      {cancellingAppointment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-          <div className="card max-w-md w-full p-6 space-y-4 bg-surface animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-rose-700">
-              <AlertTriangle size={24} />
-              <h3 className="font-display text-base font-bold">Cancel Appointment</h3>
-            </div>
-            <p className="text-xs text-ink-soft">
+      {/* REUSABLE CANCEL CONFIRMATION POPUP */}
+      <ConfirmModal
+        isOpen={Boolean(cancellingAppointment)}
+        onClose={() => setCancellingAppointment(null)}
+        onConfirm={confirmCancelAppointment}
+        title="Confirm Appointment Cancellation"
+        message={
+          cancellingAppointment ? (
+            <p>
               Are you sure you want to cancel the appointment for{' '}
-              <strong className="text-ink">
+              <strong className="text-ink font-bold">
                 {cancellingAppointment.patient?.firstName} {cancellingAppointment.patient?.lastName}
               </strong>{' '}
               with Dr. {cancellingAppointment.doctor?.name}?
             </p>
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <button
-                onClick={() => setCancellingAppointment(null)}
-                className="btn-secondary py-1.5 px-3 text-xs"
-              >
-                No, Keep Appointment
-              </button>
-              <button
-                onClick={confirmCancelAppointment}
-                className="btn-primary bg-rose-600 hover:bg-rose-700 text-white border-transparent py-1.5 px-4 text-xs font-bold"
-              >
-                Confirm Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          ) : (
+            'Are you sure you want to cancel this appointment?'
+          )
+        }
+        confirmText="Confirm Cancel"
+        cancelText="No, Keep Appointment"
+        variant="danger"
+        loading={isCancelling}
+      />
     </div>
   );
 }

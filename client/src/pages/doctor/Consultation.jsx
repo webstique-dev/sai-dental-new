@@ -142,11 +142,11 @@ export default function Consultation() {
         closeNotes: closeNotes.trim(),
         followUp: enableFollowUp
           ? {
-              recommendedDate: followUpForm.recommendedDate,
-              reason: followUpForm.reason.trim(),
-              instructions: followUpForm.instructions.trim(),
-              treatmentStatus: followUpForm.treatmentStatus.trim(),
-            }
+            recommendedDate: followUpForm.recommendedDate,
+            reason: followUpForm.reason.trim(),
+            instructions: followUpForm.instructions.trim(),
+            treatmentStatus: followUpForm.treatmentStatus.trim(),
+          }
           : null,
       };
 
@@ -252,11 +252,10 @@ export default function Consultation() {
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-xl font-bold text-ink">{fullName}</h2>
                 <span
-                  className={`badge border ${
-                    isCompleted
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                      : 'bg-purple-100 text-purple-800 border-purple-200'
-                  }`}
+                  className={`badge border ${isCompleted
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    : 'bg-purple-100 text-purple-800 border-purple-200'
+                    }`}
                 >
                   {consultation.status}
                 </span>
@@ -344,11 +343,10 @@ export default function Consultation() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                  isActive
-                    ? 'border-brand text-brand'
-                    : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                }`}
+                className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${isActive
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                  }`}
               >
                 <Icon size={16} />
                 <span>{tab.label}</span>
@@ -386,11 +384,11 @@ export default function Consultation() {
 
       {/* 2-PART CLOSE CONSULTATION MODAL */}
       {showCloseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm">
-          <div className="card w-full max-w-xl p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <div>
-                <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
                   <CheckCircle2 size={20} className="text-emerald-600" /> Close Consultation
                 </h3>
                 <p className="text-xs text-ink-soft">
@@ -402,121 +400,123 @@ export default function Consultation() {
               </button>
             </div>
 
-            {closeSuccessMsg && (
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-800 border border-emerald-200">
-                <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-                <span>{closeSuccessMsg}</span>
-              </div>
-            )}
-
-            {closeModalError && (
-              <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                <span>{closeModalError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleConfirmClose} className="space-y-5 text-xs">
-              {/* PART A: FOLLOW-UP SECTION (SHOWN FIRST) */}
-              <div className="rounded-xl border border-border bg-bg/40 p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={18} className="text-brand" />
-                    <span className="font-bold text-ink text-xs">Follow-Up Recommendation</span>
+            <form onSubmit={handleConfirmClose} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+                {closeSuccessMsg && (
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-800 border border-emerald-200">
+                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                    <span>{closeSuccessMsg}</span>
                   </div>
-
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={enableFollowUp}
-                      onChange={(e) => setEnableFollowUp(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
-                    <span className="ml-2 text-xs font-semibold text-ink">
-                      {enableFollowUp ? 'Follow-Up Recommended' : 'No Follow-Up Required'}
-                    </span>
-                  </label>
-                </div>
-
-                {existingFollowUpId && (
-                  <p className="text-[11px] text-brand font-medium italic">
-                    ℹ️ Pre-filled from existing follow-up created for this visit. Updating fields here will update the scheduled follow-up.
-                  </p>
                 )}
 
-                {enableFollowUp && (
-                  <div className="space-y-3 pt-2 border-t border-border/60 animate-in fade-in duration-150">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {closeModalError && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
+                    <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                    <span>{closeModalError}</span>
+                  </div>
+                )}
+
+                {/* PART A: FOLLOW-UP SECTION */}
+                <div className="rounded-xl border border-border bg-bg/40 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={18} className="text-brand" />
+                      <span className="font-bold text-ink text-xs">Follow-Up Recommendation</span>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enableFollowUp}
+                        onChange={(e) => setEnableFollowUp(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
+                      <span className="ml-2 text-xs font-semibold text-ink">
+                        {enableFollowUp ? 'Follow-Up Recommended' : 'No Follow-Up Required'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {existingFollowUpId && (
+                    <p className="text-[11px] text-brand font-medium italic">
+                      ℹ️ Pre-filled from existing follow-up created for this visit. Updating fields here will update the scheduled follow-up.
+                    </p>
+                  )}
+
+                  {enableFollowUp && (
+                    <div className="space-y-3 pt-2 border-t border-border/60 animate-in fade-in duration-150">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <DatePicker
+                            label="Recommended Date"
+                            isRequired={enableFollowUp}
+                            value={followUpForm.recommendedDate}
+                            onChange={(date, dateStr) => setFollowUpForm({ ...followUpForm, recommendedDate: dateStr })}
+                            minDate={new Date()}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-ink-soft mb-1">
+                            Reason for Follow-Up <span className="text-rose-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required={enableFollowUp}
+                            className="input-field py-1.5"
+                            placeholder="e.g. Suture removal, Crown fit check"
+                            value={followUpForm.reason}
+                            onChange={(e) => setFollowUpForm({ ...followUpForm, reason: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
                       <div>
-                        <DatePicker
-                          label="Recommended Date"
-                          isRequired={enableFollowUp}
-                          value={followUpForm.recommendedDate}
-                          onChange={(date, dateStr) => setFollowUpForm({ ...followUpForm, recommendedDate: dateStr })}
-                          minDate={new Date()}
+                        <label className="block font-semibold text-ink-soft mb-1">Patient Instructions</label>
+                        <textarea
+                          rows={2}
+                          className="input-field py-1.5"
+                          placeholder="e.g. Continue warm saline rinses. Avoid chewing on right side."
+                          value={followUpForm.instructions}
+                          onChange={(e) => setFollowUpForm({ ...followUpForm, instructions: e.target.value })}
                         />
                       </div>
 
                       <div>
-                        <label className="block font-semibold text-ink-soft mb-1">
-                          Reason for Follow-Up <span className="text-rose-600">*</span>
-                        </label>
+                        <label className="block font-semibold text-ink-soft mb-1">Treatment Status Note (Optional)</label>
                         <input
                           type="text"
-                          required={enableFollowUp}
                           className="input-field py-1.5"
-                          placeholder="e.g. Suture removal, Crown fit check"
-                          value={followUpForm.reason}
-                          onChange={(e) => setFollowUpForm({ ...followUpForm, reason: e.target.value })}
+                          placeholder="e.g. Root canal step 1 completed, awaiting final obturation"
+                          value={followUpForm.treatmentStatus}
+                          onChange={(e) => setFollowUpForm({ ...followUpForm, treatmentStatus: e.target.value })}
                         />
                       </div>
                     </div>
+                  )}
+                </div>
 
-                    <div>
-                      <label className="block font-semibold text-ink-soft mb-1">Patient Instructions</label>
-                      <textarea
-                        rows={2}
-                        className="input-field py-1.5"
-                        placeholder="e.g. Continue warm saline rinses. Avoid chewing on right side."
-                        value={followUpForm.instructions}
-                        onChange={(e) => setFollowUpForm({ ...followUpForm, instructions: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-ink-soft mb-1">Treatment Status Note (Optional)</label>
-                      <input
-                        type="text"
-                        className="input-field py-1.5"
-                        placeholder="e.g. Root canal step 1 completed, awaiting final obturation"
-                        value={followUpForm.treatmentStatus}
-                        onChange={(e) => setFollowUpForm({ ...followUpForm, treatmentStatus: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* PART B: CONSULTATION SUMMARY SECTION */}
-              <div className="space-y-2">
-                <label className="block font-semibold text-ink-soft">
-                  Closing Summary Notes (Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  className="input-field py-1.5"
-                  placeholder="Enter optional clinical summary, post-op care advice, or final diagnosis notes..."
-                  value={closeNotes}
-                  onChange={(e) => setCloseNotes(e.target.value)}
-                />
-                <p className="text-[11px] text-ink-soft">
-                  Closing this consultation will complete the visit and lock clinical records for editing.
-                </p>
+                {/* PART B: CONSULTATION SUMMARY SECTION */}
+                <div className="space-y-2">
+                  <label className="block font-semibold text-ink-soft">
+                    Closing Summary Notes (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    className="input-field py-1.5"
+                    placeholder="Enter optional clinical summary, post-op care advice, or final diagnosis notes..."
+                    value={closeNotes}
+                    onChange={(e) => setCloseNotes(e.target.value)}
+                  />
+                  <p className="text-[11px] text-ink-soft">
+                    Closing this consultation will complete the visit and lock clinical records for editing.
+                  </p>
+                </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   className="btn-secondary text-xs py-1.5 px-3"

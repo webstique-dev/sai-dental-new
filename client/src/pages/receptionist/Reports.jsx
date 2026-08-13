@@ -94,31 +94,28 @@ export default function ReceptionistReports() {
           </span>
           <button
             onClick={() => handleQuickFilter('today')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-              activeQuickFilter === 'today'
-                ? 'bg-brand text-white border-brand'
-                : 'bg-bg text-ink border-border hover:bg-bg/80'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activeQuickFilter === 'today'
+              ? 'bg-brand text-white border-brand'
+              : 'bg-bg text-ink border-border hover:bg-bg/80'
+              }`}
           >
             Today
           </button>
           <button
             onClick={() => handleQuickFilter('week')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-              activeQuickFilter === 'week'
-                ? 'bg-brand text-white border-brand'
-                : 'bg-bg text-ink border-border hover:bg-bg/80'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activeQuickFilter === 'week'
+              ? 'bg-brand text-white border-brand'
+              : 'bg-bg text-ink border-border hover:bg-bg/80'
+              }`}
           >
             This Week
           </button>
           <button
             onClick={() => handleQuickFilter('month')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-              activeQuickFilter === 'month'
-                ? 'bg-brand text-white border-brand'
-                : 'bg-bg text-ink border-border hover:bg-bg/80'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activeQuickFilter === 'month'
+              ? 'bg-brand text-white border-brand'
+              : 'bg-bg text-ink border-border hover:bg-bg/80'
+              }`}
           >
             This Month
           </button>

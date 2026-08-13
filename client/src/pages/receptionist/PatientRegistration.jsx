@@ -331,11 +331,10 @@ export default function PatientRegistration() {
               return (
                 <label
                   key={item}
-                  className={`flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer text-sm transition-colors ${
-                    checked
-                      ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
-                      : 'border-border bg-surface text-ink hover:bg-bg'
-                  }`}
+                  className={`flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer text-sm transition-colors ${checked
+                    ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
+                    : 'border-border bg-surface text-ink hover:bg-bg'
+                    }`}
                 >
                   <input
                     type="checkbox"
@@ -527,11 +526,10 @@ export default function PatientRegistration() {
               return (
                 <label
                   key={habit}
-                  className={`flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer text-sm transition-colors ${
-                    checked
-                      ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
-                      : 'border-border bg-surface text-ink hover:bg-bg'
-                  }`}
+                  className={`flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer text-sm transition-colors ${checked
+                    ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
+                    : 'border-border bg-surface text-ink hover:bg-bg'
+                    }`}
                 >
                   <input
                     type="checkbox"

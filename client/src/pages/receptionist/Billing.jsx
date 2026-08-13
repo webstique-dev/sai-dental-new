@@ -323,10 +323,10 @@ export default function Billing() {
                   const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
                   const dateStr = inv.createdAt
                     ? new Date(inv.createdAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
                     : 'N/A';
 
                   return (
@@ -368,9 +368,8 @@ export default function Billing() {
                       {/* Status Badge */}
                       <td className="px-5 py-4">
                         <span
-                          className={`badge border ${
-                            STATUS_BADGE_CLASSES[inv.paymentStatus] || 'bg-slate-100 text-slate-800'
-                          }`}
+                          className={`badge border ${STATUS_BADGE_CLASSES[inv.paymentStatus] || 'bg-slate-100 text-slate-800'
+                            }`}
                         >
                           {inv.paymentStatus}
                         </span>
@@ -406,10 +405,10 @@ export default function Billing() {
 
       {/* GENERATE INVOICE MODAL */}
       {showGenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-2xl p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-display text-lg font-bold text-ink flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-2xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+              <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
                 <FileText size={20} className="text-brand" /> Generate New Invoice
               </h3>
               <button onClick={resetGenerateModal} className="rounded-lg p-1 hover:bg-bg">
@@ -417,171 +416,172 @@ export default function Billing() {
               </button>
             </div>
 
-            {errorMessage && (
-              <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
+            <form onSubmit={handleGenerateInvoice} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 ">
+                {errorMessage && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
+                    <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+                {/* Patient & Doctor */}
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Patient Search */}
+                  <PatientSearchInput
+                    selectedPatient={selectedPatient}
+                    onSelect={setSelectedPatient}
+                    required
+                  />
 
-            <form onSubmit={handleGenerateInvoice} className="space-y-5">
-              {/* Patient & Doctor */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Patient Search */}
-                <PatientSearchInput
-                  selectedPatient={selectedPatient}
-                  onSelect={setSelectedPatient}
-                  required
-                />
-
-                {/* Doctor Select */}
-                <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Attending Doctor</label>
-                  <select
-                    className="input-field text-xs"
-                    value={selectedDoctorId}
-                    onChange={(e) => setSelectedDoctorId(e.target.value)}
-                  >
-                    <option value="">Select Doctor</option>
-                    {doctors.map((d) => {
-                      const docId = d._id || d.id;
-                      return (
-                        <option key={docId} value={docId}>
-                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              </div>
-
-              {/* Line Items Table */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-ink uppercase tracking-wider">
-                    Treatment & Service Items
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAddItem}
-                    className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
-                  >
-                    <Plus size={14} /> Add Line Item
-                  </button>
+                  {/* Doctor Select */}
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Attending Doctor</label>
+                    <select
+                      className="input-field text-xs"
+                      value={selectedDoctorId}
+                      onChange={(e) => setSelectedDoctorId(e.target.value)}
+                    >
+                      <option value="">Select Doctor</option>
+                      {doctors.map((d) => {
+                        const docId = d._id || d.id;
+                        return (
+                          <option key={docId} value={docId}>
+                            Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="space-y-2 max-h-56 overflow-y-auto border border-border rounded-xl p-3 bg-bg/30">
-                  {items.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
-                      <div className="col-span-5">
-                        <input
-                          type="text"
-                          list="receptionist-treatment-catalog-list"
-                          className="input-field py-1.5 text-xs"
-                          placeholder="Service / Procedure"
-                          value={item.service}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            handleItemChange(idx, 'service', val);
-                            const match = catalogItems.find((c) => c.name.toLowerCase() === val.toLowerCase());
-                            if (match) {
-                              if (match.defaultCost !== undefined) {
-                                handleItemChange(idx, 'unitPrice', match.defaultCost);
+                {/* Line Items Table */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-ink uppercase tracking-wider">
+                      Treatment & Service Items
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Add Line Item
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto border border-border rounded-xl p-3 bg-bg/30">
+                    {items.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
+                        <div className="col-span-5">
+                          <input
+                            type="text"
+                            list="receptionist-treatment-catalog-list"
+                            className="input-field py-1.5 text-xs"
+                            placeholder="Service / Procedure"
+                            value={item.service}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleItemChange(idx, 'service', val);
+                              const match = catalogItems.find((c) => c.name.toLowerCase() === val.toLowerCase());
+                              if (match) {
+                                if (match.defaultCost !== undefined) {
+                                  handleItemChange(idx, 'unitPrice', match.defaultCost);
+                                }
+                                if (match.category) {
+                                  handleItemChange(idx, 'treatment', match.category);
+                                }
                               }
-                              if (match.category) {
-                                handleItemChange(idx, 'treatment', match.category);
-                              }
-                            }
-                          }}
-                        />
-                        <datalist id="receptionist-treatment-catalog-list">
-                          {catalogItems.map((c) => (
-                            <option key={c._id || c.id} value={c.name}>
-                              {c.category ? `[${c.category}] ` : ''}₹{c.defaultCost || 0}
-                            </option>
-                          ))}
-                        </datalist>
+                            }}
+                          />
+                          <datalist id="receptionist-treatment-catalog-list">
+                            {catalogItems.map((c) => (
+                              <option key={c._id || c.id} value={c.name}>
+                                {c.category ? `[${c.category}] ` : ''}₹{c.defaultCost || 0}
+                              </option>
+                            ))}
+                          </datalist>
+                        </div>
+                        <div className="col-span-3">
+                          <input
+                            type="text"
+                            className="input-field py-1.5 text-xs"
+                            placeholder="Treatment"
+                            value={item.treatment}
+                            onChange={(e) => handleItemChange(idx, 'treatment', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <input
+                            type="number"
+                            min="1"
+                            className="input-field py-1.5 text-xs text-center"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <input
+                            type="number"
+                            min="0"
+                            className="input-field py-1.5 text-xs"
+                            placeholder="Price"
+                            value={item.unitPrice}
+                            onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-1 text-right">
+                          <button
+                            type="button"
+                            disabled={items.length === 1}
+                            onClick={() => handleRemoveItem(idx)}
+                            className="p-1 text-ink-soft hover:text-rose-600 disabled:opacity-30"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="col-span-3">
-                        <input
-                          type="text"
-                          className="input-field py-1.5 text-xs"
-                          placeholder="Treatment"
-                          value={item.treatment}
-                          onChange={(e) => handleItemChange(idx, 'treatment', e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <input
-                          type="number"
-                          min="1"
-                          className="input-field py-1.5 text-xs text-center"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <input
-                          type="number"
-                          min="0"
-                          className="input-field py-1.5 text-xs"
-                          placeholder="Price"
-                          value={item.unitPrice}
-                          onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-1 text-right">
-                        <button
-                          type="button"
-                          disabled={items.length === 1}
-                          onClick={() => handleRemoveItem(idx)}
-                          className="p-1 text-ink-soft hover:text-rose-600 disabled:opacity-30"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Discount, Tax, & Computed Total */}
+                <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <label className="block text-ink-soft font-semibold mb-1">Discount Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="input-field py-1.5 text-xs"
+                        value={discount}
+                        onChange={(e) => setDiscount(e.target.value)}
+                      />
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Discount, Tax, & Computed Total */}
-              <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <label className="block text-ink-soft font-semibold mb-1">Discount Amount (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="input-field py-1.5 text-xs"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
-                    />
+                    <div>
+                      <label className="block text-ink-soft font-semibold mb-1">Tax Amount (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="input-field py-1.5 text-xs"
+                        value={tax}
+                        onChange={(e) => setTax(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-ink-soft font-semibold mb-1">Tax Amount (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="input-field py-1.5 text-xs"
-                      value={tax}
-                      onChange={(e) => setTax(e.target.value)}
-                    />
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-border text-sm font-bold">
-                  <span className="text-ink">Calculated Total Amount:</span>
-                  <span className="text-brand text-lg">₹{computedTotal.toLocaleString()}</span>
+                  <div className="flex items-center justify-between pt-3 border-t border-border text-sm font-bold">
+                    <span className="text-ink">Calculated Total Amount:</span>
+                    <span className="text-brand text-lg">₹{computedTotal.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" className="btn-secondary" onClick={resetGenerateModal}>
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+                <button type="button" className="btn-secondary text-xs" onClick={resetGenerateModal}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="btn-primary">
+                <button type="submit" disabled={submitting} className="btn-primary text-xs">
                   {submitting ? 'Generating...' : 'Generate Invoice'}
                 </button>
               </div>
@@ -592,9 +592,9 @@ export default function Billing() {
 
       {/* RECORD PAYMENT MODAL */}
       {activePaymentInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-md p-6 space-y-4 bg-surface">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <CreditCard size={18} className="text-brand" /> Record Payment
               </h3>
@@ -603,113 +603,119 @@ export default function Billing() {
               </button>
             </div>
 
-            {errorMessage && (
-              <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* Summary card */}
-            <div className="rounded-xl border border-border bg-bg p-3.5 space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-ink-soft font-semibold">Patient:</span>
-                <span className="font-bold text-ink">
-                  {activePaymentInvoice.patient?.firstName} {activePaymentInvoice.patient?.lastName} ({activePaymentInvoice.opNumber})
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ink-soft font-semibold">Invoice Total:</span>
-                <span className="font-bold text-ink">₹{activePaymentInvoice.total?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ink-soft font-semibold">Remaining Balance:</span>
-                <span className="font-bold text-rose-600">₹{activePaymentInvoice.balance?.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Confirmation Alert if payment settles full balance */}
-            {showConfirmSettlement ? (
-              <div className="space-y-3">
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900 space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-emerald-800">
-                    <CheckCircle2 size={18} className="text-emerald-600" />
-                    Confirm Full Settlement
+            <form onSubmit={handlePaymentClick} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+                {errorMessage && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
+                    <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                    <span>{errorMessage}</span>
                   </div>
-                  <p>
-                    Recording this payment of <strong>₹{paymentAmount}</strong> will fully settle the remaining balance and update the status to <span className="badge bg-emerald-100 text-emerald-800 border-emerald-200 font-semibold">Paid</span>.
-                  </p>
+                )}
+
+                {/* Summary card */}
+                <div className="rounded-xl border border-border bg-bg p-3.5 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-ink-soft font-semibold">Patient:</span>
+                    <span className="font-bold text-ink">
+                      {activePaymentInvoice.patient?.firstName} {activePaymentInvoice.patient?.lastName} ({activePaymentInvoice.opNumber})
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-ink-soft font-semibold">Invoice Total:</span>
+                    <span className="font-bold text-ink">₹{activePaymentInvoice.total?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-ink-soft font-semibold">Remaining Balance:</span>
+                    <span className="font-bold text-rose-600">₹{activePaymentInvoice.balance?.toLocaleString()}</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-2">
+                {/* Confirmation Alert if payment settles full balance */}
+                {showConfirmSettlement ? (
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900 space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-emerald-800">
+                        <CheckCircle2 size={18} className="text-emerald-600" />
+                        Confirm Full Settlement
+                      </div>
+                      <p>
+                        Recording this payment of <strong>₹{paymentAmount}</strong> will fully settle the remaining balance and update the status to <span className="badge bg-emerald-100 text-emerald-800 border-emerald-200 font-semibold">Paid</span>.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-2">
+                      <button
+                        type="button"
+                        className="btn-secondary text-xs"
+                        onClick={() => setShowConfirmSettlement(false)}
+                      >
+                        Back to Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={executeRecordPayment}
+                        className="btn-primary text-xs bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        {submitting ? 'Submitting...' : 'Confirm & Settle Invoice'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 text-xs">
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Payment Amount (₹) *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="input-field"
+                        placeholder="Enter amount"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Payment Method *</label>
+                      <select
+                        className="input-field"
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                      >
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!showConfirmSettlement && (
+                <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                   <button
                     type="button"
                     className="btn-secondary text-xs"
-                    onClick={() => setShowConfirmSettlement(false)}
-                  >
-                    Back to Edit
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={executeRecordPayment}
-                    className="btn-primary text-xs bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    {submitting ? 'Submitting...' : 'Confirm & Settle Invoice'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handlePaymentClick} className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Payment Amount (₹) *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="input-field"
-                    placeholder="Enter amount"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Payment Method *</label>
-                  <select
-                    className="input-field"
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                  >
-                    <option value="Cash">Cash</option>
-                    <option value="Card">Card</option>
-                    <option value="UPI">UPI</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-                  <button
-                    type="button"
-                    className="btn-secondary"
                     onClick={() => setActivePaymentInvoice(null)}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn-primary">
+                  <button type="submit" className="btn-primary text-xs">
                     Submit Payment
                   </button>
                 </div>
-              </form>
-            )}
+              )}
+            </form>
           </div>
         </div>
       )}
 
       {/* VIEW INVOICE ITEMS DETAIL MODAL */}
       {selectedInvoiceDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-lg p-6 space-y-4 bg-surface">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink">
                 Invoice Breakdown Details
               </h3>
@@ -718,7 +724,7 @@ export default function Billing() {
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
               <div className="flex justify-between border-b border-border/50 pb-2">
                 <div>
                   <p className="font-bold text-ink text-sm">
@@ -728,9 +734,8 @@ export default function Billing() {
                 </div>
                 <div className="text-right">
                   <span
-                    className={`badge border ${
-                      STATUS_BADGE_CLASSES[selectedInvoiceDetail.paymentStatus] || ''
-                    }`}
+                    className={`badge border ${STATUS_BADGE_CLASSES[selectedInvoiceDetail.paymentStatus] || ''
+                      }`}
                   >
                     {selectedInvoiceDetail.paymentStatus}
                   </span>
@@ -787,7 +792,7 @@ export default function Billing() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-border">
+            <div className="flex items-center justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
               <button className="btn-secondary text-xs" onClick={() => setSelectedInvoiceDetail(null)}>
                 Close
               </button>

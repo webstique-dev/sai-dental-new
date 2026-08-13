@@ -8,6 +8,8 @@ import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -28,6 +30,8 @@ const STATUS_BADGE_CLASSES = {
 };
 
 export default function Appointments() {
+  const { showSuccess, showError } = useNotification();
+
   // Main view state
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [appointments, setAppointments] = useState([]);
@@ -44,6 +48,7 @@ export default function Appointments() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [cancellingAppointment, setCancellingAppointment] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Notifications
   const [successMessage, setSuccessMessage] = useState('');
@@ -187,14 +192,16 @@ export default function Appointments() {
 
   const confirmCancelAppointment = async () => {
     if (!cancellingAppointment) return;
+    setIsCancelling(true);
     try {
       await api.delete(`/appointments/${cancellingAppointment._id}`);
-      setSuccessMessage('Appointment cancelled.');
+      showSuccess('Appointment cancelled successfully.');
       setCancellingAppointment(null);
       fetchAppointments();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to cancel appointment');
+      showError(err.response?.data?.message || 'Failed to cancel appointment');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -223,21 +230,19 @@ export default function Appointments() {
           <div className="inline-flex rounded-xl border border-border bg-surface p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-brand text-white'
-                  : 'text-ink-soft hover:text-ink'
-              }`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'list'
+                ? 'bg-brand text-white'
+                : 'text-ink-soft hover:text-ink'
+                }`}
             >
               <List size={15} /> List
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                viewMode === 'calendar'
-                  ? 'bg-brand text-white'
-                  : 'text-ink-soft hover:text-ink'
-              }`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'calendar'
+                ? 'bg-brand text-white'
+                : 'text-ink-soft hover:text-ink'
+                }`}
             >
               <CalendarDays size={15} /> Calendar
             </button>
@@ -357,115 +362,118 @@ export default function Appointments() {
 
       {/* CREATE APPOINTMENT MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-lg p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-display text-lg font-bold text-ink">Book New Appointment</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+              <h3 className="font-display text-base sm:text-lg font-bold text-ink">Book New Appointment</h3>
               <button onClick={() => setShowCreateModal(false)} className="rounded-lg p-1 hover:bg-bg">
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="space-y-4">
-              {/* Patient Selector */}
-              <PatientSearchInput
-                selectedPatient={selectedPatient}
-                onSelect={setSelectedPatient}
-                required
-              />
+            <form onSubmit={handleCreateSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                {/* Patient Selector */}
+                <PatientSearchInput
+                  selectedPatient={selectedPatient}
+                  onSelect={setSelectedPatient}
+                  required
+                />
 
-              {/* Doctor Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-ink-soft mb-1">Assigned Doctor</label>
-                <select
-                  className="input-field"
-                  value={formData.doctor}
-                  onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
-                >
-                  <option value="">Select Doctor</option>
-                  {doctors.map((d) => {
-                    const docId = d._id || d.id;
-                    return (
-                      <option key={docId} value={docId}>
-                        Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              {/* Date & Time */}
-              <div className="grid grid-cols-2 gap-3">
+                {/* Doctor Selector */}
                 <div>
-                  <DatePicker
-                    label="Date"
-                    value={formData.date}
-                    onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
-                  />
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">Assigned Doctor</label>
+                  <select
+                    className="input-field"
+                    value={formData.doctor}
+                    onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
+                  >
+                    <option value="">Select Doctor</option>
+                    {doctors.map((d) => {
+                      const docId = d._id || d.id;
+                      return (
+                        <option key={docId} value={docId}>
+                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
+
+                {/* Date & Time */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <DatePicker
+                      label="Date"
+                      value={formData.date}
+                      onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Time</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="e.g. 10:30 AM"
+                      value={formData.time}
+                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Type & Status */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
+                    <select
+                      className="input-field"
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    >
+                      <option value="Appointment">Appointment</option>
+                      <option value="Walk-in">Walk-in</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Status</label>
+                    <select
+                      className="input-field"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    >
+                      {STATUS_OPTIONS.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Reason */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Time</label>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">Reason for Visit</label>
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="e.g. 10:30 AM"
-                    value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    placeholder="e.g. Toothache, Scaling, Root Canal follow-up"
+                    value={formData.reason}
+                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   />
                 </div>
+
+                {/* Actions */}
               </div>
 
-              {/* Type & Status */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
-                  <select
-                    className="input-field"
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  >
-                    <option value="Appointment">Appointment</option>
-                    <option value="Walk-in">Walk-in</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Status</label>
-                  <select
-                    className="input-field"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  >
-                    {STATUS_OPTIONS.map((st) => (
-                      <option key={st} value={st}>
-                        {st}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Reason */}
-              <div>
-                <label className="block text-xs font-semibold text-ink-soft mb-1">Reason for Visit</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="e.g. Toothache, Scaling, Root Canal follow-up"
-                  value={formData.reason}
-                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-secondary text-xs"
                   onClick={() => setShowCreateModal(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary text-xs">
                   Confirm Booking
                 </button>
               </div>
@@ -476,10 +484,10 @@ export default function Appointments() {
 
       {/* EDIT / RESCHEDULE MODAL */}
       {editingAppointment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-lg p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-display text-lg font-bold text-ink">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+              <h3 className="font-display text-base sm:text-lg font-bold text-ink">
                 Reschedule / Update Appointment
               </h3>
               <button onClick={() => setEditingAppointment(null)} className="rounded-lg p-1 hover:bg-bg">
@@ -487,105 +495,108 @@ export default function Appointments() {
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div className="rounded-xl bg-bg p-3 text-xs">
-                <span className="text-ink-soft font-semibold block">Patient</span>
-                <span className="font-bold text-ink text-sm">
-                  {editingAppointment.patient?.firstName} {editingAppointment.patient?.lastName}
-                </span>{' '}
-                <span className="text-brand font-mono">({editingAppointment.patient?.opNumber})</span>
-              </div>
-
-              {/* Doctor */}
-              <div>
-                <label className="block text-xs font-semibold text-ink-soft mb-1">Assigned Doctor</label>
-                <select
-                  className="input-field"
-                  value={formData.doctor}
-                  onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
-                >
-                  <option value="">Select Doctor</option>
-                  {doctors.map((d) => {
-                    const docId = d._id || d.id;
-                    return (
-                      <option key={docId} value={docId}>
-                        Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              {/* Date & Time */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <DatePicker
-                    label="Date"
-                    value={formData.date}
-                    onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
-                  />
+            <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                <div className="rounded-xl bg-bg p-3 text-xs">
+                  <span className="text-ink-soft font-semibold block">Patient</span>
+                  <span className="font-bold text-ink text-sm">
+                    {editingAppointment.patient?.firstName} {editingAppointment.patient?.lastName}
+                  </span>{' '}
+                  <span className="text-brand font-mono">({editingAppointment.patient?.opNumber})</span>
                 </div>
+
+                {/* Doctor */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Time</label>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">Assigned Doctor</label>
+                  <select
+                    className="input-field"
+                    value={formData.doctor}
+                    onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
+                  >
+                    <option value="">Select Doctor</option>
+                    {doctors.map((d) => {
+                      const docId = d._id || d.id;
+                      return (
+                        <option key={docId} value={docId}>
+                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Date & Time */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <DatePicker
+                      label="Date"
+                      value={formData.date}
+                      onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Time</label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={formData.time}
+                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Type & Status */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
+                    <select
+                      className="input-field"
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    >
+                      <option value="Appointment">Appointment</option>
+                      <option value="Walk-in">Walk-in</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Status</label>
+                    <select
+                      className="input-field"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    >
+                      {STATUS_OPTIONS.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">Reason for Visit</label>
                   <input
                     type="text"
                     className="input-field"
-                    value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    value={formData.reason}
+                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   />
                 </div>
+
+                {/* Actions */}
               </div>
 
-              {/* Type & Status */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
-                  <select
-                    className="input-field"
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  >
-                    <option value="Appointment">Appointment</option>
-                    <option value="Walk-in">Walk-in</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Status</label>
-                  <select
-                    className="input-field"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  >
-                    {STATUS_OPTIONS.map((st) => (
-                      <option key={st} value={st}>
-                        {st}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Reason */}
-              <div>
-                <label className="block text-xs font-semibold text-ink-soft mb-1">Reason for Visit</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={formData.reason}
-                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-secondary text-xs"
                   onClick={() => setEditingAppointment(null)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="btn-primary text-xs">
                   Save Changes
                 </button>
               </div>
@@ -594,54 +605,39 @@ export default function Appointments() {
         </div>
       )}
 
-      {/* CANCEL CONFIRMATION DIALOG */}
-      {cancellingAppointment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="card w-full max-w-md p-6 space-y-4 bg-surface">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <h3 className="font-display text-base font-bold text-ink">
-                  Confirm Appointment Cancellation
-                </h3>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Are you sure you want to cancel the appointment for{' '}
-                  <span className="font-semibold text-ink">
-                    {cancellingAppointment.patient?.firstName} {cancellingAppointment.patient?.lastName}
-                  </span>{' '}
-                  scheduled on{' '}
-                  <span className="font-semibold text-ink">
-                    {formatDateDisplay(cancellingAppointment.date)} at {cancellingAppointment.time || 'TBD'}
-                  </span>
-                  ?
-                </p>
-                <p className="mt-2 text-[11px] text-rose-600 italic">
-                  This will update the appointment status to "Cancelled".
-                </p>
-              </div>
+      {/* REUSABLE CANCEL CONFIRMATION POPUP */}
+      <ConfirmModal
+        isOpen={Boolean(cancellingAppointment)}
+        onClose={() => setCancellingAppointment(null)}
+        onConfirm={confirmCancelAppointment}
+        title="Confirm Appointment Cancellation"
+        message={
+          cancellingAppointment ? (
+            <div className="space-y-2">
+              <p>
+                Are you sure you want to cancel the appointment for{' '}
+                <strong className="text-ink font-bold">
+                  {cancellingAppointment.patient?.firstName} {cancellingAppointment.patient?.lastName}
+                </strong>{' '}
+                scheduled on{' '}
+                <strong className="text-ink font-bold">
+                  {formatDateDisplay(cancellingAppointment.date)} at {cancellingAppointment.time || 'TBD'}
+                </strong>
+                ?
+              </p>
+              <p className="text-[11px] text-rose-600 italic">
+                This will update the appointment status to "Cancelled".
+              </p>
             </div>
-
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setCancellingAppointment(null)}
-              >
-                Keep Appointment
-              </button>
-              <button
-                type="button"
-                onClick={confirmCancelAppointment}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 transition-colors"
-              >
-                Yes, Cancel Appointment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          ) : (
+            'Are you sure you want to cancel this appointment?'
+          )
+        }
+        confirmText="Yes, Cancel Appointment"
+        cancelText="Keep Appointment"
+        variant="danger"
+        loading={isCancelling}
+      />
     </div>
   );
 }

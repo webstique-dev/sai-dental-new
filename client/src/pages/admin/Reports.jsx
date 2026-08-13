@@ -203,44 +203,40 @@ export default function Reports() {
       <div className="flex border-b border-border space-x-4 text-sm font-medium">
         <button
           onClick={() => setActiveTab('performance')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${
-            activeTab === 'performance'
-              ? 'border-brand text-brand font-bold'
-              : 'border-transparent text-ink-soft hover:text-ink'
-          }`}
+          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'performance'
+            ? 'border-brand text-brand font-bold'
+            : 'border-transparent text-ink-soft hover:text-ink'
+            }`}
         >
           <Activity size={16} /> Clinic Performance
         </button>
 
         <button
           onClick={() => setActiveTab('financial')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${
-            activeTab === 'financial'
-              ? 'border-brand text-brand font-bold'
-              : 'border-transparent text-ink-soft hover:text-ink'
-          }`}
+          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'financial'
+            ? 'border-brand text-brand font-bold'
+            : 'border-transparent text-ink-soft hover:text-ink'
+            }`}
         >
           <DollarSign size={16} /> Financial Metrics
         </button>
 
         <button
           onClick={() => setActiveTab('treatment')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${
-            activeTab === 'treatment'
-              ? 'border-brand text-brand font-bold'
-              : 'border-transparent text-ink-soft hover:text-ink'
-          }`}
+          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'treatment'
+            ? 'border-brand text-brand font-bold'
+            : 'border-transparent text-ink-soft hover:text-ink'
+            }`}
         >
           <Stethoscope size={16} /> Treatment Analytics
         </button>
 
         <button
           onClick={() => setActiveTab('doctor')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${
-            activeTab === 'doctor'
-              ? 'border-brand text-brand font-bold'
-              : 'border-transparent text-ink-soft hover:text-ink'
-          }`}
+          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'doctor'
+            ? 'border-brand text-brand font-bold'
+            : 'border-transparent text-ink-soft hover:text-ink'
+            }`}
         >
           <UserCheck size={16} /> Doctor Analytics
         </button>

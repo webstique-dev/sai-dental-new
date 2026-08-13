@@ -220,18 +220,18 @@ export default function PatientDetail() {
   const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unnamed Patient';
   const regDate = patient.registrationDate || patient.createdAt
     ? new Date(patient.registrationDate || patient.createdAt).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
     : 'N/A';
 
   const dobStr = patient.dateOfBirth
     ? new Date(patient.dateOfBirth).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
     : null;
 
   return (
@@ -246,12 +246,12 @@ export default function PatientDetail() {
         </Link>
 
         <div className="flex items-center gap-2">
-          <Link
+          {/* <Link
             to={`/doctor/patients/${patient._id}`}
             className="btn-secondary text-xs flex items-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30"
           >
             <Activity size={15} /> View EMR & History
-          </Link>
+          </Link> */}
           <button
             onClick={handleOpenEdit}
             className="btn-secondary text-xs flex items-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30"
@@ -446,9 +446,9 @@ export default function PatientDetail() {
 
       {/* EDIT PATIENT PROFILE MODAL */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="card max-w-2xl w-full p-6 space-y-4 bg-surface max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
+          <div className="card max-w-2xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <Edit3 size={18} className="text-brand" /> Edit Patient Registration Details
               </h3>
@@ -460,394 +460,392 @@ export default function PatientDetail() {
               </button>
             </div>
 
-            {editFeedback.msg && (
-              <div
-                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                  editFeedback.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {editFeedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
-                <span>{editFeedback.msg}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSavePatient} className="space-y-4 text-xs">
-              {/* Basic Details */}
-              <div className="space-y-3">
-                <h4 className="font-bold text-ink border-b border-border/60 pb-1">Basic Details</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">First Name</label>
-                    <input
-                      type="text"
-                      className="input-field py-1.5"
-                      value={editForm.firstName}
-                      onChange={(e) => handleEditChange('firstName', e.target.value)}
-                    />
+            <form onSubmit={handleSavePatient} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+                {editFeedback.msg && (
+                  <div
+                    className={`p-3 rounded-xl text-xs flex items-center gap-2 ${editFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                      }`}
+                  >
+                    {editFeedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
+                    <span>{editFeedback.msg}</span>
                   </div>
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Last Name</label>
-                    <input
-                      type="text"
-                      className="input-field py-1.5"
-                      value={editForm.lastName}
-                      onChange={(e) => handleEditChange('lastName', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Phone Number</label>
-                    <input
-                      type="tel"
-                      className="input-field py-1.5"
-                      value={editForm.phone}
-                      onChange={(e) => handleEditChange('phone', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Sex / Gender</label>
-                    <select
-                      className="input-field py-1.5"
-                      value={editForm.sex}
-                      onChange={(e) => handleEditChange('sex', e.target.value)}
-                    >
-                      <option value="">Select Sex</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Age</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="120"
-                      className="input-field py-1.5"
-                      value={editForm.age}
-                      onChange={(e) => handleEditChange('age', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <DatePicker
-                      label="Date of Birth"
-                      value={editForm.dateOfBirth}
-                      onChange={(date, dateStr) => handleEditChange('dateOfBirth', dateStr)}
-                      maxDate={new Date()}
-                      inputClassName="py-1.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Occupation</label>
-                    <input
-                      type="text"
-                      className="input-field py-1.5"
-                      value={editForm.occupation}
-                      onChange={(e) => handleEditChange('occupation', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Address</label>
-                    <input
-                      type="text"
-                      className="input-field py-1.5"
-                      value={editForm.address}
-                      onChange={(e) => handleEditChange('address', e.target.value)}
-                    />
+                )}
+                {/* Basic Details */}
+                <div className="space-y-3">
+                  <h4 className="font-bold text-ink border-b border-border/60 pb-1">Basic Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">First Name</label>
+                      <input
+                        type="text"
+                        className="input-field py-1.5"
+                        value={editForm.firstName}
+                        onChange={(e) => handleEditChange('firstName', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        className="input-field py-1.5"
+                        value={editForm.lastName}
+                        onChange={(e) => handleEditChange('lastName', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Phone Number</label>
+                      <input
+                        type="tel"
+                        className="input-field py-1.5"
+                        value={editForm.phone}
+                        onChange={(e) => handleEditChange('phone', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Sex / Gender</label>
+                      <select
+                        className="input-field py-1.5"
+                        value={editForm.sex}
+                        onChange={(e) => handleEditChange('sex', e.target.value)}
+                      >
+                        <option value="">Select Sex</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Age</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        className="input-field py-1.5"
+                        value={editForm.age}
+                        onChange={(e) => handleEditChange('age', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <DatePicker
+                        label="Date of Birth"
+                        value={editForm.dateOfBirth}
+                        onChange={(date, dateStr) => handleEditChange('dateOfBirth', dateStr)}
+                        maxDate={new Date()}
+                        inputClassName="py-1.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Occupation</label>
+                      <input
+                        type="text"
+                        className="input-field py-1.5"
+                        value={editForm.occupation}
+                        onChange={(e) => handleEditChange('occupation', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Address</label>
+                      <input
+                        type="text"
+                        className="input-field py-1.5"
+                        value={editForm.address}
+                        onChange={(e) => handleEditChange('address', e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Medical History */}
-              <div className="space-y-2">
-                <h4 className="font-bold text-ink border-b border-border/60 pb-1">Medical History</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {MEDICAL_HISTORY_OPTIONS.map((item) => {
-                    const checked = editForm.medicalHistory.includes(item);
-                    return (
-                      <label
-                        key={item}
-                        className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer text-[11px] transition-colors ${
-                          checked
+                {/* Medical History */}
+                <div className="space-y-2">
+                  <h4 className="font-bold text-ink border-b border-border/60 pb-1">Medical History</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {MEDICAL_HISTORY_OPTIONS.map((item) => {
+                      const checked = editForm.medicalHistory.includes(item);
+                      return (
+                        <label
+                          key={item}
+                          className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer text-[11px] transition-colors ${checked
                             ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
                             : 'border-border bg-surface text-ink hover:bg-bg'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="h-3.5 w-3.5 rounded border-border text-brand focus:ring-brand"
-                          checked={checked}
-                          onChange={() => handleCheckboxToggle('medicalHistory', item)}
-                        />
-                        <span>{item}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-
-                {/* Custom Medical History Add Input */}
-                <div className="pt-2 border-t border-border/60 space-y-2">
-                  <label className="block text-[11px] font-semibold text-ink-soft">
-                    Add Custom Medical History / Condition
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs flex-1"
-                      placeholder="Enter additional condition (e.g. Penicillin Allergy)..."
-                      value={editCustomMedicalInput}
-                      onChange={(e) => setEditCustomMedicalInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddEditCustomMedicalHistory();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddEditCustomMedicalHistory}
-                      className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center gap-1 whitespace-nowrap"
-                    >
-                      <Plus size={13} /> Add
-                    </button>
-                  </div>
-
-                  {/* Custom items chips */}
-                  {editForm.medicalHistory.some((item) => !MEDICAL_HISTORY_OPTIONS.includes(item)) && (
-                    <div className="space-y-1 pt-1">
-                      <span className="text-[10px] font-semibold text-ink-soft uppercase">
-                        Added Custom Conditions:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {editForm.medicalHistory.map((item) => {
-                          if (MEDICAL_HISTORY_OPTIONS.includes(item)) return null;
-                          return (
-                            <span
-                              key={item}
-                              className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                            >
-                              <span>{item}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleCheckboxToggle('medicalHistory', item)}
-                                className="text-teal-600 hover:text-teal-900 rounded-full p-0.5"
-                                title="Remove"
-                              >
-                                <X size={11} />
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Current Medications */}
-              <div className="space-y-1">
-                <h4 className="font-bold text-ink border-b border-border/60 pb-1">Current Medications & Allergies</h4>
-                <textarea
-                  rows={2}
-                  className="input-field py-1.5"
-                  placeholder="Ongoing medications or allergies..."
-                  value={editForm.currentMedications}
-                  onChange={(e) => handleEditChange('currentMedications', e.target.value)}
-                />
-              </div>
-
-              {/* Vitals */}
-              <div className="space-y-2">
-                <h4 className="font-bold text-ink border-b border-border/60 pb-1">Vitals</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">BP (mmHg)</label>
-                    <input
-                      type="text"
-                      className="input-field py-1.5"
-                      placeholder="e.g. 120/80"
-                      value={editForm.vitals?.bp || ''}
-                      onChange={(e) => handleVitalsChange('bp', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-ink-soft mb-1">RBS (mg/dL)</label>
-                    <input
-                      type="text"
-                      className="input-field py-1.5"
-                      placeholder="e.g. 110"
-                      value={editForm.vitals?.rbs || ''}
-                      onChange={(e) => handleVitalsChange('rbs', e.target.value)}
-                    />
-                  </div>
-
-                  {/* Render Custom Vitals in Edit Modal */}
-                  {Object.entries(editForm.vitals || {}).map(([key, val]) => {
-                    if (key === 'bp' || key === 'rbs') return null;
-                    return (
-                      <div key={key} className="flex items-end gap-1.5 col-span-2 sm:col-span-1">
-                        <div className="flex-1">
-                          <label className="block font-semibold text-ink-soft mb-1">{key}</label>
-                          <input
-                            type="text"
-                            className="input-field py-1.5 text-xs"
-                            value={val || ''}
-                            onChange={(e) => handleVitalsChange(key, e.target.value)}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEditCustomVital(key)}
-                          className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-                          title={`Remove ${key}`}
+                            }`}
                         >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-border text-brand focus:ring-brand"
+                            checked={checked}
+                            onChange={() => handleCheckboxToggle('medicalHistory', item)}
+                          />
+                          <span>{item}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
 
-                {/* Custom Vital Add Input */}
-                <div className="pt-2 border-t border-border/60 space-y-2">
-                  <label className="block text-[11px] font-semibold text-ink-soft">
-                    Add Custom Vital
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs sm:col-span-2"
-                      placeholder="Vital Name (e.g. Pulse)..."
-                      value={editCustomVitalLabel}
-                      onChange={(e) => setEditCustomVitalLabel(e.target.value)}
-                    />
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs sm:col-span-2"
-                      placeholder="Value (e.g. 72 bpm)..."
-                      value={editCustomVitalValue}
-                      onChange={(e) => setEditCustomVitalValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddEditCustomVital();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddEditCustomVital}
-                      className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center justify-center gap-1 whitespace-nowrap"
-                    >
-                      <Plus size={13} /> Add
-                    </button>
+                  {/* Custom Medical History Add Input */}
+                  <div className="pt-2 border-t border-border/60 space-y-2">
+                    <label className="block text-[11px] font-semibold text-ink-soft">
+                      Add Custom Medical History / Condition
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        className="input-field py-1.5 text-xs flex-1"
+                        placeholder="Enter additional condition (e.g. Penicillin Allergy)..."
+                        value={editCustomMedicalInput}
+                        onChange={(e) => setEditCustomMedicalInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddEditCustomMedicalHistory();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddEditCustomMedicalHistory}
+                        className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <Plus size={13} /> Add
+                      </button>
+                    </div>
+
+                    {/* Custom items chips */}
+                    {editForm.medicalHistory.some((item) => !MEDICAL_HISTORY_OPTIONS.includes(item)) && (
+                      <div className="space-y-1 pt-1">
+                        <span className="text-[10px] font-semibold text-ink-soft uppercase">
+                          Added Custom Conditions:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {editForm.medicalHistory.map((item) => {
+                            if (MEDICAL_HISTORY_OPTIONS.includes(item)) return null;
+                            return (
+                              <span
+                                key={item}
+                                className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                              >
+                                <span>{item}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCheckboxToggle('medicalHistory', item)}
+                                  className="text-teal-600 hover:text-teal-900 rounded-full p-0.5"
+                                  title="Remove"
+                                >
+                                  <X size={11} />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* Habits */}
-              <div className="space-y-2">
-                <h4 className="font-bold text-ink border-b border-border/60 pb-1">Habits</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {HABITS_OPTIONS.map((h) => {
-                    const checked = editForm.habits.includes(h);
-                    return (
-                      <label
-                        key={h}
-                        className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer text-[11px] transition-colors ${
-                          checked
+                {/* Current Medications */}
+                <div className="space-y-1">
+                  <h4 className="font-bold text-ink border-b border-border/60 pb-1">Current Medications & Allergies</h4>
+                  <textarea
+                    rows={2}
+                    className="input-field py-1.5"
+                    placeholder="Ongoing medications or allergies..."
+                    value={editForm.currentMedications}
+                    onChange={(e) => handleEditChange('currentMedications', e.target.value)}
+                  />
+                </div>
+
+                {/* Vitals */}
+                <div className="space-y-2">
+                  <h4 className="font-bold text-ink border-b border-border/60 pb-1">Vitals</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">BP (mmHg)</label>
+                      <input
+                        type="text"
+                        className="input-field py-1.5"
+                        placeholder="e.g. 120/80"
+                        value={editForm.vitals?.bp || ''}
+                        onChange={(e) => handleVitalsChange('bp', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">RBS (mg/dL)</label>
+                      <input
+                        type="text"
+                        className="input-field py-1.5"
+                        placeholder="e.g. 110"
+                        value={editForm.vitals?.rbs || ''}
+                        onChange={(e) => handleVitalsChange('rbs', e.target.value)}
+                      />
+                    </div>
+
+                    {/* Render Custom Vitals in Edit Modal */}
+                    {Object.entries(editForm.vitals || {}).map(([key, val]) => {
+                      if (key === 'bp' || key === 'rbs') return null;
+                      return (
+                        <div key={key} className="flex items-end gap-1.5 col-span-2 sm:col-span-1">
+                          <div className="flex-1">
+                            <label className="block font-semibold text-ink-soft mb-1">{key}</label>
+                            <input
+                              type="text"
+                              className="input-field py-1.5 text-xs"
+                              value={val || ''}
+                              onChange={(e) => handleVitalsChange(key, e.target.value)}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEditCustomVital(key)}
+                            className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                            title={`Remove ${key}`}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Vital Add Input */}
+                  <div className="pt-2 border-t border-border/60 space-y-2">
+                    <label className="block text-[11px] font-semibold text-ink-soft">
+                      Add Custom Vital
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                      <input
+                        type="text"
+                        className="input-field py-1.5 text-xs sm:col-span-2"
+                        placeholder="Vital Name (e.g. Pulse)..."
+                        value={editCustomVitalLabel}
+                        onChange={(e) => setEditCustomVitalLabel(e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        className="input-field py-1.5 text-xs sm:col-span-2"
+                        placeholder="Value (e.g. 72 bpm)..."
+                        value={editCustomVitalValue}
+                        onChange={(e) => setEditCustomVitalValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddEditCustomVital();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddEditCustomVital}
+                        className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center justify-center gap-1 whitespace-nowrap"
+                      >
+                        <Plus size={13} /> Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Habits */}
+                <div className="space-y-2">
+                  <h4 className="font-bold text-ink border-b border-border/60 pb-1">Habits</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {HABITS_OPTIONS.map((h) => {
+                      const checked = editForm.habits.includes(h);
+                      return (
+                        <label
+                          key={h}
+                          className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer text-[11px] transition-colors ${checked
                             ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
                             : 'border-border bg-surface text-ink hover:bg-bg'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="h-3.5 w-3.5 rounded border-border text-brand focus:ring-brand"
-                          checked={checked}
-                          onChange={() => handleCheckboxToggle('habits', h)}
-                        />
-                        <span>{h}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-
-                {/* Custom Habit Add Input */}
-                <div className="pt-2 border-t border-border/60 space-y-2">
-                  <label className="block text-[11px] font-semibold text-ink-soft">
-                    Add Custom Habit
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs flex-1"
-                      placeholder="Enter additional habit (e.g. Vaping, Betel Nut)..."
-                      value={editCustomHabitInput}
-                      onChange={(e) => setEditCustomHabitInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddEditCustomHabit();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddEditCustomHabit}
-                      className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center gap-1 whitespace-nowrap"
-                    >
-                      <Plus size={13} /> Add
-                    </button>
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-border text-brand focus:ring-brand"
+                            checked={checked}
+                            onChange={() => handleCheckboxToggle('habits', h)}
+                          />
+                          <span>{h}</span>
+                        </label>
+                      );
+                    })}
                   </div>
 
-                  {/* Custom Habit chips */}
-                  {editForm.habits.some((item) => !HABITS_OPTIONS.includes(item)) && (
-                    <div className="space-y-1 pt-1">
-                      <span className="text-[10px] font-semibold text-ink-soft uppercase">
-                        Added Custom Habits:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {editForm.habits.map((item) => {
-                          if (HABITS_OPTIONS.includes(item)) return null;
-                          return (
-                            <span
-                              key={item}
-                              className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                            >
-                              <span>{item}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleCheckboxToggle('habits', item)}
-                                className="text-amber-600 hover:text-amber-900 rounded-full p-0.5"
-                                title="Remove habit"
-                              >
-                                <X size={11} />
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </div>
+                  {/* Custom Habit Add Input */}
+                  <div className="pt-2 border-t border-border/60 space-y-2">
+                    <label className="block text-[11px] font-semibold text-ink-soft">
+                      Add Custom Habit
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        className="input-field py-1.5 text-xs flex-1"
+                        placeholder="Enter additional habit (e.g. Vaping, Betel Nut)..."
+                        value={editCustomHabitInput}
+                        onChange={(e) => setEditCustomHabitInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddEditCustomHabit();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddEditCustomHabit}
+                        className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <Plus size={13} /> Add
+                      </button>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Dental History */}
-              <div className="space-y-1">
-                <h4 className="font-bold text-ink border-b border-border/60 pb-1">Dental History</h4>
-                <textarea
-                  rows={3}
-                  className="input-field py-1.5"
-                  placeholder="Previous dental treatments, chief complaints, etc."
-                  value={editForm.dentalHistory}
-                  onChange={(e) => handleEditChange('dentalHistory', e.target.value)}
-                />
+                    {/* Custom Habit chips */}
+                    {editForm.habits.some((item) => !HABITS_OPTIONS.includes(item)) && (
+                      <div className="space-y-1 pt-1">
+                        <span className="text-[10px] font-semibold text-ink-soft uppercase">
+                          Added Custom Habits:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {editForm.habits.map((item) => {
+                            if (HABITS_OPTIONS.includes(item)) return null;
+                            return (
+                              <span
+                                key={item}
+                                className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                              >
+                                <span>{item}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCheckboxToggle('habits', item)}
+                                  className="text-amber-600 hover:text-amber-900 rounded-full p-0.5"
+                                  title="Remove habit"
+                                >
+                                  <X size={11} />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dental History */}
+                <div className="space-y-1">
+                  <h4 className="font-bold text-ink border-b border-border/60 pb-1">Dental History</h4>
+                  <textarea
+                    rows={3}
+                    className="input-field py-1.5"
+                    placeholder="Previous dental treatments, chief complaints, etc."
+                    value={editForm.dentalHistory}
+                    onChange={(e) => handleEditChange('dentalHistory', e.target.value)}
+                  />
+                </div>
               </div>
 
               {/* Modal Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}

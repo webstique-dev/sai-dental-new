@@ -282,9 +282,9 @@ export default function AdminDoctors() {
 
       {/* EDIT DOCTOR PROFILE & SCHEDULE MODAL */}
       {editingDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="card max-w-2xl w-full p-6 space-y-5 bg-surface max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
+          <div className="card max-w-2xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <div>
                 <h3 className="font-display text-base font-bold text-ink">
                   Edit Profile: Dr. {editingDoctor.name}
@@ -296,103 +296,106 @@ export default function AdminDoctors() {
               </button>
             </div>
 
-            {feedback.msg && (
-              <div
-                className={`p-3 rounded text-xs flex items-center gap-2 ${feedback.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                  : 'bg-rose-50 text-rose-800 border border-rose-200'
-                  }`}
-              >
-                {feedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
-                <span>{feedback.msg}</span>
-              </div>
-            )}
+            <form onSubmit={handleSaveProfile} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+                {feedback.msg && (
+                  <div
+                    className={`p-3 rounded text-xs flex items-center gap-2 ${feedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                      }`}
+                  >
+                    {feedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
+                    <span>{feedback.msg}</span>
+                  </div>
+                )}
 
-            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
-              {/* Specialization, Qualification, Consultation Fee */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Specialization</label>
-                  <input
-                    type="text"
-                    required
-                    className="input-field py-1.5"
-                    placeholder="e.g. Orthodontics, Endodontics"
-                    value={profileForm.specialization}
-                    onChange={(e) => setProfileForm({ ...profileForm, specialization: e.target.value })}
-                  />
+                {/* Specialization, Qualification, Consultation Fee */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Specialization</label>
+                    <input
+                      type="text"
+                      required
+                      className="input-field py-1.5"
+                      placeholder="e.g. Orthodontics, Endodontics"
+                      value={profileForm.specialization}
+                      onChange={(e) => setProfileForm({ ...profileForm, specialization: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Qualification</label>
+                    <input
+                      type="text"
+                      className="input-field py-1.5"
+                      placeholder="e.g. BDS, MDS"
+                      value={profileForm.qualification}
+                      onChange={(e) => setProfileForm({ ...profileForm, qualification: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Consultation Fee (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="input-field py-1.5 font-mono"
+                      value={profileForm.consultationFee}
+                      onChange={(e) => setProfileForm({ ...profileForm, consultationFee: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Qualification</label>
-                  <input
-                    type="text"
-                    className="input-field py-1.5"
-                    placeholder="e.g. BDS, MDS"
-                    value={profileForm.qualification}
-                    onChange={(e) => setProfileForm({ ...profileForm, qualification: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Consultation Fee (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="input-field py-1.5 font-mono"
-                    value={profileForm.consultationFee}
-                    onChange={(e) => setProfileForm({ ...profileForm, consultationFee: e.target.value })}
-                  />
-                </div>
-              </div>
 
-              {/* Working Hours Schedule Configuration */}
-              <div className="space-y-2 pt-2 border-t border-border">
-                <h4 className="font-bold text-ink flex items-center gap-1.5">
-                  <Calendar size={15} className="text-brand" /> Working Hours & Weekly Roster
-                </h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {profileForm.workingHours.map((wh, idx) => (
-                    <div
-                      key={wh.day}
-                      className={`flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-2.5 rounded-lg border text-xs ${wh.isAvailable ? 'bg-bg border-border' : 'bg-slate-100/60 border-slate-200 opacity-60'
-                        }`}
-                    >
-                      <div className="w-24 font-bold text-ink flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={wh.isAvailable}
-                          onChange={(e) => handleWorkingHourChange(idx, 'isAvailable', e.target.checked)}
-                          className="rounded border-border text-brand focus:ring-brand"
-                        />
-                        <span>{wh.day}</span>
+                {/* Working Hours Schedule Configuration */}
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <h4 className="font-bold text-ink flex items-center gap-1.5">
+                    <Calendar size={15} className="text-brand" /> Working Hours & Weekly Roster
+                  </h4>
+                  <p className="text-[11px] text-ink-soft">
+                    Configure day-wise shifts and availability status for online appointments.
+                  </p>
+
+                  <div className="divide-y divide-border border rounded-xl overflow-hidden bg-bg/40">
+                    {profileForm.workingHours.map((wh, idx) => (
+                      <div key={wh.day} className="p-2.5 flex items-center justify-between gap-3 text-xs">
+                        <label className="flex items-center gap-2 cursor-pointer w-24 font-bold text-ink shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={wh.isAvailable}
+                            onChange={(e) => handleWorkingHourChange(idx, 'isAvailable', e.target.checked)}
+                            className="rounded border-border text-brand focus:ring-brand"
+                          />
+                          <span>{wh.day}</span>
+                        </label>
+
+                        {wh.isAvailable ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              className="input-field py-1 px-2 text-xs font-mono"
+                              value={wh.startTime}
+                              onChange={(e) => handleWorkingHourChange(idx, 'startTime', e.target.value)}
+                            />
+                            <span className="text-ink-soft font-semibold">to</span>
+                            <input
+                              type="time"
+                              className="input-field py-1 px-2 text-xs font-mono"
+                              value={wh.endTime}
+                              onChange={(e) => handleWorkingHourChange(idx, 'endTime', e.target.value)}
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-rose-600 font-semibold text-[11px] italic bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                            Day Off / Not Available
+                          </span>
+                        )}
                       </div>
-
-                      {wh.isAvailable ? (
-                        <div className="flex items-center gap-2 flex-1 justify-end">
-                          <span className="text-[11px] text-ink-soft">Start:</span>
-                          <input
-                            type="time"
-                            className="input-field py-1 text-xs w-28 font-mono"
-                            value={wh.startTime}
-                            onChange={(e) => handleWorkingHourChange(idx, 'startTime', e.target.value)}
-                          />
-                          <span className="text-[11px] text-ink-soft">End:</span>
-                          <input
-                            type="time"
-                            className="input-field py-1 text-xs w-28 font-mono"
-                            value={wh.endTime}
-                            onChange={(e) => handleWorkingHourChange(idx, 'endTime', e.target.value)}
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-[11px] font-semibold text-rose-700 italic">Off Duty / Not Available</span>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setEditingDoctor(null)}
