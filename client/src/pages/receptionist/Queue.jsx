@@ -302,17 +302,21 @@ export default function Queue() {
 
                       {/* Action */}
                       <td className="px-5 py-4 text-right">
-                        <select
-                          className="input-field py-1 px-2.5 text-xs w-auto inline-block"
-                          value={entry.status}
-                          onChange={(e) => handleStatusChange(entry._id, e.target.value)}
-                        >
-                          {QUEUE_STATUS_OPTIONS.map((st) => (
-                            <option key={st} value={st}>
-                              {st}
-                            </option>
-                          ))}
-                        </select>
+                        {['Completed', 'Cancelled'].includes(entry.status) ? (
+                          <span className="text-xs text-ink-soft/40 italic">—</span>
+                        ) : (
+                          <select
+                            className="input-field py-1 px-2.5 text-xs w-auto inline-block"
+                            value={entry.status}
+                            onChange={(e) => handleStatusChange(entry._id, e.target.value)}
+                          >
+                            {QUEUE_STATUS_OPTIONS.map((st) => (
+                              <option key={st} value={st}>
+                                {st}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                     </tr>
                   );

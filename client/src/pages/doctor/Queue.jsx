@@ -170,23 +170,27 @@ export default function DoctorQueue() {
 
                       {/* Action */}
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <button
-                          disabled={submittingId === entryId}
-                          onClick={() => handleStartConsultation(entry)}
-                          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${isWithDoctor
-                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                            : 'bg-brand text-white hover:bg-brand-dark'
-                            }`}
-                        >
-                          <Play size={14} fill="currentColor" />
-                          <span>
-                            {submittingId === entryId
-                              ? 'Starting...'
-                              : isWithDoctor
-                                ? 'Continue Consultation'
-                                : 'Start Consultation'}
-                          </span>
-                        </button>
+                        {['Completed', 'Cancelled'].includes(entry.status) ? (
+                          <span className="text-xs text-ink-soft/40 italic">—</span>
+                        ) : (
+                          <button
+                            disabled={submittingId === entryId}
+                            onClick={() => handleStartConsultation(entry)}
+                            className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${isWithDoctor
+                              ? 'bg-purple-600 text-white hover:bg-purple-700'
+                              : 'bg-brand text-white hover:bg-brand-dark'
+                              }`}
+                          >
+                            <Play size={14} fill="currentColor" />
+                            <span>
+                              {submittingId === entryId
+                                ? 'Starting...'
+                                : isWithDoctor
+                                  ? 'Continue Consultation'
+                                  : 'Start Consultation'}
+                            </span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
