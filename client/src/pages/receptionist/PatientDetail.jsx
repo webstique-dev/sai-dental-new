@@ -193,12 +193,20 @@ export default function PatientDetail() {
           <ArrowLeft size={16} /> Back to Patients Directory
         </Link>
 
-        <button
-          onClick={handleOpenEdit}
-          className="btn-secondary text-xs flex items-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30"
-        >
-          <Edit3 size={15} /> Edit Patient Profile
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/doctor/patients/${patient._id}`}
+            className="btn-secondary text-xs flex items-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30"
+          >
+            <Activity size={15} /> View EMR & History
+          </Link>
+          <button
+            onClick={handleOpenEdit}
+            className="btn-secondary text-xs flex items-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30"
+          >
+            <Edit3 size={15} /> Edit Patient Profile
+          </button>
+        </div>
       </div>
 
       {/* Patient Header Card */}

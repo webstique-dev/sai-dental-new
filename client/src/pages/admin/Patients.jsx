@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Users, Search, Filter, Edit3, ArrowUpDown, ChevronLeft, ChevronRight,
-  ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye
+  ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye, History
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios.js';
@@ -282,12 +282,19 @@ export default function AdminPatients() {
 
                       <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            to={`/doctor/patients/${p._id}`}
+                            className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold hover:bg-brand-light/30"
+                            title="View Patient EMR & Visit Timeline"
+                          >
+                            <History size={13} /> View EMR
+                          </Link>
                           <button
                             onClick={() => setSelectedPatient(p)}
                             className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1"
                             title="View Full Profile"
                           >
-                            <Eye size={13} /> View Profile
+                            <Eye size={13} /> Profile
                           </button>
                           <button
                             onClick={(e) => handleOpenEdit(e, p)}

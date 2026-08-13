@@ -33,9 +33,16 @@ async function createInvestigation(req, res, next) {
     // Immutability Guard
     await checkConsultationNotClosed(consultation);
 
+    let targetPatient = patient;
+    if (!targetPatient && consultation) {
+      const Consultation = require('../models/Consultation');
+      const cDoc = await Consultation.findById(consultation);
+      if (cDoc) targetPatient = cDoc.patient;
+    }
+
     const newInvestigation = new Investigation({
       consultation,
-      patient,
+      patient: targetPatient || undefined,
       type: type || 'X-Ray',
       reason: reason ? reason.trim() : '',
       notes: notes ? notes.trim() : '',

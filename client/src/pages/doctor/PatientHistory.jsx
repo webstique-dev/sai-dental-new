@@ -1,29 +1,46 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   History, Search, UserSquare2, Calendar, Stethoscope, Activity, Pill,
-  FileHeart, IndianRupee, ArrowRight, CheckCircle2, Clock, ChevronRight, Filter, AlertTriangle, FileText,
+  FileHeart, IndianRupee, ArrowRight, CheckCircle2, Clock, ChevronDown, ChevronUp,
+  Filter, AlertTriangle, FileText, Lock, Eye, Sparkles, Check, Bell
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
+import ToothChart from './consultation/ToothChart.jsx';
+
+const STATUS_BADGE_CLASSES = {
+  Planned: 'bg-slate-100 text-slate-800 border-slate-200',
+  Approved: 'bg-blue-100 text-blue-800 border-blue-200',
+  'In Progress': 'bg-purple-100 text-purple-800 border-purple-200',
+  Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
+};
+
+const SEVERITY_BADGES = {
+  Mild: 'bg-blue-100 text-blue-800 border-blue-200',
+  Moderate: 'bg-amber-100 text-amber-800 border-amber-200',
+  Severe: 'bg-rose-100 text-rose-800 border-rose-200',
+};
 
 export default function PatientHistory() {
+  const { patientId: urlPatientId } = useParams();
+
   const [patients, setPatients] = useState([]);
-  const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState(null);
-
+  const [selectedPatientId, setSelectedPatientId] = useState(urlPatientId || '');
+  const [emrData, setEmrData] = useState(null);
   const [loadingPatients, setLoadingPatients] = useState(true);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingEMR, setLoadingEMR] = useState(false);
+  const [expandedConsultations, setExpandedConsultations] = useState({});
 
-  // Patient timeline records
-  const [consultations, setConsultations] = useState([]);
-  const [diagnoses, setDiagnoses] = useState([]);
-  const [treatmentPlans, setTreatmentPlans] = useState([]);
-  const [prescriptions, setPrescriptions] = useState([]);
-  const [investigations, setInvestigations] = useState([]);
-  const [invoices, setInvoices] = useState([]);
+  // Sync urlPatientId with state when URL route changes
+  useEffect(() => {
+    if (urlPatientId) {
+      setSelectedPatientId(urlPatientId);
+    }
+  }, [urlPatientId]);
 
-  // Fetch patient list for directory selector
+  // Fetch patient directory selector list
   useEffect(() => {
     async function fetchPatients() {
       try {
@@ -31,11 +48,12 @@ export default function PatientHistory() {
         const res = await api.get('/patients');
         const list = res.data?.patients || [];
         setPatients(list);
-        if (list.length > 0) {
+
+        if (!selectedPatientId && list.length > 0) {
           setSelectedPatientId(list[0]._id || list[0].id);
         }
       } catch (err) {
-        console.error('Failed to fetch patients:', err);
+        console.error('Failed to fetch patient directory:', err);
       } finally {
         setLoadingPatients(false);
       }
@@ -43,52 +61,49 @@ export default function PatientHistory() {
     fetchPatients();
   }, []);
 
-  // Fetch timeline data & fresh patient detail when patient selected
+  // Fetch single EMR aggregation endpoint
   useEffect(() => {
     if (!selectedPatientId) return;
 
-    async function fetchPatientTimeline() {
+    async function fetchEMR() {
       try {
-        setLoadingHistory(true);
-        const [pRes, cRes, dRes, tpRes, rxRes, invRes, billRes] = await Promise.all([
-          api.get(`/patients/${selectedPatientId}`),
-          api.get(`/consultations?patient=${selectedPatientId}`),
-          api.get(`/diagnoses?patient=${selectedPatientId}`),
-          api.get(`/treatment-plans?patient=${selectedPatientId}`),
-          api.get(`/prescriptions?patient=${selectedPatientId}`),
-          api.get(`/investigations?patient=${selectedPatientId}`),
-          api.get(`/invoices?patient=${selectedPatientId}`),
-        ]);
+        setLoadingEMR(true);
+        const res = await api.get(`/patients/${selectedPatientId}/emr`);
+        const data = res.data || {};
+        setEmrData(data);
 
-        if (pRes.data?.patient) {
-          setSelectedPatient(pRes.data.patient);
+        // Expand most recent consultation by default
+        if (data.consultations && data.consultations.length > 0) {
+          const firstId = data.consultations[0].consultationId || data.consultations[0].id;
+          setExpandedConsultations({ [firstId]: true });
         } else {
-          const fallbackObj = patients.find((p) => (p._id || p.id) === selectedPatientId);
-          setSelectedPatient(fallbackObj || null);
+          setExpandedConsultations({});
         }
-
-        setConsultations(cRes.data?.consultations || []);
-        setDiagnoses(dRes.data?.diagnoses || []);
-        setTreatmentPlans(tpRes.data?.treatmentPlans || []);
-        setPrescriptions(rxRes.data?.prescriptions || []);
-        setInvestigations(invRes.data?.investigations || []);
-        setInvoices(billRes.data?.invoices || []);
       } catch (err) {
-        console.error('Failed to load patient history:', err);
+        console.error('Failed to load patient EMR:', err);
+        setEmrData(null);
       } finally {
-        setLoadingHistory(false);
+        setLoadingEMR(false);
       }
     }
 
-    fetchPatientTimeline();
+    fetchEMR();
   }, [selectedPatientId]);
 
-  const fullName = selectedPatient
-    ? [selectedPatient.firstName, selectedPatient.lastName].filter(Boolean).join(' ')
-    : '';
+  const toggleConsultationExpand = (cId) => {
+    setExpandedConsultations((prev) => ({
+      ...prev,
+      [cId]: !prev[cId],
+    }));
+  };
 
-  const dobStr = selectedPatient?.dateOfBirth
-    ? new Date(selectedPatient.dateOfBirth).toLocaleDateString()
+  const patient = emrData?.patient || {};
+  const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+  const consultations = emrData?.consultations || [];
+  const followUps = emrData?.followUps || [];
+
+  const dobStr = patient.dateOfBirth
+    ? new Date(patient.dateOfBirth).toLocaleDateString()
     : null;
 
   return (
@@ -97,10 +112,10 @@ export default function PatientHistory() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <History size={26} className="text-brand" /> Patient Medical History
+            <History size={26} className="text-brand" /> Patient Medical History (EMR)
           </h1>
           <p className="text-xs text-ink-soft mt-0.5">
-            Read-only multi-visit timeline tracking examinations, diagnoses, treatment plans, Rx, and billing status.
+            Unified Electronic Medical Record tracking multi-visit clinical findings, diagnoses, tooth history, prescriptions, and follow-ups.
           </p>
         </div>
 
@@ -125,270 +140,394 @@ export default function PatientHistory() {
         </div>
       </div>
 
-      {/* Selected Patient Overview Card */}
-      {selectedPatient && (
+      {/* PATIENT HEADER & DEMOGRAPHICS CARD */}
+      {loadingEMR ? (
+        <div className="card p-8 text-center text-xs text-ink-soft">Loading patient EMR records...</div>
+      ) : !patient._id ? (
+        <div className="card p-8 text-center text-xs text-ink-soft">Please select a patient to view EMR records.</div>
+      ) : (
         <div className="card p-5 space-y-4 bg-surface border-brand/20">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
             <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-dark">
-                <UserSquare2 size={26} />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-dark font-bold text-xl">
+                <UserSquare2 size={28} />
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-display text-xl font-bold text-ink">{fullName}</h2>
-                  <span className="badge bg-brand-light/40 text-brand-dark font-mono font-bold">
-                    OP #{selectedPatient.opNumber || 'N/A'}
+                  <span className="badge bg-brand-light/40 text-brand-dark font-mono font-bold border border-brand/30">
+                    OP #{patient.opNumber || 'N/A'}
                   </span>
                 </div>
                 <p className="text-xs text-ink-soft mt-0.5">
-                  Age: {selectedPatient.age !== undefined && selectedPatient.age !== null ? `${selectedPatient.age} yrs` : 'Not specified'} • Sex: {selectedPatient.sex || 'Not specified'} • Phone: {selectedPatient.phone || 'Not specified'}
+                  Age: <span className="font-semibold text-ink">{patient.age !== undefined && patient.age !== null ? `${patient.age} yrs` : 'N/A'}</span> • Sex:{' '}
+                  <span className="font-semibold text-ink">{patient.sex || 'N/A'}</span> • Phone:{' '}
+                  <span className="font-semibold text-ink">{patient.phone || 'N/A'}</span>
                 </p>
               </div>
             </div>
 
             <div className="text-xs text-ink-soft text-left sm:text-right">
-              <span className="font-semibold text-brand">{consultations.length}</span> Total Recorded Visits
+              <span className="font-bold text-brand text-sm">{consultations.length}</span> Recorded Clinical Visit(s)
               {dobStr && <span className="block text-[11px]">DOB: {dobStr}</span>}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
             <div className="p-2.5 rounded-lg bg-bg border border-border">
-              <span className="text-ink-soft font-semibold block mb-0.5">Address & Occupation:</span>
-              <span className="font-medium text-ink block">
-                {selectedPatient.occupation ? `${selectedPatient.occupation}` : 'No occupation listed'}
+              <span className="text-ink-soft font-semibold block mb-0.5">Occupation & Address:</span>
+              <span className="font-medium text-ink block truncate">
+                {patient.occupation || 'No occupation listed'}
               </span>
-              <span className="text-ink-soft text-[11px] block mt-0.5">
-                {selectedPatient.address || 'No address listed'}
+              <span className="text-ink-soft text-[11px] block truncate mt-0.5">
+                {patient.address || 'No address listed'}
               </span>
             </div>
 
             <div className="p-2.5 rounded-lg bg-bg border border-border">
               <span className="text-ink-soft font-semibold block mb-0.5">Vitals & Lifestyle:</span>
               <span className="font-medium text-ink block">
-                BP: {selectedPatient.vitals?.bp || 'N/A'} | RBS: {selectedPatient.vitals?.rbs || 'N/A'}
+                BP: {patient.vitals?.bp || 'N/A'} | RBS: {patient.vitals?.rbs || 'N/A'}
               </span>
-              <span className="text-ink-soft text-[11px] block mt-0.5">
-                Habits: {selectedPatient.habits && selectedPatient.habits.length > 0 ? (Array.isArray(selectedPatient.habits) ? selectedPatient.habits.join(', ') : selectedPatient.habits) : 'None reported'}
+              <span className="text-ink-soft text-[11px] block truncate mt-0.5">
+                Habits: {patient.habits && patient.habits.length > 0 ? (Array.isArray(patient.habits) ? patient.habits.join(', ') : patient.habits) : 'None reported'}
               </span>
             </div>
 
             <div className="p-2.5 rounded-lg bg-bg border border-border">
-              <span className="text-ink-soft font-semibold block mb-0.5">Medical Alerts & Rx:</span>
-              <span className="font-semibold text-amber-800 block">
-                {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0
-                  ? (Array.isArray(selectedPatient.medicalHistory) ? selectedPatient.medicalHistory.join(', ') : selectedPatient.medicalHistory)
+              <span className="text-ink-soft font-semibold block mb-0.5">Medical History & Rx:</span>
+              <span className="font-bold text-amber-800 block truncate">
+                {patient.medicalHistory && patient.medicalHistory.length > 0
+                  ? (Array.isArray(patient.medicalHistory) ? patient.medicalHistory.join(', ') : patient.medicalHistory)
                   : 'No medical alerts'}
               </span>
               <span className="text-ink-soft text-[11px] block truncate mt-0.5">
-                Meds: {selectedPatient.currentMedications || 'None reported'}
+                Meds: {patient.currentMedications || 'None reported'}
               </span>
             </div>
 
             <div className="p-2.5 rounded-lg bg-bg border border-border">
               <span className="text-ink-soft font-semibold block mb-0.5">Dental History:</span>
               <span className="font-medium text-ink text-[11px] line-clamp-2">
-                {selectedPatient.dentalHistory || 'No previous dental history reported'}
+                {patient.dentalHistory || 'No previous dental history reported'}
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* PATIENT DOCUMENTS VAULT */}
+      {/* READ-ONLY CURRENT TOOTH CHART */}
       {selectedPatientId && (
-        <DocumentsPanel patientId={selectedPatientId} title="Patient Clinical & Diagnostic Documents" />
+        <div className="card p-5 space-y-3 bg-surface">
+          <div className="border-b border-border pb-2 flex items-center justify-between">
+            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+              <Activity size={18} className="text-brand" /> Current Dental Tooth Chart (32 FDI Teeth)
+            </h3>
+            <span className="text-[11px] text-ink-soft font-medium bg-bg px-2 py-0.5 rounded border border-border">
+              Read-Only EMR View
+            </span>
+          </div>
+
+          <ToothChart patientId={selectedPatientId} isReadOnly={true} />
+        </div>
       )}
 
-      {/* CHRONOLOGICAL MULTI-VISIT TIMELINE */}
-      {loadingHistory ? (
-        <div className="card p-12 text-center text-xs text-ink-soft">
-          Loading patient multi-visit timeline...
-        </div>
+      {/* VISIT HISTORY TIMELINE (ACCORDION PER CONSULTATION) */}
+      {loadingEMR ? (
+        <div className="card p-12 text-center text-xs text-ink-soft">Loading clinical visit timeline...</div>
       ) : consultations.length === 0 ? (
         <div className="card p-12 text-center text-xs text-ink-soft space-y-2">
           <History size={32} className="mx-auto text-ink-soft/40" />
           <p className="font-semibold text-ink">No consultation records found for this patient.</p>
-          <p>Visits will appear here once consultations are initiated and closed by a doctor.</p>
+          <p>Visits will appear here once consultations are initiated and completed by a doctor.</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-            <Calendar size={18} className="text-brand" /> Visit History Timeline ({consultations.length})
-          </h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+              <Calendar size={18} className="text-brand" /> Visit History Timeline ({consultations.length} Visits)
+            </h3>
+            <span className="text-xs text-ink-soft">Click any visit to expand or collapse details.</span>
+          </div>
 
-          <div className="space-y-6 relative before:absolute before:inset-0 before:left-4 before:w-0.5 before:bg-border/70">
-            {consultations.map((consult, index) => {
-              const consultId = consult._id || consult.id;
-              const dateStr = consult.createdAt
-                ? new Date(consult.createdAt).toLocaleDateString(undefined, {
+          <div className="space-y-4">
+            {consultations.map((c, idx) => {
+              const cId = c.consultationId || c.id;
+              const isExpanded = !!expandedConsultations[cId];
+              const dateStr = c.date
+                ? new Date(c.date).toLocaleDateString(undefined, {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
                   })
                 : 'N/A';
 
-              // Filter sub-records for this specific consultation visit
-              const visitDiagnoses = diagnoses.filter(
-                (d) => (d.consultation?._id || d.consultation) === consultId
-              );
-              const visitPlans = treatmentPlans.filter(
-                (p) => (p.consultation?._id || p.consultation) === consultId
-              );
-              const visitRx = prescriptions.filter(
-                (r) => (r.consultation?._id || r.consultation) === consultId
-              );
-              const visitInvestigations = investigations.filter(
-                (i) => (i.consultation?._id || i.consultation) === consultId
-              );
+              const isCompleted = c.status === 'Completed';
 
               return (
-                <div key={consultId} className="relative pl-10">
-                  {/* Timeline Dot */}
-                  <div className="absolute left-2 top-4 -translate-x-1/2 h-5 w-5 rounded-full border-2 border-brand bg-surface flex items-center justify-center">
-                    <div className="h-2 w-2 rounded-full bg-brand" />
-                  </div>
-
-                  <div className="card p-5 space-y-4 hover:border-brand/30 transition-colors">
-                    {/* Visit Header Banner */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
+                <div
+                  key={cId}
+                  className="card overflow-hidden border border-border hover:border-brand/30 transition-all"
+                >
+                  {/* ACCORDION HEADER */}
+                  <div
+                    onClick={() => toggleConsultationExpand(cId)}
+                    className="p-4 bg-bg/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none hover:bg-bg/80 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-brand-light/40 text-brand flex items-center justify-center font-bold text-sm shrink-0">
+                        #{consultations.length - idx}
+                      </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-display text-base font-bold text-ink">{dateStr}</span>
+                          <span className="font-display text-sm font-bold text-ink">{dateStr}</span>
                           <span
-                            className={`badge border ${
-                              consult.status === 'Completed'
+                            className={`badge border text-[10px] ${
+                              isCompleted
                                 ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                                 : 'bg-purple-100 text-purple-800 border-purple-200'
                             }`}
                           >
-                            {consult.status}
+                            {c.status}
                           </span>
                         </div>
                         <p className="text-xs text-ink-soft mt-0.5">
-                          Attending Doctor: <strong>Dr. {consult.doctor?.name || 'Doctor'}</strong>{' '}
-                          {consult.doctor?.specialization ? `(${consult.doctor.specialization})` : ''}
+                          Doctor: <strong>Dr. {c.doctor?.name || 'Staff Doctor'}</strong>{' '}
+                          {c.doctor?.specialization ? `(${c.doctor.specialization})` : ''}
                         </p>
                       </div>
-
-                      <Link
-                        to={`/doctor/consultation/${consultId}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
-                      >
-                        View Full Workspace <ArrowRight size={14} />
-                      </Link>
                     </div>
 
-                    {/* Content Section: Diagnoses */}
-                    {visitDiagnoses.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      <Link
+                        to={`/doctor/consultation/${cId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold flex items-center gap-1"
+                      >
+                        <Eye size={13} /> Open Workspace
+                      </Link>
+
+                      <button type="button" className="p-1 text-ink-soft hover:text-ink">
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ACCORDION CONTENT BODY */}
+                  {isExpanded && (
+                    <div className="p-5 space-y-5 border-t border-border bg-surface text-xs animate-in fade-in duration-150">
+                      {/* Closing Summary Notes if present */}
+                      {c.notes && (
+                        <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 space-y-1">
+                          <span className="font-bold text-[11px] uppercase tracking-wider block text-amber-800 flex items-center gap-1">
+                            <FileText size={13} /> Doctor Closing Summary Notes:
+                          </span>
+                          <p className="whitespace-pre-wrap">{c.notes}</p>
+                        </div>
+                      )}
+
+                      {/* 1. EXAMINATION SUMMARY */}
                       <div className="space-y-2">
-                        <span className="text-xs font-bold text-ink-soft uppercase tracking-wider block">
-                          Diagnoses ({visitDiagnoses.length}):
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {visitDiagnoses.map((d) => (
-                            <div key={d._id} className="p-2.5 rounded-xl border border-border bg-bg/40 text-xs">
-                              <p className="font-bold text-ink">{d.diagnosis}</p>
-                              {d.severity && (
-                                <span className="badge bg-blue-100 text-blue-800 border border-blue-200 text-[10px] mt-1">
-                                  {d.severity}
-                                </span>
-                              )}
-                              {d.relatedTeeth?.length > 0 && (
-                                <p className="text-[11px] text-ink-soft mt-1 font-mono">
-                                  Teeth: #{d.relatedTeeth.join(', #')}
-                                </p>
+                        <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
+                          <FileHeart size={14} className="text-brand" /> 1. Clinical Examination Findings
+                        </h4>
+                        {c.examination ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="p-2.5 rounded-lg bg-bg border border-border space-y-1">
+                              <span className="font-bold text-ink block">Extraoral:</span>
+                              {c.examination.extraoral?.length > 0 ? (
+                                c.examination.extraoral.map((item, i) => (
+                                  <div key={i} className="text-[11px] text-ink-soft">
+                                    • <strong className="text-ink">{item.finding}</strong>{item.notes ? `: ${item.notes}` : ''}
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-ink-soft/50 italic">No extraoral findings</span>
                               )}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Content Section: Treatment Plans */}
-                    {visitPlans.length > 0 && (
+                            <div className="p-2.5 rounded-lg bg-bg border border-border space-y-1">
+                              <span className="font-bold text-ink block">Soft Tissue:</span>
+                              {c.examination.softTissue?.length > 0 ? (
+                                c.examination.softTissue.map((item, i) => (
+                                  <div key={i} className="text-[11px] text-ink-soft">
+                                    • <strong className="text-ink">{item.area}</strong>{item.notes ? `: ${item.notes}` : ''}
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-ink-soft/50 italic">No soft tissue findings</span>
+                              )}
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-bg border border-border space-y-1">
+                              <span className="font-bold text-ink block">Gingival / Periodontal:</span>
+                              {c.examination.gingivalFindings?.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {c.examination.gingivalFindings.map((g, i) => (
+                                    <span key={i} className="badge bg-teal-50 text-teal-800 border border-teal-200 text-[10px]">
+                                      {g}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-ink-soft/50 italic">No gingival findings</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-ink-soft/50 italic">No clinical examination recorded during this visit.</p>
+                        )}
+                      </div>
+
+                      {/* 2. DIAGNOSES LIST */}
                       <div className="space-y-2">
-                        <span className="text-xs font-bold text-ink-soft uppercase tracking-wider block">
-                          Treatment Procedures ({visitPlans.length}):
-                        </span>
-                        <div className="space-y-2">
-                          {visitPlans.map((tp) => (
-                            <div
-                              key={tp._id}
-                              className="p-3 rounded-xl border border-border bg-surface text-xs flex items-center justify-between gap-2"
-                            >
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-ink">{tp.treatment}</span>
-                                  {tp.tooth && (
-                                    <span className="badge bg-brand-light/30 text-brand-dark font-mono text-[10px]">
-                                      Tooth #{tp.tooth}
+                        <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
+                          <Stethoscope size={14} className="text-brand" /> 2. Clinical Diagnoses ({c.diagnoses.length})
+                        </h4>
+                        {c.diagnoses.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {c.diagnoses.map((d) => (
+                              <div key={d._id} className="p-3 rounded-xl border border-border bg-bg/40 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-ink text-xs">{d.diagnosis}</span>
+                                  {d.severity && (
+                                    <span className={`badge text-[10px] border ${SEVERITY_BADGES[d.severity] || SEVERITY_BADGES.Mild}`}>
+                                      {d.severity}
                                     </span>
                                   )}
                                 </div>
-                                {tp.description && (
-                                  <p className="text-ink-soft text-[11px]">{tp.description}</p>
+                                {d.clinicalFindings && (
+                                  <p className="text-ink-soft text-[11px]">{d.clinicalFindings}</p>
+                                )}
+                                {d.relatedTeeth?.length > 0 && (
+                                  <p className="text-[10px] text-brand font-mono font-semibold pt-0.5">
+                                    Related Teeth: #{d.relatedTeeth.join(', #')}
+                                  </p>
                                 )}
                               </div>
-
-                              <div className="text-right">
-                                <span className="badge bg-slate-100 text-slate-800 border-slate-200 text-[10px]">
-                                  {tp.status}
-                                </span>
-                                <p className="font-bold text-brand mt-0.5">₹{tp.estimatedCost || 0}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Content Section: Prescriptions */}
-                    {visitRx.length > 0 && (
-                      <div className="space-y-2">
-                        <span className="text-xs font-bold text-ink-soft uppercase tracking-wider block">
-                          Prescriptions (Rx):
-                        </span>
-                        {visitRx.map((rx) => (
-                          <div key={rx._id} className="p-3 rounded-xl border border-border bg-bg/30 text-xs space-y-1">
-                            <p className="font-bold text-brand">Rx Medicines:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {rx.medicines?.map((m, i) => (
-                                <span
-                                  key={i}
-                                  className="px-2 py-1 rounded-md bg-surface border border-border text-[11px] font-semibold"
-                                >
-                                  {m.medicine} ({m.dosage}) - {m.frequency}
-                                </span>
-                              ))}
-                            </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : (
+                          <p className="text-ink-soft/50 italic">No diagnoses recorded during this visit.</p>
+                        )}
                       </div>
-                    )}
 
-                    {/* Content Section: Investigations */}
-                    {visitInvestigations.length > 0 && (
+                      {/* 3. TREATMENT PLANS LIST */}
                       <div className="space-y-2">
-                        <span className="text-xs font-bold text-ink-soft uppercase tracking-wider block">
-                          Investigations & Lab Reports:
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {visitInvestigations.map((inv) => (
-                            <div key={inv._id} className="p-2.5 rounded-xl border border-border bg-surface text-xs">
-                              <p className="font-bold text-ink">{inv.type}: {inv.reason}</p>
-                              {inv.result ? (
-                                <p className="text-emerald-700 text-[11px] mt-1">Result: {inv.result}</p>
-                              ) : (
-                                <p className="text-amber-700 text-[11px] italic mt-1">Pending lab results</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                        <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
+                          <Activity size={14} className="text-brand" /> 3. Treatment Procedures & Plans ({c.treatmentPlans.length})
+                        </h4>
+                        {c.treatmentPlans.length > 0 ? (
+                          <div className="space-y-2">
+                            {c.treatmentPlans.map((tp) => (
+                              <div
+                                key={tp._id}
+                                className="p-3 rounded-xl border border-border bg-bg/20 flex items-center justify-between gap-3"
+                              >
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-ink">{tp.treatment}</span>
+                                    {tp.tooth && (
+                                      <span className="badge bg-brand-light/40 text-brand-dark font-mono text-[10px]">
+                                        Tooth #{tp.tooth}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {tp.description && <p className="text-ink-soft text-[11px]">{tp.description}</p>}
+                                  {tp.notes && <p className="text-ink-soft/70 text-[10px] italic">Notes: {tp.notes}</p>}
+                                </div>
+
+                                <div className="text-right shrink-0">
+                                  <span className={`badge text-[10px] border ${STATUS_BADGE_CLASSES[tp.status] || STATUS_BADGE_CLASSES.Planned}`}>
+                                    {tp.status}
+                                  </span>
+                                  <p className="font-bold font-mono text-emerald-700 text-xs mt-1">₹{tp.estimatedCost || 0}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-ink-soft/50 italic">No treatment procedures recorded during this visit.</p>
+                        )}
                       </div>
-                    )}
-                  </div>
+
+                      {/* 4. PRESCRIPTIONS (RX) */}
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
+                          <Pill size={14} className="text-brand" /> 4. Prescribed Medications ({c.prescriptions.length})
+                        </h4>
+                        {c.prescriptions.length > 0 ? (
+                          <div className="space-y-2">
+                            {c.prescriptions.map((rx) => (
+                              <div key={rx._id} className="p-3 rounded-xl border border-border bg-bg/30 space-y-2">
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-left text-xs">
+                                    <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
+                                      <tr>
+                                        <th className="py-1.5 px-2">Medicine</th>
+                                        <th className="py-1.5 px-2">Dosage</th>
+                                        <th className="py-1.5 px-2">Frequency</th>
+                                        <th className="py-1.5 px-2">Duration</th>
+                                        <th className="py-1.5 px-2">Instructions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                      {rx.medicines?.map((m, i) => (
+                                        <tr key={i}>
+                                          <td className="py-1.5 px-2 font-bold text-brand">{m.medicine}</td>
+                                          <td className="py-1.5 px-2">{m.dosage || '—'}</td>
+                                          <td className="py-1.5 px-2">{m.frequency || '—'}</td>
+                                          <td className="py-1.5 px-2">{m.duration || '—'}</td>
+                                          <td className="py-1.5 px-2 text-ink-soft">{m.instructions || '—'}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-ink-soft/50 italic">No prescriptions recorded during this visit.</p>
+                        )}
+                      </div>
+
+                      {/* 5. INVESTIGATIONS */}
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
+                          <Search size={14} className="text-brand" /> 5. Diagnostic Investigations ({c.investigations.length})
+                        </h4>
+                        {c.investigations.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {c.investigations.map((inv) => (
+                              <div key={inv._id} className="p-3 rounded-xl border border-border bg-bg/40 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-ink">{inv.type}</span>
+                                  <span className="text-[10px] font-semibold text-ink-soft bg-surface px-1.5 py-0.5 rounded border border-border">
+                                    {inv.reason}
+                                  </span>
+                                </div>
+                                {inv.result ? (
+                                  <p className="text-emerald-800 text-[11px] font-medium bg-emerald-50 p-1.5 rounded border border-emerald-200">
+                                    Result: {inv.result}
+                                  </p>
+                                ) : (
+                                  <p className="text-amber-800 text-[11px] italic bg-amber-50 p-1.5 rounded border border-amber-200">
+                                    Pending lab results
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-ink-soft/50 italic">No investigations ordered during this visit.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -396,62 +535,64 @@ export default function PatientHistory() {
         </div>
       )}
 
-      {/* READ-ONLY BILLING HISTORY SECTION */}
-      <div className="card p-5 space-y-4">
-        <div className="border-b border-border pb-3 flex items-center justify-between">
-          <div>
+      {/* FOLLOW-UPS LIST SECTION */}
+      {selectedPatientId && (
+        <div className="card p-5 space-y-3 bg-surface">
+          <div className="border-b border-border pb-2 flex items-center justify-between">
             <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-              <IndianRupee size={18} className="text-brand" /> Read-Only Patient Billing Overview
+              <Bell size={18} className="text-brand" /> Patient Follow-Up Recommendations ({followUps.length})
             </h3>
-            <p className="text-xs text-ink-soft">
-              Billing summary fetched from Reception invoices (Read-Only for Doctor).
-            </p>
           </div>
-        </div>
 
-        {invoices.length === 0 ? (
-          <p className="text-xs text-ink-soft">No invoices generated for this patient yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
-                <tr>
-                  <th className="px-3 py-2">Invoice #</th>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Total Amount</th>
-                  <th className="px-3 py-2">Paid Amount</th>
-                  <th className="px-3 py-2">Balance</th>
-                  <th className="px-3 py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {invoices.map((inv) => (
-                  <tr key={inv._id || inv.id} className="hover:bg-bg/40">
-                    <td className="px-3 py-2.5 font-mono font-bold text-brand">{inv.invoiceNumber || inv._id}</td>
-                    <td className="px-3 py-2.5 text-ink-soft">
-                      {inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-3 py-2.5 font-semibold text-ink">₹{inv.totalAmount || 0}</td>
-                    <td className="px-3 py-2.5 text-emerald-700 font-semibold">₹{inv.paidAmount || 0}</td>
-                    <td className="px-3 py-2.5 text-rose-600 font-semibold">₹{inv.balance || 0}</td>
-                    <td className="px-3 py-2.5">
-                      <span
-                        className={`badge border ${
-                          inv.status === 'Paid'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                            : 'bg-amber-100 text-amber-800 border-amber-200'
-                        }`}
-                      >
-                        {inv.status}
-                      </span>
-                    </td>
+          {followUps.length === 0 ? (
+            <p className="text-xs text-ink-soft/60 italic">No follow-ups recorded for this patient.</p>
+          ) : (
+            <div className="overflow-x-auto border border-border rounded-xl">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
+                  <tr>
+                    <th className="py-2.5 px-3">Recommended Date</th>
+                    <th className="py-2.5 px-3">Reason</th>
+                    <th className="py-2.5 px-3">Instructions</th>
+                    <th className="py-2.5 px-3">Treatment Note</th>
+                    <th className="py-2.5 px-3">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {followUps.map((fu) => (
+                    <tr key={fu._id || fu.id} className="hover:bg-bg/40">
+                      <td className="py-2.5 px-3 font-mono font-bold text-ink whitespace-nowrap">
+                        {fu.recommendedDate ? new Date(fu.recommendedDate).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-brand">{fu.reason || '—'}</td>
+                      <td className="py-2.5 px-3 text-ink-soft">{fu.instructions || '—'}</td>
+                      <td className="py-2.5 px-3 text-ink-soft">{fu.treatmentStatus || '—'}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span
+                          className={`badge border text-[10px] ${
+                            fu.status === 'Completed'
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                              : fu.status === 'Scheduled'
+                              ? 'bg-blue-100 text-blue-800 border-blue-200'
+                              : 'bg-amber-100 text-amber-800 border-amber-200'
+                          }`}
+                        >
+                          {fu.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PATIENT DOCUMENTS VAULT */}
+      {selectedPatientId && (
+        <DocumentsPanel patientId={selectedPatientId} title="Patient Clinical & Diagnostic Documents" />
+      )}
     </div>
   );
 }

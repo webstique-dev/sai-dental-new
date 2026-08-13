@@ -42,9 +42,16 @@ async function createDiagnosis(req, res, next) {
     // Immutability Guard
     await checkConsultationNotClosed(consultation);
 
+    let targetPatient = patient;
+    if (!targetPatient && consultation) {
+      const Consultation = require('../models/Consultation');
+      const cDoc = await Consultation.findById(consultation);
+      if (cDoc) targetPatient = cDoc.patient;
+    }
+
     const newDiagnosis = new Diagnosis({
       consultation,
-      patient,
+      patient: targetPatient || undefined,
       diagnosis: diagnosis.trim(),
       clinicalFindings: clinicalFindings ? clinicalFindings.trim() : '',
       notes: notes ? notes.trim() : '',

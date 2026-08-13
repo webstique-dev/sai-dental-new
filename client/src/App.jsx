@@ -100,7 +100,9 @@ export default function App() {
           <Route path="/doctor/queue" element={<DoctorQueue />} />
           <Route path="/doctor/consultation/:consultationId" element={<Consultation />} />
           <Route path="/doctor/patients" element={<PatientHistory />} />
+          <Route path="/doctor/patients/:patientId" element={<PatientHistory />} />
           <Route path="/doctor/history" element={<PatientHistory />} />
+          <Route path="/doctor/history/:patientId" element={<PatientHistory />} />
           <Route path="/doctor/examination" element={<Navigate to="/doctor/queue" replace />} />
           <Route path="/doctor/tooth-chart" element={<Navigate to="/doctor/queue" replace />} />
           <Route path="/doctor/diagnosis" element={<Navigate to="/doctor/queue" replace />} />

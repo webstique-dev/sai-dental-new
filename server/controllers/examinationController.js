@@ -32,9 +32,16 @@ async function upsertExamination(req, res, next) {
     // Immutability Guard
     await checkConsultationNotClosed(consultation);
 
+    let targetPatient = patient;
+    if (!targetPatient && consultation) {
+      const Consultation = require('../models/Consultation');
+      const cDoc = await Consultation.findById(consultation);
+      if (cDoc) targetPatient = cDoc.patient;
+    }
+
     const payload = {
       consultation,
-      patient: patient || undefined,
+      patient: targetPatient || undefined,
       extraoral: Array.isArray(extraoral) ? extraoral : [],
       softTissue: Array.isArray(softTissue) ? softTissue : [],
       gingivalFindings: Array.isArray(gingivalFindings) ? gingivalFindings : [],

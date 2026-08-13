@@ -36,9 +36,16 @@ async function createPrescription(req, res, next) {
     // Immutability Guard
     await checkConsultationNotClosed(consultation);
 
+    let targetPatient = patient;
+    if (!targetPatient && consultation) {
+      const Consultation = require('../models/Consultation');
+      const cDoc = await Consultation.findById(consultation);
+      if (cDoc) targetPatient = cDoc.patient;
+    }
+
     const newPrescription = new Prescription({
       consultation,
-      patient,
+      patient: targetPatient || undefined,
       medicines: medicines.map((m) => ({
         medicine: m.medicine ? m.medicine.trim() : '',
         dosage: m.dosage ? m.dosage.trim() : '',

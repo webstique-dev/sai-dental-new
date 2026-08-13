@@ -39,7 +39,14 @@ async function createTreatmentPlan(req, res, next) {
       status,
     } = req.body;
 
-    if (!consultation || !patient) {
+    let targetPatient = patient;
+    if (!targetPatient && consultation) {
+      const Consultation = require('../models/Consultation');
+      const cDoc = await Consultation.findById(consultation);
+      if (cDoc) targetPatient = cDoc.patient;
+    }
+
+    if (!consultation || !targetPatient) {
       return res.status(400).json({ message: 'consultation and patient are required.' });
     }
     if (!treatment || !treatment.trim()) {
@@ -54,7 +61,7 @@ async function createTreatmentPlan(req, res, next) {
 
     const newPlan = new TreatmentPlan({
       consultation,
-      patient,
+      patient: targetPatient,
       diagnosis: diagnosis || null,
       tooth: toothNum,
       treatment: treatment.trim(),
