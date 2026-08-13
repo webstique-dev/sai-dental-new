@@ -43,17 +43,15 @@ export default function PatientHistory() {
     fetchPatients();
   }, []);
 
-  // Fetch timeline data when patient selected
+  // Fetch timeline data & fresh patient detail when patient selected
   useEffect(() => {
     if (!selectedPatientId) return;
-
-    const patientObj = patients.find((p) => (p._id || p.id) === selectedPatientId);
-    setSelectedPatient(patientObj || null);
 
     async function fetchPatientTimeline() {
       try {
         setLoadingHistory(true);
-        const [cRes, dRes, tpRes, rxRes, invRes, billRes] = await Promise.all([
+        const [pRes, cRes, dRes, tpRes, rxRes, invRes, billRes] = await Promise.all([
+          api.get(`/patients/${selectedPatientId}`),
           api.get(`/consultations?patient=${selectedPatientId}`),
           api.get(`/diagnoses?patient=${selectedPatientId}`),
           api.get(`/treatment-plans?patient=${selectedPatientId}`),
@@ -61,6 +59,13 @@ export default function PatientHistory() {
           api.get(`/investigations?patient=${selectedPatientId}`),
           api.get(`/invoices?patient=${selectedPatientId}`),
         ]);
+
+        if (pRes.data?.patient) {
+          setSelectedPatient(pRes.data.patient);
+        } else {
+          const fallbackObj = patients.find((p) => (p._id || p.id) === selectedPatientId);
+          setSelectedPatient(fallbackObj || null);
+        }
 
         setConsultations(cRes.data?.consultations || []);
         setDiagnoses(dRes.data?.diagnoses || []);
@@ -76,11 +81,15 @@ export default function PatientHistory() {
     }
 
     fetchPatientTimeline();
-  }, [selectedPatientId, patients]);
+  }, [selectedPatientId]);
 
   const fullName = selectedPatient
     ? [selectedPatient.firstName, selectedPatient.lastName].filter(Boolean).join(' ')
     : '';
+
+  const dobStr = selectedPatient?.dateOfBirth
+    ? new Date(selectedPatient.dateOfBirth).toLocaleDateString()
+    : null;
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -119,39 +128,68 @@ export default function PatientHistory() {
       {/* Selected Patient Overview Card */}
       {selectedPatient && (
         <div className="card p-5 space-y-4 bg-surface border-brand/20">
-          <div className="flex items-center gap-3.5 border-b border-border pb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-dark">
-              <UserSquare2 size={26} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-xl font-bold text-ink">{fullName}</h2>
-                <span className="badge bg-brand-light/40 text-brand-dark font-mono font-bold">
-                  OP #{selectedPatient.opNumber}
-                </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-dark">
+                <UserSquare2 size={26} />
               </div>
-              <p className="text-xs text-ink-soft mt-0.5">
-                Age: {selectedPatient.age || 'N/A'} yrs • Sex: {selectedPatient.sex || 'N/A'} • Phone: {selectedPatient.phone || 'N/A'}
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display text-xl font-bold text-ink">{fullName}</h2>
+                  <span className="badge bg-brand-light/40 text-brand-dark font-mono font-bold">
+                    OP #{selectedPatient.opNumber || 'N/A'}
+                  </span>
+                </div>
+                <p className="text-xs text-ink-soft mt-0.5">
+                  Age: {selectedPatient.age !== undefined && selectedPatient.age !== null ? `${selectedPatient.age} yrs` : 'Not specified'} • Sex: {selectedPatient.sex || 'Not specified'} • Phone: {selectedPatient.phone || 'Not specified'}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-ink-soft text-left sm:text-right">
+              <span className="font-semibold text-brand">{consultations.length}</span> Total Recorded Visits
+              {dobStr && <span className="block text-[11px]">DOB: {dobStr}</span>}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div>
-              <span className="text-ink-soft font-medium block">Medical History:</span>
-              <span className="font-semibold text-ink">
-                {selectedPatient.medicalHistory?.length
-                  ? selectedPatient.medicalHistory.join(', ')
-                  : 'None reported'}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="p-2.5 rounded-lg bg-bg border border-border">
+              <span className="text-ink-soft font-semibold block mb-0.5">Address & Occupation:</span>
+              <span className="font-medium text-ink block">
+                {selectedPatient.occupation ? `${selectedPatient.occupation}` : 'No occupation listed'}
+              </span>
+              <span className="text-ink-soft text-[11px] block mt-0.5">
+                {selectedPatient.address || 'No address listed'}
               </span>
             </div>
-            <div>
-              <span className="text-ink-soft font-medium block">Current Medications:</span>
-              <span className="font-semibold text-ink">{selectedPatient.currentMedications || 'None'}</span>
+
+            <div className="p-2.5 rounded-lg bg-bg border border-border">
+              <span className="text-ink-soft font-semibold block mb-0.5">Vitals & Lifestyle:</span>
+              <span className="font-medium text-ink block">
+                BP: {selectedPatient.vitals?.bp || 'N/A'} | RBS: {selectedPatient.vitals?.rbs || 'N/A'}
+              </span>
+              <span className="text-ink-soft text-[11px] block mt-0.5">
+                Habits: {selectedPatient.habits && selectedPatient.habits.length > 0 ? (Array.isArray(selectedPatient.habits) ? selectedPatient.habits.join(', ') : selectedPatient.habits) : 'None reported'}
+              </span>
             </div>
-            <div>
-              <span className="text-ink-soft font-medium block">Total Recorded Visits:</span>
-              <span className="font-bold text-brand">{consultations.length} Visits</span>
+
+            <div className="p-2.5 rounded-lg bg-bg border border-border">
+              <span className="text-ink-soft font-semibold block mb-0.5">Medical Alerts & Rx:</span>
+              <span className="font-semibold text-amber-800 block">
+                {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0
+                  ? (Array.isArray(selectedPatient.medicalHistory) ? selectedPatient.medicalHistory.join(', ') : selectedPatient.medicalHistory)
+                  : 'No medical alerts'}
+              </span>
+              <span className="text-ink-soft text-[11px] block truncate mt-0.5">
+                Meds: {selectedPatient.currentMedications || 'None reported'}
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-bg border border-border">
+              <span className="text-ink-soft font-semibold block mb-0.5">Dental History:</span>
+              <span className="font-medium text-ink text-[11px] line-clamp-2">
+                {selectedPatient.dentalHistory || 'No previous dental history reported'}
+              </span>
             </div>
           </div>
         </div>

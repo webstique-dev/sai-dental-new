@@ -170,33 +170,58 @@ export default function Consultation() {
         {/* Quick Patient Metadata Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div>
-            <span className="text-ink-soft font-medium block">Age / Sex</span>
-            <span className="font-semibold text-ink">{patient.age ? `${patient.age} yrs` : 'N/A'} {patient.sex ? `/ ${patient.sex}` : ''}</span>
+            <span className="text-ink-soft font-medium block">Age / Sex / DOB</span>
+            <span className="font-semibold text-ink">
+              {patient.age !== undefined && patient.age !== null ? `${patient.age} yrs` : 'N/A'} {patient.sex ? `/ ${patient.sex}` : ''}
+            </span>
+            {patient.dateOfBirth && (
+              <span className="text-[11px] text-ink-soft block">
+                DOB: {new Date(patient.dateOfBirth).toLocaleDateString()}
+              </span>
+            )}
           </div>
 
           <div>
-            <span className="text-ink-soft font-medium block">Medical History</span>
-            <span className="font-semibold text-ink">
+            <span className="text-ink-soft font-medium block">Occupation & Address</span>
+            <span className="font-semibold text-ink block truncate">
+              {patient.occupation || 'No occupation listed'}
+            </span>
+            <span className="text-[11px] text-ink-soft block truncate">
+              {patient.address || 'No address listed'}
+            </span>
+          </div>
+
+          <div>
+            <span className="text-ink-soft font-medium block">Vitals & Lifestyle</span>
+            <span className="font-semibold text-ink block">
+              BP: {patient.vitals?.bp || 'N/A'} | RBS: {patient.vitals?.rbs || 'N/A'}
+            </span>
+            <span className="text-[11px] text-ink-soft block truncate">
+              Habits: {patient.habits && patient.habits.length > 0 ? (Array.isArray(patient.habits) ? patient.habits.join(', ') : patient.habits) : 'None'}
+            </span>
+          </div>
+
+          <div>
+            <span className="text-ink-soft font-medium block">Medical History & Rx</span>
+            <span className="font-semibold text-amber-800 block truncate">
               {patient.medicalHistory && patient.medicalHistory.length > 0
-                ? patient.medicalHistory.join(', ')
-                : 'None reported'}
+                ? (Array.isArray(patient.medicalHistory) ? patient.medicalHistory.join(', ') : patient.medicalHistory)
+                : 'No alerts'}
             </span>
-          </div>
-
-          <div>
-            <span className="text-ink-soft font-medium block">Vitals (BP / RBS)</span>
-            <span className="font-semibold text-ink">
-              {patient.vitals?.bp || 'N/A'} / {patient.vitals?.rbs || 'N/A'}
-            </span>
-          </div>
-
-          <div>
-            <span className="text-ink-soft font-medium block">Current Medications</span>
-            <span className="font-semibold text-ink truncate block">
-              {patient.currentMedications || 'None'}
+            <span className="text-[11px] text-ink-soft block truncate">
+              Meds: {patient.currentMedications || 'None'}
             </span>
           </div>
         </div>
+
+        {patient.dentalHistory && (
+          <div className="pt-2 border-t border-border/60 text-xs">
+            <span className="text-ink-soft font-semibold block">Dental History & Registration Complaints:</span>
+            <p className="text-ink font-medium text-[11px] bg-bg/50 p-2 rounded border border-border mt-1">
+              {patient.dentalHistory}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* CLINICAL TAB BAR */}

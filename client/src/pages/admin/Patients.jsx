@@ -78,10 +78,17 @@ export default function AdminPatients() {
       firstName: patient.firstName || '',
       lastName: patient.lastName || '',
       phone: patient.phone || '',
-      age: patient.age || '',
+      age: patient.age !== undefined && patient.age !== null ? String(patient.age) : '',
       sex: patient.sex || 'Male',
+      dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : '',
+      occupation: patient.occupation || '',
       address: patient.address || '',
       medicalHistory: Array.isArray(patient.medicalHistory) ? patient.medicalHistory.join(', ') : patient.medicalHistory || '',
+      currentMedications: patient.currentMedications || '',
+      bp: patient.vitals?.bp || '',
+      rbs: patient.vitals?.rbs || '',
+      habits: Array.isArray(patient.habits) ? patient.habits.join(', ') : patient.habits || '',
+      dentalHistory: patient.dentalHistory || '',
     });
     setFeedback({ type: '', msg: '' });
   };
@@ -100,8 +107,21 @@ export default function AdminPatients() {
         phone: editForm.phone.trim(),
         age: editForm.age ? Number(editForm.age) : undefined,
         sex: editForm.sex,
+        dateOfBirth: editForm.dateOfBirth ? editForm.dateOfBirth : null,
+        occupation: editForm.occupation.trim(),
         address: editForm.address.trim(),
-        medicalHistory: editForm.medicalHistory ? editForm.medicalHistory.split(',').map((s) => s.trim()) : [],
+        medicalHistory: editForm.medicalHistory
+          ? editForm.medicalHistory.split(',').map((s) => s.trim()).filter(Boolean)
+          : [],
+        currentMedications: editForm.currentMedications.trim(),
+        vitals: {
+          bp: editForm.bp.trim(),
+          rbs: editForm.rbs.trim(),
+        },
+        habits: editForm.habits
+          ? editForm.habits.split(',').map((s) => s.trim()).filter(Boolean)
+          : [],
+        dentalHistory: editForm.dentalHistory.trim(),
       };
 
       const res = await api.patch(`/patients/${editingPatient._id}`, payload);
@@ -334,7 +354,7 @@ export default function AdminPatients() {
                   onClick={(e) => handleOpenEdit(e, selectedPatient)}
                   className="btn-secondary text-xs flex items-center gap-1 text-amber-800 border-amber-300"
                 >
-                  <Edit3 size={14} /> Edit Basic Details
+                  <Edit3 size={14} /> Edit Patient Profile
                 </button>
                 <button
                   onClick={() => setSelectedPatient(null)}
@@ -348,51 +368,99 @@ export default function AdminPatients() {
             {/* Profile Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs bg-bg p-4 rounded-lg border border-border">
               <div>
-                <div className="text-ink-soft font-semibold">Phone</div>
-                <div className="font-bold text-ink">{selectedPatient.phone || '—'}</div>
+                <div className="text-ink-soft font-semibold">Phone Number</div>
+                <div className="font-bold text-ink">{selectedPatient.phone || 'Not specified'}</div>
               </div>
               <div>
                 <div className="text-ink-soft font-semibold">Age / Sex</div>
                 <div className="font-bold text-ink">
-                  {selectedPatient.age ? `${selectedPatient.age} yrs` : '—'} / {selectedPatient.sex || '—'}
+                  {selectedPatient.age !== undefined && selectedPatient.age !== null ? `${selectedPatient.age} yrs` : '—'} / {selectedPatient.sex || '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-ink-soft font-semibold">Date of Birth</div>
+                <div className="font-bold text-ink">
+                  {selectedPatient.dateOfBirth ? new Date(selectedPatient.dateOfBirth).toLocaleDateString() : 'Not specified'}
                 </div>
               </div>
               <div>
                 <div className="text-ink-soft font-semibold">Registration Date</div>
                 <div className="font-bold text-ink">
-                  {selectedPatient.registrationDate
-                    ? new Date(selectedPatient.registrationDate).toLocaleDateString()
+                  {selectedPatient.registrationDate || selectedPatient.createdAt
+                    ? new Date(selectedPatient.registrationDate || selectedPatient.createdAt).toLocaleDateString()
                     : 'N/A'}
                 </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <div className="text-ink-soft font-semibold">Registered Staff</div>
-                <div className="font-bold text-ink">{selectedPatient.registeredBy?.name || 'Staff'}</div>
+                <div className="font-semibold text-ink-soft mb-1">Occupation</div>
+                <div className="p-2.5 bg-bg rounded border border-border text-ink font-medium">
+                  {selectedPatient.occupation || 'Not specified'}
+                </div>
+              </div>
+              <div>
+                <div className="font-semibold text-ink-soft mb-1">Residential Address</div>
+                <div className="p-2.5 bg-bg rounded border border-border text-ink font-medium">
+                  {selectedPatient.address || 'Not specified'}
+                </div>
               </div>
             </div>
 
-            {selectedPatient.address && (
-              <div className="text-xs">
-                <div className="font-semibold text-ink-soft mb-1">Residential Address</div>
-                <div className="p-2.5 bg-bg rounded border border-border text-ink">{selectedPatient.address}</div>
+            {/* Vitals & Habits */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <div className="font-semibold text-ink-soft mb-1">Vitals</div>
+                <div className="p-2.5 bg-bg rounded border border-border text-ink flex gap-4">
+                  <span>BP: <strong>{selectedPatient.vitals?.bp || 'N/A'}</strong></span>
+                  <span>RBS: <strong>{selectedPatient.vitals?.rbs || 'N/A'}</strong></span>
+                </div>
               </div>
-            )}
+              <div>
+                <div className="font-semibold text-ink-soft mb-1">Habits</div>
+                <div className="p-2.5 bg-bg rounded border border-border text-ink">
+                  {selectedPatient.habits && selectedPatient.habits.length > 0
+                    ? (Array.isArray(selectedPatient.habits) ? selectedPatient.habits.join(', ') : selectedPatient.habits)
+                    : 'None reported'}
+                </div>
+              </div>
+            </div>
 
-            {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 && (
-              <div className="text-xs">
-                <div className="font-semibold text-ink-soft mb-1">Medical History Alerts</div>
+            {/* Medical History */}
+            <div className="text-xs">
+              <div className="font-semibold text-ink-soft mb-1">Medical History Alerts</div>
+              {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {(Array.isArray(selectedPatient.medicalHistory)
                     ? selectedPatient.medicalHistory
                     : [selectedPatient.medicalHistory]
                   ).map((m, i) => (
-                    <span key={i} className="badge bg-amber-100 text-amber-800 border-amber-200">
+                    <span key={i} className="badge bg-amber-100 text-amber-900 border-amber-300 font-medium">
                       {m}
                     </span>
                   ))}
                 </div>
+              ) : (
+                <p className="text-ink-soft italic">No pre-existing medical conditions reported.</p>
+              )}
+            </div>
+
+            {/* Current Medications */}
+            <div className="text-xs">
+              <div className="font-semibold text-ink-soft mb-1">Current Medications & Allergies</div>
+              <div className="p-2.5 bg-bg rounded border border-border text-ink">
+                {selectedPatient.currentMedications || <span className="italic text-ink-soft">None reported</span>}
               </div>
-            )}
+            </div>
+
+            {/* Dental History */}
+            <div className="text-xs">
+              <div className="font-semibold text-ink-soft mb-1">Dental History & Chief Complaints</div>
+              <div className="p-2.5 bg-bg rounded border border-border text-ink">
+                {selectedPatient.dentalHistory || <span className="italic text-ink-soft">No previous dental history reported</span>}
+              </div>
+            </div>
 
             {/* Embedded Clinical Documents Panel */}
             <div className="pt-2">
@@ -404,11 +472,11 @@ export default function AdminPatients() {
 
       {/* EDIT BASIC DETAILS MODAL (ADMIN ONLY) */}
       {editingPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4">
-          <div className="card max-w-lg w-full p-6 space-y-4 bg-surface animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="card max-w-xl w-full p-6 space-y-4 bg-surface max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-                <Edit3 size={18} className="text-amber-600" /> Edit Patient Basic Details
+                <Edit3 size={18} className="text-amber-600" /> Edit Patient Profile Details
               </h3>
               <button onClick={() => setEditingPatient(null)} className="p-1 text-ink-soft hover:text-ink">
                 <X size={18} />
@@ -484,6 +552,27 @@ export default function AdminPatients() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    className="input-field py-1.5"
+                    value={editForm.dateOfBirth}
+                    onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Occupation</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5"
+                    value={editForm.occupation}
+                    onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">Address</label>
                 <textarea
@@ -494,6 +583,29 @@ export default function AdminPatients() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Blood Pressure (BP)</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5"
+                    placeholder="e.g. 120/80"
+                    value={editForm.bp}
+                    onChange={(e) => setEditForm({ ...editForm, bp: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Random Blood Sugar (RBS)</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5"
+                    placeholder="e.g. 110"
+                    value={editForm.rbs}
+                    onChange={(e) => setEditForm({ ...editForm, rbs: e.target.value })}
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">
                   Medical History (Comma separated)
@@ -501,9 +613,42 @@ export default function AdminPatients() {
                 <input
                   type="text"
                   className="input-field py-1.5"
-                  placeholder="e.g. Diabetes, Hypertension, Allergy to Penicillin"
+                  placeholder="e.g. Diabetes Mellitus, Hypertension, Asthma"
                   value={editForm.medicalHistory}
                   onChange={(e) => setEditForm({ ...editForm, medicalHistory: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">
+                  Habits (Comma separated)
+                </label>
+                <input
+                  type="text"
+                  className="input-field py-1.5"
+                  placeholder="e.g. Smoking, Alcohol"
+                  value={editForm.habits}
+                  onChange={(e) => setEditForm({ ...editForm, habits: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Current Medications & Allergies</label>
+                <textarea
+                  rows={2}
+                  className="input-field py-1.5"
+                  value={editForm.currentMedications}
+                  onChange={(e) => setEditForm({ ...editForm, currentMedications: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Dental History</label>
+                <textarea
+                  rows={2}
+                  className="input-field py-1.5"
+                  value={editForm.dentalHistory}
+                  onChange={(e) => setEditForm({ ...editForm, dentalHistory: e.target.value })}
                 />
               </div>
 
@@ -520,7 +665,7 @@ export default function AdminPatients() {
                   disabled={saving}
                   className="btn-primary py-1.5 px-4 text-xs font-bold flex items-center gap-1.5"
                 >
-                  <Save size={14} /> {saving ? 'Saving...' : 'Save Corrections'}
+                  <Save size={14} /> {saving ? 'Saving...' : 'Save Profile Changes'}
                 </button>
               </div>
             </form>
