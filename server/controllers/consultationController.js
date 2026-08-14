@@ -461,6 +461,57 @@ async function getDoctorSummary(req, res, next) {
   }
 }
 
+// POST /api/consultations/find-or-create (body: { patientId })
+async function findOrCreateConsultation(req, res, next) {
+  try {
+    const { patientId } = req.body;
+    if (!patientId) {
+      return res.status(400).json({ message: 'patientId is required.' });
+    }
+
+    let consultation = await Consultation.findOne({
+      patient: patientId,
+      status: 'In Progress',
+    })
+      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+      .populate('doctor', 'name email role specialization');
+
+    if (!consultation) {
+      consultation = await Consultation.findOne({
+        patient: patientId,
+      })
+        .sort({ createdAt: -1 })
+        .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+        .populate('doctor', 'name email role specialization');
+    }
+
+    if (!consultation) {
+      const User = require('../models/User');
+      let defaultDoctor = req.user ? req.user._id : null;
+      if (!defaultDoctor) {
+        const docUser = await User.findOne({ role: 'doctor' });
+        if (docUser) defaultDoctor = docUser._id;
+      }
+
+      consultation = new Consultation({
+        patient: patientId,
+        doctor: defaultDoctor,
+        status: 'In Progress',
+        startedAt: new Date(),
+      });
+      await consultation.save();
+
+      consultation = await Consultation.findById(consultation._id)
+        .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+        .populate('doctor', 'name email role specialization');
+    }
+
+    return res.json({ consultation });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listConsultations,
   getDoctorTodayQueue,
@@ -469,4 +520,5 @@ module.exports = {
   closeConsultation,
   checkConsultationNotClosed,
   getDoctorSummary,
+  findOrCreateConsultation,
 };

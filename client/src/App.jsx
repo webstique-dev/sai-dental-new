@@ -1,14 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import {
-  Users, CalendarDays, Stethoscope, Wallet, Activity, FileBarChart,
-  Settings, ScrollText, DatabaseBackup, UserSquare2, ClipboardList,
-  Bell, History, FileHeart, Grid3x3, Pill,
-} from 'lucide-react';
-
 import { useAuth, ROLE_HOME } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import DashboardLayout from './components/layout/DashboardLayout.jsx';
-import PlaceholderPage from './components/common/PlaceholderPage.jsx';
 
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
@@ -39,10 +32,11 @@ import DoctorQueue from './pages/doctor/Queue.jsx';
 import Consultation from './pages/doctor/Consultation.jsx';
 import PatientHistory from './pages/doctor/PatientHistory.jsx';
 import DoctorPatients from './pages/doctor/Patients.jsx';
-
-// Small helper so Phase 2+ pages (not yet built) render a clean
-// "coming soon" state instead of a blank/broken route.
-const stub = (title, description, icon) => <PlaceholderPage title={title} description={description} icon={icon} />;
+import ClinicalExaminationPage from './pages/doctor/ClinicalExaminationPage.jsx';
+import ToothChartPage from './pages/doctor/ToothChartPage.jsx';
+import DiagnosisPage from './pages/doctor/DiagnosisPage.jsx';
+import TreatmentPlansPage from './pages/doctor/TreatmentPlansPage.jsx';
+import PrescriptionsPage from './pages/doctor/PrescriptionsPage.jsx';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -104,11 +98,11 @@ export default function App() {
           <Route path="/doctor/patients/:patientId" element={<PatientHistory />} />
           <Route path="/doctor/history" element={<PatientHistory />} />
           <Route path="/doctor/history/:patientId" element={<PatientHistory />} />
-          <Route path="/doctor/examination" element={<Navigate to="/doctor/queue" replace />} />
-          <Route path="/doctor/tooth-chart" element={<Navigate to="/doctor/queue" replace />} />
-          <Route path="/doctor/diagnosis" element={<Navigate to="/doctor/queue" replace />} />
-          <Route path="/doctor/treatment-plans" element={<Navigate to="/doctor/queue" replace />} />
-          <Route path="/doctor/prescriptions" element={<Navigate to="/doctor/queue" replace />} />
+          <Route path="/doctor/examination" element={<ClinicalExaminationPage />} />
+          <Route path="/doctor/tooth-chart" element={<ToothChartPage />} />
+          <Route path="/doctor/diagnosis" element={<DiagnosisPage />} />
+          <Route path="/doctor/treatment-plans" element={<TreatmentPlansPage />} />
+          <Route path="/doctor/prescriptions" element={<PrescriptionsPage />} />
           <Route path="/doctor/follow-ups" element={<FollowUps />} />
         </Route>
       </Route>

@@ -6,6 +6,7 @@ const {
   getConsultationById,
   closeConsultation,
   getDoctorSummary,
+  findOrCreateConsultation,
 } = require('../controllers/consultationController');
 const protect = require('../middleware/auth');
 const allowRoles = require('../middleware/roleCheck');
@@ -19,6 +20,7 @@ router.get('/', listConsultations);
 router.get('/queue/today', getDoctorTodayQueue);
 router.get('/doctor-summary', getDoctorSummary);
 router.post('/start', startConsultation);
+router.post('/find-or-create', findOrCreateConsultation);
 router.get('/:id', getConsultationById);
 router.post('/:id/close', closeConsultation);
 
