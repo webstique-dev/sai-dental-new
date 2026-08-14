@@ -2,12 +2,19 @@ const Appointment = require('../models/Appointment');
 const QueueEntry = require('../models/QueueEntry');
 const Consultation = require('../models/Consultation');
 
+function getFormattedDateString(date = new Date()) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /**
- * Synchronizes visit/appointment status across Appointment, QueueEntry, and Consultation models.
+ * Synchronizes visit/appointment status and timestamps across Appointment, QueueEntry, and Consultation models.
  * Standard Statuses: 'Scheduled', 'Checked-In', 'In Consultation', 'Completed', 'Cancelled', 'No Show'
  */
 async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, status }) {
-  // Normalize status string if legacy/alias is passed
   let stdStatus = status;
   if (status === 'With Doctor' || status === 'In Progress') {
     stdStatus = 'In Consultation';
@@ -50,26 +57,39 @@ async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, st
     }
   }
 
+  const now = new Date();
+
   // 2. Update Appointment status
   if (apptId) {
     await Appointment.findByIdAndUpdate(apptId, { status: stdStatus });
   }
 
-  // 3. Update QueueEntry status
+  // 3. Update QueueEntry status & timestamps
   if (qId) {
     const queueUpdate = { status: stdStatus };
     if (stdStatus === 'Checked-In') {
-      queueUpdate.checkInTime = new Date();
+      queueUpdate.checked_in_at = now;
+      queueUpdate.checkInTime = now;
+    } else if (stdStatus === 'In Consultation') {
+      queueUpdate.consultation_started_at = now;
+    } else if (stdStatus === 'Completed') {
+      queueUpdate.consultation_ended_at = now;
+      queueUpdate.completed_at = now;
     }
     await QueueEntry.findByIdAndUpdate(qId, queueUpdate);
   }
 
-  // 4. Update Consultation status
+  // 4. Update Consultation status & timestamps
   if (cId) {
     const consultStatus = stdStatus === 'Completed' ? 'Completed' : 'In Progress';
     const consultUpdate = { status: consultStatus };
-    if (stdStatus === 'Completed') {
-      consultUpdate.closedAt = new Date();
+    if (stdStatus === 'In Consultation') {
+      consultUpdate.startedAt = now;
+      consultUpdate.consultation_started_at = now;
+    } else if (stdStatus === 'Completed') {
+      consultUpdate.closedAt = now;
+      consultUpdate.consultation_ended_at = now;
+      consultUpdate.completed_at = now;
     }
     await Consultation.findByIdAndUpdate(cId, consultUpdate);
   }
@@ -79,4 +99,5 @@ async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, st
 
 module.exports = {
   syncVisitStatus,
+  getFormattedDateString,
 };

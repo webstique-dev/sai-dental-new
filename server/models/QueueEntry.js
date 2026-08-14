@@ -15,6 +15,9 @@ const queueEntrySchema = new mongoose.Schema(
     token: {
       type: Number,
     },
+    queue_token: {
+      type: Number,
+    },
     patient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
@@ -38,13 +41,34 @@ const queueEntrySchema = new mongoose.Schema(
       enum: queueStatusOptions,
       default: 'Checked-In',
     },
+    checked_in_at: {
+      type: Date,
+      default: Date.now,
+    },
     checkInTime: {
       type: Date,
       default: Date.now,
     },
+    queue_date: {
+      type: String,
+      required: true,
+      index: true,
+    },
     date: {
       type: Date,
       default: Date.now,
+    },
+    consultation_started_at: {
+      type: Date,
+      default: null,
+    },
+    consultation_ended_at: {
+      type: Date,
+      default: null,
+    },
+    completed_at: {
+      type: Date,
+      default: null,
     },
   },
   {
@@ -52,8 +76,9 @@ const queueEntrySchema = new mongoose.Schema(
   }
 );
 
-// Compound index for querying today's queue by date and token
-queueEntrySchema.index({ date: 1, token: 1 });
+// Compound index for querying daily queue by date, status, and token
+queueEntrySchema.index({ queue_date: 1, token: 1 });
+queueEntrySchema.index({ queue_date: 1, status: 1 });
 
 module.exports = mongoose.model('QueueEntry', queueEntrySchema);
 module.exports.queueStatusOptions = queueStatusOptions;

@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ClipboardList, UserPlus, Search, CheckCircle2, AlertTriangle, X,
   User, Stethoscope, ChevronRight, ChevronLeft, ArrowRight, ShieldCheck,
-  UserCheck, Loader2, RefreshCw, Clock,
+  UserCheck, Loader2, RefreshCw, Clock, Calendar, Eye, FileText, Check, Filter
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
@@ -18,14 +19,38 @@ const STATUS_BADGE_CLASSES = {
   'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
 };
 
+function getTodayString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function Queue() {
   const { showSuccess, showError } = useNotification();
+
+  // Active Tab: 'active' (default) | 'completed'
+  const [activeTab, setActiveTab] = useState('active');
+
+  // TAB 1: ACTIVE QUEUE STATE
   const [queueEntries, setQueueEntries] = useState([]);
   const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingActive, setLoadingActive] = useState(true);
   const [pendingCancelQueueEntry, setPendingCancelQueueEntry] = useState(null);
-  const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const [cancellingQueue, setCancellingQueue] = useState(false);
+
+  // TAB 2: COMPLETED TODAY QUEUE STATE
+  const [completedEntries, setCompletedEntries] = useState([]);
+  const [loadingCompleted, setLoadingCompleted] = useState(false);
+  const [selectedVisitSummary, setSelectedVisitSummary] = useState(null);
+
+  // Filters for Completed Queue Tab
+  const [dateFilter, setDateFilter] = useState(getTodayString());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [doctorFilter, setDoctorFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   // Modal State for 4-Step Walk-In Flow
   const [showWalkInModal, setShowWalkInModal] = useState(false);
@@ -59,13 +84,55 @@ export default function Queue() {
   // Fetch today's active queue
   const fetchTodayQueue = async () => {
     try {
-      setLoading(true);
+      setLoadingActive(true);
       const res = await api.get('/queue/today');
       setQueueEntries(res.data?.queueEntries || []);
     } catch (err) {
       console.error('Failed to load queue:', err);
     } finally {
-      setLoading(false);
+      setLoadingActive(false);
+    }
+  };
+
+  // Fetch completed/history queue for selected date directly using queue_date
+  const fetchCompletedQueue = async (selectedDate = dateFilter) => {
+    try {
+      setLoadingCompleted(true);
+      const params = new URLSearchParams();
+      params.append('includeAll', 'true');
+      if (selectedDate) {
+        params.append('date', selectedDate);
+      }
+      if (doctorFilter) {
+        params.append('doctor', doctorFilter);
+      }
+
+      const res = await api.get(`/queue/today?${params.toString()}`);
+      const rawList = res.data?.queueEntries || [];
+
+      const mapped = rawList.map((q) => {
+        const status = q.status === 'With Doctor' ? 'In Consultation' : q.status;
+        return {
+          id: q._id || q.id,
+          token: q.queue_token || q.token || 1,
+          patient: q.patient,
+          doctor: q.doctor,
+          type: q.type || (q.appointment ? 'Appointment' : 'Walk-in'),
+          date: q.checked_in_at || q.checkInTime || q.date || q.createdAt,
+          checkInTime: q.checked_in_at || q.checkInTime || q.createdAt,
+          startTime: q.consultation_started_at || null,
+          endTime: q.consultation_ended_at || q.completed_at || null,
+          status: status === 'Closed' ? 'Completed' : status,
+          reason: q.appointment?.reason || 'Clinical Consultation',
+          notes: q.notes || '',
+        };
+      });
+
+      setCompletedEntries(mapped);
+    } catch (err) {
+      console.error('Failed to load completed queue:', err);
+    } finally {
+      setLoadingCompleted(false);
     }
   };
 
@@ -87,6 +154,13 @@ export default function Queue() {
     fetchTodayQueue();
   }, []);
 
+  // Fetch completed queue when activeTab becomes 'completed' or filters change
+  useEffect(() => {
+    if (activeTab === 'completed') {
+      fetchCompletedQueue(dateFilter);
+    }
+  }, [activeTab, dateFilter, doctorFilter]);
+
   // Live patient search in Step 1
   useEffect(() => {
     if (!patientSearch || patientSearch.trim().length < 2) {
@@ -103,6 +177,11 @@ export default function Queue() {
     }, 300);
     return () => clearTimeout(timer);
   }, [patientSearch]);
+
+  const handleRefresh = () => {
+    if (activeTab === 'active') fetchTodayQueue();
+    else fetchCompletedQueue(dateFilter);
+  };
 
   const resetWalkInModal = () => {
     setStep(1);
@@ -155,7 +234,7 @@ export default function Queue() {
       const res = await api.post('/queue/walk-in', payload);
       const newEntry = res.data?.queueEntry;
 
-      showSuccess(`Walk-in patient checked in successfully! Token #${newEntry?.tokenNumber || ''}`);
+      showSuccess(`Walk-in patient checked in successfully! Token #${newEntry?.tokenNumber || newEntry?.token || ''}`);
       setIssuedToken(newEntry);
       setStep(4);
       fetchTodayQueue();
@@ -181,24 +260,68 @@ export default function Queue() {
     }
   };
 
+  // Client-side filtering for Completed Today Tab
+  const filteredCompletedEntries = useMemo(() => {
+    let list = [...completedEntries];
+
+    // Filter by completed status default
+    if (!statusFilter) {
+      list = list.filter((item) => ['Completed', 'No Show', 'Cancelled'].includes(item.status));
+    } else {
+      list = list.filter((item) => item.status === statusFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((item) => {
+        const p = item.patient || {};
+        const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
+        const op = (p.opNumber || '').toLowerCase();
+        const phone = (p.phone || '').toLowerCase();
+        return fullName.includes(q) || op.includes(q) || phone.includes(q);
+      });
+    }
+
+    if (typeFilter) {
+      list = list.filter((item) => item.type === typeFilter);
+    }
+
+    return list;
+  }, [completedEntries, searchQuery, typeFilter, statusFilter]);
+
+  const handleResetCompletedFilters = () => {
+    setSearchQuery('');
+    setDoctorFilter('');
+    setTypeFilter('');
+    setStatusFilter('');
+    setDateFilter(getTodayString());
+  };
+
+  const hasActiveCompletedFilters = Boolean(searchQuery || doctorFilter || typeFilter || statusFilter || (dateFilter !== getTodayString()));
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl">
       {/* Header & Main Action */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <ClipboardList size={22} className="text-brand" /> Today's Check-In & Active Queue
+            <ClipboardList size={22} className="text-brand" /> Front Desk Check-In & Queue Management
           </h2>
-          <p className="text-sm text-ink-soft">Real-time front desk active patient flow and sequential token queue</p>
+          <p className="text-sm text-ink-soft">
+            {activeTab === 'active'
+              ? 'Real-time active queue flow and patient check-in management'
+              : "Review completed, cancelled, and no-show queue entries for today or prior dates"}
+          </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           <button
-            onClick={fetchTodayQueue}
+            onClick={handleRefresh}
             className="btn-secondary text-xs flex items-center gap-1.5"
           >
-            <RefreshCw size={14} /> Refresh Queue
+            <RefreshCw size={14} className={loadingActive || loadingCompleted ? 'animate-spin' : ''} /> Refresh Queue
           </button>
+
           <button
             onClick={() => {
               resetWalkInModal();
@@ -212,137 +335,525 @@ export default function Queue() {
         </div>
       </div>
 
-      {/* TODAY'S ACTIVE QUEUE TABLE */}
-      <div className="card overflow-hidden">
-        <div className="border-b border-border bg-bg/40 px-5 py-3.5 flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">
-            Active Queue Flow ({queueEntries.length} Patients Waiting / In Consultation)
+      {/* TABS SEGMENT CONTROL */}
+      <div className="flex items-center border-b border-border space-x-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('active')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+            activeTab === 'active'
+              ? 'border-brand text-brand'
+              : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+          }`}
+        >
+          <ClipboardList size={16} />
+          <span>Active Queue</span>
+          {queueEntries.length > 0 && (
+            <span className="badge bg-brand-light/50 text-brand-dark font-mono text-[10px]">
+              {queueEntries.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('completed')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+            activeTab === 'completed'
+              ? 'border-brand text-brand'
+              : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+          }`}
+        >
+          <CheckCircle2 size={16} />
+          <span>Completed Today</span>
+          <span className="badge bg-slate-100 text-slate-700 font-mono text-[10px]">
+            {filteredCompletedEntries.length}
           </span>
-          <span className="text-xs text-brand font-semibold">
-            Auto-derived from today's checked-in patients
-          </span>
-        </div>
-
-        {loading ? (
-          <div className="p-8 text-center text-sm text-ink-soft">Loading active queue...</div>
-        ) : queueEntries.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <ClipboardList size={36} className="mx-auto text-ink-soft/50" />
-            <p className="font-display text-base font-semibold text-ink">No active patients in queue today</p>
-            <p className="text-sm text-ink-soft">
-              Check in patients from Appointments or click "Walk-In Patient" to issue tokens.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                <tr>
-                  <th className="px-5 py-3.5">Queue Token</th>
-                  <th className="px-5 py-3.5">Patient</th>
-                  <th className="px-5 py-3.5">Doctor</th>
-                  <th className="px-5 py-3.5">Type</th>
-                  <th className="px-5 py-3.5">Time</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {queueEntries.map((entry) => {
-                  const patientName = entry.patient
-                    ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
-                    : 'Walk-in Patient';
-                  const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
-                  const timeStr = entry.checkInTime
-                    ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : entry.appointment?.time || '—';
-
-                  const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
-
-                  return (
-                    <tr key={entry._id} className="hover:bg-bg/60 transition-colors">
-                      {/* Queue Token */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white font-mono text-base font-bold shadow-sm">
-                          #{entry.token}
-                        </span>
-                      </td>
-
-                      {/* Patient */}
-                      <td className="px-5 py-4">
-                        <div className="font-semibold text-ink">{patientName}</div>
-                        <div className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
-                          {entry.patient?.opNumber && (
-                            <span className="font-mono text-brand font-bold">{entry.patient.opNumber}</span>
-                          )}
-                          {entry.patient?.phone && <span>{entry.patient.phone}</span>}
-                        </div>
-                      </td>
-
-                      {/* Doctor */}
-                      <td className="px-5 py-4 text-ink font-medium text-xs">
-                        {docName}
-                      </td>
-
-                      {/* Type */}
-                      <td className="px-5 py-4 text-xs">
-                        <span
-                          className={`badge ${
-                            entry.type === 'Walk-in'
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-blue-50 text-blue-700'
-                          }`}
-                        >
-                          {entry.type}
-                        </span>
-                      </td>
-
-                      {/* Time */}
-                      <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
-                        <div className="flex items-center gap-1 font-medium text-ink">
-                          <Clock size={13} className="text-brand" /> {timeStr}
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-5 py-4">
-                        <span
-                          className={`badge border ${
-                            STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'
-                          }`}
-                        >
-                          {displayStatus}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          {displayStatus === 'Checked-In' && (
-                            <button
-                              onClick={() => setPendingCancelQueueEntry(entry)}
-                              className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
-                              title="Cancel Check-in"
-                            >
-                              <X size={13} />
-                              Cancel Check-In
-                            </button>
-                          )}
-                          {displayStatus === 'In Consultation' && (
-                            <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
-                              Doctor Consulting
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </button>
       </div>
+
+      {/* TAB 1: ACTIVE QUEUE TABLE (DEFAULT VIEW UNCHANGED) */}
+      {activeTab === 'active' && (
+        <div className="card overflow-hidden">
+          <div className="border-b border-border bg-bg/40 px-5 py-3.5 flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">
+              Active Queue Flow ({queueEntries.length} Patients Waiting / In Consultation)
+            </span>
+            <span className="text-xs text-brand font-semibold">
+              Auto-derived from today's checked-in patients
+            </span>
+          </div>
+
+          {loadingActive ? (
+            <div className="p-8 text-center text-sm text-ink-soft">Loading active queue...</div>
+          ) : queueEntries.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <ClipboardList size={36} className="mx-auto text-ink-soft/50" />
+              <p className="font-display text-base font-semibold text-ink">No active patients in queue today</p>
+              <p className="text-sm text-ink-soft">
+                Check in patients from Appointments or click "Walk-In Patient" to issue tokens.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">Queue Token</th>
+                    <th className="px-5 py-3.5">Patient</th>
+                    <th className="px-5 py-3.5">Doctor</th>
+                    <th className="px-5 py-3.5">Type</th>
+                    <th className="px-5 py-3.5">Checked-In Time</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {queueEntries.map((entry) => {
+                    const patientName = entry.patient
+                      ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
+                      : 'Walk-in Patient';
+                    const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
+                    const timeStr = (entry.checked_in_at || entry.checkInTime)
+                      ? new Date(entry.checked_in_at || entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : entry.appointment?.time || '—';
+
+                    const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
+                    const tokenNum = entry.queue_token || entry.token || 1;
+
+                    return (
+                      <tr key={entry._id} className="hover:bg-bg/60 transition-colors">
+                        {/* Queue Token */}
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white font-mono text-base font-bold shadow-sm">
+                            #{tokenNum}
+                          </span>
+                        </td>
+
+                        {/* Patient */}
+                        <td className="px-5 py-4">
+                          <div className="font-semibold text-ink">{patientName}</div>
+                          <div className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
+                            {entry.patient?.opNumber && (
+                              <span className="font-mono text-brand font-bold">{entry.patient.opNumber}</span>
+                            )}
+                            {entry.patient?.phone && <span>{entry.patient.phone}</span>}
+                          </div>
+                        </td>
+
+                        {/* Doctor */}
+                        <td className="px-5 py-4 text-ink font-medium text-xs">
+                          {docName}
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-5 py-4 text-xs">
+                          <span
+                            className={`badge ${
+                              entry.type === 'Walk-in'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-blue-50 text-blue-700'
+                            }`}
+                          >
+                            {entry.type}
+                          </span>
+                        </td>
+
+                        {/* Time */}
+                        <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
+                          <div className="flex items-center gap-1 font-medium text-ink">
+                            <Clock size={13} className="text-brand" /> {timeStr}
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-5 py-4">
+                          <span
+                            className={`badge border ${
+                              STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'
+                            }`}
+                          >
+                            {displayStatus}
+                          </span>
+                        </td>
+
+                        {/* Action */}
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            {displayStatus === 'Checked-In' && (
+                              <button
+                                onClick={() => setPendingCancelQueueEntry(entry)}
+                                className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
+                                title="Cancel Check-in"
+                              >
+                                <X size={13} />
+                                Cancel Check-In
+                              </button>
+                            )}
+                            {displayStatus === 'In Consultation' && (
+                              <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                                Doctor Consulting
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: COMPLETED TODAY QUEUE VIEW (NEW TAB) */}
+      {activeTab === 'completed' && (
+        <div className="space-y-4">
+          {/* SEARCH & FILTER CONTROLS BAR */}
+          <div className="card p-4 space-y-3 bg-surface border-border">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
+                <input
+                  type="text"
+                  className="input-field pl-10 py-2 text-xs"
+                  placeholder="Search by Patient Name or OP Number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {hasActiveCompletedFilters && (
+                <button
+                  onClick={handleResetCompletedFilters}
+                  className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold shrink-0"
+                >
+                  <X size={13} /> Reset Filters
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div>
+                <DatePicker
+                  placeholder="Date (Default Today)"
+                  value={dateFilter}
+                  onChange={(d, dStr) => {
+                    setDateFilter(dStr);
+                    fetchCompletedQueue(dStr);
+                  }}
+                  inputClassName="py-1.5 text-xs font-semibold"
+                />
+              </div>
+
+              <div>
+                <select
+                  className="input-field py-1.5 text-xs font-semibold"
+                  value={doctorFilter}
+                  onChange={(e) => setDoctorFilter(e.target.value)}
+                >
+                  <option value="">All Attending Doctors</option>
+                  {doctors.map((d) => (
+                    <option key={d._id || d.id} value={d._id || d.id}>
+                      Dr. {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <select
+                  className="input-field py-1.5 text-xs font-semibold"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                >
+                  <option value="">All Visit Types</option>
+                  <option value="Walk-in">Walk-in</option>
+                  <option value="Appointment">Appointment</option>
+                </select>
+              </div>
+
+              <div>
+                <select
+                  className="input-field py-1.5 text-xs font-semibold"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Completed">Completed</option>
+                  <option value="No Show">No Show</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* COMPLETED QUEUE TABLE */}
+          <div className="card overflow-hidden">
+            {loadingCompleted ? (
+              <div className="p-12 text-center text-xs text-ink-soft">Loading completed queue log...</div>
+            ) : filteredCompletedEntries.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <CheckCircle2 size={36} className="mx-auto text-ink-soft/40" />
+                <p className="font-display text-base font-semibold text-ink">No completed queue entries found</p>
+                <p className="text-xs text-ink-soft">
+                  {hasActiveCompletedFilters
+                    ? 'No entries match your selected date, doctor, type, or status filters.'
+                    : 'Completed, no-show, or cancelled queue entries for today will appear here.'}
+                </p>
+                {hasActiveCompletedFilters && (
+                  <button
+                    onClick={handleResetCompletedFilters}
+                    className="btn-secondary text-xs py-1.5 px-3 font-semibold mx-auto inline-flex items-center gap-1"
+                  >
+                    <RefreshCw size={13} /> Reset Filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
+                    <tr>
+                      <th className="px-5 py-3.5">Queue Token</th>
+                      <th className="px-5 py-3.5">Patient</th>
+                      <th className="px-5 py-3.5">Doctor</th>
+                      <th className="px-5 py-3.5">Type</th>
+                      <th className="px-5 py-3.5">Checked-In Time</th>
+                      <th className="px-5 py-3.5">Consultation Start</th>
+                      <th className="px-5 py-3.5">Consultation End</th>
+                      <th className="px-5 py-3.5">Status</th>
+                      <th className="px-5 py-3.5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredCompletedEntries.map((item) => {
+                      const p = item.patient || {};
+                      const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                      const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : 'Staff Doctor';
+
+                      const checkInTimeStr = item.checkInTime
+                        ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : '—';
+
+                      const startTimeStr = item.startTime
+                        ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : '—';
+
+                      const endTimeStr = item.endTime
+                        ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : '—';
+
+                      return (
+                        <tr
+                          key={item.id}
+                          onClick={() => setSelectedVisitSummary(item)}
+                          className="hover:bg-bg/60 cursor-pointer transition-colors group"
+                        >
+                          {/* Queue Token */}
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-light/40 text-brand-dark font-mono text-xs font-bold border border-brand/20">
+                              #{item.token}
+                            </span>
+                          </td>
+
+                          {/* Patient */}
+                          <td className="px-5 py-4">
+                            <div className="font-bold text-ink text-xs group-hover:text-brand transition-colors">
+                              {patientName}
+                            </div>
+                            <div className="text-[11px] text-ink-soft font-mono">
+                              {p.opNumber ? `#${p.opNumber}` : '—'} {p.phone ? `• ${p.phone}` : ''}
+                            </div>
+                          </td>
+
+                          {/* Doctor */}
+                          <td className="px-5 py-4 font-semibold text-ink whitespace-nowrap">
+                            {docName}
+                          </td>
+
+                          {/* Type */}
+                          <td className="px-5 py-4 text-xs whitespace-nowrap">
+                            <span
+                              className={`badge ${
+                                item.type === 'Walk-in'
+                                  ? 'bg-orange-100 text-orange-800 border-orange-200'
+                                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                              }`}
+                            >
+                              {item.type}
+                            </span>
+                          </td>
+
+                          {/* Checked-In Time */}
+                          <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                            {checkInTimeStr}
+                          </td>
+
+                          {/* Consultation Start */}
+                          <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                            {startTimeStr}
+                          </td>
+
+                          {/* Consultation End */}
+                          <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                            {endTimeStr}
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
+                              {item.status}
+                            </span>
+                          </td>
+
+                          {/* Action */}
+                          <td className="px-5 py-4 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedVisitSummary(item);
+                              }}
+                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5"
+                            >
+                              <Eye size={13} /> View Summary
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* BRIEF VISIT SUMMARY MODAL (COMPLETED QUEUE) */}
+      {selectedVisitSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-2xl border-brand/20">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-surface shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-brand text-white flex items-center justify-center font-bold">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-bold text-ink">
+                    Front Desk Visit Summary
+                  </h3>
+                  <p className="text-xs text-ink-soft">
+                    Date:{' '}
+                    <strong className="text-ink">
+                      {new Date(selectedVisitSummary.date).toLocaleDateString(undefined, {
+                        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+                      })}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedVisitSummary(null)}
+                className="p-1.5 rounded-lg text-ink-soft hover:text-ink hover:bg-bg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+              {/* Patient Banner */}
+              <div className="p-3.5 rounded-xl bg-bg border border-border space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-sm font-bold text-ink">
+                    {[selectedVisitSummary.patient?.firstName, selectedVisitSummary.patient?.lastName].filter(Boolean).join(' ') || 'Patient'}
+                  </span>
+                  <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[selectedVisitSummary.status] || 'bg-slate-100'}`}>
+                    {selectedVisitSummary.status}
+                  </span>
+                </div>
+                <div className="text-xs text-ink-soft">
+                  OP Number: <strong className="font-mono text-brand font-bold">#{selectedVisitSummary.patient?.opNumber || 'N/A'}</strong>
+                  {selectedVisitSummary.patient?.phone ? ` • Phone: ${selectedVisitSummary.patient.phone}` : ''}
+                </div>
+              </div>
+
+              {/* Visit Details Grid */}
+              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border border-border bg-surface">
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Queue Token</span>
+                  <span className="font-mono font-bold text-brand text-sm">#{selectedVisitSummary.token}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Visit Type</span>
+                  <span className="font-semibold text-ink block">{selectedVisitSummary.type}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Assigned Doctor</span>
+                  <span className="font-semibold text-ink block">Dr. {selectedVisitSummary.doctor?.name || 'Staff Doctor'}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Reason</span>
+                  <span className="font-semibold text-brand block">{selectedVisitSummary.reason || 'General Consultation'}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Checked-In Time</span>
+                  <span className="font-mono text-ink block">
+                    {selectedVisitSummary.checkInTime ? new Date(selectedVisitSummary.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Consultation Time</span>
+                  <span className="font-mono text-ink block">
+                    {selectedVisitSummary.startTime ? new Date(selectedVisitSummary.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}{' '}
+                    to{' '}
+                    {selectedVisitSummary.endTime ? new Date(selectedVisitSummary.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedVisitSummary.notes && (
+                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 space-y-1">
+                  <span className="font-bold text-[10px] uppercase tracking-wider block text-amber-800">
+                    Visit Notes:
+                  </span>
+                  <p className="whitespace-pre-wrap text-xs">{selectedVisitSummary.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end px-5 py-3 border-t border-border bg-bg/50 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedVisitSummary(null)}
+                className="btn-secondary py-1.5 px-4 text-xs font-semibold"
+              >
+                Close Summary
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 4-STEP WALK-IN MODAL */}
       {showWalkInModal && (
@@ -542,12 +1053,12 @@ export default function Queue() {
               {step === 4 && issuedToken && (
                 <div className="text-center py-4 space-y-4">
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand text-white shadow-lg">
-                    <span className="font-mono text-3xl font-extrabold">#{issuedToken.token}</span>
+                    <span className="font-mono text-3xl font-extrabold">#{issuedToken.queue_token || issuedToken.token}</span>
                   </div>
 
                   <div>
                     <h4 className="font-display text-lg font-bold text-ink">
-                      Token #{issuedToken.token} Issued!
+                      Token #{issuedToken.queue_token || issuedToken.token} Issued!
                     </h4>
                     <p className="text-xs text-ink-soft mt-1">
                       Patient <span className="font-semibold text-ink">{issuedToken.patient?.firstName} {issuedToken.patient?.lastName}</span> has been checked in for <span className="font-semibold text-brand">Dr. {issuedToken.doctor?.name}</span>.

@@ -33,8 +33,21 @@ const consultationSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    consultation_started_at: {
+      type: Date,
+      default: Date.now,
+    },
     closedAt: {
       type: Date,
+      default: null,
+    },
+    consultation_ended_at: {
+      type: Date,
+      default: null,
+    },
+    completed_at: {
+      type: Date,
+      default: null,
     },
     clinicalNotes: {
       type: String,
