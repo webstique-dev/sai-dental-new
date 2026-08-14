@@ -1,5 +1,6 @@
 const Patient = require('../models/Patient');
 const { logAction } = require('../middleware/auditLog');
+const { canDoctorAccessPatient } = require('../utils/patientAuth');
 
 // GET /api/patients?search=&lastVisitFrom=&lastVisitTo=&doctorId=&sort=&sortBy=&sortOrder=&page=&limit=
 async function listPatients(req, res, next) {
@@ -47,21 +48,44 @@ async function listPatients(req, res, next) {
     }
     pipeline.push({ $match: matchStage });
 
-    // 2. Lookup consultations for each patient
-    pipeline.push({
-      $lookup: {
-        from: 'consultations',
-        localField: '_id',
-        foreignField: 'patient',
-        as: 'consultations',
+    // 2. Lookup consultations, appointments, and queue entries for each patient
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'consultations',
+          localField: '_id',
+          foreignField: 'patient',
+          as: 'consultations',
+        },
       },
-    });
+      {
+        $lookup: {
+          from: 'appointments',
+          localField: '_id',
+          foreignField: 'patient',
+          as: 'appointments',
+        },
+      },
+      {
+        $lookup: {
+          from: 'queueentries',
+          localField: '_id',
+          foreignField: 'patient',
+          as: 'queueEntries',
+        },
+      }
+    );
 
-    // 3. If filtered by doctorId, ensure patient has at least one consultation with this doctor
+    // 3. If filtered by doctorId, ensure patient has at least one consultation, appointment, or queueEntry with this doctor
     if (effectiveDoctorId && mongoose.Types.ObjectId.isValid(effectiveDoctorId)) {
+      const docObjId = new mongoose.Types.ObjectId(effectiveDoctorId);
       pipeline.push({
         $match: {
-          'consultations.doctor': new mongoose.Types.ObjectId(effectiveDoctorId),
+          $or: [
+            { 'consultations.doctor': docObjId },
+            { appointments: { $elemMatch: { doctor: docObjId, isDeleted: { $ne: true } } } },
+            { 'queueEntries.doctor': docObjId },
+          ],
         },
       });
     }
@@ -119,83 +143,36 @@ async function listPatients(req, res, next) {
       });
     }
 
-    // 6. Lookup Doctor details for lastVisitDoctor and RegisteredBy User
+    // 6. Populate lastVisitDoctor info
     pipeline.push({
       $lookup: {
         from: 'users',
         localField: 'lastVisitDoctorId',
         foreignField: '_id',
-        as: 'lastVisitDoctorArr',
-      },
-    });
-
-    pipeline.push({
-      $lookup: {
-        from: 'users',
-        localField: 'registeredBy',
-        foreignField: '_id',
-        as: 'registeredByArr',
+        as: 'lastVisitDoctor',
       },
     });
 
     pipeline.push({
       $addFields: {
-        lastVisitDoctor: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: '$lastVisitDoctorArr',
-                as: 'd',
-                in: { _id: '$$d._id', name: '$$d.name', email: '$$d.email' },
-              },
-            },
-            0,
-          ],
-        },
-        registeredBy: {
-          $arrayElemAt: [
-            {
-              $map: {
-                input: '$registeredByArr',
-                as: 'r',
-                in: { _id: '$$r._id', name: '$$r.name', email: '$$r.email', role: '$$r.role' },
-              },
-            },
-            0,
-          ],
-        },
-      },
-    });
-
-    // Clean up temporary join fields
-    pipeline.push({
-      $project: {
-        consultations: 0,
-        lastVisitDoc: 0,
-        lastVisitDoctorArr: 0,
-        registeredByArr: 0,
+        lastVisitDoctor: { $arrayElemAt: ['$lastVisitDoctor', 0] },
       },
     });
 
     // 7. Sorting
     const sortField = sort || sortBy || 'lastVisit';
-    const order = sortOrder === 'asc' ? 1 : -1;
-    const sortOptions = {};
+    const direction = sortOrder === 'asc' ? 1 : -1;
+    let sortOptions = {};
 
     if (sortField === 'name') {
-      sortOptions.firstName = order;
-      sortOptions.lastName = order;
-    } else if (sortField === 'registrationDate' || sortField === 'createdAt') {
-      sortOptions.createdAt = order;
-    } else if (sortField === 'opNumber') {
-      sortOptions.opNumber = order;
+      sortOptions = { firstName: direction, lastName: direction };
+    } else if (sortField === 'registrationDate') {
+      sortOptions = { registrationDate: direction, createdAt: direction };
     } else {
-      // Default: lastVisit desc
-      sortOptions.lastVisitDate = order;
-      sortOptions.createdAt = order;
+      sortOptions = { lastVisitDate: direction, createdAt: direction };
     }
 
-    // 8. Facet for Total Count and Paginated Items
+    // 8. Pagination Facet
     pipeline.push({
       $facet: {
         metadata: [{ $count: 'total' }],
@@ -254,7 +231,18 @@ async function createPatient(req, res, next) {
 // GET /api/patients/:id
 async function getPatientById(req, res, next) {
   try {
-    const patient = await Patient.findById(req.params.id).populate('registeredBy', 'name email role');
+    const patientId = req.params.id || req.params.patientId;
+
+    if (req.user && req.user.role === 'doctor') {
+      const allowed = await canDoctorAccessPatient(req.user._id, patientId);
+      if (!allowed) {
+        return res.status(403).json({
+          message: 'Access denied. You can only view records for patients assigned to you via appointments or consultations.',
+        });
+      }
+    }
+
+    const patient = await Patient.findById(patientId).populate('registeredBy', 'name email role');
     if (!patient) {
       return res.status(404).json({ message: 'Patient not found' });
     }
@@ -289,6 +277,15 @@ async function updatePatient(req, res, next) {
 async function getPatientEMR(req, res, next) {
   try {
     const patientId = req.params.patientId || req.params.id;
+
+    if (req.user && req.user.role === 'doctor') {
+      const allowed = await canDoctorAccessPatient(req.user._id, patientId);
+      if (!allowed) {
+        return res.status(403).json({
+          message: 'Access denied. You can only view records for patients assigned to you via appointments or consultations.',
+        });
+      }
+    }
 
     const Consultation = require('../models/Consultation');
     const Examination = require('../models/Examination');
@@ -421,4 +418,3 @@ module.exports = {
   getPatientEMR,
   deletePatient,
 };
-

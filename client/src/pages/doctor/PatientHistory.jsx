@@ -335,10 +335,10 @@ export default function PatientHistory() {
 
                   const dateStr = visit.visitDate
                     ? new Date(visit.visitDate).toLocaleDateString(undefined, {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
                     : 'N/A';
 
                   const checkInStr = visit.checkInTime
@@ -476,13 +476,13 @@ export default function PatientHistory() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
+                {/* <button
                   onClick={() => window.print()}
                   className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1"
                   title="Print Visit Summary"
                 >
                   <Printer size={14} /> Print
-                </button>
+                </button> */}
 
                 <button
                   onClick={() => setSelectedVisit(null)}
@@ -666,11 +666,10 @@ export default function PatientHistory() {
                         <div
                           key={tNum}
                           title={isAffected ? visitTeethSnapshotMap[tNum].join('\n') : `Tooth #${tNum}`}
-                          className={`p-1.5 rounded-lg text-[10px] font-mono font-bold transition-all ${
-                            isAffected
-                              ? 'bg-brand text-white shadow-sm ring-2 ring-brand/40'
-                              : 'bg-surface border border-border/60 text-ink-soft/60'
-                          }`}
+                          className={`p-1.5 rounded-lg text-[10px] font-mono font-bold transition-all ${isAffected
+                            ? 'bg-brand text-white shadow-sm ring-2 ring-brand/40'
+                            : 'bg-surface border border-border/60 text-ink-soft/60'
+                            }`}
                         >
                           #{tNum}
                         </div>
@@ -747,7 +746,7 @@ export default function PatientHistory() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-bg/50 shrink-0">
+            {/* <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-bg/50 shrink-0">
               {selectedVisit.patient?._id ? (
                 <Link
                   to={`/reception/patients/${selectedVisit.patient._id}`}
@@ -764,7 +763,7 @@ export default function PatientHistory() {
               >
                 Close Summary
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       )}

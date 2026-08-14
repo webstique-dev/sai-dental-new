@@ -398,14 +398,18 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
 
         {/* Legend */}
         <div className="flex flex-wrap gap-2 text-[11px]">
-          {Object.entries(CONDITION_CODES).map(([label, cfg]) => (
-            <span
-              key={label}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-semibold ${cfg.color}`}
-            >
-              <span className="font-mono text-[10px] font-bold">[{cfg.code}]</span> {label}
-            </span>
-          ))}
+          {['Healthy', 'Caries', 'Missing', 'Filling', 'RCT', 'Crown', 'Bridge', 'Implant'].map((label) => {
+            const cfg = CONDITION_CODES[label];
+            if (!cfg) return null;
+            return (
+              <span
+                key={label}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-semibold ${cfg.color}`}
+              >
+                <span className="font-mono text-[10px] font-bold">[{cfg.code}]</span> {label}
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -495,18 +499,13 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                   onChange={(e) => setFormCondition(e.target.value)}
                 >
                   <option value="Healthy">Healthy [H]</option>
-                  <option value="Caries">Caries / Cavity [D]</option>
-                  <option value="Decayed">Decayed [Dec]</option>
+                  <option value="Caries">Caries [D]</option>
+                  <option value="Missing">Missing [M]</option>
                   <option value="Filling">Filling [F]</option>
-                  <option value="RCT">Root Canal Therapy [RCT]</option>
+                  <option value="RCT">RCT [RCT]</option>
                   <option value="Crown">Crown [Cr]</option>
                   <option value="Bridge">Bridge [Br]</option>
                   <option value="Implant">Implant [I]</option>
-                  <option value="Missing">Missing [M]</option>
-                  <option value="Extraction">Extraction Indicated / Done [X]</option>
-                  <option value="Restored">Restored [Res]</option>
-                  <option value="Prosthetic">Prosthetic [P]</option>
-                  <option value="Other">Other [O]</option>
                 </select>
               </div>
 

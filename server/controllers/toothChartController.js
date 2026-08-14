@@ -1,6 +1,7 @@
 const ToothRecord = require('../models/ToothRecord');
 const { checkConsultationNotClosed } = require('./consultationController');
 const { logAction } = require('../middleware/auditLog');
+const { canDoctorAccessPatient } = require('../utils/patientAuth');
 
 const ALL_FDI_TEETH = [
   // Upper Right (18 - 11)
@@ -17,6 +18,15 @@ const ALL_FDI_TEETH = [
 async function getPatientToothChart(req, res, next) {
   try {
     const { patientId } = req.params;
+
+    if (req.user && req.user.role === 'doctor') {
+      const allowed = await canDoctorAccessPatient(req.user._id, patientId);
+      if (!allowed) {
+        return res.status(403).json({
+          message: 'Access denied. You can only view tooth records for patients assigned to you via appointments or consultations.',
+        });
+      }
+    }
 
     const records = await ToothRecord.find({ patient: patientId })
       .populate('history.doctor', 'name email')
@@ -92,6 +102,15 @@ async function updateToothRecord(req, res, next) {
     const { patientId, toothNumber } = req.params;
     const userId = req.user ? req.user._id : undefined;
 
+    if (req.user && req.user.role === 'doctor') {
+      const allowed = await canDoctorAccessPatient(req.user._id, patientId);
+      if (!allowed) {
+        return res.status(403).json({
+          message: 'Access denied. You can only update tooth records for patients assigned to you via appointments or consultations.',
+        });
+      }
+    }
+
     const updated = await applyToothUpdate(patientId, toothNumber, req.body, userId);
 
     await logAction(req, {
@@ -117,6 +136,15 @@ async function bulkUpdateTeeth(req, res, next) {
     const { patientId } = req.params;
     const { teeth, condition, treatment, notes, consultationId } = req.body;
     const userId = req.user ? req.user._id : undefined;
+
+    if (req.user && req.user.role === 'doctor') {
+      const allowed = await canDoctorAccessPatient(req.user._id, patientId);
+      if (!allowed) {
+        return res.status(403).json({
+          message: 'Access denied. You can only update tooth records for patients assigned to you via appointments or consultations.',
+        });
+      }
+    }
 
     if (!Array.isArray(teeth) || teeth.length === 0) {
       return res.status(400).json({ message: 'Array of teeth is required for bulk update.' });
