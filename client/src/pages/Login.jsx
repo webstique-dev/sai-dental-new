@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Activity, Eye, EyeOff } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
 import { useNotification } from '../context/NotificationContext.jsx';
+import { validateEmail } from '../utils/validators.js';
 
 export default function Login() {
   const { login } = useAuth();
@@ -17,9 +18,21 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    const emailErr = validateEmail(email, true);
+    if (emailErr) {
+      showError(emailErr);
+      return;
+    }
+
+    if (!password) {
+      showError('Password is required.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const user = await login(email, password);
+      const user = await login(email.trim(), password);
       showSuccess(`Welcome back, ${user.name || 'User'}!`);
       const redirectTo = location.state?.from?.pathname || ROLE_HOME[user.role] || '/';
       navigate(redirectTo, { replace: true });

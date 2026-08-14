@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, UserPlus, Plus, X } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -142,11 +143,55 @@ export default function PatientRegistration() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const nameErr = validateName(formData.firstName, 'First Name', true);
+    if (nameErr) {
+      showError(nameErr);
+      return;
+    }
+
+    if (formData.lastName) {
+      const lastNameErr = validateName(formData.lastName, 'Last Name', false);
+      if (lastNameErr) {
+        showError(lastNameErr);
+        return;
+      }
+    }
+
+    if (formData.phone) {
+      const phoneErr = validatePhone(formData.phone, false);
+      if (phoneErr) {
+        showError(phoneErr);
+        return;
+      }
+    }
+
+    if (formData.dateOfBirth) {
+      const dobErr = validateDOB(formData.dateOfBirth, false);
+      if (dobErr) {
+        showError(dobErr);
+        return;
+      }
+    }
+
+    if (formData.age !== '' && formData.age !== undefined && formData.age !== null) {
+      const ageErr = validateAge(formData.age, false);
+      if (ageErr) {
+        showError(ageErr);
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
       const payload = {
         ...formData,
+        firstName: formData.firstName ? formData.firstName.trim() : '',
+        lastName: formData.lastName ? formData.lastName.trim() : '',
+        phone: formData.phone ? formData.phone.trim() : '',
+        occupation: formData.occupation ? formData.occupation.trim() : '',
+        address: formData.address ? formData.address.trim() : '',
         age: formData.age ? parseInt(formData.age, 10) : undefined,
         dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : undefined,
       };
@@ -217,13 +262,14 @@ export default function PatientRegistration() {
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">First Name</label>
+              <label className="block text-xs font-semibold text-ink-soft mb-1">First Name *</label>
               <input
                 type="text"
+                required
                 className="input-field"
                 placeholder="e.g. John"
                 value={formData.firstName}
-                onChange={(e) => handleChange('firstName', e.target.value)}
+                onChange={(e) => handleChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
               />
             </div>
             <div>
@@ -233,17 +279,18 @@ export default function PatientRegistration() {
                 className="input-field"
                 placeholder="e.g. Doe"
                 value={formData.lastName}
-                onChange={(e) => handleChange('lastName', e.target.value)}
+                onChange={(e) => handleChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">Phone Number</label>
               <input
                 type="tel"
-                className="input-field"
+                maxLength={15}
+                className="input-field font-mono"
                 placeholder="e.g. 9876543210"
                 value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
+                onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
               />
             </div>
             <div>
@@ -262,13 +309,17 @@ export default function PatientRegistration() {
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">Age</label>
               <input
-                type="number"
-                min="0"
-                max="120"
-                className="input-field"
+                type="text"
+                maxLength={3}
+                className="input-field font-mono"
                 placeholder="e.g. 35"
                 value={formData.age}
-                onChange={(e) => handleChange('age', e.target.value)}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 3);
+                  if (!cleaned || parseInt(cleaned, 10) <= 120) {
+                    handleChange('age', cleaned);
+                  }
+                }}
               />
             </div>
             <div>

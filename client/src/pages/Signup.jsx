@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Building2, Stethoscope, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
 import { useNotification } from '../context/NotificationContext.jsx';
+import { validateName, validateEmail, validatePhone } from '../utils/validators.js';
 
 const ROLES_CONFIG = [
   {
@@ -53,6 +54,26 @@ export default function Signup() {
     if (!selectedRole) {
       showError('Please select a role for your account.');
       return;
+    }
+
+    const nameErr = validateName(name, 'Full Name', true);
+    if (nameErr) {
+      showError(nameErr);
+      return;
+    }
+
+    const emailErr = validateEmail(email, true);
+    if (emailErr) {
+      showError(emailErr);
+      return;
+    }
+
+    if (phone) {
+      const phoneErr = validatePhone(phone, false);
+      if (phoneErr) {
+        showError(phoneErr);
+        return;
+      }
     }
 
     if (password !== confirmPassword) {
@@ -150,7 +171,7 @@ export default function Signup() {
                 className="input-field"
                 placeholder="e.g. Dr. Sarah Jenkins or John Smith"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.replace(/[^a-zA-Z\s'.-]/g, ''))}
               />
             </div>
 
@@ -171,10 +192,11 @@ export default function Signup() {
                 <label className="block font-semibold text-ink-soft mb-1">Phone Number (Optional)</label>
                 <input
                   type="tel"
-                  className="input-field"
-                  placeholder="+91 98765 43210"
+                  maxLength={15}
+                  className="input-field font-mono"
+                  placeholder="9876543210"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
                 />
               </div>
             </div>

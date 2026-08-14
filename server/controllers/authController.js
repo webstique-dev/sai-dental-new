@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const { validateUserData } = require('../middleware/inputValidation');
 
 // POST /api/auth/login
 async function login(req, res) {
@@ -37,6 +38,11 @@ async function login(req, res) {
 async function signup(req, res, next) {
   try {
     const { name, email, phone, password, role } = req.body;
+
+    const errors = validateUserData(req.body, false);
+    if (errors.length > 0) {
+      return res.status(400).json({ message: errors[0], errors });
+    }
 
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'Name, email, password, and role are required.' });

@@ -9,6 +9,7 @@ import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { validateName, validatePhone, validateAge } from '../../utils/validators.js';
 
 const STATUS_BADGE_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -203,9 +204,33 @@ export default function Queue() {
         showError('Please search and select an existing patient, or switch to Register New Patient.');
         return;
       }
-      if (patientMode === 'new' && !newPatientData.firstName && !newPatientData.lastName && !newPatientData.phone) {
-        showError('Please provide at least a name or phone number for the new patient.');
-        return;
+      if (patientMode === 'new') {
+        const nameErr = validateName(newPatientData.firstName, 'First Name', true);
+        if (nameErr) {
+          showError(nameErr);
+          return;
+        }
+        if (newPatientData.lastName) {
+          const lastNameErr = validateName(newPatientData.lastName, 'Last Name', false);
+          if (lastNameErr) {
+            showError(lastNameErr);
+            return;
+          }
+        }
+        if (newPatientData.phone) {
+          const phoneErr = validatePhone(newPatientData.phone, false);
+          if (phoneErr) {
+            showError(phoneErr);
+            return;
+          }
+        }
+        if (newPatientData.age !== '' && newPatientData.age !== undefined && newPatientData.age !== null) {
+          const ageErr = validateAge(newPatientData.age, false);
+          if (ageErr) {
+            showError(ageErr);
+            return;
+          }
+        }
       }
       setStep(2);
     } else if (step === 2) {
@@ -920,10 +945,11 @@ export default function Queue() {
                         <label className="block text-ink-soft font-semibold mb-1">First Name *</label>
                         <input
                           type="text"
+                          required
                           className="input-field"
                           placeholder="e.g. Alex"
                           value={newPatientData.firstName}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, firstName: e.target.value })}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, firstName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
                         />
                       </div>
                       <div>
@@ -933,17 +959,18 @@ export default function Queue() {
                           className="input-field"
                           placeholder="e.g. Smith"
                           value={newPatientData.lastName}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, lastName: e.target.value })}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, lastName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
                         />
                       </div>
                       <div>
                         <label className="block text-ink-soft font-semibold mb-1">Phone Number</label>
                         <input
                           type="tel"
-                          className="input-field"
+                          maxLength={15}
+                          className="input-field font-mono"
                           placeholder="e.g. 9876543210"
                           value={newPatientData.phone}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value })}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value.replace(/\D/g, '').slice(0, 15) })}
                         />
                       </div>
                       <div>

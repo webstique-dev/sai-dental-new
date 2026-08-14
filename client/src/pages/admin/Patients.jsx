@@ -7,6 +7,8 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
+import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
 export default function AdminPatients() {
   const [patients, setPatients] = useState([]);
@@ -94,9 +96,54 @@ export default function AdminPatients() {
     setFeedback({ type: '', msg: '' });
   };
 
+  const { showError, showSuccess } = useNotification();
+
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editingPatient) return;
+
+    const nameErr = validateName(editForm.firstName, 'First Name', true);
+    if (nameErr) {
+      setFeedback({ type: 'error', msg: nameErr });
+      showError(nameErr);
+      return;
+    }
+
+    if (editForm.lastName) {
+      const lastNameErr = validateName(editForm.lastName, 'Last Name', false);
+      if (lastNameErr) {
+        setFeedback({ type: 'error', msg: lastNameErr });
+        showError(lastNameErr);
+        return;
+      }
+    }
+
+    if (editForm.phone) {
+      const phoneErr = validatePhone(editForm.phone, false);
+      if (phoneErr) {
+        setFeedback({ type: 'error', msg: phoneErr });
+        showError(phoneErr);
+        return;
+      }
+    }
+
+    if (editForm.dateOfBirth) {
+      const dobErr = validateDOB(editForm.dateOfBirth, false);
+      if (dobErr) {
+        setFeedback({ type: 'error', msg: dobErr });
+        showError(dobErr);
+        return;
+      }
+    }
+
+    if (editForm.age !== '' && editForm.age !== undefined && editForm.age !== null) {
+      const ageErr = validateAge(editForm.age, false);
+      if (ageErr) {
+        setFeedback({ type: 'error', msg: ageErr });
+        showError(ageErr);
+        return;
+      }
+    }
 
     setSaving(true);
     setFeedback({ type: '', msg: '' });
@@ -516,13 +563,13 @@ export default function AdminPatients() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold text-ink-soft mb-1">First Name</label>
+                    <label className="block font-semibold text-ink-soft mb-1">First Name *</label>
                     <input
                       type="text"
                       required
                       className="input-field py-1.5"
                       value={editForm.firstName}
-                      onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                      onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
                     />
                   </div>
                   <div>
@@ -531,7 +578,7 @@ export default function AdminPatients() {
                       type="text"
                       className="input-field py-1.5"
                       value={editForm.lastName}
-                      onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                      onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
                     />
                   </div>
                 </div>
@@ -540,19 +587,26 @@ export default function AdminPatients() {
                   <div>
                     <label className="block font-semibold text-ink-soft mb-1">Phone</label>
                     <input
-                      type="text"
+                      type="tel"
+                      maxLength={15}
                       className="input-field py-1.5 font-mono"
                       value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 15) })}
                     />
                   </div>
                   <div>
                     <label className="block font-semibold text-ink-soft mb-1">Age</label>
                     <input
-                      type="number"
-                      className="input-field py-1.5"
+                      type="text"
+                      maxLength={3}
+                      className="input-field py-1.5 font-mono"
                       value={editForm.age}
-                      onChange={(e) => setEditForm({ ...editForm, age: e.target.value })}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 3);
+                        if (!cleaned || parseInt(cleaned, 10) <= 120) {
+                          setEditForm({ ...editForm, age: cleaned });
+                        }
+                      }}
                     />
                   </div>
                   <div>

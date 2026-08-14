@@ -7,6 +7,8 @@ import {
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
+import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -164,14 +166,65 @@ export default function PatientDetail() {
     });
   };
 
+  const { showError, showSuccess } = useNotification();
+
   const handleSavePatient = async (e) => {
     e.preventDefault();
+
+    const nameErr = validateName(editForm.firstName, 'First Name', true);
+    if (nameErr) {
+      setEditFeedback({ type: 'error', msg: nameErr });
+      showError(nameErr);
+      return;
+    }
+
+    if (editForm.lastName) {
+      const lastNameErr = validateName(editForm.lastName, 'Last Name', false);
+      if (lastNameErr) {
+        setEditFeedback({ type: 'error', msg: lastNameErr });
+        showError(lastNameErr);
+        return;
+      }
+    }
+
+    if (editForm.phone) {
+      const phoneErr = validatePhone(editForm.phone, false);
+      if (phoneErr) {
+        setEditFeedback({ type: 'error', msg: phoneErr });
+        showError(phoneErr);
+        return;
+      }
+    }
+
+    if (editForm.dateOfBirth) {
+      const dobErr = validateDOB(editForm.dateOfBirth, false);
+      if (dobErr) {
+        setEditFeedback({ type: 'error', msg: dobErr });
+        showError(dobErr);
+        return;
+      }
+    }
+
+    if (editForm.age !== '' && editForm.age !== undefined && editForm.age !== null) {
+      const ageErr = validateAge(editForm.age, false);
+      if (ageErr) {
+        setEditFeedback({ type: 'error', msg: ageErr });
+        showError(ageErr);
+        return;
+      }
+    }
+
     setSaving(true);
     setEditFeedback({ type: '', msg: '' });
 
     try {
       const payload = {
         ...editForm,
+        firstName: editForm.firstName ? editForm.firstName.trim() : '',
+        lastName: editForm.lastName ? editForm.lastName.trim() : '',
+        phone: editForm.phone ? editForm.phone.trim() : '',
+        occupation: editForm.occupation ? editForm.occupation.trim() : '',
+        address: editForm.address ? editForm.address.trim() : '',
         age: editForm.age ? parseInt(editForm.age, 10) : undefined,
         dateOfBirth: editForm.dateOfBirth ? editForm.dateOfBirth : null,
       };
@@ -179,14 +232,14 @@ export default function PatientDetail() {
       const res = await api.patch(`/patients/${id}`, payload);
       setPatient(res.data?.patient);
       setEditFeedback({ type: 'success', msg: 'Patient profile updated successfully!' });
+      showSuccess('Patient profile updated successfully!');
       setTimeout(() => {
         setShowEditModal(false);
       }, 800);
     } catch (err) {
-      setEditFeedback({
-        type: 'error',
-        msg: err.response?.data?.message || 'Failed to update patient profile.',
-      });
+      const msg = err.response?.data?.message || 'Failed to update patient profile.';
+      setEditFeedback({ type: 'error', msg });
+      showError(msg);
     } finally {
       setSaving(false);
     }
@@ -478,12 +531,13 @@ export default function PatientDetail() {
                   <h4 className="font-bold text-ink border-b border-border/60 pb-1">Basic Details</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold text-ink-soft mb-1">First Name</label>
+                      <label className="block font-semibold text-ink-soft mb-1">First Name *</label>
                       <input
                         type="text"
+                        required
                         className="input-field py-1.5"
                         value={editForm.firstName}
-                        onChange={(e) => handleEditChange('firstName', e.target.value)}
+                        onChange={(e) => handleEditChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                       />
                     </div>
                     <div>
@@ -492,16 +546,17 @@ export default function PatientDetail() {
                         type="text"
                         className="input-field py-1.5"
                         value={editForm.lastName}
-                        onChange={(e) => handleEditChange('lastName', e.target.value)}
+                        onChange={(e) => handleEditChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                       />
                     </div>
                     <div>
                       <label className="block font-semibold text-ink-soft mb-1">Phone Number</label>
                       <input
                         type="tel"
-                        className="input-field py-1.5"
+                        maxLength={15}
+                        className="input-field py-1.5 font-mono"
                         value={editForm.phone}
-                        onChange={(e) => handleEditChange('phone', e.target.value)}
+                        onChange={(e) => handleEditChange('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
                       />
                     </div>
                     <div>
@@ -520,12 +575,16 @@ export default function PatientDetail() {
                     <div>
                       <label className="block font-semibold text-ink-soft mb-1">Age</label>
                       <input
-                        type="number"
-                        min="0"
-                        max="120"
-                        className="input-field py-1.5"
+                        type="text"
+                        maxLength={3}
+                        className="input-field py-1.5 font-mono"
                         value={editForm.age}
-                        onChange={(e) => handleEditChange('age', e.target.value)}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/\D/g, '').slice(0, 3);
+                          if (!cleaned || parseInt(cleaned, 10) <= 120) {
+                            handleEditChange('age', cleaned);
+                          }
+                        }}
                       />
                     </div>
                     <div>

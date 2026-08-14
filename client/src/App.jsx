@@ -38,15 +38,20 @@ import ToothChartPage from './pages/doctor/ToothChartPage.jsx';
 import DiagnosisPage from './pages/doctor/DiagnosisPage.jsx';
 import TreatmentPlansPage from './pages/doctor/TreatmentPlansPage.jsx';
 import PrescriptionsPage from './pages/doctor/PrescriptionsPage.jsx';
+import DentalPreloader from './components/common/DentalPreloader.jsx';
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, initialLoading, initialError, retryInitialLoad } = useAuth();
 
-  if (loading) {
+  if (loading || initialLoading || initialError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg">
-        <p className="text-sm text-ink-soft">Loading...</p>
-      </div>
+      <DentalPreloader
+        fullScreen
+        message="Loading your clinic dashboard"
+        subMessage="Fetching patient records"
+        error={initialError}
+        onRetry={retryInitialLoad}
+      />
     );
   }
 

@@ -1,6 +1,7 @@
 const Patient = require('../models/Patient');
 const { logAction } = require('../middleware/auditLog');
 const { canDoctorAccessPatient } = require('../utils/patientAuth');
+const { validatePatientData } = require('../middleware/inputValidation');
 
 // GET /api/patients?search=&lastVisitFrom=&lastVisitTo=&doctorId=&sort=&sortBy=&sortOrder=&page=&limit=
 async function listPatients(req, res, next) {
@@ -196,10 +197,16 @@ async function listPatients(req, res, next) {
   }
 }
 
-// POST /api/patients (Register patient — works even with empty body)
+// POST /api/patients (Register patient)
 async function createPatient(req, res, next) {
   try {
     const data = { ...req.body };
+
+    const errors = validatePatientData(data, false);
+    if (errors.length > 0) {
+      return res.status(400).json({ message: errors[0], errors });
+    }
+
     if (req.user && req.user._id) {
       data.registeredBy = req.user._id;
     }
@@ -255,6 +262,11 @@ async function getPatientById(req, res, next) {
 // PATCH /api/patients/:id
 async function updatePatient(req, res, next) {
   try {
+    const errors = validatePatientData(req.body, true);
+    if (errors.length > 0) {
+      return res.status(400).json({ message: errors[0], errors });
+    }
+
     const patient = await Patient.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,

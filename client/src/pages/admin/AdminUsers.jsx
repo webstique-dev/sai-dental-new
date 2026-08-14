@@ -3,6 +3,7 @@ import { UserPlus, Power, Edit3, KeyRound, X, ShieldAlert } from 'lucide-react';
 import api from '../../api/axios.js';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { validateName, validateEmail, validatePhone } from '../../utils/validators.js';
 
 const ROLE_BADGE = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -47,9 +48,40 @@ export default function AdminUsers() {
 
   async function handleCreate(e) {
     e.preventDefault();
+
+    const nameErr = validateName(form.name, 'Full Name', true);
+    if (nameErr) {
+      showError(nameErr);
+      return;
+    }
+
+    const emailErr = validateEmail(form.email, true);
+    if (emailErr) {
+      showError(emailErr);
+      return;
+    }
+
+    if (form.phone) {
+      const phoneErr = validatePhone(form.phone, false);
+      if (phoneErr) {
+        showError(phoneErr);
+        return;
+      }
+    }
+
+    if (!form.password || form.password.length < 6) {
+      showError('Password must be at least 6 characters long.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await api.post('/users', form);
+      await api.post('/users', {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone ? form.phone.trim() : '',
+      });
       showSuccess(`User ${form.name} created successfully.`);
       setForm({ name: '', email: '', phone: '', password: '', role: 'receptionist' });
       setShowForm(false);
@@ -85,19 +117,38 @@ export default function AdminUsers() {
 
   function handleEditSubmit(e) {
     e.preventDefault();
+
+    const nameErr = validateName(editForm.name, 'Full Name', true);
+    if (nameErr) {
+      showError(nameErr);
+      return;
+    }
+
+    if (editForm.phone) {
+      const phoneErr = validatePhone(editForm.phone, false);
+      if (phoneErr) {
+        showError(phoneErr);
+        return;
+      }
+    }
+
     const userId = editingUser.id || editingUser._id;
     if (editForm.role !== editingUser.role) {
       // Show confirmation dialog before changing role
       setPendingRoleChange({
         id: userId,
-        name: editForm.name,
+        name: editForm.name.trim(),
         oldRole: editingUser.role,
         newRole: editForm.role,
       });
       return;
     }
 
-    submitUserUpdate(userId, { name: editForm.name, phone: editForm.phone, role: editForm.role });
+    submitUserUpdate(userId, {
+      name: editForm.name.trim(),
+      phone: editForm.phone ? editForm.phone.trim() : '',
+      role: editForm.role,
+    });
   }
 
   async function submitUserUpdate(id, payload) {
@@ -173,18 +224,18 @@ export default function AdminUsers() {
           <h3 className="font-display text-[15px] font-semibold text-ink">Create New Staff User</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <label className="block text-xs font-medium text-ink-soft">Full Name</label>
+              <label className="block text-xs font-medium text-ink-soft">Full Name *</label>
               <input
                 type="text"
                 required
                 className="input-field mt-1 text-xs"
                 placeholder="Dr. Jane Smith"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(e) => setForm({ ...form, name: e.target.value.replace(/[^a-zA-Z\s'.-]/g, '') })}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-ink-soft">Email (Username)</label>
+              <label className="block text-xs font-medium text-ink-soft">Email (Username) *</label>
               <input
                 type="email"
                 required
@@ -197,11 +248,12 @@ export default function AdminUsers() {
             <div>
               <label className="block text-xs font-medium text-ink-soft">Phone Number</label>
               <input
-                type="text"
-                className="input-field mt-1 text-xs"
+                type="tel"
+                maxLength={15}
+                className="input-field mt-1 text-xs font-mono"
                 placeholder="9876543210"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 15) })}
               />
             </div>
             <div>
