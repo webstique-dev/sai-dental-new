@@ -16,6 +16,7 @@ const STATUS_BADGE_CLASSES = {
 
 export default function Billing() {
   const { showSuccess, showError } = useNotification();
+  const [errorMessage, setErrorMessage] = useState('');
   const [invoices, setInvoices] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -145,11 +146,14 @@ export default function Billing() {
   const handleGenerateInvoice = async (e) => {
     e.preventDefault();
     if (!selectedPatient) {
-      showError('Please search and select a patient.');
+      const msg = 'Please search and select a patient.';
+      setErrorMessage(msg);
+      showError(msg);
       return;
     }
 
     setSubmitting(true);
+    setErrorMessage('');
     try {
       const payload = {
         patient: selectedPatient._id || selectedPatient.id,
@@ -165,7 +169,9 @@ export default function Billing() {
       resetGenerateModal();
       fetchInvoices();
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to generate invoice.');
+      const msg = err.response?.data?.message || 'Failed to generate invoice.';
+      setErrorMessage(msg);
+      showError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -176,16 +182,20 @@ export default function Billing() {
     setPaymentAmount(inv.balance > 0 ? inv.balance : '');
     setPaymentMethod('Cash');
     setShowConfirmSettlement(false);
+    setErrorMessage('');
   };
 
   const handlePaymentClick = (e) => {
     e.preventDefault();
     const amt = Number(paymentAmount);
     if (!amt || amt <= 0) {
-      showError('Please enter a valid payment amount.');
+      const msg = 'Please enter a valid payment amount.';
+      setErrorMessage(msg);
+      showError(msg);
       return;
     }
 
+    setErrorMessage('');
     // If payment would fully settle remaining balance, trigger settlement confirmation dialog first
     if (activePaymentInvoice && amt >= activePaymentInvoice.balance) {
       setShowConfirmSettlement(true);
@@ -197,6 +207,7 @@ export default function Billing() {
   const executeRecordPayment = async () => {
     if (!activePaymentInvoice) return;
     setSubmitting(true);
+    setErrorMessage('');
     try {
       const invId = activePaymentInvoice._id || activePaymentInvoice.id;
       await api.post(`/invoices/${invId}/payments`, {
@@ -209,14 +220,17 @@ export default function Billing() {
       setShowConfirmSettlement(false);
       fetchInvoices();
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to record payment.');
+      const msg = err.response?.data?.message || 'Failed to record payment.';
+      setErrorMessage(msg);
+      showError(msg);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Header & Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -382,6 +396,7 @@ export default function Billing() {
           </div>
         )}
       </div>
+      </div>
 
       {/* GENERATE INVOICE MODAL */}
       {showGenerateModal && (
@@ -397,7 +412,7 @@ export default function Billing() {
             </div>
 
             <form onSubmit={handleGenerateInvoice} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 ">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
                 {errorMessage && (
                   <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
                     <AlertTriangle size={16} className="text-rose-600 shrink-0" />
@@ -584,7 +599,7 @@ export default function Billing() {
             </div>
 
             <form onSubmit={handlePaymentClick} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5 text-xs">
                 {errorMessage && (
                   <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
                     <AlertTriangle size={16} className="text-rose-600 shrink-0" />
@@ -780,6 +795,6 @@ export default function Billing() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

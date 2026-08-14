@@ -12,31 +12,70 @@ function getFormattedDateString(date = new Date()) {
 }
 
 /**
- * Checks all Scheduled appointments whose date has passed without check-in,
+ * Parses appointment date and time string into a Date object.
+ * Handles 12-hour ("09:45 AM", "2:30 pm") and 24-hour ("14:30", "09:30") formats.
+ */
+function parseAppointmentDateTime(dateVal, timeStr) {
+  if (!dateVal) return null;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+
+  let hours = 9;
+  let minutes = 0;
+
+  if (timeStr && typeof timeStr === 'string') {
+    const cleanTime = timeStr.trim().toUpperCase();
+    const isPM = cleanTime.includes('PM');
+    const isAM = cleanTime.includes('AM');
+    const digitsOnly = cleanTime.replace(/[^0-9:]/g, '');
+    const parts = digitsOnly.split(':');
+
+    if (parts.length >= 1 && parts[0] !== '') {
+      let parsedHours = parseInt(parts[0], 10);
+      if (parts.length >= 2 && parts[1] !== '') {
+        minutes = parseInt(parts[1], 10) || 0;
+      }
+
+      if (isPM && parsedHours < 12) {
+        parsedHours += 12;
+      } else if (isAM && parsedHours === 12) {
+        parsedHours = 0;
+      }
+      hours = parsedHours;
+    }
+  }
+
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), hours, minutes, 0, 0);
+}
+
+/**
+ * Checks all Scheduled appointments whose scheduled date+time has passed by more than gracePeriodMinutes (default 30),
  * and auto-flags both the appointment and any linked follow-up as 'Missed'.
  */
-async function checkAndMarkMissedAppointments() {
+async function checkAndMarkMissedAppointments(gracePeriodMinutes = 30) {
   try {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - gracePeriodMinutes * 60 * 1000);
 
-    const missedAppointments = await Appointment.find({
+    const candidateAppointments = await Appointment.find({
       status: 'Scheduled',
-      date: { $lt: startOfToday },
       isDeleted: { $ne: true },
     });
 
-    for (const appt of missedAppointments) {
-      appt.status = 'Missed';
-      await appt.save();
+    for (const appt of candidateAppointments) {
+      const scheduledDateTime = parseAppointmentDateTime(appt.date, appt.time);
+      if (scheduledDateTime && scheduledDateTime < cutoffTime) {
+        appt.status = 'Missed';
+        await appt.save();
 
-      const linkedFollowUp = await FollowUp.findOne({
-        scheduledAppointment: appt._id,
-      });
+        const linkedFollowUp = await FollowUp.findOne({
+          scheduledAppointment: appt._id,
+        });
 
-      if (linkedFollowUp && linkedFollowUp.status === 'Scheduled') {
-        linkedFollowUp.status = 'Missed';
-        await linkedFollowUp.save();
+        if (linkedFollowUp && ['Scheduled', 'Pending'].includes(linkedFollowUp.status)) {
+          linkedFollowUp.status = 'Missed';
+          await linkedFollowUp.save();
+        }
       }
     }
   } catch (err) {
@@ -48,6 +87,7 @@ async function checkAndMarkMissedAppointments() {
  * Synchronizes visit/appointment status across Appointment, QueueEntry, Consultation, and FollowUp models.
  * State Machine Progression:
  *   Scheduled -> Checked-In -> In Consultation -> Completed (or Cancelled / Missed)
+ *   Allows late check-in: Missed -> Checked-In
  */
 async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, status }) {
   let stdStatus = status;
@@ -136,18 +176,20 @@ async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, st
       const current = linkedFollowUp.status;
       let allowed = false;
 
-      // Strict state machine progression:
+      // Strict state machine progression + Late Check-In support:
       // Scheduled -> Checked-In / In Consultation / Cancelled / Missed
+      // Missed -> Checked-In / In Consultation / Cancelled (Late arrival check-in)
       // Checked-In -> In Consultation / Completed / Cancelled
       // In Consultation -> Completed / Cancelled
       if (current === 'Scheduled' && ['Checked-In', 'In Consultation', 'Cancelled', 'Missed', 'No Show'].includes(stdStatus)) {
+        allowed = true;
+      } else if (current === 'Missed' && ['Checked-In', 'In Consultation', 'Cancelled'].includes(stdStatus)) {
         allowed = true;
       } else if (current === 'Checked-In' && ['In Consultation', 'Completed', 'Cancelled'].includes(stdStatus)) {
         allowed = true;
       } else if (current === 'In Consultation' && ['Completed', 'Cancelled'].includes(stdStatus)) {
         allowed = true;
-      } else if (stdStatus === 'Completed' && (current === 'Checked-In' || current === 'In Consultation' || current === 'Scheduled')) {
-        // Only set Completed if consultation is finished
+      } else if (stdStatus === 'Completed' && (current === 'Checked-In' || current === 'In Consultation' || current === 'Scheduled' || current === 'Missed')) {
         allowed = true;
       } else if (stdStatus === 'Cancelled') {
         allowed = true;
@@ -166,5 +208,6 @@ async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, st
 module.exports = {
   syncVisitStatus,
   getFormattedDateString,
+  parseAppointmentDateTime,
   checkAndMarkMissedAppointments,
 };

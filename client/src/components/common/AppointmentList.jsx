@@ -7,6 +7,7 @@ const DEFAULT_STATUS_CLASSES = {
   Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
   'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
+  Missed: 'bg-rose-100 text-rose-800 border-rose-200',
 };
 
 const defaultFormatDate = (dStr) => {
@@ -66,6 +67,7 @@ export default function AppointmentList({
               ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim()
               : 'Unknown Patient';
             const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned';
+            const isCanCheckIn = (apt.status === 'Scheduled' || apt.status === 'Missed') && onCheckIn;
             const isScheduled = apt.status === 'Scheduled';
             const isLockedStatus = ['Completed', 'Cancelled', 'No Show'].includes(apt.status);
 
@@ -116,14 +118,18 @@ export default function AppointmentList({
 
                 <td className="px-5 py-4 text-right whitespace-nowrap">
                   <div className="flex items-center justify-end gap-1.5">
-                    {/* 1. Check-In action for Scheduled appointments */}
-                    {isScheduled && onCheckIn && (
+                    {/* 1. Check-In action for Scheduled or Missed (Late Arrival) appointments */}
+                    {isCanCheckIn && (
                       <button
                         onClick={() => onCheckIn(apt)}
-                        title="Check In Patient"
-                        className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
+                        title={apt.status === 'Missed' ? 'Late Arrival Check-In' : 'Check In Patient'}
+                        className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                          apt.status === 'Missed'
+                            ? 'border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100'
+                            : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                        }`}
                       >
-                        <UserCheck size={13} /> Check-In
+                        <UserCheck size={13} /> {apt.status === 'Missed' ? 'Late Check-In' : 'Check-In'}
                       </button>
                     )}
 

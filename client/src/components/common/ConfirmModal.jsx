@@ -96,10 +96,10 @@ export default function ConfirmModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="card w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in zoom-in-95 duration-150"
+        className="card w-full max-w-md max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in zoom-in-95 duration-150"
       >
         {/* Fixed Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
           <div className="flex items-center gap-3">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${config.iconBg}`}>
               <IconComponent size={18} />
@@ -117,13 +117,13 @@ export default function ConfirmModal({
           </button>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 text-xs text-ink-soft space-y-2 leading-relaxed">
+        {/* Scrollable Body - uses flex flex-col gap-2.5 for clean, margin-free top spacing */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 text-xs text-ink-soft flex flex-col gap-2.5 leading-relaxed">
           {typeof message === 'string' ? <p className="text-xs text-ink-soft">{message}</p> : message}
         </div>
 
         {/* Fixed Footer */}
-        <div className="flex items-center justify-end gap-2.5 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+        <div className="flex items-center justify-end gap-2.5 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-bg/50 shrink-0">
           <button
             type="button"
             disabled={isProcessing}

@@ -16,6 +16,7 @@ const STATUS_OPTIONS = [
   'Completed',
   'Cancelled',
   'No Show',
+  'Missed',
 ];
 
 export default function AdminAppointments() {

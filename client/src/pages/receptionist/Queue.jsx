@@ -325,7 +325,8 @@ export default function Queue() {
   const hasActiveCompletedFilters = Boolean(searchQuery || doctorFilter || typeFilter || statusFilter || (dateFilter !== getTodayString()));
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <>
+      <div className="space-y-6 max-w-7xl">
       {/* Header & Main Action */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -764,6 +765,7 @@ export default function Queue() {
           </div>
         </div>
       )}
+      </div>
 
       {/* BRIEF VISIT SUMMARY MODAL (COMPLETED QUEUE) */}
       {selectedVisitSummary && (
@@ -799,7 +801,7 @@ export default function Queue() {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5 text-xs">
               {/* Patient Banner */}
               <div className="p-3.5 rounded-xl bg-bg border border-border space-y-1">
                 <div className="flex items-center justify-between">
@@ -897,7 +899,7 @@ export default function Queue() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-[360px]">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5 min-h-[360px]">
               {/* Error Banner inside Modal */}
               {errorMessage && (
                 <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
@@ -908,7 +910,7 @@ export default function Queue() {
 
               {/* STEP 1: Search or Register Patient */}
               {step === 1 && (
-                <div className="space-y-4 min-h-[300px]">
+                <div className="flex flex-col gap-3.5 min-h-[300px]">
                   <div className="flex rounded-xl border border-border p-1 bg-bg">
                     <button
                       type="button"
@@ -1171,6 +1173,6 @@ export default function Queue() {
         variant="cancel"
         loading={cancellingQueue}
       />
-    </div>
+    </>
   );
 }

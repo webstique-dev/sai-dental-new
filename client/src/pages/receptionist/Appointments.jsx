@@ -9,7 +9,40 @@ import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+
+// Helper to get today's date & exact current system time in 12-hour AM/PM format
+function getInitialExactDateTime() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
+
+  let rawH = now.getHours();
+  let m = now.getMinutes();
+  const period = rawH >= 12 ? 'PM' : 'AM';
+  let h12 = rawH % 12 === 0 ? 12 : rawH % 12;
+
+  const hourStr = String(h12).padStart(2, '0');
+  const minStr = String(m).padStart(2, '0');
+  const timeStr = `${hourStr}:${minStr} ${period}`;
+
+  return { dateStr, timeStr };
+}
+
+const TIME_SLOT_OPTIONS = [];
+for (let h = 7; h <= 21; h++) {
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const hStr = String(h12).padStart(2, '0');
+  for (let m of [0, 15, 30, 45]) {
+    if (h === 21 && m > 0) break;
+    const mStr = String(m).padStart(2, '0');
+    TIME_SLOT_OPTIONS.push(`${hStr}:${mStr} ${period}`);
+  }
+}
 
 // Status options permitted for receptionist edit modal
 const RECEPTIONIST_STATUS_OPTIONS = [
@@ -17,6 +50,7 @@ const RECEPTIONIST_STATUS_OPTIONS = [
   'Checked-In',
   'Cancelled',
   'No Show',
+  'Missed',
 ];
 
 const ALL_STATUS_OPTIONS = [
@@ -26,6 +60,7 @@ const ALL_STATUS_OPTIONS = [
   'Completed',
   'Cancelled',
   'No Show',
+  'Missed',
 ];
 
 const STATUS_BADGE_CLASSES = {
@@ -35,6 +70,7 @@ const STATUS_BADGE_CLASSES = {
   Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
   'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
+  Missed: 'bg-rose-100 text-rose-800 border-rose-200',
 };
 
 export default function Appointments() {
@@ -158,11 +194,12 @@ export default function Appointments() {
     setSelectedPatient(null);
     setPatientSearch('');
     const firstDocId = doctors[0]?._id || doctors[0]?.id || '';
+    const { dateStr, timeStr } = getInitialExactDateTime();
     setFormData({
       patient: '',
       doctor: firstDocId,
-      date: new Date().toISOString().split('T')[0],
-      time: '09:30',
+      date: dateStr,
+      time: timeStr,
       type: 'Appointment',
       reason: '',
     });
@@ -270,7 +307,8 @@ export default function Appointments() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       {/* Top Header & Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -449,12 +487,13 @@ export default function Appointments() {
           statusBadgeClasses={STATUS_BADGE_CLASSES}
         />
       )}
+      </div>
 
       {/* CREATE APPOINTMENT MODAL (Status input removed completely) */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
-          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
               <h3 className="font-display text-base sm:text-lg font-bold text-ink">Book New Appointment</h3>
               <button onClick={() => setShowCreateModal(false)} className="rounded-lg p-1 hover:bg-bg">
                 <X size={18} />
@@ -462,7 +501,7 @@ export default function Appointments() {
             </div>
 
             <form onSubmit={handleCreateSubmit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
                 {/* Patient Selector */}
                 <PatientSearchInput
                   selectedPatient={selectedPatient}
@@ -500,13 +539,10 @@ export default function Appointments() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-ink-soft mb-1">Time</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="e.g. 10:30 AM"
+                    <SplitTimeInput
+                      label="Time"
                       value={formData.time}
-                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                      onChange={(time12) => setFormData({ ...formData, time: time12 })}
                     />
                   </div>
                 </div>
@@ -537,7 +573,7 @@ export default function Appointments() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   className="btn-secondary text-xs"
@@ -568,7 +604,7 @@ export default function Appointments() {
             </div>
 
             <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
                 <div className="rounded-xl bg-bg p-3 text-xs">
                   <span className="text-ink-soft font-semibold block">Patient</span>
                   <span className="font-bold text-ink text-sm">
@@ -607,12 +643,10 @@ export default function Appointments() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-ink-soft mb-1">Time</label>
-                    <input
-                      type="text"
-                      className="input-field"
+                    <SplitTimeInput
+                      label="Time"
                       value={editFormData.time}
-                      onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
+                      onChange={(time12) => setEditFormData({ ...editFormData, time: time12 })}
                     />
                   </div>
                 </div>
@@ -763,6 +797,6 @@ export default function Appointments() {
         variant="danger"
         loading={actionLoading}
       />
-    </div>
+    </>
   );
 }
