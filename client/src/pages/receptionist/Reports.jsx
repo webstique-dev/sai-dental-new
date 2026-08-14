@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   FileBarChart, CalendarDays, Wallet, Clock, CheckCircle2, UserCheck, Bell,
-  CreditCard, DollarSign, Filter, RefreshCw, AlertCircle, Users
+  CreditCard, DollarSign, Filter, RefreshCw, AlertCircle, Users, Phone, Globe,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
@@ -25,9 +25,9 @@ export default function ReceptionistReports() {
       if (dateTo) params.append('dateTo', dateTo);
 
       const res = await api.get(`/reports/reception-summary?${params.toString()}`);
-      setReportData(res.data || null);
+      setReportData(res.data);
     } catch (err) {
-      console.error('Failed to load reception summary report:', err);
+      console.error('Failed to fetch reception report data:', err);
     } finally {
       setLoading(false);
     }
@@ -37,14 +37,13 @@ export default function ReceptionistReports() {
     fetchReports();
   }, [dateFrom, dateTo]);
 
-  const handleQuickFilter = (type) => {
+  const handleQuickRange = (type) => {
     setActiveQuickFilter(type);
     const now = new Date();
 
     if (type === 'today') {
-      const iso = getTodayISO();
-      setDateFrom(iso);
-      setDateTo(iso);
+      setDateFrom(getTodayISO());
+      setDateTo(getTodayISO());
     } else if (type === 'week') {
       const startOfWeek = new Date(now);
       const day = now.getDay();
@@ -61,12 +60,17 @@ export default function ReceptionistReports() {
   };
 
   const aptSummary = reportData?.appointmentSummary || { scheduled: 0, checkedIn: 0, completed: 0, cancelled: 0, noShow: 0 };
-  const queueSummary = reportData?.queueSummary || { totalWalkIns: 0, totalAppointmentVisits: 0 };
+  const queueSummary = reportData?.queueSummary || { totalWalkIns: 0, totalPhoneBookings: 0, totalOnlineBookings: 0, totalAppointmentVisits: 0 };
   const paymentsColl = reportData?.paymentsCollected || { totalAmount: 0, byMethod: { Cash: 0, Card: 0, UPI: 0, Other: 0 } };
   const pendingPayments = reportData?.pendingPayments || { count: 0, totalOutstanding: 0 };
   const followUps = reportData?.followUpCompliance || { due: 0, scheduled: 0, completed: 0 };
 
   const totalApptCount = (aptSummary.scheduled || 0) + (aptSummary.checkedIn || 0) + (aptSummary.completed || 0) + (aptSummary.cancelled || 0) + (aptSummary.noShow || 0);
+
+  const totalIntake = (queueSummary.totalWalkIns || 0) + (queueSummary.totalPhoneBookings || 0) + (queueSummary.totalOnlineBookings || 0);
+  const walkInPct = totalIntake ? Math.round(((queueSummary.totalWalkIns || 0) / totalIntake) * 100) : 0;
+  const phonePct = totalIntake ? Math.round(((queueSummary.totalPhoneBookings || 0) / totalIntake) * 100) : 0;
+  const onlinePct = totalIntake ? Math.round(((queueSummary.totalOnlineBookings || 0) / totalIntake) * 100) : 0;
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -88,97 +92,103 @@ export default function ReceptionistReports() {
 
       {/* Date Filter & Quick Range Selectors */}
       <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider flex items-center gap-1">
-            <Filter size={14} className="text-brand" /> Quick Select:
-          </span>
-          <button
-            onClick={() => handleQuickFilter('today')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activeQuickFilter === 'today'
-              ? 'bg-brand text-white border-brand'
-              : 'bg-bg text-ink border-border hover:bg-bg/80'
+        <div className="flex items-center gap-2">
+          <Filter size={16} className="text-ink-soft" />
+          <span className="text-xs font-bold text-ink">Date Filter:</span>
+
+          <div className="flex items-center gap-1 bg-bg p-1 rounded-xl border border-border">
+            <button
+              onClick={() => handleQuickRange('today')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                activeQuickFilter === 'today' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
               }`}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => handleQuickFilter('week')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activeQuickFilter === 'week'
-              ? 'bg-brand text-white border-brand'
-              : 'bg-bg text-ink border-border hover:bg-bg/80'
+            >
+              Today
+            </button>
+            <button
+              onClick={() => handleQuickRange('week')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                activeQuickFilter === 'week' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
               }`}
-          >
-            This Week
-          </button>
-          <button
-            onClick={() => handleQuickFilter('month')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${activeQuickFilter === 'month'
-              ? 'bg-brand text-white border-brand'
-              : 'bg-bg text-ink border-border hover:bg-bg/80'
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => handleQuickRange('month')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                activeQuickFilter === 'month' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
               }`}
-          >
-            This Month
-          </button>
+            >
+              This Month
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-ink-soft">From:</span>
+        <div className="flex items-center gap-2 text-xs">
           <DatePicker
+            label=""
             value={dateFrom}
-            onChange={(date, dateStr) => {
+            onChange={(d, str) => {
+              setDateFrom(str);
               setActiveQuickFilter('custom');
-              setDateFrom(dateStr);
             }}
-            wrapperClassName="w-36"
-            inputClassName="py-1 text-xs"
           />
-          <span className="text-xs font-semibold text-ink-soft">To:</span>
+          <span className="text-ink-soft">to</span>
           <DatePicker
+            label=""
             value={dateTo}
-            onChange={(date, dateStr) => {
+            onChange={(d, str) => {
+              setDateTo(str);
               setActiveQuickFilter('custom');
-              setDateTo(dateStr);
             }}
-            wrapperClassName="w-36"
-            inputClassName="py-1 text-xs"
           />
         </div>
       </div>
 
-      {loading ? (
-        <div className="card p-12 text-center text-sm text-ink-soft">Calculating operational report metrics...</div>
-      ) : !reportData ? (
-        <div className="card p-12 text-center text-sm text-ink-soft">No front-desk activity recorded in this date range.</div>
-      ) : (
-        <>
-          {/* STAT CARDS ROW */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Checked-In Patients"
-              value={String(aptSummary.checkedIn || 0)}
-              sub={`Out of ${totalApptCount} scheduled appointments`}
-              icon={UserCheck}
-            />
-            <StatCard
-              title="Front Desk Payments"
-              value={`₹${(paymentsColl.totalAmount || 0).toLocaleString()}`}
-              sub="Collected at reception desk"
-              icon={DollarSign}
-            />
-            <StatCard
-              title="Pending Patient Dues"
-              value={`₹${(pendingPayments.totalOutstanding || 0).toLocaleString()}`}
-              sub={`${pendingPayments.count} pending invoice balances`}
-              icon={Wallet}
-            />
-            <StatCard
-              title="Follow-Ups Due"
-              value={String(followUps.due || 0)}
-              sub="Recommended return visits"
-              icon={Bell}
-            />
-          </div>
+      {/* TOP STAT CARDS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Appointments Today"
+          value={loading ? '...' : String(totalApptCount)}
+          subtitle={`${aptSummary.scheduled} scheduled • ${aptSummary.checkedIn} checked in`}
+          icon={CalendarDays}
+          trend={aptSummary.completed > 0 ? `${aptSummary.completed} completed` : undefined}
+          trendType="neutral"
+        />
 
+        <StatCard
+          title="Payments Collected"
+          value={loading ? '...' : `₹${(paymentsColl.totalAmount || 0).toLocaleString()}`}
+          subtitle={`Cash: ₹${(paymentsColl.byMethod?.Cash || 0).toLocaleString()} • Card: ₹${(paymentsColl.byMethod?.Card || 0).toLocaleString()}`}
+          icon={Wallet}
+          trend="Front Desk Revenue"
+          trendType="up"
+        />
+
+        <StatCard
+          title="Pending Payments"
+          value={loading ? '...' : `₹${(pendingPayments.totalOutstanding || 0).toLocaleString()}`}
+          subtitle={`${pendingPayments.count || 0} pending invoices`}
+          icon={AlertCircle}
+          trend={pendingPayments.count > 0 ? 'Action required' : 'All clear'}
+          trendType={pendingPayments.count > 0 ? 'down' : 'up'}
+        />
+
+        <StatCard
+          title="Follow-Up Compliance"
+          value={loading ? '...' : String(followUps.due || 0)}
+          subtitle={`${followUps.scheduled} scheduled • ${followUps.completed} completed`}
+          icon={UserCheck}
+          trend="Recall Pipeline"
+          trendType="neutral"
+        />
+      </div>
+
+      {/* MAIN CONTENT BLOCK */}
+      {loading ? (
+        <div className="card p-12 text-center text-xs text-ink-soft">Loading operational metrics...</div>
+      ) : (
+        <div className="space-y-6">
           {/* MAIN BREAKDOWN SECTIONS */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Section 1: Appointment & Queue Traffic Breakdown */}
@@ -188,7 +198,7 @@ export default function ReceptionistReports() {
                   <CalendarDays size={18} className="text-brand" /> Appointment & Queue Traffic Summary
                 </h3>
                 <span className="badge bg-brand/10 text-brand font-semibold text-xs">
-                  Total Traffic: {(queueSummary.totalWalkIns || 0) + (queueSummary.totalAppointmentVisits || 0)}
+                  Total Traffic: {totalIntake}
                 </span>
               </div>
 
@@ -226,17 +236,44 @@ export default function ReceptionistReports() {
                   <div className="card p-4 space-y-3 bg-bg/50 border-border/60">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Users size={16} className="text-brand" />
+                        <Users size={16} className="text-brand shrink-0" />
                         <span className="text-xs font-semibold text-ink">Walk-In Visits</span>
                       </div>
-                      <span className="font-mono font-bold text-sm text-brand">{queueSummary.totalWalkIns}</span>
+                      <span className="font-mono font-bold text-sm text-brand">{queueSummary.totalWalkIns || 0}</span>
                     </div>
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <CalendarDays size={16} className="text-indigo-600" />
-                        <span className="text-xs font-semibold text-ink">Scheduled Appointments</span>
+                        <Phone size={16} className="text-indigo-600 shrink-0" />
+                        <span className="text-xs font-semibold text-ink">Phone Bookings</span>
                       </div>
-                      <span className="font-mono font-bold text-sm text-indigo-700">{queueSummary.totalAppointmentVisits}</span>
+                      <span className="font-mono font-bold text-sm text-indigo-700">{queueSummary.totalPhoneBookings || 0}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Globe size={16} className="text-emerald-600 shrink-0" />
+                        <span className="text-xs font-semibold text-ink">Online Bookings</span>
+                      </div>
+                      <span className="font-mono font-bold text-sm text-emerald-700">{queueSummary.totalOnlineBookings || 0}</span>
+                    </div>
+
+                    {/* Visual Channel Distribution Bar */}
+                    <div className="pt-2.5 border-t border-border/60 space-y-1.5">
+                      <div className="flex justify-between text-[11px] font-semibold text-ink-soft">
+                        <span>Channel Distribution</span>
+                        <span>{totalIntake} Total Intake</span>
+                      </div>
+                      <div className="h-2.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                        <div style={{ width: `${walkInPct}%` }} className="bg-brand h-full transition-all" title={`Walk-In: ${walkInPct}%`} />
+                        <div style={{ width: `${phonePct}%` }} className="bg-indigo-600 h-full transition-all" title={`Phone: ${phonePct}%`} />
+                        <div style={{ width: `${onlinePct}%` }} className="bg-emerald-500 h-full transition-all" title={`Online: ${onlinePct}%`} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-ink-soft pt-1">
+                        <span className="flex items-center gap-1 font-medium"><span className="h-2 w-2 rounded-full bg-brand inline-block" /> Walk-In ({walkInPct}%)</span>
+                        <span className="flex items-center gap-1 font-medium"><span className="h-2 w-2 rounded-full bg-indigo-600 inline-block" /> Phone ({phonePct}%)</span>
+                        <span className="flex items-center gap-1 font-medium"><span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" /> Online ({onlinePct}%)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -265,42 +302,13 @@ export default function ReceptionistReports() {
                   <span className="font-mono text-purple-800">₹{(paymentsColl.byMethod?.UPI || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between p-2.5 rounded bg-bg font-semibold">
-                  <span>Other Methods</span>
-                  <span className="font-mono text-slate-800">₹{(paymentsColl.byMethod?.Other || 0).toLocaleString()}</span>
+                  <span>Other / Transfers</span>
+                  <span className="font-mono text-slate-700">₹{(paymentsColl.byMethod?.Other || 0).toLocaleString()}</span>
                 </div>
               </div>
-
-              <div className="pt-2 border-t border-border flex justify-between items-center text-xs font-bold text-ink">
-                <span>Total Desk Collections:</span>
-                <span className="font-mono text-emerald-700 text-sm">₹{(paymentsColl.totalAmount || 0).toLocaleString()}</span>
-              </div>
             </div>
           </div>
-
-          {/* Section 3: Follow-Up Compliance */}
-          <div className="card p-5 space-y-3">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-                <Bell size={18} className="text-brand" /> Follow-Up Schedule Compliance
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-                <div className="text-[11px] font-semibold text-amber-800">Pending Return Due</div>
-                <div className="text-lg font-bold text-amber-900 mt-0.5">{followUps.due}</div>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-200">
-                <div className="text-[11px] font-semibold text-blue-800">Appointment Booked</div>
-                <div className="text-lg font-bold text-blue-900 mt-0.5">{followUps.scheduled}</div>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                <div className="text-[11px] font-semibold text-emerald-800">Completed Visits</div>
-                <div className="text-lg font-bold text-emerald-900 mt-0.5">{followUps.completed}</div>
-              </div>
-            </div>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

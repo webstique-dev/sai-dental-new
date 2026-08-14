@@ -10,7 +10,13 @@ const appointmentStatusOptions = [
   'Missed',
 ];
 
-const appointmentTypeOptions = ['Appointment', 'Walk-in'];
+const appointmentTypeOptions = [
+  'Walk-In',
+  'Phone Booking',
+  'Online Booking',
+  'Appointment', // Legacy support
+  'Walk-in',     // Legacy support
+];
 
 const appointmentSchema = new mongoose.Schema(
   {
@@ -43,7 +49,7 @@ const appointmentSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: appointmentTypeOptions,
-      default: 'Appointment',
+      default: 'Walk-In',
     },
     followUp: {
       type: mongoose.Schema.Types.ObjectId,

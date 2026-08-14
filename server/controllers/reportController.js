@@ -78,20 +78,32 @@ async function getReceptionSummary(req, res, next) {
       noShow,
     };
 
-    // 2. Queue Summary (total walk-ins vs appointment visits)
-    const totalWalkIns = await QueueEntry.countDocuments({
+    // 2. Queue Summary / Intake Breakdown across Walk-In, Phone Booking, and Online Booking
+    const walkInAppts = await Appointment.countDocuments({
       date: { $gte: start, $lte: end },
-      type: { $in: ['Walk-in', 'walk_in', 'Walk In'] },
+      type: { $in: ['Walk-In', 'Walk-in', 'walk_in'] },
     });
-    const totalAppointmentVisits = await QueueEntry.countDocuments({
+    const walkInQueue = await QueueEntry.countDocuments({
       date: { $gte: start, $lte: end },
-      type: { $in: ['Appointment', 'appointment'] },
+      type: { $in: ['Walk-in', 'walk_in', 'Walk In', 'Walk-In'] },
+    });
+    const totalWalkIns = Math.max(walkInAppts, walkInQueue);
+
+    const totalPhoneBookings = await Appointment.countDocuments({
+      date: { $gte: start, $lte: end },
+      type: { $in: ['Phone Booking', 'Appointment', 'appointment'] }, // Map legacy Appointment entries to Phone Booking
     });
 
-    // Note: averageWaitMinutes is omitted because QueueEntry tracks checkInTime but does not store a separate withDoctorTimestamp field.
+    const totalOnlineBookings = await Appointment.countDocuments({
+      date: { $gte: start, $lte: end },
+      type: 'Online Booking',
+    });
+
     const queueSummary = {
       totalWalkIns,
-      totalAppointmentVisits,
+      totalPhoneBookings,
+      totalOnlineBookings,
+      totalAppointmentVisits: totalWalkIns + totalPhoneBookings + totalOnlineBookings,
     };
 
     // 3. Payments Collected (summed from Invoice.payments within date range)

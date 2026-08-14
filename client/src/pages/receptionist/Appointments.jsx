@@ -110,7 +110,7 @@ export default function Appointments() {
     doctor: '',
     date: new Date().toISOString().split('T')[0],
     time: '09:30',
-    type: 'Appointment',
+    type: 'Walk-In',
     reason: '',
   });
 
@@ -119,7 +119,7 @@ export default function Appointments() {
     doctor: '',
     date: '',
     time: '',
-    type: 'Appointment',
+    type: 'Walk-In',
     reason: '',
     status: 'Scheduled',
   });
@@ -549,14 +549,15 @@ export default function Appointments() {
 
                 {/* Type */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">Booking Source / Type</label>
                   <select
                     className="input-field"
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   >
-                    <option value="Appointment">Appointment</option>
-                    <option value="Walk-in">Walk-in</option>
+                    <option value="Walk-In">Walk-In</option>
+                    <option value="Phone Booking">Phone Booking</option>
+                    <option value="Online Booking">Online Booking</option>
                   </select>
                 </div>
 
@@ -654,14 +655,15 @@ export default function Appointments() {
                 {/* Type & Status */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">Booking Source / Type</label>
                     <select
                       className="input-field"
                       value={editFormData.type}
                       onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
                     >
-                      <option value="Appointment">Appointment</option>
-                      <option value="Walk-in">Walk-in</option>
+                      <option value="Walk-In">Walk-In</option>
+                      <option value="Phone Booking">Phone Booking</option>
+                      <option value="Online Booking">Online Booking</option>
                     </select>
                   </div>
                   <div>
