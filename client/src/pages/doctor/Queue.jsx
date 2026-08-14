@@ -6,8 +6,10 @@ import {
 import api from '../../api/axios.js';
 
 const STATUS_BADGE_CLASSES = {
+  Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
   'Checked-In': 'bg-amber-100 text-amber-800 border-amber-200',
-  'With Doctor': 'bg-purple-100 text-purple-800 border-purple-200',
+  'In Consultation': 'bg-purple-100 text-purple-800 border-purple-200',
+  Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
 };
 
 export default function DoctorQueue() {
@@ -66,9 +68,9 @@ export default function DoctorQueue() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <ClipboardList size={22} className="text-brand" /> My Queue
+            <ClipboardList size={22} className="text-brand" /> My Clinical Queue
           </h2>
-          <p className="text-sm text-ink-soft">Today's checked-in patients waiting for clinical consultation</p>
+          <p className="text-sm text-ink-soft">Today's checked-in patients waiting for consultation</p>
         </div>
 
         <button
@@ -94,9 +96,9 @@ export default function DoctorQueue() {
         ) : queueEntries.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <UserSquare2 size={36} className="mx-auto text-ink-soft/50" />
-            <p className="font-display text-base font-semibold text-ink">No patients in queue</p>
+            <p className="font-display text-base font-semibold text-ink">No active patients waiting in your queue</p>
             <p className="text-sm text-ink-soft">
-              There are currently no checked-in patients waiting for consultation today.
+              Checked-in patients assigned to you will automatically appear here.
             </p>
           </div>
         ) : (
@@ -104,6 +106,7 @@ export default function DoctorQueue() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
                 <tr>
+                  <th className="px-5 py-3.5">Token</th>
                   <th className="px-5 py-3.5">Patient</th>
                   <th className="px-5 py-3.5">OP No</th>
                   <th className="px-5 py-3.5">Type</th>
@@ -122,10 +125,18 @@ export default function DoctorQueue() {
                     ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : 'N/A';
 
-                  const isWithDoctor = entry.status === 'With Doctor' || entry.activeConsultationId;
+                  const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
+                  const isConsulting = displayStatus === 'In Consultation' || entry.activeConsultationId;
 
                   return (
                     <tr key={entryId} className="hover:bg-bg/60 transition-colors">
+                      {/* Token */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white font-mono text-base font-bold shadow-sm">
+                          #{entry.token || 1}
+                        </span>
+                      </td>
+
                       {/* Patient */}
                       <td className="px-5 py-4">
                         <div className="font-semibold text-ink">{patientName}</div>
@@ -142,10 +153,11 @@ export default function DoctorQueue() {
                       {/* Type */}
                       <td className="px-5 py-4 text-xs">
                         <span
-                          className={`badge ${entry.type === 'Walk-in'
-                            ? 'bg-orange-100 text-orange-800'
-                            : 'bg-blue-50 text-blue-700'
-                            }`}
+                          className={`badge ${
+                            entry.type === 'Walk-in'
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-blue-50 text-blue-700'
+                          }`}
                         >
                           {entry.type}
                         </span>
@@ -161,36 +173,34 @@ export default function DoctorQueue() {
                       {/* Status */}
                       <td className="px-5 py-4">
                         <span
-                          className={`badge border ${STATUS_BADGE_CLASSES[entry.status] || 'bg-slate-100 text-slate-800'
-                            }`}
+                          className={`badge border ${
+                            STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'
+                          }`}
                         >
-                          {entry.status}
+                          {displayStatus}
                         </span>
                       </td>
 
                       {/* Action */}
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        {['Completed', 'Cancelled'].includes(entry.status) ? (
-                          <span className="text-xs text-ink-soft/40 italic">—</span>
-                        ) : (
-                          <button
-                            disabled={submittingId === entryId}
-                            onClick={() => handleStartConsultation(entry)}
-                            className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${isWithDoctor
+                        <button
+                          disabled={submittingId === entryId}
+                          onClick={() => handleStartConsultation(entry)}
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${
+                            isConsulting
                               ? 'bg-purple-600 text-white hover:bg-purple-700'
                               : 'bg-brand text-white hover:bg-brand-dark'
-                              }`}
-                          >
-                            <Play size={14} fill="currentColor" />
-                            <span>
-                              {submittingId === entryId
-                                ? 'Starting...'
-                                : isWithDoctor
-                                  ? 'Continue Consultation'
-                                  : 'Start Consultation'}
-                            </span>
-                          </button>
-                        )}
+                          }`}
+                        >
+                          <Play size={14} fill="currentColor" />
+                          <span>
+                            {submittingId === entryId
+                              ? 'Loading...'
+                              : isConsulting
+                              ? 'Continue Consultation'
+                              : 'Start Consultation'}
+                          </span>
+                        </button>
                       </td>
                     </tr>
                   );

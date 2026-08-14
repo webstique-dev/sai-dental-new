@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   CalendarDays, List, Plus, Search, Filter, X, CheckCircle2, AlertTriangle,
-  Clock, User, Stethoscope, FileText, Trash2, Edit3, ChevronLeft, ChevronRight,
+  Clock, UserCheck, UserX, Trash2, Edit3, RefreshCw, ChevronRight,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
@@ -11,7 +11,15 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
-const STATUS_OPTIONS = [
+// Status options permitted for receptionist edit modal
+const RECEPTIONIST_STATUS_OPTIONS = [
+  'Scheduled',
+  'Checked-In',
+  'Cancelled',
+  'No Show',
+];
+
+const ALL_STATUS_OPTIONS = [
   'Scheduled',
   'Checked-In',
   'In Consultation',
@@ -40,6 +48,7 @@ export default function Appointments() {
 
   // Filters
   const [search, setSearch] = useState('');
+  const [dateFilterPreset, setDateFilterPreset] = useState('today'); // 'all' | 'today' | 'upcoming' | 'custom'
   const [dateFilter, setDateFilter] = useState('');
   const [doctorFilter, setDoctorFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -48,13 +57,15 @@ export default function Appointments() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [cancellingAppointment, setCancellingAppointment] = useState(null);
-  const [isCancelling, setIsCancelling] = useState(false);
+  const [checkingInAppointment, setCheckingInAppointment] = useState(null);
+  const [noShowAppointment, setNoShowAppointment] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Notifications
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Create/Edit Form state
+  // Create Form state (Status field removed - defaults to Scheduled)
   const [patientSearch, setPatientSearch] = useState('');
   const [patientOptions, setPatientOptions] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -62,7 +73,16 @@ export default function Appointments() {
     patient: '',
     doctor: '',
     date: new Date().toISOString().split('T')[0],
-    time: '09:00',
+    time: '09:30',
+    type: 'Appointment',
+    reason: '',
+  });
+
+  // Edit Form state
+  const [editFormData, setEditFormData] = useState({
+    doctor: '',
+    date: '',
+    time: '',
     type: 'Appointment',
     reason: '',
     status: 'Scheduled',
@@ -90,9 +110,16 @@ export default function Appointments() {
       setLoading(true);
       const params = new URLSearchParams();
       if (search) params.append('search', search);
-      if (dateFilter) params.append('date', dateFilter);
       if (doctorFilter) params.append('doctor', doctorFilter);
       if (statusFilter) params.append('status', statusFilter);
+
+      if (dateFilterPreset === 'today') {
+        params.append('dateFilterPreset', 'today');
+      } else if (dateFilterPreset === 'upcoming') {
+        params.append('dateFilterPreset', 'upcoming');
+      } else if (dateFilterPreset === 'custom' && dateFilter) {
+        params.append('date', dateFilter);
+      }
 
       const res = await api.get(`/appointments?${params.toString()}`);
       setAppointments(res.data?.appointments || []);
@@ -106,9 +133,9 @@ export default function Appointments() {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchAppointments();
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
-  }, [search, dateFilter, doctorFilter, statusFilter]);
+  }, [search, dateFilterPreset, dateFilter, doctorFilter, statusFilter]);
 
   // Live patient search inside create modal
   useEffect(() => {
@@ -138,7 +165,6 @@ export default function Appointments() {
       time: '09:30',
       type: 'Appointment',
       reason: '',
-      status: 'Scheduled',
     });
     setShowCreateModal(true);
   };
@@ -153,12 +179,12 @@ export default function Appointments() {
       const payload = {
         ...formData,
         patient: selectedPatient._id,
+        status: 'Scheduled', // Every new appointment is automatically Scheduled
       };
       await api.post('/appointments', payload);
-      setSuccessMessage('Appointment created successfully!');
+      showSuccess('Appointment created successfully and marked as Scheduled!');
       setShowCreateModal(false);
       fetchAppointments();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setErrorMessage(err.response?.data?.message || 'Failed to create appointment');
     }
@@ -166,13 +192,13 @@ export default function Appointments() {
 
   const openEditModal = (apt) => {
     setEditingAppointment(apt);
-    setFormData({
+    setEditFormData({
       doctor: apt.doctor?._id || apt.doctor?.id || '',
       date: apt.date ? new Date(apt.date).toISOString().split('T')[0] : '',
       time: apt.time || '',
       type: apt.type || 'Appointment',
       reason: apt.reason || '',
-      status: apt.status || 'Scheduled',
+      status: RECEPTIONIST_STATUS_OPTIONS.includes(apt.status) ? apt.status : 'Scheduled',
     });
   };
 
@@ -180,19 +206,46 @@ export default function Appointments() {
     e.preventDefault();
     if (!editingAppointment) return;
     try {
-      await api.patch(`/appointments/${editingAppointment._id}`, formData);
-      setSuccessMessage('Appointment updated successfully!');
+      await api.patch(`/appointments/${editingAppointment._id}`, editFormData);
+      showSuccess('Appointment updated successfully!');
       setEditingAppointment(null);
       fetchAppointments();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setErrorMessage(err.response?.data?.message || 'Failed to update appointment');
     }
   };
 
+  const handleCheckInAppointment = async (apt) => {
+    setActionLoading(true);
+    try {
+      await api.patch(`/queue/${apt._id}/check-in`);
+      showSuccess(`Patient ${apt.patient?.firstName || ''} checked in successfully! Added to queue.`);
+      setCheckingInAppointment(null);
+      fetchAppointments();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to check in appointment.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkNoShow = async (apt) => {
+    setActionLoading(true);
+    try {
+      await api.patch(`/appointments/${apt._id}`, { status: 'No Show' });
+      showSuccess('Appointment marked as No Show.');
+      setNoShowAppointment(null);
+      fetchAppointments();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to update appointment.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const confirmCancelAppointment = async () => {
     if (!cancellingAppointment) return;
-    setIsCancelling(true);
+    setActionLoading(true);
     try {
       await api.delete(`/appointments/${cancellingAppointment._id}`);
       showSuccess('Appointment cancelled successfully.');
@@ -201,7 +254,7 @@ export default function Appointments() {
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to cancel appointment');
     } finally {
-      setIsCancelling(false);
+      setActionLoading(false);
     }
   };
 
@@ -221,8 +274,8 @@ export default function Appointments() {
       {/* Top Header & Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-xl font-bold text-ink">Appointments</h2>
-          <p className="text-sm text-ink-soft">Manage clinic scheduling and walk-ins</p>
+          <h2 className="font-display text-xl font-bold text-ink">Appointments Directory</h2>
+          <p className="text-sm text-ink-soft">Complete scheduling records and patient appointments</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -230,19 +283,17 @@ export default function Appointments() {
           <div className="inline-flex rounded-xl border border-border bg-surface p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'list'
-                ? 'bg-brand text-white'
-                : 'text-ink-soft hover:text-ink'
-                }`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                viewMode === 'list' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
+              }`}
             >
               <List size={15} /> List
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${viewMode === 'calendar'
-                ? 'bg-brand text-white'
-                : 'text-ink-soft hover:text-ink'
-                }`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                viewMode === 'calendar' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
+              }`}
             >
               <CalendarDays size={15} /> Calendar
             </button>
@@ -273,62 +324,115 @@ export default function Appointments() {
       )}
 
       {/* Filter Bar */}
-      <div className="card p-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Search */}
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input
-            type="text"
-            className="input-field pl-9 py-2 text-xs"
-            placeholder="Search patient name, phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="card p-4 space-y-3">
+        {/* Preset Date Filter Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-1.5 bg-bg p-1 rounded-xl border border-border">
+            <button
+              onClick={() => {
+                setDateFilterPreset('today');
+                setDateFilter('');
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                dateFilterPreset === 'today' ? 'bg-brand text-white shadow-sm' : 'text-ink-soft hover:text-ink'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => {
+                setDateFilterPreset('upcoming');
+                setDateFilter('');
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                dateFilterPreset === 'upcoming' ? 'bg-brand text-white shadow-sm' : 'text-ink-soft hover:text-ink'
+              }`}
+            >
+              Upcoming
+            </button>
+            <button
+              onClick={() => {
+                setDateFilterPreset('all');
+                setDateFilter('');
+              }}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                dateFilterPreset === 'all' ? 'bg-brand text-white shadow-sm' : 'text-ink-soft hover:text-ink'
+              }`}
+            >
+              All Dates
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-ink-soft font-medium">Filtered count:</span>
+            <span className="font-bold text-ink font-mono bg-bg px-2.5 py-1 rounded-lg border border-border">
+              {appointments.length} Records
+            </span>
+          </div>
         </div>
 
-        {/* Date Filter */}
-        <div className="w-40">
-          <DatePicker
-            value={dateFilter}
-            onChange={(date, dateStr) => setDateFilter(dateStr)}
-            placeholder="Filter by Date"
-            inputClassName="py-1 text-xs"
-          />
-        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Search */}
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              className="input-field pl-9 py-2 text-xs"
+              placeholder="Search patient name, phone, OP#..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
 
-        {/* Doctor Filter */}
-        <div>
-          <select
-            className="input-field py-2 text-xs"
-            value={doctorFilter}
-            onChange={(e) => setDoctorFilter(e.target.value)}
-          >
-            <option value="">All Doctors</option>
-            {doctors.map((d) => {
-              const docId = d._id || d.id;
-              return (
-                <option key={docId} value={docId}>
-                  Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+          {/* Specific Date Filter */}
+          <div className="w-full">
+            <DatePicker
+              value={dateFilter}
+              onChange={(date, dateStr) => {
+                setDateFilter(dateStr);
+                if (dateStr) {
+                  setDateFilterPreset('custom');
+                }
+              }}
+              placeholder="Select Specific Date"
+              inputClassName="py-1 text-xs"
+            />
+          </div>
+
+          {/* Doctor Filter */}
+          <div>
+            <select
+              className="input-field py-2 text-xs font-medium"
+              value={doctorFilter}
+              onChange={(e) => setDoctorFilter(e.target.value)}
+            >
+              <option value="">All Doctors</option>
+              {doctors.map((d) => {
+                const docId = d._id || d.id;
+                return (
+                  <option key={docId} value={docId}>
+                    Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <select
+              className="input-field py-2 text-xs font-medium"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              {ALL_STATUS_OPTIONS.map((st) => (
+                <option key={st} value={st}>
+                  {st}
                 </option>
-              );
-            })}
-          </select>
-        </div>
-
-        {/* Status Filter */}
-        <div>
-          <select
-            className="input-field py-2 text-xs"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            {STATUS_OPTIONS.map((st) => (
-              <option key={st} value={st}>
-                {st}
-              </option>
-            ))}
-          </select>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -342,6 +446,8 @@ export default function Appointments() {
             allowCancel={true}
             onEdit={openEditModal}
             onCancel={(apt) => setCancellingAppointment(apt)}
+            onCheckIn={(apt) => setCheckingInAppointment(apt)}
+            onNoShow={(apt) => setNoShowAppointment(apt)}
             statusBadgeClasses={STATUS_BADGE_CLASSES}
             formatDateDisplay={formatDateDisplay}
           />
@@ -360,7 +466,7 @@ export default function Appointments() {
         />
       )}
 
-      {/* CREATE APPOINTMENT MODAL */}
+      {/* CREATE APPOINTMENT MODAL (Status input removed completely) */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
           <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
@@ -421,33 +527,17 @@ export default function Appointments() {
                   </div>
                 </div>
 
-                {/* Type & Status */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
-                    <select
-                      className="input-field"
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    >
-                      <option value="Appointment">Appointment</option>
-                      <option value="Walk-in">Walk-in</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-ink-soft mb-1">Status</label>
-                    <select
-                      className="input-field"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    >
-                      {STATUS_OPTIONS.map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Type */}
+                <div>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
+                  <select
+                    className="input-field"
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  >
+                    <option value="Appointment">Appointment</option>
+                    <option value="Walk-in">Walk-in</option>
+                  </select>
                 </div>
 
                 {/* Reason */}
@@ -461,8 +551,6 @@ export default function Appointments() {
                     onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   />
                 </div>
-
-                {/* Actions */}
               </div>
 
               <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
@@ -510,8 +598,8 @@ export default function Appointments() {
                   <label className="block text-xs font-semibold text-ink-soft mb-1">Assigned Doctor</label>
                   <select
                     className="input-field"
-                    value={formData.doctor}
-                    onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
+                    value={editFormData.doctor}
+                    onChange={(e) => setEditFormData({ ...editFormData, doctor: e.target.value })}
                   >
                     <option value="">Select Doctor</option>
                     {doctors.map((d) => {
@@ -530,8 +618,8 @@ export default function Appointments() {
                   <div>
                     <DatePicker
                       label="Date"
-                      value={formData.date}
-                      onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
+                      value={editFormData.date}
+                      onChange={(date, dateStr) => setEditFormData({ ...editFormData, date: dateStr })}
                     />
                   </div>
                   <div>
@@ -539,8 +627,8 @@ export default function Appointments() {
                     <input
                       type="text"
                       className="input-field"
-                      value={formData.time}
-                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                      value={editFormData.time}
+                      onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
                     />
                   </div>
                 </div>
@@ -551,8 +639,8 @@ export default function Appointments() {
                     <label className="block text-xs font-semibold text-ink-soft mb-1">Type</label>
                     <select
                       className="input-field"
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      value={editFormData.type}
+                      onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
                     >
                       <option value="Appointment">Appointment</option>
                       <option value="Walk-in">Walk-in</option>
@@ -562,10 +650,10 @@ export default function Appointments() {
                     <label className="block text-xs font-semibold text-ink-soft mb-1">Status</label>
                     <select
                       className="input-field"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      value={editFormData.status}
+                      onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
                     >
-                      {STATUS_OPTIONS.map((st) => (
+                      {RECEPTIONIST_STATUS_OPTIONS.map((st) => (
                         <option key={st} value={st}>
                           {st}
                         </option>
@@ -580,12 +668,10 @@ export default function Appointments() {
                   <input
                     type="text"
                     className="input-field"
-                    value={formData.reason}
-                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                    value={editFormData.reason}
+                    onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
                   />
                 </div>
-
-                {/* Actions */}
               </div>
 
               <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
@@ -605,7 +691,62 @@ export default function Appointments() {
         </div>
       )}
 
-      {/* REUSABLE CANCEL CONFIRMATION POPUP */}
+      {/* CHECK-IN CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(checkingInAppointment)}
+        onClose={() => setCheckingInAppointment(null)}
+        onConfirm={() => handleCheckInAppointment(checkingInAppointment)}
+        title="Confirm Patient Check-In"
+        message={
+          checkingInAppointment ? (
+            <div className="space-y-2 text-xs">
+              <p>
+                Check in patient{' '}
+                <strong className="text-ink font-bold">
+                  {checkingInAppointment.patient?.firstName} {checkingInAppointment.patient?.lastName}
+                </strong>{' '}
+                for today's queue?
+              </p>
+              <p className="text-[11px] text-amber-800 italic">
+                This will set status to "Checked-In", generate today's queue token, and display the patient in Check-In / Queue and doctor queue.
+              </p>
+            </div>
+          ) : (
+            'Are you sure you want to check in this patient?'
+          )
+        }
+        confirmText="Confirm Check-In"
+        cancelText="Cancel"
+        variant="confirm"
+        loading={actionLoading}
+      />
+
+      {/* MARK NO-SHOW CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(noShowAppointment)}
+        onClose={() => setNoShowAppointment(null)}
+        onConfirm={() => handleMarkNoShow(noShowAppointment)}
+        title="Mark Patient as No-Show"
+        message={
+          noShowAppointment ? (
+            <p className="text-xs">
+              Are you sure you want to mark the appointment for{' '}
+              <strong className="text-ink font-bold">
+                {noShowAppointment.patient?.firstName} {noShowAppointment.patient?.lastName}
+              </strong>{' '}
+              as <strong className="text-slate-800 font-bold font-mono">No Show</strong>?
+            </p>
+          ) : (
+            'Are you sure you want to mark as No Show?'
+          )
+        }
+        confirmText="Mark No Show"
+        cancelText="Cancel"
+        variant="cancel"
+        loading={actionLoading}
+      />
+
+      {/* CANCEL CONFIRMATION POPUP */}
       <ConfirmModal
         isOpen={Boolean(cancellingAppointment)}
         onClose={() => setCancellingAppointment(null)}
@@ -613,7 +754,7 @@ export default function Appointments() {
         title="Confirm Appointment Cancellation"
         message={
           cancellingAppointment ? (
-            <div className="space-y-2">
+            <div className="space-y-2 text-xs">
               <p>
                 Are you sure you want to cancel the appointment for{' '}
                 <strong className="text-ink font-bold">
@@ -636,7 +777,7 @@ export default function Appointments() {
         confirmText="Yes, Cancel Appointment"
         cancelText="Keep Appointment"
         variant="danger"
-        loading={isCancelling}
+        loading={actionLoading}
       />
     </div>
   );

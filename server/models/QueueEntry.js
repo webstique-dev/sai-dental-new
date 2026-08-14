@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
-const queueStatusOptions = ['Waiting', 'Checked-In', 'With Doctor', 'Completed', 'Cancelled'];
+const queueStatusOptions = [
+  'Scheduled',
+  'Checked-In',
+  'In Consultation',
+  'Completed',
+  'Cancelled',
+  'No Show',
+];
 const queueTypeOptions = ['Appointment', 'Walk-in'];
 
 const queueEntrySchema = new mongoose.Schema(

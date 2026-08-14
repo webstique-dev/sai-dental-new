@@ -1,21 +1,25 @@
 const QueueEntry = require('../models/QueueEntry');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
+const { syncVisitStatus } = require('../utils/statusSync');
+const { getDayBounds } = require('./appointmentController');
 
-function getTodayDateRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start, end };
-}
-
-// GET /api/queue/today
+// GET /api/queue/today?includeAll=
 async function getTodayQueue(req, res, next) {
   try {
-    const { start, end } = getTodayDateRange();
-    const queueEntries = await QueueEntry.find({
+    const { start, end } = getDayBounds(new Date());
+    const { includeAll } = req.query;
+
+    const filter = {
       date: { $gte: start, $lte: end },
-    })
+    };
+
+    // By default, active queue shows only Checked-In and In Consultation patients
+    if (includeAll !== 'true') {
+      filter.status = { $in: ['Checked-In', 'In Consultation'] };
+    }
+
+    const queueEntries = await QueueEntry.find(filter)
       .sort({ token: 1 })
       .populate('patient', 'firstName lastName opNumber phone age sex')
       .populate('doctor', 'name email role specialization')
@@ -60,15 +64,15 @@ async function createWalkIn(req, res, next) {
       targetPatientId = newPatient._id;
     }
 
-    // Step d: Calculate next token for today
-    const { start, end } = getTodayDateRange();
+    // Calculate next token for today
+    const { start, end } = getDayBounds(new Date());
     const lastEntry = await QueueEntry.findOne({
       date: { $gte: start, $lte: end },
     }).sort({ token: -1 });
 
     const nextToken = lastEntry && lastEntry.token ? lastEntry.token + 1 : 1;
 
-    // Optional: create a Walk-in Appointment record so it shows in appointment history too
+    // Create a Walk-in Appointment record so it serves as single source of truth
     const newAppointment = new Appointment({
       patient: targetPatientId,
       doctor: doctorId,
@@ -81,7 +85,7 @@ async function createWalkIn(req, res, next) {
     });
     await newAppointment.save();
 
-    // Step e: Create QueueEntry with status Checked-In
+    // Create QueueEntry with status Checked-In
     const queueEntry = new QueueEntry({
       token: nextToken,
       patient: targetPatientId,
@@ -93,6 +97,13 @@ async function createWalkIn(req, res, next) {
       date: new Date(),
     });
     await queueEntry.save();
+
+    // Sync visit status across records
+    await syncVisitStatus({
+      appointmentId: newAppointment._id,
+      queueEntryId: queueEntry._id,
+      status: 'Checked-In',
+    });
 
     const populated = await QueueEntry.findById(queueEntry._id)
       .populate('patient', 'firstName lastName opNumber phone age sex')
@@ -112,7 +123,7 @@ async function createWalkIn(req, res, next) {
 async function checkInAppointment(req, res, next) {
   try {
     const { id } = req.params;
-    const { start, end } = getTodayDateRange();
+    const { start, end } = getDayBounds(new Date());
 
     // Check if id belongs to an Appointment
     const appointment = await Appointment.findById(id);
@@ -143,6 +154,12 @@ async function checkInAppointment(req, res, next) {
         await existingQueue.save();
       }
 
+      await syncVisitStatus({
+        appointmentId: appointment._id,
+        queueEntryId: existingQueue._id,
+        status: 'Checked-In',
+      });
+
       const populated = await QueueEntry.findById(existingQueue._id)
         .populate('patient', 'firstName lastName opNumber phone age sex')
         .populate('doctor', 'name email role specialization')
@@ -152,24 +169,26 @@ async function checkInAppointment(req, res, next) {
     }
 
     // Otherwise check if it's a QueueEntry
-    const queueEntry = await QueueEntry.findByIdAndUpdate(
-      id,
-      { status: 'Checked-In', checkInTime: new Date() },
-      { new: true }
-    )
+    const queueEntry = await QueueEntry.findById(id);
+    if (!queueEntry) {
+      return res.status(404).json({ message: 'Queue entry or appointment not found' });
+    }
+
+    queueEntry.status = 'Checked-In';
+    queueEntry.checkInTime = new Date();
+    await queueEntry.save();
+
+    await syncVisitStatus({
+      queueEntryId: queueEntry._id,
+      status: 'Checked-In',
+    });
+
+    const populated = await QueueEntry.findById(queueEntry._id)
       .populate('patient', 'firstName lastName opNumber phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
 
-    if (!queueEntry) {
-      return res.status(404).json({ message: 'Queue entry not found' });
-    }
-
-    if (queueEntry.appointment) {
-      await Appointment.findByIdAndUpdate(queueEntry.appointment, { status: 'Checked-In' });
-    }
-
-    return res.json({ message: 'Patient checked in successfully', queueEntry });
+    return res.json({ message: 'Patient checked in successfully', queueEntry: populated });
   } catch (err) {
     next(err);
   }
@@ -179,27 +198,44 @@ async function checkInAppointment(req, res, next) {
 async function updateQueueStatus(req, res, next) {
   try {
     const { status } = req.body;
-    const queueEntry = await QueueEntry.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    )
-      .populate('patient', 'firstName lastName opNumber phone age sex')
-      .populate('doctor', 'name email role specialization')
-      .populate('appointment', 'time reason status type');
 
+    // Normalize legacy status strings if any
+    let normalizedStatus = status;
+    if (status === 'With Doctor' || status === 'In Progress') {
+      normalizedStatus = 'In Consultation';
+    } else if (status === 'Waiting') {
+      normalizedStatus = 'Checked-In';
+    }
+
+    // Enforce role permissions for receptionists
+    if (req.user && req.user.role === 'receptionist') {
+      if (['In Consultation', 'Completed'].includes(normalizedStatus)) {
+        return res.status(403).json({
+          message: 'Receptionists are not permitted to change status to In Consultation or Completed.',
+        });
+      }
+    }
+
+    const queueEntry = await QueueEntry.findById(req.params.id);
     if (!queueEntry) {
       return res.status(404).json({ message: 'Queue entry not found' });
     }
 
-    // Sync appointment status if linked
-    if (queueEntry.appointment) {
-      let aptStatus = status;
-      if (status === 'With Doctor') aptStatus = 'In Consultation';
-      await Appointment.findByIdAndUpdate(queueEntry.appointment, { status: aptStatus });
-    }
+    queueEntry.status = normalizedStatus;
+    await queueEntry.save();
 
-    return res.json({ message: 'Queue status updated successfully', queueEntry });
+    // Sync status across Appointment and Consultation
+    await syncVisitStatus({
+      queueEntryId: queueEntry._id,
+      status: normalizedStatus,
+    });
+
+    const populated = await QueueEntry.findById(queueEntry._id)
+      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('doctor', 'name email role specialization')
+      .populate('appointment', 'time reason status type');
+
+    return res.json({ message: 'Queue status updated successfully', queueEntry: populated });
   } catch (err) {
     next(err);
   }

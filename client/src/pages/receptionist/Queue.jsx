@@ -2,21 +2,20 @@ import { useState, useEffect } from 'react';
 import {
   ClipboardList, UserPlus, Search, CheckCircle2, AlertTriangle, X,
   User, Stethoscope, ChevronRight, ChevronLeft, ArrowRight, ShieldCheck,
-  UserCheck, Loader2,
+  UserCheck, Loader2, RefreshCw, Clock,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
-const QUEUE_STATUS_OPTIONS = ['Waiting', 'Checked-In', 'With Doctor', 'Completed', 'Cancelled'];
-
 const STATUS_BADGE_CLASSES = {
-  Waiting: 'bg-slate-100 text-slate-800 border-slate-200',
+  Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
   'Checked-In': 'bg-amber-100 text-amber-800 border-amber-200',
-  'With Doctor': 'bg-purple-100 text-purple-800 border-purple-200',
+  'In Consultation': 'bg-purple-100 text-purple-800 border-purple-200',
   Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
+  'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
 };
 
 export default function Queue() {
@@ -53,12 +52,11 @@ export default function Queue() {
   // Step 4 State: Generated Token
   const [issuedToken, setIssuedToken] = useState(null);
 
-  // Notifications
-  const [successMessage, setSuccessMessage] = useState('');
+  // Notifications inside modal
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch today's queue
+  // Fetch today's active queue
   const fetchTodayQueue = async () => {
     try {
       setLoading(true);
@@ -79,7 +77,7 @@ export default function Queue() {
         const docs = res.data?.doctors || [];
         setDoctors(docs);
         if (docs.length > 0) {
-          setSelectedDoctorId(docs[0]._id);
+          setSelectedDoctorId(docs[0]._id || docs[0].id);
         }
       } catch (err) {
         console.error('Failed to load doctors:', err);
@@ -113,7 +111,7 @@ export default function Queue() {
     setPatientOptions([]);
     setSelectedPatient(null);
     setNewPatientData({ firstName: '', lastName: '', phone: '', sex: '', age: '' });
-    setSelectedDoctorId(doctors[0]?._id || '');
+    setSelectedDoctorId(doctors[0]?._id || doctors[0]?.id || '');
     setVisitReason('');
     setIssuedToken(null);
     setErrorMessage('');
@@ -128,7 +126,8 @@ export default function Queue() {
         return;
       }
       if (patientMode === 'new' && !newPatientData.firstName && !newPatientData.lastName && !newPatientData.phone) {
-        // All optional, but alert if completely blank to confirm
+        setErrorMessage('Please provide at least a name or phone number for the new patient.');
+        return;
       }
       setStep(2);
     } else if (step === 2) {
@@ -168,19 +167,6 @@ export default function Queue() {
     }
   };
 
-  const handleStatusChange = async (queueId, newStatus) => {
-    setUpdatingStatusId(queueId);
-    try {
-      await api.patch(`/queue/${queueId}/status`, { status: newStatus });
-      showSuccess(`Queue status updated to "${newStatus}".`);
-      fetchTodayQueue();
-    } catch (err) {
-      showError(err.response?.data?.message || 'Failed to update status');
-    } finally {
-      setUpdatingStatusId(null);
-    }
-  };
-
   const confirmCancelQueueEntry = async () => {
     if (!pendingCancelQueueEntry) return;
     setCancellingQueue(true);
@@ -202,59 +188,50 @@ export default function Queue() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <ClipboardList size={22} className="text-brand" /> Today's Walk-In & Queue
+            <ClipboardList size={22} className="text-brand" /> Today's Check-In & Active Queue
           </h2>
-          <p className="text-sm text-ink-soft">Real-time front desk patient flow and token queue</p>
+          <p className="text-sm text-ink-soft">Real-time front desk active patient flow and sequential token queue</p>
         </div>
 
-        <button
-          onClick={() => {
-            resetWalkInModal();
-            setShowWalkInModal(true);
-          }}
-          className="btn-primary shrink-0"
-        >
-          <UserPlus size={18} />
-          <span>Walk-In Patient</span>
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={fetchTodayQueue}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <RefreshCw size={14} /> Refresh Queue
+          </button>
+          <button
+            onClick={() => {
+              resetWalkInModal();
+              setShowWalkInModal(true);
+            }}
+            className="btn-primary shrink-0"
+          >
+            <UserPlus size={18} />
+            <span>Walk-In Patient</span>
+          </button>
+        </div>
       </div>
 
-      {/* Messages */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && !showWalkInModal && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {/* TODAY'S QUEUE TABLE */}
+      {/* TODAY'S ACTIVE QUEUE TABLE */}
       <div className="card overflow-hidden">
         <div className="border-b border-border bg-bg/40 px-5 py-3.5 flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">
-            Today's Queue List ({queueEntries.length} Patients)
+            Active Queue Flow ({queueEntries.length} Patients Waiting / In Consultation)
           </span>
-          <button
-            onClick={fetchTodayQueue}
-            className="text-xs font-semibold text-brand hover:underline"
-          >
-            Refresh Queue
-          </button>
+          <span className="text-xs text-brand font-semibold">
+            Auto-derived from today's checked-in patients
+          </span>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-sm text-ink-soft">Loading today's queue...</div>
+          <div className="p-8 text-center text-sm text-ink-soft">Loading active queue...</div>
         ) : queueEntries.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <ClipboardList size={36} className="mx-auto text-ink-soft/50" />
-            <p className="font-display text-base font-semibold text-ink">No patients in queue today</p>
+            <p className="font-display text-base font-semibold text-ink">No active patients in queue today</p>
             <p className="text-sm text-ink-soft">
-              Click "Walk-In Patient" to issue tokens and check in patients.
+              Check in patients from Appointments or click "Walk-In Patient" to issue tokens.
             </p>
           </div>
         ) : (
@@ -262,10 +239,11 @@ export default function Queue() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
                 <tr>
-                  <th className="px-5 py-3.5">Token</th>
+                  <th className="px-5 py-3.5">Queue Token</th>
                   <th className="px-5 py-3.5">Patient</th>
                   <th className="px-5 py-3.5">Doctor</th>
                   <th className="px-5 py-3.5">Type</th>
+                  <th className="px-5 py-3.5">Time</th>
                   <th className="px-5 py-3.5">Status</th>
                   <th className="px-5 py-3.5 text-right">Action</th>
                 </tr>
@@ -276,10 +254,15 @@ export default function Queue() {
                     ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
                     : 'Walk-in Patient';
                   const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
+                  const timeStr = entry.checkInTime
+                    ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : entry.appointment?.time || '—';
+
+                  const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
 
                   return (
                     <tr key={entry._id} className="hover:bg-bg/60 transition-colors">
-                      {/* Token */}
+                      {/* Queue Token */}
                       <td className="px-5 py-4 whitespace-nowrap">
                         <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white font-mono text-base font-bold shadow-sm">
                           #{entry.token}
@@ -288,10 +271,10 @@ export default function Queue() {
 
                       {/* Patient */}
                       <td className="px-5 py-4">
-                        <div className="font-medium text-ink">{patientName}</div>
+                        <div className="font-semibold text-ink">{patientName}</div>
                         <div className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
                           {entry.patient?.opNumber && (
-                            <span className="font-mono text-brand">{entry.patient.opNumber}</span>
+                            <span className="font-mono text-brand font-bold">{entry.patient.opNumber}</span>
                           )}
                           {entry.patient?.phone && <span>{entry.patient.phone}</span>}
                         </div>
@@ -305,87 +288,53 @@ export default function Queue() {
                       {/* Type */}
                       <td className="px-5 py-4 text-xs">
                         <span
-                          className={`badge ${entry.type === 'Walk-in'
-                            ? 'bg-orange-100 text-orange-800'
-                            : 'bg-blue-50 text-blue-700'
-                            }`}
+                          className={`badge ${
+                            entry.type === 'Walk-in'
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-blue-50 text-blue-700'
+                          }`}
                         >
                           {entry.type}
                         </span>
                       </td>
 
+                      {/* Time */}
+                      <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
+                        <div className="flex items-center gap-1 font-medium text-ink">
+                          <Clock size={13} className="text-brand" /> {timeStr}
+                        </div>
+                      </td>
+
                       {/* Status */}
                       <td className="px-5 py-4">
                         <span
-                          className={`badge border ${STATUS_BADGE_CLASSES[entry.status] || 'bg-slate-100 text-slate-800'
-                            }`}
+                          className={`badge border ${
+                            STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'
+                          }`}
                         >
-                          {entry.status}
+                          {displayStatus}
                         </span>
                       </td>
 
                       {/* Action */}
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        {['Completed', 'Cancelled'].includes(entry.status) ? (
-                          <span className="text-xs text-ink-soft/40 italic">—</span>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            {entry.status === 'Waiting' && (
-                              <button
-                                disabled={updatingStatusId === entry._id}
-                                onClick={() => handleStatusChange(entry._id, 'Checked-In')}
-                                className="inline-flex items-center gap-1 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
-                              >
-                                {updatingStatusId === entry._id ? (
-                                  <Loader2 size={13} className="animate-spin" />
-                                ) : (
-                                  <UserCheck size={13} />
-                                )}
-                                Check In
-                              </button>
-                            )}
-
-                            {entry.status === 'Checked-In' && (
-                              <button
-                                disabled={updatingStatusId === entry._id}
-                                onClick={() => handleStatusChange(entry._id, 'With Doctor')}
-                                className="inline-flex items-center gap-1 rounded-xl bg-purple-50 border border-purple-200 px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-100 transition-colors disabled:opacity-50"
-                              >
-                                {updatingStatusId === entry._id ? (
-                                  <Loader2 size={13} className="animate-spin" />
-                                ) : (
-                                  <Stethoscope size={13} />
-                                )}
-                                Send to Doctor
-                              </button>
-                            )}
-
-                            {entry.status === 'With Doctor' && (
-                              <button
-                                disabled={updatingStatusId === entry._id}
-                                onClick={() => handleStatusChange(entry._id, 'Completed')}
-                                className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-                              >
-                                {updatingStatusId === entry._id ? (
-                                  <Loader2 size={13} className="animate-spin" />
-                                ) : (
-                                  <CheckCircle2 size={13} />
-                                )}
-                                Complete
-                              </button>
-                            )}
-
+                        <div className="flex items-center justify-end gap-2">
+                          {displayStatus === 'Checked-In' && (
                             <button
-                              disabled={updatingStatusId === entry._id}
                               onClick={() => setPendingCancelQueueEntry(entry)}
-                              className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
                               title="Cancel Check-in"
                             >
                               <X size={13} />
-                              Cancel
+                              Cancel Check-In
                             </button>
-                          </div>
-                        )}
+                          )}
+                          {displayStatus === 'In Consultation' && (
+                            <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                              Doctor Consulting
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -429,16 +378,18 @@ export default function Queue() {
                     <button
                       type="button"
                       onClick={() => setPatientMode('search')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${patientMode === 'search' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
-                        }`}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                        patientMode === 'search' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+                      }`}
                     >
                       Search Existing Patient
                     </button>
                     <button
                       type="button"
                       onClick={() => setPatientMode('new')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${patientMode === 'new' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
-                        }`}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                        patientMode === 'new' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+                      }`}
                     >
                       Register New Patient
                     </button>
@@ -453,10 +404,10 @@ export default function Queue() {
                       />
                     </div>
                   ) : (
-                    /* New Patient Form (All optional) */
+                    /* New Patient Form */
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
-                        <label className="block text-ink-soft font-semibold mb-1">First Name</label>
+                        <label className="block text-ink-soft font-semibold mb-1">First Name *</label>
                         <input
                           type="text"
                           className="input-field"
@@ -514,11 +465,14 @@ export default function Queue() {
                       onChange={(e) => setSelectedDoctorId(e.target.value)}
                     >
                       <option value="">Select Doctor</option>
-                      {doctors.map((d) => (
-                        <option key={d._id} value={d._id}>
-                          Dr. {d.name} {d.specialization ? `— ${d.specialization}` : ''}
-                        </option>
-                      ))}
+                      {doctors.map((d) => {
+                        const docId = d._id || d.id;
+                        return (
+                          <option key={docId} value={docId}>
+                            Dr. {d.name} {d.specialization ? `— ${d.specialization}` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -527,7 +481,7 @@ export default function Queue() {
                     <input
                       type="text"
                       className="input-field py-2.5 text-xs"
-                      placeholder="e.g. Tooth ache, Urgent scaling, Walk-in consultation"
+                      placeholder="e.g. Toothache, Urgent scaling, Walk-in consultation"
                       value={visitReason}
                       onChange={(e) => setVisitReason(e.target.value)}
                     />
@@ -565,7 +519,7 @@ export default function Queue() {
                       <div>
                         <span className="text-ink-soft block font-medium">Assigned Doctor</span>
                         <span className="font-semibold text-brand">
-                          Dr. {doctors.find((d) => d._id === selectedDoctorId)?.name || 'Selected Doctor'}
+                          Dr. {doctors.find((d) => (d._id || d.id) === selectedDoctorId)?.name || 'Selected Doctor'}
                         </span>
                       </div>
 
@@ -579,7 +533,7 @@ export default function Queue() {
                   <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-amber-900 border border-amber-200">
                     <ShieldCheck size={18} className="text-amber-600 shrink-0" />
                     <span>
-                      Confirming will automatically generate today's next sequential Token and mark status as <strong>Checked-In</strong>.
+                      Confirming will generate today's next sequential Token, create a Walk-in Appointment, and mark status as <strong>Checked-In</strong>.
                     </span>
                   </div>
                 </div>
@@ -620,24 +574,13 @@ export default function Queue() {
               )}
 
               <div className="flex items-center gap-2">
-                {step < 2 && (
+                {step < 3 && (
                   <button
                     type="button"
-                    disabled={!selectedPatient}
-                    onClick={() => setStep(2)}
+                    onClick={handleNextStep}
                     className="btn-primary text-xs"
                   >
-                    Next: Assign Doctor
-                  </button>
-                )}
-
-                {step === 2 && (
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    className="btn-primary text-xs"
-                  >
-                    Next: Confirm
+                    Next Step
                   </button>
                 )}
 
@@ -666,7 +609,8 @@ export default function Queue() {
           </div>
         </div>
       )}
-      {/* REUSABLE QUEUE CANCEL CONFIRMATION POPUP */}
+
+      {/* CANCEL CONFIRMATION POPUP */}
       <ConfirmModal
         isOpen={Boolean(pendingCancelQueueEntry)}
         onClose={() => setPendingCancelQueueEntry(null)}
@@ -674,8 +618,8 @@ export default function Queue() {
         title="Confirm Queue Cancellation"
         message={
           pendingCancelQueueEntry ? (
-            <p>
-              Are you sure you want to cancel the queue check-in for{' '}
+            <p className="text-xs">
+              Are you sure you want to cancel the check-in for{' '}
               <strong className="text-ink font-bold">
                 {pendingCancelQueueEntry.patient?.firstName} {pendingCancelQueueEntry.patient?.lastName}
               </strong>

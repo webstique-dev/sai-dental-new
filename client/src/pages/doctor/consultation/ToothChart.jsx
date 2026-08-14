@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  CheckCircle2, AlertTriangle, Save, History, Layers, Info, Check, RefreshCw, X, Shield,
+  CheckCircle2, AlertTriangle, Save, History, Layers, Info, Check, RefreshCw, X, Shield, Loader2,
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 
@@ -24,6 +24,15 @@ const CONDITION_CODES = {
   Prosthetic: { code: 'P', color: 'bg-indigo-100 text-indigo-800 border-indigo-300', dot: 'bg-indigo-500' },
   Other: { code: 'O', color: 'bg-gray-100 text-gray-800 border-gray-300', dot: 'bg-gray-400' },
 };
+
+function formatTeethListPhrase(numbers) {
+  if (!numbers || numbers.length === 0) return '';
+  if (numbers.length === 1) return `tooth ${numbers[0]}`;
+  if (numbers.length === 2) return `teeth ${numbers[0]} and ${numbers[1]}`;
+  const copy = [...numbers];
+  const last = copy.pop();
+  return `teeth ${copy.join(', ')} and ${last}`;
+}
 
 export default function ToothChart({ patientId, consultationId, isReadOnly = false }) {
   const [teethMap, setTeethMap] = useState({});
@@ -142,10 +151,11 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         type="button"
         key={tNum}
         onClick={() => handleToothClick(tNum)}
-        className={`flex flex-col items-center justify-between p-2 rounded-xl border transition-all duration-150 relative select-none min-w-[42px] sm:min-w-[48px] h-20 ${isSelected
-          ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
-          : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
-          }`}
+        className={`flex flex-col items-center justify-between p-2 rounded-xl border transition-all duration-150 relative select-none min-w-[42px] sm:min-w-[48px] h-20 ${
+          isSelected
+            ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
+            : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
+        }`}
       >
         {/* Top: Tooth Number */}
         <span className="font-mono text-xs font-bold text-ink">{tNum}</span>
@@ -173,6 +183,15 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
   };
 
   const selectedToothSingle = selectedTeeth.length === 1 ? teethMap[selectedTeeth[0]] : null;
+  const totalHistoryCount = selectedTeeth.reduce((acc, tNum) => acc + (teethMap[tNum]?.history?.length || 0), 0);
+
+  const historySubtitleText = loading
+    ? 'Loading treatment history...'
+    : selectedTeeth.length === 0
+    ? 'Select a tooth to view its permanent treatment log across all visits.'
+    : selectedTeeth.length === 1
+    ? `Permanent treatment log for Tooth #${selectedTeeth[0]}`
+    : `Treatment history for the selected teeth (${selectedTeeth.join(', ')})`;
 
   return (
     <div className="space-y-6">
@@ -206,10 +225,11 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
             <button
               type="button"
               onClick={() => setMultiSelectMode(!multiSelectMode)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${multiSelectMode
-                ? 'bg-purple-600 text-white border-purple-700'
-                : 'bg-surface border-border text-ink-soft hover:text-ink'
-                }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                multiSelectMode
+                  ? 'bg-purple-600 text-white border-purple-700'
+                  : 'bg-surface border-border text-ink-soft hover:text-ink'
+              }`}
             >
               {multiSelectMode ? 'Multi-Select Enabled' : 'Enable Multi-Select'}
             </button>
@@ -298,8 +318,8 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                 {selectedTeeth.length === 0
                   ? 'Record Finding for Selected Teeth'
                   : selectedTeeth.length === 1
-                    ? `Update Tooth #${selectedTeeth[0]}`
-                    : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
+                  ? `Update Tooth #${selectedTeeth[0]}`
+                  : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
               </h4>
               <p className="text-xs text-ink-soft">
                 Select teeth on the chart above and assign new conditions.
@@ -362,8 +382,8 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                   {saving
                     ? 'Saving Records...'
                     : selectedTeeth.length === 0
-                      ? 'Click Teeth Above First'
-                      : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
+                    ? 'Click Teeth Above First'
+                    : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
                 </span>
               </button>
             </form>
@@ -377,56 +397,133 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
               <h4 className="font-display text-sm font-bold text-ink flex items-center gap-2">
                 <History size={16} className="text-brand" /> Historical Treatment Log
               </h4>
-              <p className="text-xs text-ink-soft">
-                {selectedTeeth.length === 1
-                  ? `Append-only history for Tooth #${selectedTeeth[0]}`
-                  : 'Select a single tooth to inspect complete visit history.'}
-              </p>
+              <p className="text-xs text-ink-soft">{historySubtitleText}</p>
             </div>
+            {selectedTeeth.length > 1 && (
+              <span className="badge bg-purple-50 text-purple-800 border border-purple-200 text-xs font-mono">
+                {selectedTeeth.length} Teeth Selected
+              </span>
+            )}
           </div>
 
-          {selectedTeeth.length === 1 && selectedToothSingle ? (
-            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
-              {selectedToothSingle.history && selectedToothSingle.history.length > 0 ? (
+          {loading ? (
+            <div className="p-8 text-center text-xs text-ink-soft flex items-center justify-center gap-2">
+              <Loader2 size={16} className="animate-spin text-brand" />
+              <span>Loading treatment history...</span>
+            </div>
+          ) : selectedTeeth.length === 0 ? (
+            <div className="p-12 text-center text-xs text-ink-soft space-y-2">
+              <Info size={28} className="mx-auto text-brand/50" />
+              <p className="font-semibold text-ink">Select a tooth on the chart above</p>
+              <p>Select any tooth to view its permanent treatment log across all visits.</p>
+            </div>
+          ) : selectedTeeth.length === 1 ? (
+            /* SINGLE TOOTH SELECTION LOG */
+            <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+              {selectedToothSingle?.history && selectedToothSingle.history.length > 0 ? (
                 <div className="divide-y divide-border border rounded-xl overflow-hidden bg-bg/30">
-                  {selectedToothSingle.history.map((h, idx) => (
-                    <div key={idx} className="p-3 text-xs space-y-1">
-                      <div className="flex items-center justify-between font-semibold">
-                        <span className={`badge border ${CONDITION_CODES[h.condition]?.color || ''}`}>
-                          {h.condition}
-                        </span>
-                        <span className="text-[11px] text-ink-soft">
-                          {h.date ? new Date(h.date).toLocaleDateString() : ''}
-                        </span>
+                  {[...selectedToothSingle.history]
+                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                    .map((h, idx) => (
+                      <div key={h._id || idx} className="p-3 text-xs space-y-1">
+                        <div className="flex items-center justify-between font-semibold">
+                          <span className={`badge border ${CONDITION_CODES[h.condition]?.color || 'bg-slate-100 text-slate-800'}`}>
+                            {h.condition}
+                          </span>
+                          <span className="text-[11px] text-ink-soft font-mono">
+                            {h.date ? new Date(h.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                          </span>
+                        </div>
+
+                        {h.treatment && (
+                          <p className="font-bold text-ink text-xs">{h.treatment}</p>
+                        )}
+
+                        {h.notes && (
+                          <p className="text-ink-soft text-[11px] italic">{h.notes}</p>
+                        )}
+
+                        <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
+                          Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                        </div>
                       </div>
-
-                      {h.treatment && (
-                        <p className="font-bold text-ink text-xs">{h.treatment}</p>
-                      )}
-
-                      {h.notes && (
-                        <p className="text-ink-soft text-[11px] italic">{h.notes}</p>
-                      )}
-
-                      <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                        Recorded by: Dr. {h.doctor?.name || 'Doctor'}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 <div className="p-8 text-center text-xs text-ink-soft space-y-1">
                   <Shield size={24} className="mx-auto text-ink-soft/40" />
                   <p className="font-semibold text-ink">No historical treatments recorded yet.</p>
-                  <p>Tooth #{selectedTeeth[0]} is currently marked as {selectedToothSingle.currentCondition || 'Healthy'}.</p>
+                  <p>Tooth #{selectedTeeth[0]} is currently marked as {selectedToothSingle?.currentCondition || 'Healthy'}.</p>
                 </div>
               )}
             </div>
           ) : (
-            <div className="p-12 text-center text-xs text-ink-soft space-y-2">
-              <Info size={28} className="mx-auto text-brand/50" />
-              <p className="font-semibold text-ink">Click a single tooth on the chart above</p>
-              <p>Select any tooth to view its permanent treatment log across all visits.</p>
+            /* MULTIPLE TEETH SELECTION LOG */
+            <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+              {totalHistoryCount === 0 ? (
+                <div className="p-8 text-center text-xs text-ink-soft space-y-2 bg-bg/30 rounded-xl border border-border">
+                  <Shield size={28} className="mx-auto text-ink-soft/40" />
+                  <p className="font-semibold text-ink text-sm">No treatment history found</p>
+                  <p className="text-ink-soft">
+                    No previous treatment history found for {formatTeethListPhrase(selectedTeeth)}.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {selectedTeeth.map((tNum) => {
+                    const record = teethMap[tNum] || {};
+                    const history = record.history
+                      ? [...record.history].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                      : [];
+
+                    return (
+                      <div key={tNum} className="border border-border rounded-xl p-3.5 space-y-2.5 bg-bg/30">
+                        <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                          <span className="font-mono font-bold text-sm text-ink flex items-center gap-2">
+                            Tooth #{tNum}
+                          </span>
+                          <span className="text-xs font-semibold text-ink-soft">
+                            Current: <span className="text-brand font-bold">{record.currentCondition || 'Healthy'}</span>
+                          </span>
+                        </div>
+
+                        {history.length > 0 ? (
+                          <div className="divide-y divide-border border border-border/60 rounded-lg overflow-hidden bg-surface">
+                            {history.map((h, idx) => (
+                              <div key={h._id || idx} className="p-3 text-xs space-y-1">
+                                <div className="flex items-center justify-between font-semibold">
+                                  <span className={`badge border ${CONDITION_CODES[h.condition]?.color || 'bg-slate-100 text-slate-800'}`}>
+                                    {h.condition}
+                                  </span>
+                                  <span className="text-[11px] text-ink-soft font-mono">
+                                    {h.date ? new Date(h.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                                  </span>
+                                </div>
+
+                                {h.treatment && (
+                                  <p className="font-bold text-ink text-xs">{h.treatment}</p>
+                                )}
+
+                                {h.notes && (
+                                  <p className="text-ink-soft text-[11px] italic">{h.notes}</p>
+                                )}
+
+                                <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
+                                  Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-ink-soft italic pt-1">
+                            No previous treatment history recorded for Tooth #{tNum}.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

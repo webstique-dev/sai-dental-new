@@ -1,4 +1,4 @@
-import { Clock, Edit3, Trash2, CalendarDays } from 'lucide-react';
+import { Clock, Edit3, Trash2, CalendarDays, UserCheck, UserX } from 'lucide-react';
 
 const DEFAULT_STATUS_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -26,6 +26,8 @@ export default function AppointmentList({
   allowCancel = true,
   onEdit = () => {},
   onCancel = () => {},
+  onCheckIn = null,
+  onNoShow = null,
   statusBadgeClasses = DEFAULT_STATUS_CLASSES,
   formatDateDisplay = defaultFormatDate,
 }) {
@@ -54,7 +56,7 @@ export default function AppointmentList({
             <th className="px-5 py-3.5">Type</th>
             <th className="px-5 py-3.5">Reason</th>
             <th className="px-5 py-3.5">Status</th>
-            {(allowEdit || allowCancel) && <th className="px-5 py-3.5 text-right">Actions</th>}
+            <th className="px-5 py-3.5 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -64,6 +66,7 @@ export default function AppointmentList({
               ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim()
               : 'Unknown Patient';
             const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned';
+            const isScheduled = apt.status === 'Scheduled';
             const isLockedStatus = ['Completed', 'Cancelled', 'No Show'].includes(apt.status);
 
             return (
@@ -77,9 +80,12 @@ export default function AppointmentList({
 
                 <td className="px-5 py-4">
                   <div className="font-medium text-ink">{patientName}</div>
-                  {apt.patient?.opNumber && (
-                    <div className="text-xs text-brand font-mono">{apt.patient.opNumber}</div>
-                  )}
+                  <div className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
+                    {apt.patient?.opNumber && (
+                      <span className="text-brand font-mono font-bold">{apt.patient.opNumber}</span>
+                    )}
+                    {apt.patient?.phone && <span>{apt.patient.phone}</span>}
+                  </div>
                 </td>
 
                 <td className="px-5 py-4 text-ink-soft text-xs">{docName}</td>
@@ -108,29 +114,53 @@ export default function AppointmentList({
                   </span>
                 </td>
 
-                {(allowEdit || allowCancel) && (
-                  <td className="px-5 py-4 text-right whitespace-nowrap space-x-1">
-                    {allowEdit && !isLockedStatus && (
+                <td className="px-5 py-4 text-right whitespace-nowrap">
+                  <div className="flex items-center justify-end gap-1.5">
+                    {/* 1. Check-In action for Scheduled appointments */}
+                    {isScheduled && onCheckIn && (
                       <button
-                        onClick={() => onEdit(apt)}
-                        title="Reschedule / Edit"
-                        className="inline-flex items-center gap-1 rounded-lg border border-border p-1.5 text-xs font-semibold text-ink-soft hover:bg-bg hover:text-ink"
+                        onClick={() => onCheckIn(apt)}
+                        title="Check In Patient"
+                        className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
                       >
-                        <Edit3 size={14} /> Edit
+                        <UserCheck size={13} /> Check-In
                       </button>
                     )}
 
+                    {/* 2. Cancel action */}
                     {allowCancel && !isLockedStatus && (
                       <button
                         onClick={() => onCancel(apt)}
                         title="Cancel Appointment"
-                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 p-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                        className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
                       >
-                        <Trash2 size={14} /> Cancel
+                        <Trash2 size={13} /> Cancel
                       </button>
                     )}
-                  </td>
-                )}
+
+                    {/* 3. No Show action for Scheduled appointments */}
+                    {isScheduled && onNoShow && (
+                      <button
+                        onClick={() => onNoShow(apt)}
+                        title="Mark No Show"
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors"
+                      >
+                        <UserX size={13} /> No Show
+                      </button>
+                    )}
+
+                    {/* Edit action */}
+                    {allowEdit && !isLockedStatus && (
+                      <button
+                        onClick={() => onEdit(apt)}
+                        title="Reschedule / Edit"
+                        className="inline-flex items-center gap-1 rounded-xl border border-border p-1.5 text-xs font-semibold text-ink-soft hover:bg-bg hover:text-ink transition-colors"
+                      >
+                        <Edit3 size={13} /> Edit
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             );
           })}

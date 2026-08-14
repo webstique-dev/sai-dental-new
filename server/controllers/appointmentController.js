@@ -1,19 +1,50 @@
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
+const { syncVisitStatus } = require('../utils/statusSync');
 
-// GET /api/appointments?date=&doctor=&status=&search=
+function getDayBounds(dateInput) {
+  let d;
+  if (!dateInput) {
+    d = new Date();
+  } else if (typeof dateInput === 'string' && dateInput.includes('T')) {
+    d = new Date(dateInput);
+  } else if (typeof dateInput === 'string' && dateInput.includes('-')) {
+    const parts = dateInput.split('T')[0].split('-');
+    d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  } else if (dateInput instanceof Date) {
+    d = dateInput;
+  } else {
+    d = new Date();
+  }
+
+  const localStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  const localEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+  const utcStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+  const utcEnd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+
+  const minStart = new Date(Math.min(localStart.getTime(), utcStart.getTime()));
+  const maxEnd = new Date(Math.max(localEnd.getTime(), utcEnd.getTime()));
+
+  return { start: minStart, end: maxEnd, localStart, localEnd };
+}
+
+// GET /api/appointments?date=&dateFilterPreset=&doctor=&status=&search=
 async function listAppointments(req, res, next) {
   try {
-    const { date, doctor, status, search } = req.query;
+    const { date, dateFilterPreset, doctor, status, search } = req.query;
     const filter = {};
 
-    // Filter by specific date range (start of day to end of day)
-    if (date) {
-      const dayStart = new Date(date);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
-      dayEnd.setUTCHours(23, 59, 59, 999);
-      filter.date = { $gte: dayStart, $lte: dayEnd };
+    // Filter by date or preset
+    if (dateFilterPreset === 'today') {
+      const { start, end } = getDayBounds(new Date());
+      filter.date = { $gte: start, $lte: end };
+    } else if (dateFilterPreset === 'upcoming') {
+      const { localStart } = getDayBounds(new Date());
+      filter.date = { $gte: localStart };
+    } else if (date) {
+      const { start, end } = getDayBounds(date);
+      filter.date = { $gte: start, $lte: end };
     }
 
     // Filter by doctor
@@ -63,6 +94,20 @@ async function createAppointment(req, res, next) {
       data.createdBy = req.user._id;
     }
 
+    // Default status is Scheduled if not specified
+    if (!data.status) {
+      data.status = 'Scheduled';
+    }
+
+    // Prevent receptionist from creating appointment directly as In Consultation or Completed
+    if (req.user && req.user.role === 'receptionist') {
+      if (['In Consultation', 'Completed'].includes(data.status)) {
+        return res.status(403).json({
+          message: 'Receptionists are not permitted to set status to In Consultation or Completed.',
+        });
+      }
+    }
+
     const newAppointment = new Appointment(data);
     await newAppointment.save();
 
@@ -83,6 +128,17 @@ async function createAppointment(req, res, next) {
 // PATCH /api/appointments/:id (reschedule or change status)
 async function updateAppointment(req, res, next) {
   try {
+    const { status } = req.body;
+
+    // Enforce status permissions for receptionists
+    if (req.user && req.user.role === 'receptionist' && status) {
+      if (['In Consultation', 'Completed'].includes(status)) {
+        return res.status(403).json({
+          message: 'Receptionists are not permitted to set appointment status to In Consultation or Completed.',
+        });
+      }
+    }
+
     const updated = await Appointment.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
@@ -93,6 +149,11 @@ async function updateAppointment(req, res, next) {
 
     if (!updated) {
       return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    // Sync status with related QueueEntry/Consultation if status updated
+    if (status) {
+      await syncVisitStatus({ appointmentId: updated._id, status });
     }
 
     return res.json({
@@ -120,6 +181,9 @@ async function cancelAppointment(req, res, next) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
+    // Sync status across models
+    await syncVisitStatus({ appointmentId: cancelled._id, status: 'Cancelled' });
+
     return res.json({
       message: 'Appointment cancelled successfully',
       appointment: cancelled,
@@ -134,4 +198,5 @@ module.exports = {
   createAppointment,
   updateAppointment,
   cancelAppointment,
+  getDayBounds,
 };

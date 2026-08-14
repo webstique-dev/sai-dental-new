@@ -3,13 +3,8 @@ const QueueEntry = require('../models/QueueEntry');
 const Appointment = require('../models/Appointment');
 const FollowUp = require('../models/FollowUp');
 const { logAction } = require('../middleware/auditLog');
-
-function getTodayDateRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start, end };
-}
+const { syncVisitStatus } = require('../utils/statusSync');
+const { getDayBounds } = require('./appointmentController');
 
 // Immutability Guard Helper: Rejects write actions on closed consultations with HTTP 403
 async function checkConsultationNotClosed(consultationId) {
@@ -40,13 +35,42 @@ async function listConsultations(req, res, next) {
   }
 }
 
-// GET /api/consultations/queue/today (Checked-In or With Doctor, doctor-scoped)
+// GET /api/consultations/queue/today (Checked-In or In Consultation, doctor-scoped)
 async function getDoctorTodayQueue(req, res, next) {
   try {
-    const { start, end } = getTodayDateRange();
+    const { start, end } = getDayBounds(new Date());
+
+    // First ensure all checked-in appointments for today have an active QueueEntry
+    const checkedInAppointments = await Appointment.find({
+      date: { $gte: start, $lte: end },
+      status: { $in: ['Checked-In', 'In Consultation'] },
+    });
+
+    for (const apt of checkedInAppointments) {
+      let qEntry = await QueueEntry.findOne({ appointment: apt._id });
+      if (!qEntry) {
+        const lastEntry = await QueueEntry.findOne({ date: { $gte: start, $lte: end } }).sort({ token: -1 });
+        const nextToken = lastEntry && lastEntry.token ? lastEntry.token + 1 : 1;
+        qEntry = new QueueEntry({
+          token: nextToken,
+          patient: apt.patient,
+          doctor: apt.doctor,
+          appointment: apt._id,
+          type: apt.type || 'Appointment',
+          status: apt.status,
+          checkInTime: new Date(),
+          date: new Date(),
+        });
+        await qEntry.save();
+      } else if (qEntry.status !== apt.status) {
+        qEntry.status = apt.status;
+        await qEntry.save();
+      }
+    }
+
     const filter = {
       date: { $gte: start, $lte: end },
-      status: { $in: ['Checked-In', 'With Doctor'] },
+      status: { $in: ['Checked-In', 'In Consultation', 'With Doctor'] },
     };
 
     // Doctor role sees only their own patients; Admin sees all
@@ -64,11 +88,15 @@ async function getDoctorTodayQueue(req, res, next) {
     const entriesWithConsultation = await Promise.all(
       queueEntries.map(async (entry) => {
         const activeConsultation = await Consultation.findOne({
-          queueEntry: entry._id,
+          $or: [{ queueEntry: entry._id }, { appointment: entry.appointment }],
           status: 'In Progress',
         }).select('_id');
 
         const entryObj = entry.toObject();
+        // Normalize status display
+        if (entryObj.status === 'With Doctor') {
+          entryObj.status = 'In Consultation';
+        }
         entryObj.activeConsultationId = activeConsultation ? activeConsultation._id : null;
         return entryObj;
       })
@@ -83,20 +111,46 @@ async function getDoctorTodayQueue(req, res, next) {
 // POST /api/consultations/start (body: { queueEntryId })
 async function startConsultation(req, res, next) {
   try {
-    const { queueEntryId } = req.body;
+    const { queueEntryId, appointmentId } = req.body;
 
-    if (!queueEntryId) {
-      return res.status(400).json({ message: 'queueEntryId is required.' });
+    if (!queueEntryId && !appointmentId) {
+      return res.status(400).json({ message: 'queueEntryId or appointmentId is required.' });
     }
 
-    const queueEntry = await QueueEntry.findById(queueEntryId);
+    let queueEntry = null;
+    if (queueEntryId) {
+      queueEntry = await QueueEntry.findById(queueEntryId);
+    } else if (appointmentId) {
+      queueEntry = await QueueEntry.findOne({ appointment: appointmentId });
+    }
+
+    if (!queueEntry && appointmentId) {
+      const apt = await Appointment.findById(appointmentId);
+      if (apt) {
+        const { start, end } = getDayBounds(new Date());
+        const lastEntry = await QueueEntry.findOne({ date: { $gte: start, $lte: end } }).sort({ token: -1 });
+        const nextToken = lastEntry && lastEntry.token ? lastEntry.token + 1 : 1;
+        queueEntry = new QueueEntry({
+          token: nextToken,
+          patient: apt.patient,
+          doctor: apt.doctor,
+          appointment: apt._id,
+          type: apt.type || 'Appointment',
+          status: 'In Consultation',
+          checkInTime: new Date(),
+          date: new Date(),
+        });
+        await queueEntry.save();
+      }
+    }
+
     if (!queueEntry) {
       return res.status(404).json({ message: 'Queue entry not found.' });
     }
 
     // Check if consultation is already in progress for this queue entry
     let consultation = await Consultation.findOne({
-      queueEntry: queueEntry._id,
+      $or: [{ queueEntry: queueEntry._id }, { appointment: queueEntry.appointment }],
       status: 'In Progress',
     });
 
@@ -112,14 +166,13 @@ async function startConsultation(req, res, next) {
       await consultation.save();
     }
 
-    // Flip QueueEntry status to "With Doctor"
-    queueEntry.status = 'With Doctor';
-    await queueEntry.save();
-
-    // Sync linked appointment status if present
-    if (queueEntry.appointment) {
-      await Appointment.findByIdAndUpdate(queueEntry.appointment, { status: 'In Consultation' });
-    }
+    // Synchronize visit status to "In Consultation" across all models
+    await syncVisitStatus({
+      appointmentId: queueEntry.appointment,
+      queueEntryId: queueEntry._id,
+      consultationId: consultation._id,
+      status: 'In Consultation',
+    });
 
     const populated = await Consultation.findById(consultation._id)
       .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
@@ -209,15 +262,13 @@ async function closeConsultation(req, res, next) {
     consultation.closedAt = new Date();
     await consultation.save();
 
-    // Flip linked QueueEntry status to Completed
-    if (consultation.queueEntry) {
-      await QueueEntry.findByIdAndUpdate(consultation.queueEntry, { status: 'Completed' });
-    }
-
-    // Flip linked Appointment status to Completed
-    if (consultation.appointment) {
-      await Appointment.findByIdAndUpdate(consultation.appointment, { status: 'Completed' });
-    }
+    // Synchronize visit status across QueueEntry and Appointment
+    await syncVisitStatus({
+      consultationId: consultation._id,
+      queueEntryId: consultation.queueEntry,
+      appointmentId: consultation.appointment,
+      status: 'Completed',
+    });
 
     await logAction(req, {
       action: 'closed consultation',
@@ -249,12 +300,12 @@ async function getDoctorSummary(req, res, next) {
       targetDoctorId = req.query.doctorId;
     }
 
-    const { start, end } = getTodayDateRange();
+    const { start, end } = getDayBounds(new Date());
 
-    // 1. patientsInQueue: count of QueueEntry with status Waiting or Checked-In, assigned to this doctor, for today
+    // 1. patientsInQueue: count of QueueEntry with status Checked-In or In Consultation, assigned to this doctor, for today
     const queueFilter = {
       date: { $gte: start, $lte: end },
-      status: { $in: ['Waiting', 'Checked-In', 'Checked In'] },
+      status: { $in: ['Checked-In', 'Checked In', 'Waiting', 'With Doctor', 'In Consultation'] },
     };
     if (targetDoctorId) {
       queueFilter.doctor = targetDoctorId;
@@ -281,7 +332,6 @@ async function getDoctorSummary(req, res, next) {
     const activeTreatmentPlans = await TreatmentPlan.countDocuments(tpFilter);
 
     // 4. followUpsDue: count of FollowUp with status Pending, recommendedDate <= today
-    // Note: FollowUp tracks createdBy (doctor). For complete coverage, we match createdBy or join via patient's consultations for this doctor.
     const FollowUp = require('../models/FollowUp');
     const fuFilter = {
       status: 'Pending',
@@ -297,7 +347,7 @@ async function getDoctorSummary(req, res, next) {
     }
     const followUpsDue = await FollowUp.countDocuments(fuFilter);
 
-    // 5. nextInQueue: single next patient in this doctor's queue (lowest token number with status Waiting or Checked-In today)
+    // 5. nextInQueue: single next patient in this doctor's queue (lowest token number with status Checked-In today)
     const nextQueueEntry = await QueueEntry.findOne(queueFilter)
       .sort({ token: 1 })
       .populate('patient', 'firstName lastName opNumber phone age sex');
