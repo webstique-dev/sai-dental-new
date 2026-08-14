@@ -25,6 +25,135 @@ const CONDITION_CODES = {
   Other: { code: 'O', color: 'bg-gray-100 text-gray-800 border-gray-300', dot: 'bg-gray-400' },
 };
 
+const CONDITION_SVG_STYLES = {
+  Healthy: { fill: '#ECFDF5', stroke: '#10B981' },
+  Caries: { fill: '#FFE4E6', stroke: '#F43F5E' },
+  Decayed: { fill: '#FFE4E6', stroke: '#E11D48' },
+  Filling: { fill: '#DBEAFE', stroke: '#3B82F6' },
+  RCT: { fill: '#F3E8FF', stroke: '#A855F7' },
+  Crown: { fill: '#FEF3C7', stroke: '#F59E0B' },
+  Bridge: { fill: '#FEF3C7', stroke: '#D97706' },
+  Implant: { fill: '#CFFAFE', stroke: '#06B6D4' },
+  Missing: { fill: '#F8FAFC', stroke: '#94A3B8' },
+  Extraction: { fill: '#F8FAFC', stroke: '#64748B' },
+  Restored: { fill: '#CCFBF1', stroke: '#14B8A6' },
+  Prosthetic: { fill: '#E0E7FF', stroke: '#6366F1' },
+  Other: { fill: '#F3F4F6', stroke: '#6B7280' },
+};
+
+function getToothType(tNum) {
+  const digit = tNum % 10;
+  if (digit === 1 || digit === 2) return 'incisor';
+  if (digit === 3) return 'canine';
+  if (digit === 4 || digit === 5) return 'premolar';
+  return 'molar'; // 6, 7, 8
+}
+
+function ToothSvg({ tNum, condition, isSelected }) {
+  const toothType = getToothType(tNum);
+  const isLowerArch = tNum >= 31 && tNum <= 48;
+  const cfg = CONDITION_SVG_STYLES[condition] || CONDITION_SVG_STYLES.Healthy;
+  const isMissing = condition === 'Missing' || condition === 'Extraction';
+
+  return (
+    <div className="relative flex items-center justify-center w-10 h-16 sm:w-11 sm:h-18 my-1 shrink-0">
+      <svg
+        viewBox="0 0 50 85"
+        className={`w-full h-full transition-all duration-200 ${
+          isLowerArch ? 'rotate-180' : ''
+        }`}
+      >
+        {/* Base Anatomical Tooth Silhouette Paths */}
+        {toothType === 'incisor' && (
+          <path
+            d="M 25 5 C 21 16 16 30 16 42 C 12 50 11 65 12 78 C 13 80 37 80 38 78 C 39 65 38 50 34 42 C 34 30 29 16 25 5 Z"
+            fill={cfg.fill}
+            stroke={isSelected ? '#0D9488' : cfg.stroke}
+            strokeWidth={isSelected ? '3' : '2.2'}
+            strokeDasharray={isMissing ? '3,3' : 'none'}
+            strokeLinejoin="round"
+          />
+        )}
+        {toothType === 'canine' && (
+          <path
+            d="M 25 3 C 21 17 16 32 16 44 C 11 50 8 55 10 65 L 25 82 L 40 65 C 42 55 39 50 34 44 C 34 32 29 17 25 3 Z"
+            fill={cfg.fill}
+            stroke={isSelected ? '#0D9488' : cfg.stroke}
+            strokeWidth={isSelected ? '3' : '2.2'}
+            strokeDasharray={isMissing ? '3,3' : 'none'}
+            strokeLinejoin="round"
+          />
+        )}
+        {toothType === 'premolar' && (
+          <path
+            d="M 18 5 C 16 16 14 30 14 42 C 10 50 7 60 12 76 C 16 80 34 80 38 76 C 43 60 40 50 36 42 C 36 30 34 16 32 5 C 29 14 27 22 25 22 C 23 22 21 14 18 5 Z"
+            fill={cfg.fill}
+            stroke={isSelected ? '#0D9488' : cfg.stroke}
+            strokeWidth={isSelected ? '3' : '2.2'}
+            strokeDasharray={isMissing ? '3,3' : 'none'}
+            strokeLinejoin="round"
+          />
+        )}
+        {toothType === 'molar' && (
+          <path
+            d="M 13 3 C 11 15 11 28 11 40 C 6 48 5 62 10 76 C 18 78 21 72 25 72 C 29 72 32 78 40 76 C 45 62 44 48 39 40 C 39 28 39 15 37 3 C 33 12 29 25 25 25 C 21 25 17 12 13 3 Z"
+            fill={cfg.fill}
+            stroke={isSelected ? '#0D9488' : cfg.stroke}
+            strokeWidth={isSelected ? '3' : '2.2'}
+            strokeDasharray={isMissing ? '3,3' : 'none'}
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* Cervical CEJ Enamel Line Detail */}
+        {toothType === 'incisor' && <path d="M 16 42 Q 25 47 34 42" fill="none" stroke={cfg.stroke} strokeWidth="1.2" opacity="0.5" />}
+        {toothType === 'canine' && <path d="M 16 44 Q 25 49 34 44" fill="none" stroke={cfg.stroke} strokeWidth="1.2" opacity="0.5" />}
+        {toothType === 'premolar' && <path d="M 14 42 Q 25 47 36 42" fill="none" stroke={cfg.stroke} strokeWidth="1.2" opacity="0.5" />}
+        {toothType === 'molar' && <path d="M 11 40 Q 25 45 39 40" fill="none" stroke={cfg.stroke} strokeWidth="1.2" opacity="0.5" />}
+
+        {/* SPECIAL CONDITION OVERLAYS */}
+        {/* Caries / Decayed lesion */}
+        {(condition === 'Caries' || condition === 'Decayed') && (
+          <circle cx="25" cy="62" r="6.5" fill="#F43F5E" stroke="#9F1239" strokeWidth="1.5" />
+        )}
+
+        {/* Filling */}
+        {condition === 'Filling' && (
+          <path d="M 17 56 Q 25 51 33 56 Q 35 68 25 73 Q 15 68 17 56 Z" fill="#2563EB" opacity="0.85" stroke="#1D4ED8" strokeWidth="1" />
+        )}
+
+        {/* RCT (Root Canal Treatment) purple canal path */}
+        {condition === 'RCT' && (
+          <path d="M 25 8 L 25 65 M 19 12 L 25 45 M 31 12 L 25 45" fill="none" stroke="#9333EA" strokeWidth="3" strokeLinecap="round" />
+        )}
+
+        {/* Crown / Bridge highlight cap */}
+        {(condition === 'Crown' || condition === 'Bridge') && (
+          <path d="M 10 46 Q 25 40 40 46 L 38 76 Q 25 80 12 76 Z" fill="#F59E0B" fillOpacity="0.4" stroke="#D97706" strokeWidth="2.2" />
+        )}
+
+        {/* Implant metallic screw root threads */}
+        {condition === 'Implant' && (
+          <g stroke="#0891B2" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="16" y1="12" x2="34" y2="12" />
+            <line x1="18" y1="20" x2="32" y2="20" />
+            <line x1="20" y1="28" x2="30" y2="28" />
+            <line x1="22" y1="36" x2="28" y2="36" />
+          </g>
+        )}
+
+        {/* Missing / Extraction cross overlay */}
+        {isMissing && (
+          <g stroke="#EF4444" strokeWidth="3.5" strokeLinecap="round">
+            <line x1="8" y1="8" x2="42" y2="77" />
+            <line x1="42" y1="8" x2="8" y2="77" />
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+}
+
 function formatTeethListPhrase(numbers) {
   if (!numbers || numbers.length === 0) return '';
   if (numbers.length === 1) return `tooth ${numbers[0]}`;
@@ -138,45 +267,66 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
     }
   };
 
-  // Render a single Tooth Card/Element
+  // Render a single Tooth Card/Element with Anatomical SVG Silhouette
   const renderToothCard = (tNum) => {
     const record = teethMap[tNum] || {};
     const cond = record.currentCondition || 'Healthy';
     const info = CONDITION_CODES[cond] || CONDITION_CODES.Healthy;
     const isSelected = selectedTeeth.includes(tNum);
     const hasHistory = record.history && record.history.length > 0;
+    const isLowerArch = tNum >= 31 && tNum <= 48;
 
     return (
       <button
         type="button"
         key={tNum}
         onClick={() => handleToothClick(tNum)}
-        className={`flex flex-col items-center justify-between p-2 rounded-xl border transition-all duration-150 relative select-none min-w-[42px] sm:min-w-[48px] h-20 ${
+        className={`flex flex-col items-center justify-between p-1.5 sm:p-2 rounded-xl border transition-all duration-150 relative select-none w-[52px] sm:w-[60px] min-h-[125px] sm:min-h-[135px] ${
           isSelected
-            ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
+            ? 'border-brand bg-brand-light/40 shadow-lg ring-2 ring-brand scale-105 z-10'
             : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
         }`}
       >
-        {/* Top: Tooth Number */}
-        <span className="font-mono text-xs font-bold text-ink">{tNum}</span>
+        {/* UPPER ARCH: Top = Tooth Number | Middle = SVG Icon | Bottom = Condition Badge */}
+        {!isLowerArch ? (
+          <>
+            <span className="font-mono text-xs font-bold text-ink">{tNum}</span>
 
-        {/* Center Visual Indicator */}
-        <div className="flex flex-col items-center gap-0.5 my-1">
-          <div className={`h-3.5 w-3.5 rounded-full border ${info.color} flex items-center justify-center font-mono text-[9px] font-bold`}>
-            {info.code}
-          </div>
-          <span className="text-[10px] font-semibold text-ink-soft truncate max-w-[42px]">
-            {cond}
-          </span>
-        </div>
+            <ToothSvg tNum={tNum} condition={cond} isSelected={isSelected} />
 
-        {/* Bottom indicator for historical entries count */}
-        {hasHistory ? (
-          <span className="text-[9px] font-bold text-brand flex items-center gap-0.5">
-            <History size={10} /> {record.history.length}
-          </span>
+            <div className="flex flex-col items-center gap-0.5 w-full">
+              <span className="text-[10px] font-semibold text-ink-soft truncate max-w-[50px]">
+                {cond}
+              </span>
+              {hasHistory ? (
+                <span className="text-[9px] font-bold text-brand flex items-center gap-0.5">
+                  <History size={10} /> {record.history.length}
+                </span>
+              ) : (
+                <span className="text-[9px] text-ink-soft/40">—</span>
+              )}
+            </div>
+          </>
         ) : (
-          <span className="text-[9px] text-ink-soft/40">—</span>
+          /* LOWER ARCH: Top = Condition Badge | Middle = Flipped SVG Icon | Bottom = Tooth Number */
+          <>
+            <div className="flex flex-col items-center gap-0.5 w-full">
+              {hasHistory ? (
+                <span className="text-[9px] font-bold text-brand flex items-center gap-0.5">
+                  <History size={10} /> {record.history.length}
+                </span>
+              ) : (
+                <span className="text-[9px] text-ink-soft/40">—</span>
+              )}
+              <span className="text-[10px] font-semibold text-ink-soft truncate max-w-[50px]">
+                {cond}
+              </span>
+            </div>
+
+            <ToothSvg tNum={tNum} condition={cond} isSelected={isSelected} />
+
+            <span className="font-mono text-xs font-bold text-ink">{tNum}</span>
+          </>
         )}
       </button>
     );
@@ -214,10 +364,10 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
           <div>
             <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-              <Layers size={18} className="text-brand" /> FDI Interactive Tooth Chart
+              <Layers size={18} className="text-brand" /> FDI Anatomical Interactive Tooth Chart
             </h3>
             <p className="text-xs text-ink-soft">
-              Click a tooth to view treatment history or select multiple teeth to record conditions.
+              Anatomically shaped teeth (Incisor, Canine, Premolar, Molar). Upper arch roots point up; lower arch roots point down.
             </p>
           </div>
 
@@ -264,12 +414,12 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         {loading ? (
           <div className="p-8 text-center text-sm text-ink-soft">Loading patient tooth records...</div>
         ) : (
-          <div className="min-w-[650px] space-y-6">
+          <div className="min-w-[850px] space-y-6">
             {/* UPPER ARCH (Maxillary) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-ink-soft uppercase tracking-wider px-2">
                 <span>Maxillary Right (18 - 11)</span>
-                <span className="text-brand font-display font-extrabold">UPPER ARCH</span>
+                <span className="text-brand font-display font-extrabold">UPPER ARCH (MAXILLA)</span>
                 <span>Maxillary Left (21 - 28)</span>
               </div>
 
@@ -285,11 +435,21 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
               </div>
             </div>
 
+            {/* BITE LINE DIVIDER */}
+            <div className="relative flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-dashed border-brand/30"></div>
+              </div>
+              <span className="relative bg-surface px-4 text-[10px] font-mono font-bold text-brand border border-brand/20 rounded-full">
+                OCCLUSAL BITE LINE
+              </span>
+            </div>
+
             {/* LOWER ARCH (Mandibular) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-ink-soft uppercase tracking-wider px-2">
                 <span>Mandibular Right (48 - 41)</span>
-                <span className="text-brand font-display font-extrabold">LOWER ARCH</span>
+                <span className="text-brand font-display font-extrabold">LOWER ARCH (MANDIBLE)</span>
                 <span>Mandibular Left (31 - 38)</span>
               </div>
 
