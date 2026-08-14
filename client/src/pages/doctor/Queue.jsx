@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ClipboardList, Play, ArrowRight, Clock, UserSquare2, AlertTriangle, CheckCircle2, RefreshCw,
+  ClipboardList, Play, Clock, UserSquare2, RefreshCw,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -14,10 +15,10 @@ const STATUS_BADGE_CLASSES = {
 
 export default function DoctorQueue() {
   const navigate = useNavigate();
+  const { showError } = useNotification();
   const [queueEntries, setQueueEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState(null);
-  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchDoctorQueue = async () => {
     try {
@@ -26,7 +27,7 @@ export default function DoctorQueue() {
       setQueueEntries(res.data?.queueEntries || []);
     } catch (err) {
       console.error('Failed to fetch doctor queue:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to load today queue.');
+      showError(err.response?.data?.message || 'Failed to load today queue.');
     } finally {
       setLoading(false);
     }
@@ -38,14 +39,12 @@ export default function DoctorQueue() {
 
   const handleStartConsultation = async (entry) => {
     const entryId = entry._id || entry.id;
-    // If active consultation already exists, navigate directly
     if (entry.activeConsultationId) {
       navigate(`/doctor/consultation/${entry.activeConsultationId}`);
       return;
     }
 
     setSubmittingId(entryId);
-    setErrorMessage('');
     try {
       const res = await api.post('/consultations/start', { queueEntryId: entryId });
       const consultation = res.data?.consultation;
@@ -56,7 +55,7 @@ export default function DoctorQueue() {
         fetchDoctorQueue();
       }
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to start consultation.');
+      showError(err.response?.data?.message || 'Failed to start consultation.');
     } finally {
       setSubmittingId(null);
     }
@@ -80,14 +79,6 @@ export default function DoctorQueue() {
           <RefreshCw size={14} /> Refresh Queue
         </button>
       </div>
-
-      {/* Error notification */}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
 
       {/* Queue Table */}
       <div className="card overflow-hidden">

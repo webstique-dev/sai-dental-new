@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, Building2, Stethoscope, AlertTriangle, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Building2, Stethoscope, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
+import { useNotification } from '../context/NotificationContext.jsx';
 
 const ROLES_CONFIG = [
   {
@@ -33,6 +34,7 @@ const ROLES_CONFIG = [
 export default function Signup() {
   const navigate = useNavigate();
   const { signup } = useAuth();
+  const { showError, showSuccess } = useNotification();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,25 +45,23 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState('');
 
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
 
     if (!selectedRole) {
-      setError('Please select a role for your account.');
+      showError('Please select a role for your account.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      showError('Passwords do not match.');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      showError('Password must be at least 6 characters long.');
       return;
     }
 
@@ -76,11 +76,12 @@ export default function Signup() {
         role: selectedRole,
       });
 
+      showSuccess(`Account created successfully! Welcome, ${user.name}.`);
       const home = ROLE_HOME[user.role] || '/';
       navigate(home, { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to create account. Please try again.';
-      setError(msg);
+      showError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -99,14 +100,6 @@ export default function Signup() {
             Register your account to access your assigned role dashboard.
           </p>
         </div>
-
-        {/* Server / Validation Error Alert Banner */}
-        {error && (
-          <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-xs font-medium text-rose-800 border border-rose-200 animate-in fade-in duration-150">
-            <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="card p-6 space-y-5 bg-surface">
           {/* Step 1: Select Role */}

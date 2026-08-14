@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, UserPlus, Plus, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, UserPlus, Plus, X } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -21,6 +22,7 @@ const HABITS_OPTIONS = ['Smoking', 'Tobacco', 'Alcohol', 'Pan'];
 
 export default function PatientRegistration() {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useNotification();
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -40,8 +42,6 @@ export default function PatientRegistration() {
 
   const [similarPatients, setSimilarPatients] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const [customMedicalInput, setCustomMedicalInput] = useState('');
   const [customHabitInput, setCustomHabitInput] = useState('');
   const [customVitalLabel, setCustomVitalLabel] = useState('');
@@ -112,7 +112,6 @@ export default function PatientRegistration() {
         const matches = res.data?.patients || [];
         setSimilarPatients(matches);
       } catch (err) {
-        // Non-blocking, ignore live search error
         console.error('Live search error:', err);
       }
     }, 400);
@@ -144,11 +143,8 @@ export default function PatientRegistration() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    setErrorMessage('');
-    setSuccessMessage('');
 
     try {
-      // Prepare payload, convert age to number if entered
       const payload = {
         ...formData,
         age: formData.age ? parseInt(formData.age, 10) : undefined,
@@ -158,16 +154,16 @@ export default function PatientRegistration() {
       const res = await api.post('/patients', payload);
       const newPatient = res.data?.patient;
 
-      setSuccessMessage(`Patient ${newPatient?.opNumber || ''} registered successfully!`);
+      showSuccess(`Patient ${newPatient?.opNumber || ''} registered successfully!`);
       setTimeout(() => {
         if (newPatient?._id) {
           navigate(`/reception/patients/${newPatient._id}`);
         } else {
           navigate('/reception/patients');
         }
-      }, 1200);
+      }, 1000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to register patient. Please try again.');
+      showError(err.response?.data?.message || 'Failed to register patient. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -190,20 +186,6 @@ export default function PatientRegistration() {
           </div>
         </div>
       </div>
-
-      {/* Success / Error Messages */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
 
       {/* Soft Duplicate Warning */}
       {similarPatients.length > 0 && (

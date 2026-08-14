@@ -41,14 +41,24 @@ const documentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Consultation',
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
-
-// Note: Local disk storage under Express /uploads static directory is used for file references.
-// Swapping to cloud object storage (e.g. AWS S3, Google Cloud Storage) is a drop-in replacement
-// for the multer upload handler in documentController.js and does not require API schema changes.
 
 module.exports = mongoose.model('Document', documentSchema);

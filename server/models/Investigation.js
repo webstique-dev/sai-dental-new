@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const investigationTypeOptions = ['X-Ray', 'Blood Tests', 'Other'];
+const investigationTypeOptions = ['RVG/IOPA', 'OPG', 'CBCT', 'Other', 'X-Ray', 'Blood Tests'];
 
 const investigationSchema = new mongoose.Schema(
   {
@@ -13,9 +13,30 @@ const investigationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
     },
+    selectedTypes: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    otherText: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    investigationDetails: {
+      type: Map,
+      of: String,
+      default: {},
+    },
+    findings: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    // Legacy / individual item fields
     type: {
       type: String,
-      enum: investigationTypeOptions,
       default: 'X-Ray',
     },
     reason: {
@@ -33,7 +54,6 @@ const investigationSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    // Attachment URL or file path reference
     attachment: {
       type: String,
       trim: true,

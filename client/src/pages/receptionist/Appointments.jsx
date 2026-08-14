@@ -306,22 +306,6 @@ export default function Appointments() {
         </div>
       </div>
 
-      {/* Notifications */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600" />
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage('')} className="ml-auto text-rose-600 hover:text-rose-800">
-            <X size={16} />
-          </button>
-        </div>
-      )}
 
       {/* Filter Bar */}
       <div className="card p-4 space-y-3">

@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import {
-  Building2, Clock, CalendarDays, Receipt, Save, CheckCircle2, AlertTriangle, RefreshCw, Shield,
+  Building2, Clock, CalendarDays, Receipt, Save, RefreshCw,
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function ClinicSettings() {
+  const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   // Form State
   const [clinicName, setClinicName] = useState('');
@@ -26,7 +26,6 @@ export default function ClinicSettings() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      setErrorMessage('');
       const res = await api.get('/settings');
       const s = res.data?.settings || {};
 
@@ -63,7 +62,7 @@ export default function ClinicSettings() {
       }
     } catch (err) {
       console.error('Failed to load clinic settings:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to load clinic settings.');
+      showError(err.response?.data?.message || 'Failed to load clinic settings.');
     } finally {
       setLoading(false);
     }
@@ -82,8 +81,6 @@ export default function ClinicSettings() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setSuccessMessage('');
-    setErrorMessage('');
 
     try {
       const payload = {
@@ -98,7 +95,7 @@ export default function ClinicSettings() {
       };
 
       const res = await api.patch('/settings', payload);
-      setSuccessMessage('Clinic settings updated successfully!');
+      showSuccess('Clinic settings updated successfully!');
       const s = res.data?.settings;
       if (s?.updatedBy) {
         setLastUpdatedInfo({
@@ -106,10 +103,9 @@ export default function ClinicSettings() {
           at: s.updatedAt ? new Date(s.updatedAt).toLocaleString() : new Date().toLocaleString(),
         });
       }
-      setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
       console.error('Failed to update clinic settings:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to update clinic settings.');
+      showError(err.response?.data?.message || 'Failed to update clinic settings.');
     } finally {
       setSaving(false);
     }
@@ -144,20 +140,6 @@ export default function ClinicSettings() {
           </div>
         )}
       </div>
-
-      {/* Notifications */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* SECTION 1: CLINIC INFO */}

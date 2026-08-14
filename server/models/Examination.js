@@ -40,6 +40,16 @@ const examinationSchema = new mongoose.Schema(
         trim: true,
       },
     ],
+    periodontalDetails: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    overallNotes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

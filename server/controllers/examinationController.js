@@ -20,10 +20,10 @@ async function getExamination(req, res, next) {
   }
 }
 
-// POST /api/examinations (Upsert one examination per consultation)
+// POST /api/examinations (Upsert single examination document per consultation)
 async function upsertExamination(req, res, next) {
   try {
-    const { consultation, patient, extraoral, softTissue, gingivalFindings } = req.body;
+    const { consultation, patient, extraoral, softTissue, gingivalFindings, periodontalDetails, overallNotes } = req.body;
 
     if (!consultation) {
       return res.status(400).json({ message: 'consultation is required.' });
@@ -45,6 +45,8 @@ async function upsertExamination(req, res, next) {
       extraoral: Array.isArray(extraoral) ? extraoral : [],
       softTissue: Array.isArray(softTissue) ? softTissue : [],
       gingivalFindings: Array.isArray(gingivalFindings) ? gingivalFindings : [],
+      periodontalDetails: periodontalDetails ? String(periodontalDetails).trim() : '',
+      overallNotes: overallNotes ? String(overallNotes).trim() : '',
       recordedBy: req.user ? req.user._id : undefined,
       recordedAt: new Date(),
     };

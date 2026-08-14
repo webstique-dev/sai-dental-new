@@ -1,9 +1,6 @@
 const mongoose = require('mongoose');
 
-const priorityOptions = ['Low', 'Medium', 'High', 'Normal', 'Urgent'];
-const treatmentStatusOptions = ['Planned', 'Approved', 'In Progress', 'Completed', 'Cancelled'];
-
-const treatmentPlanSchema = new mongoose.Schema(
+const treatmentRecordSchema = new mongoose.Schema(
   {
     consultation: {
       type: mongoose.Schema.Types.ObjectId,
@@ -15,52 +12,36 @@ const treatmentPlanSchema = new mongoose.Schema(
       ref: 'Patient',
       required: true,
     },
-    diagnosis: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Diagnosis',
-      default: null,
+    date: {
+      type: Date,
+      default: Date.now,
     },
     tooth: {
       type: Number,
       default: null,
     },
-    treatment: {
+    procedure: {
       type: String,
       trim: true,
       required: true,
     },
-    description: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    estimatedCost: {
+    charges: {
       type: Number,
       default: 0,
       min: 0,
     },
-    priority: {
-      type: String,
-      enum: priorityOptions,
-      default: 'Medium',
+    nextAppointment: {
+      type: Date,
+      default: null,
     },
     notes: {
       type: String,
       trim: true,
       default: '',
     },
-    status: {
-      type: String,
-      enum: treatmentStatusOptions,
-      default: 'Planned',
-    },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-    },
-    recordedAt: {
-      type: Date,
-      default: Date.now,
     },
     isDeleted: {
       type: Boolean,
@@ -82,6 +63,4 @@ const treatmentPlanSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('TreatmentPlan', treatmentPlanSchema);
-module.exports.priorityOptions = priorityOptions;
-module.exports.treatmentStatusOptions = treatmentStatusOptions;
+module.exports = mongoose.model('TreatmentRecord', treatmentRecordSchema);

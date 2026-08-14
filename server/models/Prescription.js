@@ -23,6 +23,11 @@ const prescriptionSchema = new mongoose.Schema(
       ref: 'Patient',
     },
     medicines: [medicineItemSchema],
+    notes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -30,6 +35,20 @@ const prescriptionSchema = new mongoose.Schema(
     recordedAt: {
       type: Date,
       default: Date.now,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
   },
   {

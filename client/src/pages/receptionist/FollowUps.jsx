@@ -1,34 +1,33 @@
 import { useState, useEffect } from 'react';
 import {
-  Bell, Plus, Calendar, Search, CheckCircle2, AlertTriangle, X,
-  Clock, User, Stethoscope, FileText, CalendarDays, ArrowRight, ShieldCheck,
+  CalendarDays, Plus, Search, Calendar, Phone, CheckCircle2, UserCheck, X, Clock, AlertTriangle,
 } from 'lucide-react';
 import api from '../../api/axios.js';
-import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Pending: 'bg-amber-100 text-amber-800 border-amber-200',
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
   Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
 };
 
 export default function FollowUps() {
+  const { showSuccess, showError } = useNotification();
+
   const [followUps, setFollowUps] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Tabs & Filters
-  const [activeTab, setActiveTab] = useState('All'); // 'Pending' | 'Scheduled' | 'Completed' | 'All'
+  // Filter state
+  const [activeTab, setActiveTab] = useState('All'); // 'Pending', 'Scheduled', 'Completed', 'All'
   const [search, setSearch] = useState('');
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [schedulingFollowUp, setSchedulingFollowUp] = useState(null);
 
-  // Notifications
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Add Follow-Up Form state
@@ -36,42 +35,44 @@ export default function FollowUps() {
   const [patientOptions, setPatientOptions] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [addFormData, setAddFormData] = useState({
-    recommendedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // default 1 week out
+    recommendedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     reason: '',
-    instructions: '',
     notes: '',
-    treatmentStatus: '',
   });
 
   // Schedule Appointment Form state
   const [scheduleFormData, setScheduleFormData] = useState({
     doctor: '',
-    date: '',
+    date: new Date().toISOString().split('T')[0],
     time: '10:00 AM',
     type: 'Appointment',
     reason: '',
   });
 
-  // Fetch doctors & follow-ups
-  const fetchDoctors = async () => {
-    try {
-      const res = await api.get('/users/doctors');
-      const docs = res.data?.doctors || [];
-      setDoctors(docs);
-      if (docs.length > 0) {
-        setScheduleFormData((prev) => ({ ...prev, doctor: docs[0]._id || docs[0].id }));
+  // Fetch doctors list on mount
+  useEffect(() => {
+    async function fetchDoctors() {
+      try {
+        const res = await api.get('/users/doctors');
+        setDoctors(res.data?.doctors || []);
+      } catch (err) {
+        console.error('Failed to load doctors:', err);
       }
-    } catch (err) {
-      console.error('Failed to load doctors:', err);
     }
-  };
+    fetchDoctors();
+  }, []);
 
+  // Fetch follow-up records
   const fetchFollowUps = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (activeTab !== 'All') params.append('status', activeTab);
-      if (search) params.append('search', search);
+      if (activeTab !== 'All') {
+        params.append('status', activeTab);
+      }
+      if (search && search.trim()) {
+        params.append('search', search.trim());
+      }
 
       const res = await api.get(`/follow-ups?${params.toString()}`);
       setFollowUps(res.data?.followUps || []);
@@ -83,57 +84,61 @@ export default function FollowUps() {
   };
 
   useEffect(() => {
-    fetchDoctors();
-  }, []);
-
-  useEffect(() => {
     const timer = setTimeout(() => {
       fetchFollowUps();
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
   }, [activeTab, search]);
 
-  // Live patient search for Add Follow-up
+  // Live patient search for Add Modal
   useEffect(() => {
     if (!patientSearch || patientSearch.trim().length < 2) {
       setPatientOptions([]);
       return;
     }
+
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/patients?search=${encodeURIComponent(patientSearch)}&limit=5`);
+        const res = await api.get(`/patients?search=${encodeURIComponent(patientSearch.trim())}&limit=5`);
         setPatientOptions(res.data?.patients || []);
       } catch (err) {
         console.error('Patient search error:', err);
       }
     }, 300);
+
     return () => clearTimeout(timer);
   }, [patientSearch]);
 
+  const selectPatient = (patient) => {
+    setSelectedPatient(patient);
+    setPatientSearch(`${patient.firstName || ''} ${patient.lastName || ''}`.trim());
+    setPatientOptions([]);
+  };
+
   const resetAddModal = () => {
+    setShowAddModal(false);
     setSelectedPatient(null);
     setPatientSearch('');
     setPatientOptions([]);
     setAddFormData({
       recommendedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       reason: '',
-      instructions: '',
       notes: '',
-      treatmentStatus: '',
     });
-    setErrorMessage('');
-    setShowAddModal(false);
   };
 
-  const handleCreateFollowUp = async (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
     if (!selectedPatient) {
-      setErrorMessage('Please search and select a patient.');
+      showError('Please search and select a patient.');
+      return;
+    }
+    if (!addFormData.reason || !addFormData.reason.trim()) {
+      showError('Reason / Procedure is required.');
       return;
     }
 
     setSubmitting(true);
-    setErrorMessage('');
     try {
       const payload = {
         patient: selectedPatient._id || selectedPatient.id,
@@ -141,12 +146,11 @@ export default function FollowUps() {
       };
 
       await api.post('/follow-ups', payload);
-      setSuccessMessage('Follow-up reminder created successfully!');
+      showSuccess('Follow-up reminder created successfully!');
       resetAddModal();
       fetchFollowUps();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to create follow-up.');
+      showError(err.response?.data?.message || 'Failed to create follow-up.');
     } finally {
       setSubmitting(false);
     }
@@ -165,7 +169,6 @@ export default function FollowUps() {
       type: 'Appointment',
       reason: item.reason || 'Follow-Up Consultation',
     });
-    setErrorMessage('');
   };
 
   const handleScheduleSubmit = async (e) => {
@@ -173,130 +176,107 @@ export default function FollowUps() {
     if (!schedulingFollowUp) return;
 
     if (!scheduleFormData.doctor) {
-      setErrorMessage('Please select a doctor to assign.');
+      showError('Please select a doctor to assign.');
       return;
     }
 
     setSubmitting(true);
-    setErrorMessage('');
     try {
       const followUpId = schedulingFollowUp._id || schedulingFollowUp.id;
       await api.post(`/follow-ups/${followUpId}/schedule`, scheduleFormData);
 
-      setSuccessMessage('Appointment created and follow-up marked as Scheduled!');
+      showSuccess('Appointment created and follow-up marked as Scheduled!');
       setSchedulingFollowUp(null);
       fetchFollowUps();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to schedule follow-up appointment.');
+      showError(err.response?.data?.message || 'Failed to schedule follow-up appointment.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Grouping helper
-  const pendingCount = followUps.filter((f) => f.status === 'Pending').length;
-  const scheduledCount = followUps.filter((f) => f.status === 'Scheduled').length;
-  const completedCount = followUps.filter((f) => f.status === 'Completed').length;
-
   return (
     <div className="space-y-6">
-      {/* Header & Main Action */}
+      {/* Header & Primary Action */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <Bell size={22} className="text-brand" /> Recall & Follow-Ups
-          </h2>
-          <p className="text-sm text-ink-soft">Track patient recall dates and schedule follow-up appointments</p>
+          <h2 className="font-display text-xl font-bold text-ink">Follow-Up Reminders</h2>
+          <p className="text-sm text-ink-soft">Track recommended recall dates and convert into booked appointments</p>
         </div>
 
-        <button
-          onClick={() => {
-            resetAddModal();
-            setShowAddModal(true);
-          }}
-          className="btn-primary shrink-0"
-        >
+        <button onClick={() => setShowAddModal(true)} className="btn-primary shrink-0">
           <Plus size={18} />
           <span>Add Follow-Up</span>
         </button>
       </div>
 
-      {/* Notifications */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && !showAddModal && !schedulingFollowUp && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
       {/* Tabs & Search Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex rounded-xl border border-border bg-surface p-1">
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1 bg-surface border border-border p-1 rounded-2xl overflow-x-auto">
           {['All', 'Pending', 'Scheduled', 'Completed'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${activeTab === tab
-                ? 'bg-brand text-white'
-                : 'text-ink-soft hover:text-ink'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${activeTab === tab
+                ? 'bg-brand text-white shadow-sm'
+                : 'text-ink-soft hover:text-ink hover:bg-bg'
                 }`}
             >
-              {tab}
+              {tab === 'Pending' ? 'Pending Callbacks' : tab}
             </button>
           ))}
         </div>
 
+        {/* Search Input */}
         <div className="relative w-full sm:w-72">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
           <input
             type="text"
-            className="input-field pl-9 py-2 text-xs"
-            placeholder="Search patient name, phone, OP..."
+            className="input-field pl-9 py-1.5 text-xs"
+            placeholder="Search by Patient Name, Phone, OP#..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
       </div>
 
-      {/* FOLLOW-UPS LIST GROUPED */}
+      {/* Follow-Up Records Table */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-sm text-ink-soft">Loading follow-ups...</div>
+          <div className="p-8 text-center text-xs text-ink-soft">Loading follow-ups...</div>
         ) : followUps.length === 0 ? (
           <div className="p-12 text-center space-y-3">
-            <Bell size={36} className="mx-auto text-ink-soft/50" />
+            <CalendarDays size={36} className="mx-auto text-ink-soft/40" />
             <p className="font-display text-base font-semibold text-ink">No follow-ups found</p>
-            <p className="text-sm text-ink-soft">
-              {search ? 'Try clearing your search query.' : 'Click "Add Follow-Up" to create a recall reminder.'}
+            <p className="text-xs text-ink-soft">
+              {activeTab === 'Pending'
+                ? 'No pending recall callbacks scheduled.'
+                : 'Try adjusting your search or tab filter.'}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
                 <tr>
                   <th className="px-5 py-3.5">Recommended Date</th>
-                  <th className="px-5 py-3.5">Patient</th>
-                  <th className="px-5 py-3.5">Reason & Instructions</th>
+                  <th className="px-5 py-3.5">Patient Details</th>
+                  <th className="px-5 py-3.5">Reason / Procedure</th>
                   <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">Scheduled Appt</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {followUps.map((item) => {
                   const itemId = item._id || item.id;
-                  const patientName = item.patient
-                    ? `${item.patient.firstName} ${item.patient.lastName}`.trim()
-                    : 'Unknown Patient';
+                  const patient = item.patient || {};
+                  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const isPending = item.status === 'Pending';
                   const recDateStr = item.recommendedDate
                     ? new Date(item.recommendedDate).toLocaleDateString(undefined, {
+                      weekday: 'short',
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
@@ -304,57 +284,64 @@ export default function FollowUps() {
                     : 'N/A';
 
                   return (
-                    <tr key={itemId} className="hover:bg-bg/60 transition-colors">
-                      {/* Recommended Date */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="font-semibold text-ink text-xs flex items-center gap-1.5">
-                          <Calendar size={14} className="text-brand" /> {recDateStr}
+                    <tr key={itemId} className="hover:bg-bg/40 transition-colors">
+                      <td className="px-5 py-4 whitespace-nowrap font-bold text-ink">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={14} className="text-brand shrink-0" />
+                          <span>{recDateStr}</span>
                         </div>
                       </td>
 
-                      {/* Patient */}
                       <td className="px-5 py-4">
-                        <div className="font-medium text-ink">{patientName}</div>
-                        <div className="text-xs text-brand font-mono">{item.patient?.opNumber || '—'}</div>
+                        <div className="font-semibold text-ink text-sm">{patientName}</div>
+                        <div className="flex items-center gap-2 text-ink-soft text-[11px] mt-0.5">
+                          {patient.opNumber && (
+                            <span className="font-mono font-bold text-brand">{patient.opNumber}</span>
+                          )}
+                          {patient.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone size={11} /> {patient.phone}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
-                      {/* Reason & Instructions */}
-                      <td className="px-5 py-4 text-xs max-w-xs">
-                        <div className="font-semibold text-ink">{item.reason || 'Follow-Up Visit'}</div>
-                        {item.instructions && (
-                          <div className="text-ink-soft truncate mt-0.5">{item.instructions}</div>
-                        )}
-                        {item.notes && (
-                          <div className="text-[11px] text-ink-soft/80 italic mt-0.5">{item.notes}</div>
-                        )}
+                      <td className="px-5 py-4 font-medium text-ink max-w-xs">
+                        {item.reason}
+                        {item.notes && <span className="block text-[11px] text-ink-soft italic font-normal">{item.notes}</span>}
                       </td>
 
-                      {/* Status */}
                       <td className="px-5 py-4">
-                        <span
-                          className={`badge border ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'
-                            }`}
-                        >
+                        <span className={`badge border ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
                           {item.status}
                         </span>
-                        {item.scheduledAppointment && (
-                          <div className="text-[11px] text-blue-700 font-medium mt-1">
-                            Dr. {item.scheduledAppointment.doctor?.name || 'Assigned'}
+                      </td>
+
+                      <td className="px-5 py-4 text-ink-soft">
+                        {item.scheduledAppointment ? (
+                          <div className="space-y-0.5">
+                            <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 block text-[11px] w-fit">
+                              {new Date(item.scheduledAppointment.date).toLocaleDateString()} @ {item.scheduledAppointment.time || '—'}
+                            </span>
+                            {item.scheduledAppointment.doctor && (
+                              <span className="text-[10px] block">
+                                Dr. {item.scheduledAppointment.doctor.name}
+                              </span>
+                            )}
                           </div>
+                        ) : (
+                          '—'
                         )}
                       </td>
 
-                      {/* Actions */}
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        {item.status === 'Pending' ? (
+                        {isPending && (
                           <button
                             onClick={() => openScheduleModal(item)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-brand bg-brand-light/30 px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light"
+                            className="btn-primary text-xs py-1.5 px-3 inline-flex items-center gap-1"
                           >
-                            <CalendarDays size={14} /> Schedule Appointment
+                            <UserCheck size={14} /> Schedule Appt
                           </button>
-                        ) : (
-                          <span className="text-xs text-ink-soft italic">Scheduled</span>
                         )}
                       </td>
                     </tr>
@@ -366,82 +353,108 @@ export default function FollowUps() {
         )}
       </div>
 
-      {/* MANUAL ADD FOLLOW-UP MODAL */}
+      {/* ADD FOLLOW-UP MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
           <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
-              <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
-                <Bell size={20} className="text-brand" /> Add Manual Follow-Up Reminder
+              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <Plus size={18} className="text-brand" /> Add Follow-Up Recall
               </h3>
               <button onClick={resetAddModal} className="rounded-lg p-1 hover:bg-bg">
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateFollowUp} className="flex flex-col flex-1 overflow-hidden">
+            <form onSubmit={handleAddSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
                 {/* Patient Search */}
-                <PatientSearchInput
-                  selectedPatient={selectedPatient}
-                  onSelect={setSelectedPatient}
-                  required
-                />
+                <div className="relative">
+                  <label className="block font-semibold text-ink-soft mb-1">Search & Select Patient *</label>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                    <input
+                      type="text"
+                      className="input-field pl-9 text-xs"
+                      placeholder="Type Patient Name, OP Number, or Phone..."
+                      value={patientSearch}
+                      onChange={(e) => {
+                        setPatientSearch(e.target.value);
+                        setSelectedPatient(null);
+                      }}
+                    />
+                  </div>
 
-                {/* Recommended Date */}
+                  {patientOptions.length > 0 && !selectedPatient && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-surface border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-border">
+                      {patientOptions.map((p) => (
+                        <button
+                          type="button"
+                          key={p._id}
+                          onClick={() => selectPatient(p)}
+                          className="w-full text-left p-2.5 hover:bg-bg transition-colors flex items-center justify-between"
+                        >
+                          <div>
+                            <span className="font-bold text-ink block">{p.firstName} {p.lastName}</span>
+                            <span className="text-[11px] text-ink-soft">{p.phone || 'No phone'}</span>
+                          </div>
+                          <span className="font-mono text-xs font-bold text-brand">{p.opNumber}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedPatient && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-brand-light/30 border border-brand-light flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-brand-dark block text-xs">
+                          {selectedPatient.firstName} {selectedPatient.lastName}
+                        </span>
+                        <span className="text-[11px] text-ink-soft">{selectedPatient.phone}</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-brand">{selectedPatient.opNumber}</span>
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <DatePicker
-                    label="Recommended Date"
+                    label="Recommended Follow-Up Date *"
                     value={addFormData.recommendedDate}
-                    onChange={(date, dateStr) => setAddFormData({ ...addFormData, recommendedDate: dateStr })}
+                    onChange={(date, dateStr) => setAddFormData((prev) => ({ ...prev, recommendedDate: dateStr }))}
+                    minDate={new Date()}
                   />
                 </div>
 
-                {/* Reason */}
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Reason for Follow-Up</label>
+                  <label className="block font-semibold text-ink-soft mb-1">Reason / Procedure *</label>
                   <input
                     type="text"
-                    className="input-field"
-                    placeholder="e.g. Suture Removal, Crown Fitting, Post-Op Check"
+                    className="input-field text-xs"
+                    placeholder="e.g. Suture removal, Crown Placement, Post-op evaluation"
                     value={addFormData.reason}
-                    onChange={(e) => setAddFormData({ ...addFormData, reason: e.target.value })}
+                    onChange={(e) => setAddFormData((prev) => ({ ...prev, reason: e.target.value }))}
                   />
                 </div>
 
-                {/* Instructions */}
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Post-Op / Patient Instructions</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g. Soft diet, avoid hot liquids"
-                    value={addFormData.instructions}
-                    onChange={(e) => setAddFormData({ ...addFormData, instructions: e.target.value })}
-                  />
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Notes</label>
+                  <label className="block font-semibold text-ink-soft mb-1">Notes (Optional)</label>
                   <textarea
                     rows={2}
-                    className="input-field"
-                    placeholder="Additional notes for front desk..."
+                    className="input-field text-xs"
+                    placeholder="Instructions for receptionist during recall call..."
                     value={addFormData.notes}
-                    onChange={(e) => setAddFormData({ ...addFormData, notes: e.target.value })}
+                    onChange={(e) => setAddFormData((prev) => ({ ...prev, notes: e.target.value }))}
                   />
                 </div>
-
-                {/* Submit Buttons */}
               </div>
 
-              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button type="button" className="btn-secondary text-xs" onClick={resetAddModal}>
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting} className="btn-primary text-xs">
-                  {submitting ? 'Creating...' : 'Create Follow-Up'}
+                  {submitting ? 'Saving...' : 'Save Follow-Up'}
                 </button>
               </div>
             </form>
@@ -449,13 +462,13 @@ export default function FollowUps() {
         </div>
       )}
 
-      {/* SCHEDULE APPOINTMENT FROM FOLLOW-UP MODAL */}
+      {/* SCHEDULE APPOINTMENT MODAL */}
       {schedulingFollowUp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
-          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+          <div className="card w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
-              <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
-                <CalendarDays size={20} className="text-brand" /> Schedule Appointment from Follow-Up
+              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <UserCheck size={18} className="text-brand" /> Schedule Follow-Up Appointment
               </h3>
               <button onClick={() => setSchedulingFollowUp(null)} className="rounded-lg p-1 hover:bg-bg">
                 <X size={18} />
@@ -464,78 +477,71 @@ export default function FollowUps() {
 
             <form onSubmit={handleScheduleSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
-                {/* Pre-filled Patient Display */}
-                <div className="rounded-xl border border-brand bg-brand-light/20 p-3">
-                  <span className="text-ink-soft block font-medium">Patient</span>
+                <div className="p-3 rounded-xl bg-bg border border-border space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-ink-soft block">Patient</span>
                   <span className="font-bold text-ink text-sm">
                     {schedulingFollowUp.patient?.firstName} {schedulingFollowUp.patient?.lastName}
-                  </span>{' '}
-                  <span className="text-brand font-mono">({schedulingFollowUp.patient?.opNumber})</span>
+                  </span>
+                  <span className="text-xs text-brand font-mono font-bold block">{schedulingFollowUp.patient?.opNumber}</span>
                 </div>
 
-                {/* Doctor Select */}
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Assigned Doctor *</label>
+                  <label className="block font-semibold text-ink-soft mb-1">Assign Doctor *</label>
                   <select
-                    className="input-field"
+                    className="input-field text-xs"
                     value={scheduleFormData.doctor}
-                    onChange={(e) => setScheduleFormData({ ...scheduleFormData, doctor: e.target.value })}
+                    onChange={(e) => setScheduleFormData((prev) => ({ ...prev, doctor: e.target.value }))}
                   >
                     <option value="">Select Doctor</option>
-                    {doctors.map((d) => {
-                      const docId = d._id || d.id;
-                      return (
-                        <option key={docId} value={docId}>
-                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                        </option>
-                      );
-                    })}
+                    {doctors.map((d) => (
+                      <option key={d._id || d.id} value={d._id || d.id}>
+                        Dr. {d.name} ({d.specialization || 'Dental Specialist'})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Date & Time */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <DatePicker
-                      label="Appointment Date"
+                      label="Date *"
                       value={scheduleFormData.date}
-                      onChange={(date, dateStr) => setScheduleFormData({ ...scheduleFormData, date: dateStr })}
+                      onChange={(date, dateStr) => setScheduleFormData((prev) => ({ ...prev, date: dateStr }))}
                     />
                   </div>
+
                   <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Time</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="e.g. 10:00 AM"
+                    <label className="block font-semibold text-ink-soft mb-1">Time Slot *</label>
+                    <select
+                      className="input-field text-xs"
                       value={scheduleFormData.time}
-                      onChange={(e) => setScheduleFormData({ ...scheduleFormData, time: e.target.value })}
-                    />
+                      onChange={(e) => setScheduleFormData((prev) => ({ ...prev, time: e.target.value }))}
+                    >
+                      <option value="09:00 AM">09:00 AM</option>
+                      <option value="10:00 AM">10:00 AM</option>
+                      <option value="11:00 AM">11:00 AM</option>
+                      <option value="12:00 PM">12:00 PM</option>
+                      <option value="02:00 PM">02:00 PM</option>
+                      <option value="03:00 PM">03:00 PM</option>
+                      <option value="04:00 PM">04:00 PM</option>
+                      <option value="05:00 PM">05:00 PM</option>
+                      <option value="06:00 PM">06:00 PM</option>
+                    </select>
                   </div>
                 </div>
 
-                {/* Reason */}
                 <div>
-                  <label className="block font-semibold text-ink-soft mb-1">Reason for Visit</label>
+                  <label className="block font-semibold text-ink-soft mb-1">Reason / Notes</label>
                   <input
                     type="text"
-                    className="input-field"
+                    className="input-field text-xs"
                     value={scheduleFormData.reason}
-                    onChange={(e) => setScheduleFormData({ ...scheduleFormData, reason: e.target.value })}
+                    onChange={(e) => setScheduleFormData((prev) => ({ ...prev, reason: e.target.value }))}
                   />
                 </div>
-
-                <div className="flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-blue-900 border border-blue-200">
-                  <ShieldCheck size={18} className="text-blue-600 shrink-0" />
-                  <span>
-                    This will create an official Appointment record and set this follow-up status to <strong>Scheduled</strong>.
-                  </span>
-                </div>
-
-                {/* Submit Buttons */}
               </div>
 
-              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   className="btn-secondary text-xs"
@@ -544,7 +550,7 @@ export default function FollowUps() {
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting} className="btn-primary text-xs">
-                  {submitting ? 'Scheduling...' : 'Schedule & Link Appointment'}
+                  {submitting ? 'Scheduling...' : 'Book Appointment'}
                 </button>
               </div>
             </form>

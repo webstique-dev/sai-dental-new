@@ -33,8 +33,8 @@ async function listPatients(req, res, next) {
     // Build aggregation pipeline
     const pipeline = [];
 
-    // 1. Initial Match (Search by name, phone, OP number)
-    const matchStage = {};
+    // 1. Initial Match (Search by name, phone, OP number, exclude soft deleted)
+    const matchStage = { isDeleted: { $ne: true } };
     if (search && search.trim()) {
       const q = search.trim();
       const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
@@ -394,10 +394,31 @@ async function getPatientEMR(req, res, next) {
   }
 }
 
+// DELETE /api/patients/:id (Soft delete patient)
+async function deletePatient(req, res, next) {
+  try {
+    const patient = await Patient.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+
+    patient.isDeleted = true;
+    patient.deletedAt = new Date();
+    patient.deletedBy = req.user ? req.user._id : undefined;
+    await patient.save();
+
+    return res.json({ message: 'Patient record deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listPatients,
   createPatient,
   getPatientById,
   updatePatient,
   getPatientEMR,
+  deletePatient,
 };
+

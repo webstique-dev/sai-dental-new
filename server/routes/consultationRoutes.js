@@ -12,8 +12,8 @@ const allowRoles = require('../middleware/roleCheck');
 
 const router = express.Router();
 
-// Strictly protected for Doctor and Admin (403 for Receptionist)
-router.use(protect, allowRoles('doctor', 'admin'));
+// Protected for Doctor, Admin, and Receptionist
+router.use(protect, allowRoles('doctor', 'admin', 'receptionist'));
 
 router.get('/', listConsultations);
 router.get('/queue/today', getDoctorTodayQueue);

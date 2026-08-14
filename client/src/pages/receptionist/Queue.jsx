@@ -119,29 +119,27 @@ export default function Queue() {
   };
 
   const handleNextStep = () => {
-    setErrorMessage('');
     if (step === 1) {
       if (patientMode === 'search' && !selectedPatient) {
-        setErrorMessage('Please search and select an existing patient, or switch to Register New Patient.');
+        showError('Please search and select an existing patient, or switch to Register New Patient.');
         return;
       }
       if (patientMode === 'new' && !newPatientData.firstName && !newPatientData.lastName && !newPatientData.phone) {
-        setErrorMessage('Please provide at least a name or phone number for the new patient.');
+        showError('Please provide at least a name or phone number for the new patient.');
         return;
       }
       setStep(2);
     } else if (step === 2) {
       if (!selectedDoctorId) {
-        setErrorMessage('Please select a doctor to assign.');
+        showError('Please select a doctor to assign.');
         return;
       }
-      setStep(3); // Confirmation step
+      setStep(3);
     }
   };
 
   const handleFinalizeWalkIn = async () => {
     setSubmitting(true);
-    setErrorMessage('');
     try {
       const payload = {
         doctorId: selectedDoctorId,
@@ -157,11 +155,12 @@ export default function Queue() {
       const res = await api.post('/queue/walk-in', payload);
       const newEntry = res.data?.queueEntry;
 
+      showSuccess(`Walk-in patient checked in successfully! Token #${newEntry?.tokenNumber || ''}`);
       setIssuedToken(newEntry);
-      setStep(4); // Success step displaying token
+      setStep(4);
       fetchTodayQueue();
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to complete walk-in check-in.');
+      showError(err.response?.data?.message || 'Failed to complete walk-in check-in.');
     } finally {
       setSubmitting(false);
     }

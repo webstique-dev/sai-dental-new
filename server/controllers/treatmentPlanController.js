@@ -6,7 +6,7 @@ const { checkConsultationNotClosed } = require('./consultationController');
 async function listTreatmentPlans(req, res, next) {
   try {
     const { consultation, patient } = req.query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
 
     if (consultation) filter.consultation = consultation;
     if (patient) filter.patient = patient;
@@ -117,7 +117,7 @@ async function updateTreatmentPlan(req, res, next) {
       diagnosis,
     } = req.body;
 
-    const plan = await TreatmentPlan.findById(req.params.id);
+    const plan = await TreatmentPlan.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!plan) {
       return res.status(404).json({ message: 'Treatment plan not found.' });
     }
@@ -173,7 +173,7 @@ async function executeTreatmentPlan(req, res, next) {
   try {
     const { status, clinicalNotes } = req.body;
 
-    const plan = await TreatmentPlan.findById(req.params.id);
+    const plan = await TreatmentPlan.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!plan) {
       return res.status(404).json({ message: 'Treatment plan not found.' });
     }
@@ -221,9 +221,32 @@ async function executeTreatmentPlan(req, res, next) {
   }
 }
 
+// DELETE /api/treatment-plans/:id (Soft delete)
+async function deleteTreatmentPlan(req, res, next) {
+  try {
+    const plan = await TreatmentPlan.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+    if (!plan) {
+      return res.status(404).json({ message: 'Treatment plan not found.' });
+    }
+
+    // Immutability Guard
+    await checkConsultationNotClosed(plan.consultation);
+
+    plan.isDeleted = true;
+    plan.deletedAt = new Date();
+    plan.deletedBy = req.user ? req.user._id : undefined;
+    await plan.save();
+
+    return res.json({ message: 'Treatment plan deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listTreatmentPlans,
   createTreatmentPlan,
   updateTreatmentPlan,
   executeTreatmentPlan,
+  deleteTreatmentPlan,
 };

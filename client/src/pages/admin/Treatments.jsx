@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Activity, Plus, Search, Filter, Edit3, CheckCircle2, XCircle, X, Save,
-  ShieldAlert, RefreshCw, DollarSign, Tag, FileText
+  Activity, Plus, Search, Edit3, CheckCircle2, XCircle, X, Save,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
@@ -34,7 +33,6 @@ export default function AdminTreatments() {
   });
 
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState({ type: '', msg: '' });
 
   const fetchTreatments = async () => {
     try {
@@ -72,7 +70,6 @@ export default function AdminTreatments() {
       defaultCost: 1000,
       isActive: true,
     });
-    setFeedback({ type: '', msg: '' });
     setShowAddModal(true);
   };
 
@@ -86,7 +83,6 @@ export default function AdminTreatments() {
       defaultCost: t.defaultCost ?? 0,
       isActive: t.isActive !== false,
     });
-    setFeedback({ type: '', msg: '' });
     setShowAddModal(true);
   };
 
@@ -110,28 +106,27 @@ export default function AdminTreatments() {
 
   const handleSaveTreatment = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim()) {
+      showError('Procedure name is required.');
+      return;
+    }
 
     setSaving(true);
-    setFeedback({ type: '', msg: '' });
-
     try {
       if (editingTreatment) {
         const tId = editingTreatment._id || editingTreatment.id;
         await api.patch(`/treatments/${tId}`, formData);
-        setFeedback({ type: 'success', msg: 'Treatment catalog item updated.' });
+        showSuccess('Treatment catalog item updated.');
       } else {
         await api.post('/treatments', formData);
-        setFeedback({ type: 'success', msg: 'New treatment catalog item added.' });
+        showSuccess('New treatment catalog item added.');
       }
 
-      setTimeout(() => {
-        setShowAddModal(false);
-        setEditingTreatment(null);
-        fetchTreatments();
-      }, 800);
+      setShowAddModal(false);
+      setEditingTreatment(null);
+      fetchTreatments();
     } catch (err) {
-      setFeedback({ type: 'error', msg: err.response?.data?.message || 'Failed to save treatment.' });
+      showError(err.response?.data?.message || 'Failed to save treatment.');
     } finally {
       setSaving(false);
     }
@@ -319,18 +314,6 @@ export default function AdminTreatments() {
 
             <form onSubmit={handleSaveTreatment} className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
-                {feedback.msg && (
-                  <div
-                    className={`p-3 rounded text-xs flex items-center gap-2 ${feedback.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      : 'bg-rose-50 text-rose-800 border border-rose-200'
-                      }`}
-                  >
-                    {feedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
-                    <span>{feedback.msg}</span>
-                  </div>
-                )}
-
                 <div>
                   <label className="block font-semibold text-ink-soft mb-1">Treatment / Procedure Name</label>
                   <input

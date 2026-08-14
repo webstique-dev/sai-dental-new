@@ -1,20 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   History, Search, UserSquare2, Calendar, Stethoscope, Activity, Pill,
-  FileHeart, ChevronDown, ChevronUp, Filter, FileText, Bell, LayoutList,
-  CalendarDays, RefreshCw, X
+  FileHeart, Filter, FileText, RefreshCw, X, Eye, Clock, CheckCircle2,
+  Printer, ChevronRight, User
 } from 'lucide-react';
 import api from '../../api/axios.js';
-import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
-import ToothChart from './consultation/ToothChart.jsx';
+
+const ALL_FDI_TEETH = [
+  18, 17, 16, 15, 14, 13, 12, 11,
+  21, 22, 23, 24, 25, 26, 27, 28,
+  48, 47, 46, 45, 44, 43, 42, 41,
+  31, 32, 33, 34, 35, 36, 37, 38,
+];
 
 const STATUS_BADGE_CLASSES = {
-  Planned: 'bg-slate-100 text-slate-800 border-slate-200',
-  Approved: 'bg-blue-100 text-blue-800 border-blue-200',
-  'In Progress': 'bg-purple-100 text-purple-800 border-purple-200',
   Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'In Consultation': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Checked-In': 'bg-amber-100 text-amber-800 border-amber-200',
+  Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
   Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
 };
 
@@ -27,850 +32,406 @@ const SEVERITY_BADGES = {
 export default function PatientHistory() {
   const { patientId: urlPatientId } = useParams();
 
-  const [patients, setPatients] = useState([]);
-  const [selectedPatientId, setSelectedPatientId] = useState(urlPatientId || '');
-  const [emrData, setEmrData] = useState(null);
-  const [loadingPatients, setLoadingPatients] = useState(true);
-  const [loadingEMR, setLoadingEMR] = useState(false);
+  const [visits, setVisits] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // View Mode: 'timeline' (default) vs 'table'
-  const [viewMode, setViewMode] = useState('timeline');
-
-  // Search & Filter Controls State
-  const [searchQuery, setSearchQuery] = useState('');
+  // Filters State
+  const [patientSearch, setPatientSearch] = useState('');
+  const [doctorFilter, setDoctorFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [doctorFilter, setDoctorFilter] = useState('');
-  const [sortOption, setSortOption] = useState('dateDesc'); // 'dateDesc' | 'dateAsc' | 'doctorAsc' | 'doctorDesc'
+  const [statusFilter, setStatusFilter] = useState('');
 
-  // Expanded visit detail cards/rows
-  const [expandedConsultations, setExpandedConsultations] = useState({});
+  // Selected Visit for Read-Only "Visit Summary" Panel
+  const [selectedVisit, setSelectedVisit] = useState(null);
 
-  // Sync urlPatientId with state when route changes
+  // Load doctors list for dropdown filter
   useEffect(() => {
-    if (urlPatientId) {
-      setSelectedPatientId(urlPatientId);
-    }
-  }, [urlPatientId]);
-
-  // Fetch patient directory selector list
-  useEffect(() => {
-    async function fetchPatients() {
+    async function fetchDoctors() {
       try {
-        setLoadingPatients(true);
-        const res = await api.get('/patients');
-        const list = res.data?.patients || [];
-        setPatients(list);
-
-        if (!selectedPatientId && list.length > 0) {
-          setSelectedPatientId(list[0]._id || list[0].id);
-        }
+        const res = await api.get('/users/doctors');
+        setDoctors(res.data?.doctors || []);
       } catch (err) {
-        console.error('Failed to fetch patient directory:', err);
-      } finally {
-        setLoadingPatients(false);
+        console.error('Failed to load doctors list:', err);
       }
     }
-    fetchPatients();
+    fetchDoctors();
   }, []);
 
-  // Fetch single EMR aggregation endpoint
-  const fetchEMR = async () => {
-    if (!selectedPatientId) return;
+  // Fetch visit encounters log
+  const fetchVisits = async () => {
     try {
-      setLoadingEMR(true);
-      const res = await api.get(`/patients/${selectedPatientId}/emr`);
-      const data = res.data || {};
-      setEmrData(data);
-
-      // Expand most recent consultation by default
-      if (data.consultations && data.consultations.length > 0) {
-        const firstId = data.consultations[0].consultationId || data.consultations[0].id;
-        setExpandedConsultations({ [firstId]: true });
-      } else {
-        setExpandedConsultations({});
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (patientSearch && patientSearch.trim()) {
+        params.append('search', patientSearch.trim());
       }
+      if (doctorFilter) {
+        params.append('doctor', doctorFilter);
+      }
+      if (dateFrom) {
+        params.append('dateFrom', dateFrom);
+      }
+      if (dateTo) {
+        params.append('dateTo', dateTo);
+      }
+      if (urlPatientId) {
+        params.append('patient', urlPatientId);
+      }
+
+      const res = await api.get(`/consultations?${params.toString()}`);
+      setVisits(res.data?.visits || res.data?.consultations || []);
     } catch (err) {
-      console.error('Failed to load patient EMR:', err);
-      setEmrData(null);
+      console.error('Failed to fetch visit history:', err);
     } finally {
-      setLoadingEMR(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchEMR();
-  }, [selectedPatientId]);
+    const timer = setTimeout(() => {
+      fetchVisits();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [patientSearch, doctorFilter, dateFrom, dateTo, urlPatientId]);
 
-  const toggleConsultationExpand = (cId) => {
-    setExpandedConsultations((prev) => ({
-      ...prev,
-      [cId]: !prev[cId],
-    }));
-  };
-
-  const patient = emrData?.patient || {};
-  const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
-  const rawConsultations = emrData?.consultations || [];
-  const followUps = emrData?.followUps || [];
-
-  const dobStr = patient.dateOfBirth
-    ? new Date(patient.dateOfBirth).toLocaleDateString()
-    : null;
-
-  // Derive unique doctor list for doctor filter dropdown
-  const availableDoctors = useMemo(() => {
-    const names = rawConsultations
-      .map((c) => c.doctor?.name)
-      .filter(Boolean);
-    return Array.from(new Set(names));
-  }, [rawConsultations]);
-
-  // Transform and flatten consultations for searching, filtering, and sorting
-  const flattenedHistoryRows = useMemo(() => {
-    return rawConsultations.map((c) => {
-      const dateObj = c.date ? new Date(c.date) : new Date();
-      const dateStr = dateObj.toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-      const doctorName = c.doctor?.name ? `Dr. ${c.doctor.name}` : 'Staff Doctor';
-
-      // Diagnoses Summary
-      const diagnosisItems = (c.diagnoses || []).map((d) => {
-        let s = d.diagnosis;
-        if (d.severity) s += ` (${d.severity})`;
-        if (d.relatedTeeth && d.relatedTeeth.length > 0) s += ` [#${d.relatedTeeth.join(', #')}]`;
-        return s;
-      });
-      const diagnosisSummary = diagnosisItems.length > 0 ? diagnosisItems.join(' • ') : '—';
-
-      // Treatment Plans Summary
-      const treatmentItems = (c.treatmentPlans || []).map((tp) => {
-        let s = tp.treatment;
-        if (tp.tooth) s += ` (Tooth #${tp.tooth})`;
-        if (tp.status) s += ` - ${tp.status}`;
-        return s;
-      });
-      const treatmentSummary = treatmentItems.length > 0 ? treatmentItems.join(' • ') : '—';
-
-      // Prescriptions Summary
-      const rxMedicines = [];
-      (c.prescriptions || []).forEach((rx) => {
-        (rx.medicines || []).forEach((m) => {
-          let s = m.medicine;
-          if (m.dosage) s += ` ${m.dosage}`;
-          rxMedicines.push(s);
-        });
-      });
-      const prescriptionSummary = rxMedicines.length > 0 ? rxMedicines.join(', ') : '—';
-
-      // Examination & Notes Summary
-      const examItems = [];
-      if (c.examination) {
-        if (c.examination.extraoral && c.examination.extraoral.length > 0) {
-          examItems.push(`Extraoral: ${c.examination.extraoral.map((e) => e.finding).join(', ')}`);
-        }
-        if (c.examination.softTissue && c.examination.softTissue.length > 0) {
-          examItems.push(`Soft Tissue: ${c.examination.softTissue.map((st) => st.area).join(', ')}`);
-        }
-        if (c.examination.gingivalFindings && c.examination.gingivalFindings.length > 0) {
-          examItems.push(`Gingival: ${c.examination.gingivalFindings.join(', ')}`);
-        }
-      }
-      let notesSummary = c.notes || '';
-      if (examItems.length > 0) {
-        notesSummary = notesSummary ? `${examItems.join(' | ')} • ${notesSummary}` : examItems.join(' | ');
-      }
-      if (!notesSummary) notesSummary = '—';
-
-      const searchableText = `${dateStr} ${doctorName} ${c.doctor?.specialization || ''} ${diagnosisSummary} ${treatmentSummary} ${prescriptionSummary} ${notesSummary} ${c.notes || ''}`.toLowerCase();
-
-      return {
-        cId: c.consultationId || c.id,
-        raw: c,
-        dateObj,
-        dateStr,
-        doctorName,
-        doctorRawName: c.doctor?.name || '',
-        doctorSpecialization: c.doctor?.specialization || '',
-        diagnosisSummary,
-        treatmentSummary,
-        prescriptionSummary,
-        notesSummary,
-        searchableText,
-      };
-    });
-  }, [rawConsultations]);
-
-  // Filter and sort history rows
-  const filteredHistoryRows = useMemo(() => {
-    let result = [...flattenedHistoryRows];
-
-    // Search Filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter((row) => row.searchableText.includes(q));
-    }
-
-    // Doctor Filter
-    if (doctorFilter) {
-      result = result.filter((row) => row.doctorRawName === doctorFilter);
-    }
-
-    // Date From Filter
-    if (dateFrom) {
-      const fromObj = new Date(dateFrom);
-      fromObj.setHours(0, 0, 0, 0);
-      result = result.filter((row) => row.dateObj >= fromObj);
-    }
-
-    // Date To Filter
-    if (dateTo) {
-      const toObj = new Date(dateTo);
-      toObj.setHours(23, 59, 59, 999);
-      result = result.filter((row) => row.dateObj <= toObj);
-    }
-
-    // Sorting
-    result.sort((a, b) => {
-      if (sortOption === 'dateDesc') {
-        return b.dateObj - a.dateObj;
-      }
-      if (sortOption === 'dateAsc') {
-        return a.dateObj - b.dateObj;
-      }
-      if (sortOption === 'doctorAsc') {
-        return a.doctorName.localeCompare(b.doctorName);
-      }
-      if (sortOption === 'doctorDesc') {
-        return b.doctorName.localeCompare(a.doctorName);
-      }
-      return b.dateObj - a.dateObj;
-    });
-
-    return result;
-  }, [flattenedHistoryRows, searchQuery, doctorFilter, dateFrom, dateTo, sortOption]);
+  // Filter client-side by status if statusFilter is selected
+  const filteredVisits = useMemo(() => {
+    if (!statusFilter) return visits;
+    return visits.filter((v) => v.status === statusFilter);
+  }, [visits, statusFilter]);
 
   const handleResetFilters = () => {
-    setSearchQuery('');
+    setPatientSearch('');
+    setDoctorFilter('');
     setDateFrom('');
     setDateTo('');
-    setDoctorFilter('');
-    setSortOption('dateDesc');
+    setStatusFilter('');
   };
 
-  const hasActiveFilters = searchQuery || dateFrom || dateTo || doctorFilter || sortOption !== 'dateDesc';
+  const hasActiveFilters = Boolean(patientSearch || doctorFilter || dateFrom || dateTo || statusFilter);
+
+  // Compute aggregate stats
+  const totalEncounters = filteredVisits.length;
+  const completedVisitsCount = filteredVisits.filter((v) => v.status === 'Completed').length;
+  const inConsultationCount = filteredVisits.filter((v) => v.status === 'In Consultation' || v.status === 'In Progress').length;
+  const uniquePatientsCount = new Set(filteredVisits.map((v) => v.patient?._id || v.patient?.id || v.patient)).size;
+
+  // Extract teeth affected in the selected visit for Tooth Chart Snapshot
+  const visitTeethSnapshotMap = useMemo(() => {
+    if (!selectedVisit) return {};
+    const map = {};
+
+    // Collect teeth from diagnoses
+    (selectedVisit.diagnoses || []).forEach((d) => {
+      (d.relatedTeeth || []).forEach((tNum) => {
+        if (!map[tNum]) map[tNum] = [];
+        map[tNum].push(`Diagnosis: ${d.diagnosis}`);
+      });
+    });
+
+    // Collect teeth from treatment plans
+    (selectedVisit.treatmentPlans || []).forEach((tp) => {
+      if (tp.tooth) {
+        if (!map[tp.tooth]) map[tp.tooth] = [];
+        map[tp.tooth].push(`Plan: ${tp.treatment}`);
+      }
+    });
+
+    // Collect teeth from treatment records
+    (selectedVisit.treatmentRecords || []).forEach((tr) => {
+      if (tr.tooth) {
+        if (!map[tr.tooth]) map[tr.tooth] = [];
+        map[tr.tooth].push(`Record: ${tr.procedure}`);
+      }
+    });
+
+    return map;
+  }, [selectedVisit]);
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-7xl">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <History size={26} className="text-brand" /> Patient Medical History & EMR Log
+            <History size={26} className="text-brand" /> Chronological Patient Visit History Log
           </h1>
           <p className="text-xs text-ink-soft mt-0.5">
-            Strictly view-only historical log of all past consultations, clinical findings, diagnoses, tooth chart state, and follow-ups.
+            Every row represents a single visit encounter. Click any row to inspect read-only Visit Summary details.
           </p>
         </div>
 
-        {/* Patient Selection Dropdown */}
-        <div className="w-full sm:w-80">
-          <label className="block text-xs font-semibold text-ink-soft mb-1">Select Patient Directory:</label>
-          <select
-            disabled={loadingPatients}
-            className="input-field py-2 text-xs font-semibold"
-            value={selectedPatientId}
-            onChange={(e) => setSelectedPatientId(e.target.value)}
-          >
-            {patients.map((p) => {
-              const pId = p._id || p.id;
-              return (
-                <option key={pId} value={pId}>
-                  {p.firstName} {p.lastName} (OP: {p.opNumber || 'N/A'})
-                </option>
-              );
-            })}
-          </select>
+        <button
+          onClick={fetchVisits}
+          className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Visit Log
+        </button>
+      </div>
+
+      {/* Aggregate Stats Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="card p-4 bg-surface border-border flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-brand-light/40 text-brand">
+            <History size={20} />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider block">Total Encounters</span>
+            <span className="font-display text-xl font-bold text-ink">{totalEncounters}</span>
+          </div>
+        </div>
+
+        <div className="card p-4 bg-surface border-border flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-emerald-100 text-emerald-800">
+            <CheckCircle2 size={20} />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider block">Completed Visits</span>
+            <span className="font-display text-xl font-bold text-emerald-800">{completedVisitsCount}</span>
+          </div>
+        </div>
+
+        <div className="card p-4 bg-surface border-border flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-purple-100 text-purple-800">
+            <Activity size={20} />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider block">In Consultation</span>
+            <span className="font-display text-xl font-bold text-purple-800">{inConsultationCount}</span>
+          </div>
+        </div>
+
+        <div className="card p-4 bg-surface border-border flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-blue-100 text-blue-800">
+            <UserSquare2 size={20} />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider block">Patients Represented</span>
+            <span className="font-display text-xl font-bold text-blue-800">{uniquePatientsCount}</span>
+          </div>
         </div>
       </div>
 
-      {/* PATIENT HEADER & DEMOGRAPHICS CARD */}
-      {loadingEMR ? (
-        <div className="card p-8 text-center text-xs text-ink-soft">Loading patient EMR records...</div>
-      ) : !patient._id ? (
-        <div className="card p-8 text-center text-xs text-ink-soft">Please select a patient to view EMR records.</div>
-      ) : (
-        <div className="card p-5 space-y-4 bg-surface border-brand/20">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-dark font-bold text-xl">
-                <UserSquare2 size={28} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="font-display text-xl font-bold text-ink">{fullName}</h2>
-                  <span className="badge bg-brand-light/40 text-brand-dark font-mono font-bold border border-brand/30">
-                    OP #{patient.opNumber || 'N/A'}
-                  </span>
-                </div>
-                <p className="text-xs text-ink-soft mt-0.5">
-                  Age: <span className="font-semibold text-ink">{patient.age !== undefined && patient.age !== null ? `${patient.age} yrs` : 'N/A'}</span> • Sex:{' '}
-                  <span className="font-semibold text-ink">{patient.sex || 'N/A'}</span> • Phone:{' '}
-                  <span className="font-semibold text-ink">{patient.phone || 'N/A'}</span>
-                </p>
-              </div>
-            </div>
+      {/* FILTERS BAR: Date Range, Doctor, Patient Name/OP */}
+      <div className="card p-4 space-y-3 bg-surface border-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h3 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2">
+            <Filter size={15} className="text-brand" /> Filter Visit History Log
+          </h3>
 
-            <div className="text-xs text-ink-soft text-left sm:text-right">
-              <span className="font-bold text-brand text-sm">{rawConsultations.length}</span> Total Recorded Visit(s)
-              {dobStr && <span className="block text-[11px]">DOB: {dobStr}</span>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-            <div className="p-2.5 rounded-lg bg-bg border border-border">
-              <span className="text-ink-soft font-semibold block mb-0.5">Occupation & Address:</span>
-              <span className="font-medium text-ink block truncate">
-                {patient.occupation || 'No occupation listed'}
-              </span>
-              <span className="text-ink-soft text-[11px] block truncate mt-0.5">
-                {patient.address || 'No address listed'}
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-bg border border-border">
-              <span className="text-ink-soft font-semibold block mb-0.5">Vitals & Lifestyle:</span>
-              <span className="font-medium text-ink block">
-                BP: {patient.vitals?.bp || 'N/A'} | RBS: {patient.vitals?.rbs || 'N/A'}
-              </span>
-              <span className="text-ink-soft text-[11px] block truncate mt-0.5">
-                Habits: {patient.habits && patient.habits.length > 0 ? (Array.isArray(patient.habits) ? patient.habits.join(', ') : patient.habits) : 'None reported'}
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-bg border border-border">
-              <span className="text-ink-soft font-semibold block mb-0.5">Medical History & Rx:</span>
-              <span className="font-bold text-amber-800 block truncate">
-                {patient.medicalHistory && patient.medicalHistory.length > 0
-                  ? (Array.isArray(patient.medicalHistory) ? patient.medicalHistory.join(', ') : patient.medicalHistory)
-                  : 'No medical alerts'}
-              </span>
-              <span className="text-ink-soft text-[11px] block truncate mt-0.5">
-                Meds: {patient.currentMedications || 'None reported'}
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-bg border border-border">
-              <span className="text-ink-soft font-semibold block mb-0.5">Dental History:</span>
-              <span className="font-medium text-ink text-[11px] line-clamp-2">
-                {patient.dentalHistory || 'No previous dental history reported'}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* READ-ONLY CURRENT TOOTH CHART */}
-      {selectedPatientId && (
-        <div className="card p-5 space-y-3 bg-surface">
-          <div className="border-b border-border pb-2 flex items-center justify-between">
-            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-              <Activity size={18} className="text-brand" /> Current Dental Tooth Chart (32 FDI Teeth)
-            </h3>
-            <span className="text-[11px] text-ink-soft font-medium bg-bg px-2 py-0.5 rounded border border-border">
-              Read-Only EMR View
-            </span>
-          </div>
-
-          <ToothChart patientId={selectedPatientId} isReadOnly={true} />
-        </div>
-      )}
-
-      {/* HISTORICAL VISIT LOG SECTION */}
-      <div className="card p-5 space-y-4 bg-surface">
-        {/* TOP BAR: SECTION TITLE & VIEW MODE TOGGLE */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-          <div>
-            <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-              <Calendar size={18} className="text-brand" /> Clinical Visit History Log ({filteredHistoryRows.length} Visits)
-            </h3>
-            <p className="text-xs text-ink-soft">
-              Search and filter across doctor, diagnosis, treatment, and prescription details.
-            </p>
-          </div>
-
-          {/* VIEW MODE TOGGLE BUTTONS */}
-          <div className="inline-flex p-1 rounded-xl bg-bg border border-border self-start sm:self-auto">
+          {hasActiveFilters && (
             <button
-              type="button"
-              onClick={() => setViewMode('timeline')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'timeline'
-                ? 'bg-surface text-brand shadow-sm border border-border/80'
-                : 'text-ink-soft hover:text-ink'
-                }`}
+              onClick={handleResetFilters}
+              className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold self-end sm:self-auto"
             >
-              <CalendarDays size={14} /> Timeline View
+              <X size={13} /> Reset All Filters
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'table'
-                ? 'bg-surface text-brand shadow-sm border border-border/80'
-                : 'text-ink-soft hover:text-ink'
-                }`}
-            >
-              <LayoutList size={14} /> Table View
-            </button>
-          </div>
+          )}
         </div>
 
-        {/* SEARCH, FILTER & SORT CONTROLS BAR */}
-        <div className="space-y-3 p-3.5 rounded-xl bg-bg/50 border border-border">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-              <input
-                type="text"
-                className="input-field pl-9 py-1.5 text-xs"
-                placeholder="Search by doctor name, diagnosis, treatment procedure, medicine, or notes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            {hasActiveFilters && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+          {/* 1. Patient Search */}
+          <div className="relative lg:col-span-2">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              className="input-field pl-9 py-1.5 text-xs"
+              placeholder="Search Patient Name, OP Number, or Phone..."
+              value={patientSearch}
+              onChange={(e) => setPatientSearch(e.target.value)}
+            />
+            {patientSearch && (
               <button
-                onClick={handleResetFilters}
-                className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold self-end sm:self-auto shrink-0"
+                onClick={() => setPatientSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
               >
-                <X size={13} /> Clear Filters
+                <X size={14} />
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
-            <div>
-              <DatePicker
-                label="From Date"
-                value={dateFrom}
-                onChange={(date, dateStr) => setDateFrom(dateStr)}
-                inputClassName="py-1 text-xs"
-              />
-            </div>
+          {/* 2. Doctor Filter */}
+          <div>
+            <select
+              className="input-field py-1.5 text-xs font-medium"
+              value={doctorFilter}
+              onChange={(e) => setDoctorFilter(e.target.value)}
+            >
+              <option value="">All Attending Doctors</option>
+              {doctors.map((d) => (
+                <option key={d._id || d.id} value={d._id || d.id}>
+                  Dr. {d.name} ({d.specialization || 'General'})
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div>
-              <DatePicker
-                label="To Date"
-                value={dateTo}
-                onChange={(date, dateStr) => setDateTo(dateStr)}
-                inputClassName="py-1 text-xs"
-              />
-            </div>
+          {/* 3. Date From */}
+          <div>
+            <DatePicker
+              value={dateFrom}
+              onChange={(date, dateStr) => setDateFrom(dateStr)}
+              placeholder="From Visit Date"
+              inputClassName="py-1 text-xs"
+            />
+          </div>
 
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Doctor Filter</label>
-              <select
-                className="input-field py-1.5 text-xs font-semibold"
-                value={doctorFilter}
-                onChange={(e) => setDoctorFilter(e.target.value)}
-              >
-                <option value="">All Attending Doctors</option>
-                {availableDoctors.map((docName) => (
-                  <option key={docName} value={docName}>
-                    Dr. {docName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Sort Order</label>
-              <select
-                className="input-field py-1.5 text-xs font-semibold"
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-              >
-                <option value="dateDesc">Date: Newest First</option>
-                <option value="dateAsc">Date: Oldest First</option>
-                <option value="doctorAsc">Doctor: A – Z</option>
-                <option value="doctorDesc">Doctor: Z – A</option>
-              </select>
-            </div>
+          {/* 4. Date To */}
+          <div>
+            <DatePicker
+              value={dateTo}
+              onChange={(date, dateStr) => setDateTo(dateStr)}
+              placeholder="To Visit Date"
+              inputClassName="py-1 text-xs"
+            />
           </div>
         </div>
+      </div>
 
-        {/* VIEW RENDER: TIMELINE OR TABLE */}
-        {loadingEMR ? (
-          <div className="p-12 text-center text-xs text-ink-soft">Loading clinical history...</div>
-        ) : rawConsultations.length === 0 ? (
-          /* EMPTY STATE 1: NO HISTORY AT ALL */
-          <div className="p-12 text-center text-xs text-ink-soft space-y-2 border border-dashed border-border rounded-xl">
-            <History size={32} className="mx-auto text-ink-soft/40" />
-            <p className="font-semibold text-ink text-sm">No visit history yet for this patient</p>
-            <p>Clinical visit records will appear here once consultations are completed.</p>
-          </div>
-        ) : filteredHistoryRows.length === 0 ? (
-          /* EMPTY STATE 2: NO FILTER RESULTS */
-          <div className="p-12 text-center text-xs text-ink-soft space-y-3 border border-dashed border-border rounded-xl">
-            <Filter size={32} className="mx-auto text-ink-soft/40" />
-            <p className="font-semibold text-ink text-sm">No visit records match your search/filter criteria</p>
-            <p>Try broadening your search terms, date range, or doctor filter.</p>
-            <button
-              onClick={handleResetFilters}
-              className="btn-secondary text-xs py-1.5 px-3 font-semibold mx-auto inline-flex items-center gap-1"
-            >
-              <RefreshCw size={13} /> Reset Filters
-            </button>
-          </div>
-        ) : viewMode === 'timeline' ? (
-          /* MODE 1: TIMELINE VIEW */
-          <div className="space-y-4 pt-2 relative before:absolute before:inset-0 before:left-4 before:w-0.5 before:bg-border/70">
-            {filteredHistoryRows.map((row) => {
-              const c = row.raw;
-              const isExpanded = !!expandedConsultations[row.cId];
-              const isCompleted = c.status === 'Completed';
+      {/* VISIT HISTORY TABLE */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-bg/40 font-display text-xs font-bold text-ink flex items-center justify-between">
+          <span>Encounters Log Table ({filteredVisits.length} Records)</span>
+          <span className="text-[11px] text-ink-soft font-normal">Click any row to open Visit Summary</span>
+        </div>
 
-              return (
-                <div key={row.cId} className="relative pl-10">
-                  {/* Timeline Marker Dot */}
-                  <div className="absolute left-2 top-4 -translate-x-1/2 h-5 w-5 rounded-full border-2 border-brand bg-surface flex items-center justify-center">
-                    <div className="h-2 w-2 rounded-full bg-brand" />
-                  </div>
-
-                  <div className="card overflow-hidden border border-border hover:border-brand/30 transition-all">
-                    {/* Header: Click to Toggle Expansion */}
-                    <div
-                      onClick={() => toggleConsultationExpand(row.cId)}
-                      className="p-4 bg-bg/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none hover:bg-bg/80 transition-colors"
-                    >
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-display text-sm font-bold text-ink">{row.dateStr}</span>
-                          <span
-                            className={`badge border text-[10px] ${isCompleted
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                              : 'bg-purple-100 text-purple-800 border-purple-200'
-                              }`}
-                          >
-                            {c.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-ink-soft">
-                          Attending Doctor: <strong className="text-ink">{row.doctorName}</strong>{' '}
-                          {row.doctorSpecialization ? `(${row.doctorSpecialization})` : ''}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-ink-soft">
-                        <span className="text-[11px] font-semibold">
-                          {isExpanded ? 'Collapse Details' : 'Expand Details'}
-                        </span>
-                        <button type="button" className="p-1 hover:text-ink">
-                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* COLLAPSED SUMMARY PREVIEW (WHEN NOT FULLY EXPANDED) */}
-                    {!isExpanded && (
-                      <div className="p-3.5 bg-surface border-t border-border/60 text-xs space-y-1.5">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
-                          <div>
-                            <span className="font-bold text-ink-soft block">Diagnosis:</span>
-                            <span className="text-ink truncate block font-medium">{row.diagnosisSummary}</span>
-                          </div>
-                          <div>
-                            <span className="font-bold text-ink-soft block">Treatment:</span>
-                            <span className="text-ink truncate block font-medium">{row.treatmentSummary}</span>
-                          </div>
-                          <div>
-                            <span className="font-bold text-ink-soft block">Prescription:</span>
-                            <span className="text-brand truncate block font-medium">{row.prescriptionSummary}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* EXPANDED FULL UN-SUMMARIZED CLINICAL DETAIL */}
-                    {isExpanded && (
-                      <div className="p-5 space-y-5 border-t border-border bg-surface text-xs animate-in fade-in duration-150">
-                        {/* Closing Summary Notes if present */}
-                        {c.notes && (
-                          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 space-y-1">
-                            <span className="font-bold text-[11px] uppercase tracking-wider block text-amber-800 flex items-center gap-1">
-                              <FileText size={13} /> Doctor Closing Summary Notes:
-                            </span>
-                            <p className="whitespace-pre-wrap">{c.notes}</p>
-                          </div>
-                        )}
-
-                        {/* 1. EXAMINATION SUMMARY */}
-                        <div className="space-y-2">
-                          <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
-                            <FileHeart size={14} className="text-brand" /> 1. Clinical Examination Findings
-                          </h4>
-                          {c.examination ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div className="p-2.5 rounded-lg bg-bg border border-border space-y-1">
-                                <span className="font-bold text-ink block">Extraoral:</span>
-                                {c.examination.extraoral?.length > 0 ? (
-                                  c.examination.extraoral.map((item, i) => (
-                                    <div key={i} className="text-[11px] text-ink-soft">
-                                      • <strong className="text-ink">{item.finding}</strong>{item.notes ? `: ${item.notes}` : ''}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <span className="text-ink-soft/50 italic">No extraoral findings</span>
-                                )}
-                              </div>
-
-                              <div className="p-2.5 rounded-lg bg-bg border border-border space-y-1">
-                                <span className="font-bold text-ink block">Soft Tissue:</span>
-                                {c.examination.softTissue?.length > 0 ? (
-                                  c.examination.softTissue.map((item, i) => (
-                                    <div key={i} className="text-[11px] text-ink-soft">
-                                      • <strong className="text-ink">{item.area}</strong>{item.notes ? `: ${item.notes}` : ''}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <span className="text-ink-soft/50 italic">No soft tissue findings</span>
-                                )}
-                              </div>
-
-                              <div className="p-2.5 rounded-lg bg-bg border border-border space-y-1">
-                                <span className="font-bold text-ink block">Gingival / Periodontal:</span>
-                                {c.examination.gingivalFindings?.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {c.examination.gingivalFindings.map((g, i) => (
-                                      <span key={i} className="badge bg-teal-50 text-teal-800 border border-teal-200 text-[10px]">
-                                        {g}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-ink-soft/50 italic">No gingival findings</span>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-ink-soft/50 italic">No clinical examination recorded during this visit.</p>
-                          )}
-                        </div>
-
-                        {/* 2. DIAGNOSES LIST */}
-                        <div className="space-y-2">
-                          <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
-                            <Stethoscope size={14} className="text-brand" /> 2. Clinical Diagnoses ({c.diagnoses?.length || 0})
-                          </h4>
-                          {c.diagnoses?.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              {c.diagnoses.map((d) => (
-                                <div key={d._id} className="p-3 rounded-xl border border-border bg-bg/40 space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-ink text-xs">{d.diagnosis}</span>
-                                    {d.severity && (
-                                      <span className={`badge text-[10px] border ${SEVERITY_BADGES[d.severity] || SEVERITY_BADGES.Mild}`}>
-                                        {d.severity}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {d.clinicalFindings && (
-                                    <p className="text-ink-soft text-[11px]">{d.clinicalFindings}</p>
-                                  )}
-                                  {d.relatedTeeth?.length > 0 && (
-                                    <p className="text-[10px] text-brand font-mono font-semibold pt-0.5">
-                                      Related Teeth: #{d.relatedTeeth.join(', #')}
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-ink-soft/50 italic">No diagnoses recorded during this visit.</p>
-                          )}
-                        </div>
-
-                        {/* 3. TREATMENT PLANS LIST */}
-                        <div className="space-y-2">
-                          <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
-                            <Activity size={14} className="text-brand" /> 3. Treatment Procedures & Plans ({c.treatmentPlans?.length || 0})
-                          </h4>
-                          {c.treatmentPlans?.length > 0 ? (
-                            <div className="space-y-2">
-                              {c.treatmentPlans.map((tp) => (
-                                <div
-                                  key={tp._id}
-                                  className="p-3 rounded-xl border border-border bg-bg/20 flex items-center justify-between gap-3"
-                                >
-                                  <div className="space-y-0.5">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-bold text-ink">{tp.treatment}</span>
-                                      {tp.tooth && (
-                                        <span className="badge bg-brand-light/40 text-brand-dark font-mono text-[10px]">
-                                          Tooth #{tp.tooth}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {tp.description && <p className="text-ink-soft text-[11px]">{tp.description}</p>}
-                                    {tp.notes && <p className="text-ink-soft/70 text-[10px] italic">Notes: {tp.notes}</p>}
-                                  </div>
-
-                                  <div className="text-right shrink-0">
-                                    <span className={`badge text-[10px] border ${STATUS_BADGE_CLASSES[tp.status] || STATUS_BADGE_CLASSES.Planned}`}>
-                                      {tp.status}
-                                    </span>
-                                    <p className="font-bold font-mono text-emerald-700 text-xs mt-1">₹{tp.estimatedCost || 0}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-ink-soft/50 italic">No treatment procedures recorded during this visit.</p>
-                          )}
-                        </div>
-
-                        {/* 4. PRESCRIPTIONS (RX) */}
-                        <div className="space-y-2">
-                          <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
-                            <Pill size={14} className="text-brand" /> 4. Prescribed Medications ({c.prescriptions?.length || 0})
-                          </h4>
-                          {c.prescriptions?.length > 0 ? (
-                            <div className="space-y-2">
-                              {c.prescriptions.map((rx) => (
-                                <div key={rx._id} className="p-3 rounded-xl border border-border bg-bg/30 space-y-2">
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-xs">
-                                      <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
-                                        <tr>
-                                          <th className="py-1.5 px-2">Medicine</th>
-                                          <th className="py-1.5 px-2">Dosage</th>
-                                          <th className="py-1.5 px-2">Frequency</th>
-                                          <th className="py-1.5 px-2">Duration</th>
-                                          <th className="py-1.5 px-2">Instructions</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-border">
-                                        {rx.medicines?.map((m, i) => (
-                                          <tr key={i}>
-                                            <td className="py-1.5 px-2 font-bold text-brand">{m.medicine}</td>
-                                            <td className="py-1.5 px-2">{m.dosage || '—'}</td>
-                                            <td className="py-1.5 px-2">{m.frequency || '—'}</td>
-                                            <td className="py-1.5 px-2">{m.duration || '—'}</td>
-                                            <td className="py-1.5 px-2 text-ink-soft">{m.instructions || '—'}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-ink-soft/50 italic">No prescriptions recorded during this visit.</p>
-                          )}
-                        </div>
-
-                        {/* 5. INVESTIGATIONS */}
-                        <div className="space-y-2">
-                          <h4 className="font-bold text-ink-soft uppercase tracking-wider text-[11px] flex items-center gap-1.5 border-b border-border pb-1">
-                            <Search size={14} className="text-brand" /> 5. Diagnostic Investigations ({c.investigations?.length || 0})
-                          </h4>
-                          {c.investigations?.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              {c.investigations.map((inv) => (
-                                <div key={inv._id} className="p-3 rounded-xl border border-border bg-bg/40 space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-ink">{inv.type}</span>
-                                    <span className="text-[10px] font-semibold text-ink-soft bg-surface px-1.5 py-0.5 rounded border border-border">
-                                      {inv.reason}
-                                    </span>
-                                  </div>
-                                  {inv.result ? (
-                                    <p className="text-emerald-800 text-[11px] font-medium bg-emerald-50 p-1.5 rounded border border-emerald-200">
-                                      Result: {inv.result}
-                                    </p>
-                                  ) : (
-                                    <p className="text-amber-800 text-[11px] italic bg-amber-50 p-1.5 rounded border border-amber-200">
-                                      Pending lab results
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-ink-soft/50 italic">No investigations ordered during this visit.</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {loading ? (
+          <div className="p-12 text-center text-xs text-ink-soft">Loading visit encounters...</div>
+        ) : filteredVisits.length === 0 ? (
+          <div className="p-12 text-center space-y-3">
+            <History size={36} className="mx-auto text-ink-soft/40" />
+            <p className="font-display text-base font-semibold text-ink">No visit encounters recorded</p>
+            <p className="text-xs text-ink-soft">
+              {hasActiveFilters
+                ? 'No encounters match your current search/date/doctor filters.'
+                : 'Visits will automatically log here as patients check in and consult.'}
+            </p>
           </div>
         ) : (
-          /* MODE 2: TABLE VIEW */
-          <div className="overflow-x-auto border border-border rounded-xl">
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="border-b border-border bg-bg/60 font-semibold text-ink-soft text-[11px] uppercase tracking-wider">
+              <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Doctor</th>
-                  <th className="px-4 py-3">Diagnosis</th>
-                  <th className="px-4 py-3">Treatment</th>
-                  <th className="px-4 py-3">Prescription</th>
-                  <th className="px-4 py-3">Notes</th>
+                  <th className="px-4 py-3.5">Patient Name</th>
+                  <th className="px-4 py-3.5">OP Number</th>
+                  <th className="px-4 py-3.5">Visit Date</th>
+                  <th className="px-4 py-3.5">Check-In Time</th>
+                  <th className="px-4 py-3.5">Check-Out Time</th>
+                  <th className="px-4 py-3.5">Attending Doctor</th>
+                  <th className="px-4 py-3.5">Purpose / Reason</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredHistoryRows.map((row) => {
-                  const isExpanded = !!expandedConsultations[row.cId];
-                  const c = row.raw;
+                {filteredVisits.map((visit) => {
+                  const visitId = visit._id || visit.id;
+                  const patient = visit.patient || {};
+                  const doctor = visit.doctor || {};
+                  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
+
+                  const dateStr = visit.visitDate
+                    ? new Date(visit.visitDate).toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : 'N/A';
+
+                  const checkInStr = visit.checkInTime
+                    ? new Date(visit.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'N/A';
+
+                  const checkOutStr = visit.checkOutTime
+                    ? new Date(visit.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : (visit.status === 'In Consultation' ? 'In Progress' : '—');
+
+                  const statusDisplay = visit.status === 'In Progress' ? 'In Consultation' : (visit.status || 'Completed');
 
                   return (
                     <tr
-                      key={row.cId}
-                      onClick={() => toggleConsultationExpand(row.cId)}
-                      className="hover:bg-bg/60 cursor-pointer transition-colors"
+                      key={visitId}
+                      onClick={() => setSelectedVisit(visit)}
+                      className="hover:bg-bg/60 cursor-pointer transition-colors group"
                     >
-                      <td className="px-4 py-3.5 whitespace-nowrap font-bold text-ink">
-                        {row.dateStr}
+                      {/* Patient Name */}
+                      <td className="px-4 py-3.5 font-bold text-ink">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                            <User size={14} />
+                          </div>
+                          <div>
+                            <span className="group-hover:text-brand transition-colors block">{patientName}</span>
+                            <span className="text-[10px] text-ink-soft font-normal">
+                              {patient.age ? `${patient.age}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''}
+                            </span>
+                          </div>
+                        </div>
                       </td>
 
+                      {/* OP Number */}
+                      <td className="px-4 py-3.5 font-mono font-bold text-brand whitespace-nowrap">
+                        {patient.opNumber ? `#${patient.opNumber}` : '—'}
+                      </td>
+
+                      {/* Visit Date */}
+                      <td className="px-4 py-3.5 font-semibold text-ink whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={13} className="text-brand shrink-0" />
+                          <span>{dateStr}</span>
+                        </div>
+                      </td>
+
+                      {/* Check-In Time */}
+                      <td className="px-4 py-3.5 font-mono text-ink-soft whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Clock size={12} className="text-emerald-600 shrink-0" />
+                          <span>{checkInStr}</span>
+                        </div>
+                      </td>
+
+                      {/* Check-Out Time */}
+                      <td className="px-4 py-3.5 font-mono text-ink-soft whitespace-nowrap">
+                        {checkOutStr}
+                      </td>
+
+                      {/* Attending Doctor */}
+                      <td className="px-4 py-3.5 font-semibold text-ink whitespace-nowrap">
+                        <div>
+                          <span>{doctorName}</span>
+                          {doctor.specialization && (
+                            <span className="block text-[10px] font-normal text-ink-soft">{doctor.specialization}</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Purpose / Reason for Visit */}
+                      <td className="px-4 py-3.5 text-ink font-medium max-w-xs truncate">
+                        {visit.reason || 'General Consult'}
+                      </td>
+
+                      {/* Status */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <div className="font-semibold text-ink">{row.doctorName}</div>
-                        {row.doctorSpecialization && (
-                          <div className="text-[10px] text-ink-soft">{row.doctorSpecialization}</div>
-                        )}
+                        <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[statusDisplay] || 'bg-slate-100 text-slate-800'}`}>
+                          {statusDisplay}
+                        </span>
                       </td>
 
-                      <td className="px-4 py-3.5 max-w-xs">
-                        <span className="text-ink line-clamp-2">{row.diagnosisSummary}</span>
-                      </td>
-
-                      <td className="px-4 py-3.5 max-w-xs">
-                        <span className="text-ink line-clamp-2">{row.treatmentSummary}</span>
-                      </td>
-
-                      <td className="px-4 py-3.5 max-w-xs">
-                        <span className="text-brand font-medium line-clamp-2">{row.prescriptionSummary}</span>
-                      </td>
-
-                      <td className="px-4 py-3.5 max-w-xs text-ink-soft">
-                        <span className="line-clamp-2">{row.notesSummary}</span>
+                      {/* Action */}
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedVisit(visit);
+                          }}
+                          className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5"
+                        >
+                          <Eye size={13} /> View Summary
+                        </button>
                       </td>
                     </tr>
                   );
@@ -881,62 +442,331 @@ export default function PatientHistory() {
         )}
       </div>
 
-      {/* FOLLOW-UPS LIST SECTION */}
-      {selectedPatientId && (
-        <div className="card p-5 space-y-3 bg-surface">
-          <div className="border-b border-border pb-2 flex items-center justify-between">
-            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-              <Bell size={18} className="text-brand" /> Patient Follow-Up Recommendations ({followUps.length})
-            </h3>
-          </div>
+      {/* READ-ONLY "VISIT SUMMARY" PANEL / MODAL */}
+      {selectedVisit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
+          <div className="card w-full max-w-3xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-2xl border-brand/20">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-surface shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-brand text-white flex items-center justify-center font-bold">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-base font-bold text-ink">
+                      Visit Summary Log
+                    </h3>
+                    <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[selectedVisit.status === 'In Progress' ? 'In Consultation' : selectedVisit.status] || 'bg-emerald-100 text-emerald-800'}`}>
+                      {selectedVisit.status === 'In Progress' ? 'In Consultation' : selectedVisit.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-soft">
+                    Visit Date:{' '}
+                    <strong className="text-ink">
+                      {new Date(selectedVisit.visitDate).toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </strong>
+                  </p>
+                </div>
+              </div>
 
-          {followUps.length === 0 ? (
-            <p className="text-xs text-ink-soft/60 italic">No follow-ups recorded for this patient.</p>
-          ) : (
-            <div className="overflow-x-auto border border-border rounded-xl">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
-                  <tr>
-                    <th className="py-2.5 px-3">Recommended Date</th>
-                    <th className="py-2.5 px-3">Reason</th>
-                    <th className="py-2.5 px-3">Instructions</th>
-                    <th className="py-2.5 px-3">Treatment Note</th>
-                    <th className="py-2.5 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {followUps.map((fu) => (
-                    <tr key={fu._id || fu.id} className="hover:bg-bg/40">
-                      <td className="py-2.5 px-3 font-mono font-bold text-ink whitespace-nowrap">
-                        {fu.recommendedDate ? new Date(fu.recommendedDate).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="py-2.5 px-3 font-semibold text-brand">{fu.reason || '—'}</td>
-                      <td className="py-2.5 px-3 text-ink-soft">{fu.instructions || '—'}</td>
-                      <td className="py-2.5 px-3 text-ink-soft">{fu.treatmentStatus || '—'}</td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span
-                          className={`badge border text-[10px] ${fu.status === 'Completed'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                            : fu.status === 'Scheduled'
-                              ? 'bg-blue-100 text-blue-800 border-blue-200'
-                              : 'bg-amber-100 text-amber-800 border-amber-200'
-                            }`}
-                        >
-                          {fu.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1"
+                  title="Print Visit Summary"
+                >
+                  <Printer size={14} /> Print
+                </button>
+
+                <button
+                  onClick={() => setSelectedVisit(null)}
+                  className="p-1.5 rounded-lg text-ink-soft hover:text-ink hover:bg-bg"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* PATIENT DOCUMENTS VAULT */}
-      {selectedPatientId && (
-        <DocumentsPanel patientId={selectedPatientId} title="Patient Clinical & Diagnostic Documents" />
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-xs font-sans">
+              {/* Patient & Doctor Banner */}
+              <div className="p-4 rounded-xl bg-bg border border-border grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block mb-1">Patient Details</span>
+                  <div className="font-display text-sm font-bold text-ink">
+                    {[selectedVisit.patient?.firstName, selectedVisit.patient?.lastName].filter(Boolean).join(' ') || 'Patient'}
+                  </div>
+                  <div className="text-xs text-ink-soft mt-0.5">
+                    OP Number: <strong className="font-mono text-brand font-bold">#{selectedVisit.patient?.opNumber || 'N/A'}</strong>
+                    {selectedVisit.patient?.age ? ` • Age: ${selectedVisit.patient.age}y` : ''}
+                    {selectedVisit.patient?.sex ? ` • Sex: ${selectedVisit.patient.sex}` : ''}
+                  </div>
+                  {selectedVisit.patient?.phone && (
+                    <div className="text-[11px] text-ink-soft mt-0.5">Phone: {selectedVisit.patient.phone}</div>
+                  )}
+                </div>
+
+                <div className="sm:border-l sm:border-border sm:pl-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block mb-1">Encounter Metadata</span>
+                  <div className="font-semibold text-ink">
+                    Attending Doctor: <strong>Dr. {selectedVisit.doctor?.name || 'Staff Doctor'}</strong>
+                  </div>
+                  <div className="text-xs text-ink-soft mt-1 space-y-0.5">
+                    <div>
+                      Check-In Time:{' '}
+                      <strong className="font-mono text-ink">
+                        {selectedVisit.checkInTime ? new Date(selectedVisit.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      </strong>
+                    </div>
+                    <div>
+                      Check-Out Time:{' '}
+                      <strong className="font-mono text-ink">
+                        {selectedVisit.checkOutTime ? new Date(selectedVisit.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'In Progress'}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 1. CHIEF COMPLAINT / PURPOSE OF VISIT */}
+              <div className="space-y-2">
+                <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2 border-b border-border pb-1">
+                  <FileText size={15} className="text-brand" /> 1. Chief Complaint & Purpose for Visit
+                </h4>
+                <div className="p-3.5 rounded-xl bg-surface border border-border space-y-1.5">
+                  <div className="font-semibold text-ink">
+                    Reason: <span className="font-bold text-brand">{selectedVisit.reason || 'General Consultation'}</span>
+                  </div>
+                  {selectedVisit.notes ? (
+                    <div className="text-xs text-ink-soft bg-bg p-2.5 rounded-lg border border-border/60">
+                      <span className="font-semibold text-ink block mb-0.5">Clinical Notes:</span>
+                      <p className="whitespace-pre-wrap">{selectedVisit.notes}</p>
+                    </div>
+                  ) : (
+                    <p className="text-ink-soft/60 italic text-[11px]">No clinical notes recorded for this visit.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. DIAGNOSES RECORDED */}
+              <div className="space-y-2">
+                <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2 border-b border-border pb-1">
+                  <Stethoscope size={15} className="text-brand" /> 2. Diagnoses Recorded ({selectedVisit.diagnoses?.length || 0})
+                </h4>
+                {selectedVisit.diagnoses && selectedVisit.diagnoses.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {selectedVisit.diagnoses.map((d, idx) => (
+                      <div key={d._id || idx} className="p-3 rounded-xl border border-border bg-surface space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-ink text-xs">{d.diagnosis}</span>
+                          {d.severity && (
+                            <span className={`badge text-[10px] border ${SEVERITY_BADGES[d.severity] || SEVERITY_BADGES.Mild}`}>
+                              {d.severity} Severity
+                            </span>
+                          )}
+                        </div>
+                        {d.clinicalFindings && (
+                          <p className="text-xs text-ink-soft">{d.clinicalFindings}</p>
+                        )}
+                        {d.relatedTeeth && d.relatedTeeth.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 pt-1">
+                            <span className="text-[10px] font-semibold text-ink-soft">Teeth:</span>
+                            {d.relatedTeeth.map((tNum) => (
+                              <span key={tNum} className="px-1.5 py-0.5 rounded bg-brand-light/30 text-brand-dark font-mono font-bold text-[10px]">
+                                #{tNum}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-ink-soft/60 italic text-[11px] p-3 rounded-xl border border-border bg-bg/40">
+                    No diagnoses recorded during this visit.
+                  </p>
+                )}
+              </div>
+
+              {/* 3. TREATMENT PERFORMED / PLANNED */}
+              <div className="space-y-2">
+                <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2 border-b border-border pb-1">
+                  <Activity size={15} className="text-brand" /> 3. Treatment Performed & Planned
+                </h4>
+                {((selectedVisit.treatmentRecords && selectedVisit.treatmentRecords.length > 0) || (selectedVisit.treatmentPlans && selectedVisit.treatmentPlans.length > 0)) ? (
+                  <div className="space-y-2">
+                    {/* Performed Treatment Records */}
+                    {selectedVisit.treatmentRecords?.map((tr, idx) => (
+                      <div key={tr._id || idx} className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/40 flex items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-emerald-900">{tr.procedure}</span>
+                            <span className="badge bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px]">
+                              Actually Performed
+                            </span>
+                            {tr.tooth && (
+                              <span className="badge bg-surface text-ink font-mono text-[10px] border border-border">
+                                Tooth #{tr.tooth}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-mono font-bold text-emerald-700 text-xs">₹{tr.charges || 0}</span>
+                      </div>
+                    ))}
+
+                    {/* Intended Treatment Plans */}
+                    {selectedVisit.treatmentPlans?.map((tp, idx) => (
+                      <div key={tp._id || idx} className="p-3 rounded-xl border border-border bg-surface flex items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-ink">{tp.treatment}</span>
+                            <span className="badge bg-slate-100 text-slate-700 text-[10px]">
+                              Planned Step
+                            </span>
+                            {tp.tooth && (
+                              <span className="badge bg-brand-light/30 text-brand-dark font-mono text-[10px]">
+                                Tooth #{tp.tooth}
+                              </span>
+                            )}
+                          </div>
+                          {tp.notes && <p className="text-ink-soft text-[11px] mt-0.5">{tp.notes}</p>}
+                        </div>
+                        <span className="font-mono font-bold text-brand text-xs">₹{tp.estimatedCost || 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-ink-soft/60 italic text-[11px] p-3 rounded-xl border border-border bg-bg/40">
+                    No treatment procedures recorded during this visit.
+                  </p>
+                )}
+              </div>
+
+              {/* 4. TOOTH CHART SNAPSHOT AS OF VISIT DATE */}
+              <div className="space-y-2">
+                <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2 border-b border-border pb-1">
+                  <Activity size={15} className="text-brand" /> 4. Tooth Chart Snapshot for Visit Date
+                </h4>
+                <div className="p-4 rounded-xl border border-border bg-surface space-y-3">
+                  <p className="text-[11px] text-ink-soft">
+                    FDI 32-tooth arch overview showing teeth affected during this specific visit encounter:
+                  </p>
+
+                  <div className="grid grid-cols-8 sm:grid-cols-16 gap-1 p-2 rounded-xl bg-bg border border-border text-center">
+                    {ALL_FDI_TEETH.map((tNum) => {
+                      const isAffected = Boolean(visitTeethSnapshotMap[tNum]);
+                      return (
+                        <div
+                          key={tNum}
+                          title={isAffected ? visitTeethSnapshotMap[tNum].join('\n') : `Tooth #${tNum}`}
+                          className={`p-1.5 rounded-lg text-[10px] font-mono font-bold transition-all ${
+                            isAffected
+                              ? 'bg-brand text-white shadow-sm ring-2 ring-brand/40'
+                              : 'bg-surface border border-border/60 text-ink-soft/60'
+                          }`}
+                        >
+                          #{tNum}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {Object.keys(visitTeethSnapshotMap).length > 0 ? (
+                    <div className="space-y-1 pt-1">
+                      <span className="text-[11px] font-bold text-ink">Teeth Addressed During Visit:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(visitTeethSnapshotMap).map(([tNum, details]) => (
+                          <span key={tNum} className="px-2 py-0.5 rounded-md bg-brand-light/40 text-brand-dark font-mono font-bold text-[11px] border border-brand-light">
+                            #{tNum}: {details[0]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-ink-soft/60 italic text-[11px]">No specific teeth isolated for procedure in this visit.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* 5. PRESCRIPTIONS ISSUED */}
+              <div className="space-y-2">
+                <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2 border-b border-border pb-1">
+                  <Pill size={15} className="text-brand" /> 5. Prescriptions Issued ({selectedVisit.prescriptions?.length || 0})
+                </h4>
+                {selectedVisit.prescriptions && selectedVisit.prescriptions.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedVisit.prescriptions.map((rx, idx) => (
+                      <div key={rx._id || idx} className="p-3.5 rounded-xl border border-border bg-surface space-y-2">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
+                              <tr>
+                                <th className="py-1.5 px-2">#</th>
+                                <th className="py-1.5 px-2">Medicine Name</th>
+                                <th className="py-1.5 px-2">Dosage</th>
+                                <th className="py-1.5 px-2">Frequency</th>
+                                <th className="py-1.5 px-2">Duration</th>
+                                <th className="py-1.5 px-2">Instructions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {rx.medicines?.map((m, mIdx) => (
+                                <tr key={mIdx}>
+                                  <td className="py-1.5 px-2 font-bold text-ink-soft">{mIdx + 1}</td>
+                                  <td className="py-1.5 px-2 font-bold text-brand">{m.medicine}</td>
+                                  <td className="py-1.5 px-2">{m.dosage || '—'}</td>
+                                  <td className="py-1.5 px-2 font-mono font-bold text-ink">{m.frequency || '—'}</td>
+                                  <td className="py-1.5 px-2">{m.duration || '—'}</td>
+                                  <td className="py-1.5 px-2 text-ink-soft italic">{m.instructions || '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {rx.notes && (
+                          <div className="text-[11px] text-ink-soft italic bg-bg p-2 rounded border border-border/50">
+                            Notes: {rx.notes}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-ink-soft/60 italic text-[11px] p-3 rounded-xl border border-border bg-bg/40">
+                    No prescription issued for this visit.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-bg/50 shrink-0">
+              {selectedVisit.patient?._id ? (
+                <Link
+                  to={`/reception/patients/${selectedVisit.patient._id}`}
+                  className="text-xs text-brand hover:underline font-semibold flex items-center gap-1"
+                >
+                  View Patient Record <ChevronRight size={14} />
+                </Link>
+              ) : <div />}
+
+              <button
+                type="button"
+                onClick={() => setSelectedVisit(null)}
+                className="btn-secondary py-1.5 px-4 text-xs font-semibold"
+              >
+                Close Summary
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

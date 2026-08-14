@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  Wallet, Plus, Search, Trash2, CheckCircle2, AlertTriangle, X,
+  Wallet, Plus, Search, Trash2, X,
   FileText, DollarSign, CreditCard, ChevronRight, User, Stethoscope, Eye,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -14,6 +15,7 @@ const STATUS_BADGE_CLASSES = {
 };
 
 export default function Billing() {
+  const { showSuccess, showError } = useNotification();
   const [invoices, setInvoices] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,9 +30,6 @@ export default function Billing() {
   const [showConfirmSettlement, setShowConfirmSettlement] = useState(false);
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState(null);
 
-  // Notifications
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Generate Invoice Form state
@@ -146,12 +145,11 @@ export default function Billing() {
   const handleGenerateInvoice = async (e) => {
     e.preventDefault();
     if (!selectedPatient) {
-      setErrorMessage('Please search and select a patient.');
+      showError('Please search and select a patient.');
       return;
     }
 
     setSubmitting(true);
-    setErrorMessage('');
     try {
       const payload = {
         patient: selectedPatient._id || selectedPatient.id,
@@ -163,12 +161,11 @@ export default function Billing() {
       };
 
       await api.post('/invoices', payload);
-      setSuccessMessage('Invoice generated successfully!');
+      showSuccess('Invoice generated successfully!');
       resetGenerateModal();
       fetchInvoices();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to generate invoice.');
+      showError(err.response?.data?.message || 'Failed to generate invoice.');
     } finally {
       setSubmitting(false);
     }
@@ -179,14 +176,13 @@ export default function Billing() {
     setPaymentAmount(inv.balance > 0 ? inv.balance : '');
     setPaymentMethod('Cash');
     setShowConfirmSettlement(false);
-    setErrorMessage('');
   };
 
   const handlePaymentClick = (e) => {
     e.preventDefault();
     const amt = Number(paymentAmount);
     if (!amt || amt <= 0) {
-      setErrorMessage('Please enter a valid payment amount.');
+      showError('Please enter a valid payment amount.');
       return;
     }
 
@@ -201,22 +197,19 @@ export default function Billing() {
   const executeRecordPayment = async () => {
     if (!activePaymentInvoice) return;
     setSubmitting(true);
-    setErrorMessage('');
     try {
       const invId = activePaymentInvoice._id || activePaymentInvoice.id;
-      const res = await api.post(`/invoices/${invId}/payments`, {
+      await api.post(`/invoices/${invId}/payments`, {
         amount: Number(paymentAmount),
         method: paymentMethod,
       });
 
-      setSuccessMessage(`Payment of ₹${paymentAmount} recorded successfully!`);
+      showSuccess(`Payment of ₹${paymentAmount} recorded successfully!`);
       setActivePaymentInvoice(null);
       setShowConfirmSettlement(false);
-      // Re-fetch invoices to update status badges dynamically without page reload
       fetchInvoices();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to record payment.');
+      showError(err.response?.data?.message || 'Failed to record payment.');
     } finally {
       setSubmitting(false);
     }
@@ -245,19 +238,6 @@ export default function Billing() {
         </button>
       </div>
 
-      {/* Notifications */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && !showGenerateModal && !activePaymentInvoice && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
 
       {/* Search & Filter Bar */}
       <div className="card p-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -4,6 +4,7 @@ const {
   createTreatmentPlan,
   updateTreatmentPlan,
   executeTreatmentPlan,
+  deleteTreatmentPlan,
 } = require('../controllers/treatmentPlanController');
 const protect = require('../middleware/auth');
 const allowRoles = require('../middleware/roleCheck');
@@ -17,5 +18,6 @@ router.get('/', listTreatmentPlans);
 router.post('/', createTreatmentPlan);
 router.patch('/:id', updateTreatmentPlan);
 router.patch('/:id/execute', executeTreatmentPlan);
+router.delete('/:id', deleteTreatmentPlan);
 
 module.exports = router;

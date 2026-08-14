@@ -17,19 +17,97 @@ async function checkConsultationNotClosed(consultationId) {
   }
 }
 
-// GET /api/consultations?patient=
+// GET /api/consultations?patient=&doctor=&dateFrom=&dateTo=&search=
 async function listConsultations(req, res, next) {
   try {
-    const { patient } = req.query;
+    const { patient, doctor, dateFrom, dateTo, search } = req.query;
     const filter = {};
+
     if (patient) filter.patient = patient;
+    if (doctor) filter.doctor = doctor;
 
-    const consultations = await Consultation.find(filter)
-      .sort({ createdAt: -1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex')
-      .populate('doctor', 'name email specialization');
+    if (dateFrom || dateTo) {
+      filter.$or = [
+        { startedAt: {} },
+        { createdAt: {} },
+      ];
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        filter.$or[0].startedAt.$gte = fromDate;
+        filter.$or[1].createdAt.$gte = fromDate;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        filter.$or[0].startedAt.$lte = toDate;
+        filter.$or[1].createdAt.$lte = toDate;
+      }
+    }
 
-    return res.json({ consultations });
+    if (search && search.trim()) {
+      const Patient = require('../models/Patient');
+      const matchingPatients = await Patient.find({
+        $or: [
+          { firstName: { $regex: search.trim(), $options: 'i' } },
+          { lastName: { $regex: search.trim(), $options: 'i' } },
+          { opNumber: { $regex: search.trim(), $options: 'i' } },
+          { phone: { $regex: search.trim(), $options: 'i' } },
+        ],
+      }).select('_id');
+      const patientIds = matchingPatients.map((p) => p._id);
+      filter.patient = { $in: patientIds };
+    }
+
+    const rawConsultations = await Consultation.find(filter)
+      .sort({ startedAt: -1, createdAt: -1 })
+      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+      .populate('doctor', 'name email specialization role')
+      .populate('queueEntry')
+      .populate('appointment');
+
+    const Examination = require('../models/Examination');
+    const Diagnosis = require('../models/Diagnosis');
+    const TreatmentPlan = require('../models/TreatmentPlan');
+    const TreatmentRecord = require('../models/TreatmentRecord');
+    const Prescription = require('../models/Prescription');
+
+    const visits = await Promise.all(
+      rawConsultations.map(async (c) => {
+        const cId = c._id;
+        const [exam, diagnoses, treatmentPlans, treatmentRecords, prescriptions] = await Promise.all([
+          Examination.findOne({ consultation: cId }),
+          Diagnosis.find({ consultation: cId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }),
+          TreatmentPlan.find({ consultation: cId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }),
+          TreatmentRecord.find({ consultation: cId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }),
+          Prescription.find({ consultation: cId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }),
+        ]);
+
+        const checkIn = c.startedAt || c.queueEntry?.checkInTime || c.appointment?.createdAt || c.createdAt;
+        const checkOut = c.closedAt || (c.status === 'Completed' ? c.updatedAt : null);
+        const reason = c.appointment?.reason || c.queueEntry?.reason || (c.queueEntry?.type === 'Walk-in' ? 'Walk-in Consultation' : 'General Dental Visit');
+
+        return {
+          _id: c._id,
+          id: c._id,
+          patient: c.patient,
+          doctor: c.doctor,
+          visitDate: c.startedAt || c.createdAt,
+          checkInTime: checkIn,
+          checkOutTime: checkOut,
+          status: c.status || 'Completed',
+          reason,
+          notes: c.clinicalNotes || c.notes || '',
+          examination: exam,
+          diagnoses: diagnoses || [],
+          treatmentPlans: treatmentPlans || [],
+          treatmentRecords: treatmentRecords || [],
+          prescriptions: prescriptions || [],
+        };
+      })
+    );
+
+    return res.json({ consultations: visits, visits });
   } catch (err) {
     next(err);
   }

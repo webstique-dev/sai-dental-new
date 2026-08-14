@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
-  Stethoscope, Plus, Trash2, CheckCircle2, AlertTriangle, Layers, Tag, X, FileText,
+  Stethoscope, Plus, Trash2, Edit3, X,
 } from 'lucide-react';
 import api from '../../../api/axios.js';
+import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
+import { useNotification } from '../../../context/NotificationContext.jsx';
 
 const ALL_FDI_TEETH = [
   18, 17, 16, 15, 14, 13, 12, 11,
@@ -20,22 +22,30 @@ const SEVERITY_BADGES = {
 export default function DiagnosisTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
+  const { showSuccess, showError } = useNotification();
 
   const [diagnoses, setDiagnoses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
 
-  // Form state
+  // Delete confirmation state
+  const [deletingDiagnosis, setDeletingDiagnosis] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Add Form state
   const [diagnosisText, setDiagnosisText] = useState('');
   const [clinicalFindings, setClinicalFindings] = useState('');
   const [notes, setNotes] = useState('');
   const [severity, setSeverity] = useState('');
   const [relatedTeeth, setRelatedTeeth] = useState([]);
 
-  // Notifications
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  // Edit Modal state
+  const [editingItem, setEditingItem] = useState(null);
+  const [editDiagnosisText, setEditDiagnosisText] = useState('');
+  const [editClinicalFindings, setEditClinicalFindings] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSeverity, setEditSeverity] = useState('');
+  const [editRelatedTeeth, setEditRelatedTeeth] = useState([]);
 
   const fetchDiagnoses = async () => {
     if (!consultationId) return;
@@ -54,12 +64,20 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
     fetchDiagnoses();
   }, [consultationId]);
 
-  const toggleTooth = (tNum) => {
+  const toggleTooth = (tNum, isEdit = false) => {
     if (isReadOnly) return;
-    if (relatedTeeth.includes(tNum)) {
-      setRelatedTeeth(relatedTeeth.filter((t) => t !== tNum));
+    if (isEdit) {
+      if (editRelatedTeeth.includes(tNum)) {
+        setEditRelatedTeeth(editRelatedTeeth.filter((t) => t !== tNum));
+      } else {
+        setEditRelatedTeeth([...editRelatedTeeth, tNum]);
+      }
     } else {
-      setRelatedTeeth([...relatedTeeth, tNum]);
+      if (relatedTeeth.includes(tNum)) {
+        setRelatedTeeth(relatedTeeth.filter((t) => t !== tNum));
+      } else {
+        setRelatedTeeth([...relatedTeeth, tNum]);
+      }
     }
   };
 
@@ -67,28 +85,25 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
     e.preventDefault();
     if (isReadOnly) return;
     if (!diagnosisText || !diagnosisText.trim()) {
-      setErrorMessage('Diagnosis description is required.');
+      showError('Diagnosis title is required.');
       return;
     }
 
     setSubmitting(true);
-    setSuccessMessage('');
-    setErrorMessage('');
     try {
       const payload = {
         consultation: consultationId,
         patient: patientId,
         diagnosis: diagnosisText.trim(),
-        clinicalFindings,
-        notes,
+        clinicalFindings: clinicalFindings ? clinicalFindings.trim() : '',
+        notes: notes ? notes.trim() : '',
         severity: severity || undefined,
         relatedTeeth,
       };
 
       await api.post('/diagnoses', payload);
-      setSuccessMessage('Diagnosis added successfully!');
+      showSuccess('Diagnosis added successfully!');
 
-      // Reset form
       setDiagnosisText('');
       setClinicalFindings('');
       setNotes('');
@@ -96,48 +111,73 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
       setRelatedTeeth([]);
 
       fetchDiagnoses();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to add diagnosis.');
+      showError(err.response?.data?.message || 'Failed to add diagnosis.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (diagId) => {
+  const openEditModal = (item) => {
     if (isReadOnly) return;
-    setDeletingId(diagId);
-    setSuccessMessage('');
-    setErrorMessage('');
+    setEditingItem(item);
+    setEditDiagnosisText(item.diagnosis || '');
+    setEditClinicalFindings(item.clinicalFindings || '');
+    setEditNotes(item.notes || '');
+    setEditSeverity(item.severity || '');
+    setEditRelatedTeeth(item.relatedTeeth || []);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (isReadOnly || !editingItem) return;
+    if (!editDiagnosisText || !editDiagnosisText.trim()) {
+      showError('Diagnosis title is required.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const diagId = editingItem._id || editingItem.id;
+      await api.patch(`/diagnoses/${diagId}`, {
+        diagnosis: editDiagnosisText.trim(),
+        clinicalFindings: editClinicalFindings ? editClinicalFindings.trim() : '',
+        notes: editNotes ? editNotes.trim() : '',
+        severity: editSeverity || undefined,
+        relatedTeeth: editRelatedTeeth,
+      });
+
+      showSuccess('Diagnosis updated successfully!');
+      setEditingItem(null);
+      fetchDiagnoses();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to update diagnosis.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmDeleteDiagnosis = async () => {
+    if (!deletingDiagnosis || isReadOnly) return;
+    setDeleteLoading(true);
+    const diagId = deletingDiagnosis._id || deletingDiagnosis.id;
     try {
       await api.delete(`/diagnoses/${diagId}`);
-      setSuccessMessage('Diagnosis entry deleted.');
+      showSuccess('Diagnosis entry deleted successfully.');
+      setDiagnoses((prev) => prev.filter((d) => (d._id || d.id) !== diagId));
+      setDeletingDiagnosis(null);
       fetchDiagnoses();
-      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to delete diagnosis.');
+      showError(err.response?.data?.message || 'Failed to delete diagnosis.');
+      setDeletingDiagnosis(null);
     } finally {
-      setDeletingId(null);
+      setDeleteLoading(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Notifications */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {/* Form: Add Diagnosis (Hidden when read-only) */}
+      {/* FORM: ADD DIAGNOSIS (Hidden when read-only) */}
       {!isReadOnly && (
         <div className="card p-5 space-y-4">
           <div className="border-b border-border pb-3">
@@ -145,7 +185,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
               <Stethoscope size={18} className="text-brand" /> Add Clinical Diagnosis
             </h3>
             <p className="text-xs text-ink-soft">
-              Record findings, select severity rating, and link related FDI teeth.
+              Record diagnosis, severity, supporting clinical findings, and link related FDI teeth.
             </p>
           </div>
 
@@ -156,7 +196,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="e.g. Irreversible Pulpitis, Class II Dental Caries, Chronic Periodontitis"
+                  placeholder="e.g. Irreversible Pulpitis, Dental Caries, Chronic Periodontitis"
                   value={diagnosisText}
                   onChange={(e) => setDiagnosisText(e.target.value)}
                 />
@@ -183,7 +223,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="e.g. Tenderness on percussion, deep occlusal cavity"
+                  placeholder="e.g. Deep occlusal cavity, tenderness on percussion"
                   value={clinicalFindings}
                   onChange={(e) => setClinicalFindings(e.target.value)}
                 />
@@ -201,7 +241,6 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
               </div>
             </div>
 
-            {/* Interactive Tooth Chip Selector */}
             <div className="space-y-2 pt-1 border-t border-border/60">
               <div className="flex items-center justify-between">
                 <label className="block font-semibold text-ink-soft">
@@ -226,10 +265,11 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                       type="button"
                       key={tNum}
                       onClick={() => toggleTooth(tNum)}
-                      className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${isSel
-                        ? 'bg-brand text-white shadow-sm'
-                        : 'bg-surface border border-border text-ink-soft hover:bg-bg'
-                        }`}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
+                        isSel
+                          ? 'bg-brand text-white shadow-sm'
+                          : 'bg-surface border border-border text-ink-soft hover:bg-bg'
+                      }`}
                     >
                       #{tNum}
                     </button>
@@ -241,22 +281,22 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
             <div className="flex justify-end pt-2">
               <button type="submit" disabled={submitting} className="btn-primary">
                 <Plus size={16} />
-                <span>{submitting ? 'Adding...' : 'Add Diagnosis Entry'}</span>
+                <span>{submitting ? 'Adding...' : 'Add Diagnosis'}</span>
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* RUNNING LIST OF DIAGNOSES */}
+      {/* DIAGNOSES LIST TABLE / CARDS */}
       <div className="card p-5 space-y-4">
         <div className="border-b border-border pb-3 flex items-center justify-between">
           <div>
             <h3 className="font-display text-sm font-bold text-ink">
-              Diagnoses for Current Consultation ({diagnoses.length})
+              Recorded Diagnoses ({diagnoses.length})
             </h3>
             <p className="text-xs text-ink-soft">
-              Active diagnostic record for this visit.
+              Active diagnostic entries for this consultation visit.
             </p>
           </div>
         </div>
@@ -279,19 +319,18 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-display text-sm font-bold text-ink">{diag.diagnosis}</h4>
                         {diag.severity && (
-                          <span className={`badge border ${SEVERITY_BADGES[diag.severity] || ''}`}>
-                            {diag.severity}
+                          <span className={`badge border ${SEVERITY_BADGES[diag.severity] || 'bg-slate-100 text-slate-800'}`}>
+                            {diag.severity} Severity
                           </span>
                         )}
                       </div>
 
-                      {/* Related Teeth chips */}
                       {diag.relatedTeeth && diag.relatedTeeth.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1 text-[11px] pt-1">
-                          <span className="text-ink-soft font-semibold">Teeth:</span>
+                          <span className="text-ink-soft font-semibold">Related Teeth:</span>
                           {diag.relatedTeeth.map((tNum) => (
                             <span
                               key={tNum}
@@ -305,27 +344,38 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                     </div>
 
                     {!isReadOnly && (
-                      <button
-                        disabled={deletingId === diagId}
-                        onClick={() => handleDelete(diagId)}
-                        title="Delete Diagnosis"
-                        className="p-1.5 text-ink-soft hover:text-rose-600 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(diag)}
+                          title="Edit Diagnosis"
+                          className="p-1.5 text-ink-soft hover:text-ink rounded-lg hover:bg-bg border border-transparent hover:border-border transition-colors"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeletingDiagnosis(diag)}
+                          title="Delete Diagnosis"
+                          className="p-1.5 text-ink-soft hover:text-rose-600 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     )}
                   </div>
 
                   {diag.clinicalFindings && (
                     <div className="text-xs text-ink">
-                      <span className="font-semibold text-ink-soft">Findings: </span>
+                      <span className="font-semibold text-ink-soft">Clinical Findings: </span>
                       {diag.clinicalFindings}
                     </div>
                   )}
 
                   {diag.notes && (
                     <div className="text-xs text-ink-soft italic bg-bg/50 p-2 rounded-lg border border-border/50">
-                      Notes: {diag.notes}
+                      Notes & Recommendations: {diag.notes}
                     </div>
                   )}
                 </div>
@@ -334,6 +384,130 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
           </div>
         )}
       </div>
+
+      {/* EDIT DIAGNOSIS MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <Edit3 size={18} className="text-brand" /> Edit Clinical Diagnosis
+              </h3>
+              <button onClick={() => setEditingItem(null)} className="rounded-lg p-1 hover:bg-bg">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Diagnosis Title / Condition *</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={editDiagnosisText}
+                    onChange={(e) => setEditDiagnosisText(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Severity Rating</label>
+                  <select
+                    className="input-field"
+                    value={editSeverity}
+                    onChange={(e) => setEditSeverity(e.target.value)}
+                  >
+                    <option value="">Unspecified</option>
+                    <option value="Mild">Mild</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Severe">Severe</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Clinical Findings</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={editClinicalFindings}
+                    onChange={(e) => setEditClinicalFindings(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Notes & Recommendations</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2 pt-1 border-t border-border/60">
+                  <label className="block font-semibold text-ink-soft">
+                    Related Teeth ({editRelatedTeeth.length} selected):
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-border bg-bg/40 max-h-32 overflow-y-auto">
+                    {ALL_FDI_TEETH.map((tNum) => {
+                      const isSel = editRelatedTeeth.includes(tNum);
+                      return (
+                        <button
+                          type="button"
+                          key={tNum}
+                          onClick={() => toggleTooth(tNum, true)}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
+                            isSel
+                              ? 'bg-brand text-white shadow-sm'
+                              : 'bg-surface border border-border text-ink-soft hover:bg-bg'
+                          }`}
+                        >
+                          #{tNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={() => setEditingItem(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting} className="btn-primary text-xs">
+                  {submitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(deletingDiagnosis)}
+        onClose={() => setDeletingDiagnosis(null)}
+        onConfirm={confirmDeleteDiagnosis}
+        title="Confirm Delete Diagnosis"
+        message={
+          deletingDiagnosis ? (
+            <p className="text-xs">
+              Are you sure you want to delete diagnosis entry{' '}
+              <strong className="text-ink font-bold font-mono">"{deletingDiagnosis.diagnosis}"</strong>?
+            </p>
+          ) : (
+            'Are you sure you want to delete this diagnosis entry?'
+          )
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleteLoading}
+      />
     </div>
   );
 }

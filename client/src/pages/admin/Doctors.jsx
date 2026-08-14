@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import {
-  Stethoscope, Users, CheckCircle2, Award, DollarSign, Clock, Edit3, X, Save,
-  ShieldAlert, RefreshCw, Activity, Calendar
+  Stethoscope, Edit3, X, Save,
+  RefreshCw, Calendar
 } from 'lucide-react';
 import api from '../../api/axios.js';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 const DEFAULT_DAYS = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
 ];
 
 export default function AdminDoctors() {
+  const { showSuccess, showError } = useNotification();
   const [doctors, setDoctors] = useState([]);
   const [profilesMap, setProfilesMap] = useState({});
   const [statsMap, setStatsMap] = useState({});
@@ -24,7 +26,6 @@ export default function AdminDoctors() {
     workingHours: [],
   });
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState({ type: '', msg: '' });
 
   const fetchDoctorData = async () => {
     try {
@@ -98,7 +99,6 @@ export default function AdminDoctors() {
       consultationFee: existing.consultationFee ?? 500,
       workingHours: JSON.parse(JSON.stringify(hours)),
     });
-    setFeedback({ type: '', msg: '' });
   };
 
   const handleWorkingHourChange = (idx, field, value) => {
@@ -113,7 +113,6 @@ export default function AdminDoctors() {
 
     const dId = editingDoctor._id || editingDoctor.id;
     setSaving(true);
-    setFeedback({ type: '', msg: '' });
 
     try {
       const payload = {
@@ -128,13 +127,11 @@ export default function AdminDoctors() {
 
       setProfilesMap((prev) => ({ ...prev, [dId]: updatedProfile }));
 
-      setFeedback({ type: 'success', msg: 'Doctor profile and working hours saved.' });
-      setTimeout(() => {
-        setEditingDoctor(null);
-        fetchDoctorData();
-      }, 1000);
+      showSuccess('Doctor profile and working hours saved successfully.');
+      setEditingDoctor(null);
+      fetchDoctorData();
     } catch (err) {
-      setFeedback({ type: 'error', msg: err.response?.data?.message || 'Failed to save doctor profile.' });
+      showError(err.response?.data?.message || 'Failed to save doctor profile.');
     } finally {
       setSaving(false);
     }
@@ -298,18 +295,6 @@ export default function AdminDoctors() {
 
             <form onSubmit={handleSaveProfile} className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
-                {feedback.msg && (
-                  <div
-                    className={`p-3 rounded text-xs flex items-center gap-2 ${feedback.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      : 'bg-rose-50 text-rose-800 border border-rose-200'
-                      }`}
-                  >
-                    {feedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldAlert size={15} />}
-                    <span>{feedback.msg}</span>
-                  </div>
-                )}
-
                 {/* Specialization, Qualification, Consultation Fee */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>

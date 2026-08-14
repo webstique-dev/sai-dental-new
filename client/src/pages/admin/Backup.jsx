@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { DatabaseBackup, Download, CheckCircle2, ShieldAlert, FileSpreadsheet, Clock, Server } from 'lucide-react';
 import api from '../../api/axios.js';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 export default function Backup() {
+  const { showSuccess, showError } = useNotification();
   const [downloading, setDownloading] = useState(false);
   const [lastBackupTime, setLastBackupTime] = useState(() => {
     return localStorage.getItem('dental_last_backup_time') || null;
   });
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   const handleDownloadBackup = async () => {
     setDownloading(true);
-    setSuccessMessage('');
-    setErrorMessage('');
 
     try {
       const res = await api.get('/backup/export', { responseType: 'blob' });
@@ -35,10 +33,10 @@ export default function Backup() {
       const nowIso = new Date().toLocaleString();
       localStorage.setItem('dental_last_backup_time', nowIso);
       setLastBackupTime(nowIso);
-      setSuccessMessage('Clinic Excel workbook backup successfully generated and downloaded.');
+      showSuccess('Clinic Excel workbook backup successfully generated and downloaded.');
     } catch (err) {
       console.error('Backup download failed:', err);
-      setErrorMessage('Failed to generate clinic Excel backup. Please try again.');
+      showError('Failed to generate clinic Excel backup. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -77,20 +75,6 @@ export default function Backup() {
             {downloading ? 'Building Excel Workbook...' : 'Download Backup (Excel)'}
           </button>
         </div>
-
-        {/* Feedback alerts */}
-        {successMessage && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-            <span>{successMessage}</span>
-          </div>
-        )}
-        {errorMessage && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs flex items-center gap-2">
-            <ShieldAlert size={16} className="text-rose-600 shrink-0" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
 
         {/* Last Downloaded Timestamp */}
         <div className="flex items-center gap-2 text-xs text-ink-soft bg-bg p-3 rounded-lg border border-border">

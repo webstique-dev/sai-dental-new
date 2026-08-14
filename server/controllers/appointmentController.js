@@ -33,7 +33,7 @@ function getDayBounds(dateInput) {
 async function listAppointments(req, res, next) {
   try {
     const { date, dateFilterPreset, doctor, status, search } = req.query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
 
     // Filter by date or preset
     if (dateFilterPreset === 'today') {
@@ -68,6 +68,7 @@ async function listAppointments(req, res, next) {
           { phone: regex },
           { opNumber: regex },
         ],
+        isDeleted: { $ne: true },
       }).select('_id');
 
       const patientIds = matchingPatients.map((p) => p._id);
@@ -139,10 +140,11 @@ async function updateAppointment(req, res, next) {
       }
     }
 
-    const updated = await Appointment.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    })
+    const updated = await Appointment.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: { $ne: true } },
+      req.body,
+      { new: true, runValidators: true }
+    )
       .populate('patient', 'firstName lastName opNumber phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
@@ -165,12 +167,17 @@ async function updateAppointment(req, res, next) {
   }
 }
 
-// DELETE /api/appointments/:id (Soft cancel — set status to Cancelled)
+// DELETE /api/appointments/:id (Soft cancel / soft delete — set status to Cancelled and mark isDeleted)
 async function cancelAppointment(req, res, next) {
   try {
-    const cancelled = await Appointment.findByIdAndUpdate(
-      req.params.id,
-      { status: 'Cancelled' },
+    const cancelled = await Appointment.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: { $ne: true } },
+      {
+        status: 'Cancelled',
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: req.user ? req.user._id : undefined,
+      },
       { new: true }
     )
       .populate('patient', 'firstName lastName opNumber phone age sex')

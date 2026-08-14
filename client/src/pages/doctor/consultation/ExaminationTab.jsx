@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, Save, AlertTriangle, FileText, Check, Shield } from 'lucide-react';
+import { Save, Check } from 'lucide-react';
 import api from '../../../api/axios.js';
+import { useNotification } from '../../../context/NotificationContext.jsx';
 
 const EXTRAORAL_OPTIONS = ['Facial Symmetry', 'TMJ', 'Lymph Nodes', 'Swelling'];
 
 const SOFT_TISSUE_AREAS = [
-  'Labial/Buccal Mucosa',
+  'Labial / Buccal Mucosa',
   'Tongue',
   'Floor of Mouth',
   'Gingiva',
@@ -25,11 +26,10 @@ const GINGIVAL_OPTIONS = [
 export default function ExaminationTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
+  const { showSuccess, showError } = useNotification();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   // Extraoral state: array of { finding, notes }
   const [extraoral, setExtraoral] = useState([]);
@@ -37,6 +37,10 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
   const [softTissue, setSoftTissue] = useState([]);
   // Gingival findings state: array of selected strings
   const [gingivalFindings, setGingivalFindings] = useState([]);
+  // Periodontal details notes
+  const [periodontalDetails, setPeriodontalDetails] = useState('');
+  // Overall examination notes
+  const [overallNotes, setOverallNotes] = useState('');
 
   // Fetch existing examination for this consultation
   useEffect(() => {
@@ -50,6 +54,8 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
           setExtraoral(exam.extraoral || []);
           setSoftTissue(exam.softTissue || []);
           setGingivalFindings(exam.gingivalFindings || []);
+          setPeriodontalDetails(exam.periodontalDetails || '');
+          setOverallNotes(exam.overallNotes || '');
         }
       } catch (err) {
         console.error('Failed to load examination:', err);
@@ -109,8 +115,6 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
     if (e) e.preventDefault();
     if (isReadOnly) return;
     setSaving(true);
-    setSuccessMessage('');
-    setErrorMessage('');
     try {
       const payload = {
         consultation: consultationId,
@@ -118,13 +122,14 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
         extraoral,
         softTissue,
         gingivalFindings,
+        periodontalDetails,
+        overallNotes,
       };
 
       await api.post('/examinations', payload);
-      setSuccessMessage('Clinical examination findings saved successfully!');
-      setTimeout(() => setSuccessMessage(''), 3500);
+      showSuccess('Clinical examination findings saved successfully!');
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to save examination findings.');
+      showError(err.response?.data?.message || 'Failed to save examination findings.');
     } finally {
       setSaving(false);
     }
@@ -136,28 +141,14 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
-      {/* Save Success Banner */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {/* SECTION 1: EXTRAORAL EXAMINATION */}
+      {/* 1. EXTRAORAL EXAMINATION */}
       <div className="card p-5 space-y-4">
         <div className="border-b border-border pb-2">
           <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wider">
             1. Extraoral Examination
           </h3>
           <p className="text-xs text-ink-soft">
-            Select findings and enter clinical notes for facial symmetry, TMJ, lymph nodes, or swelling.
+            Select findings and enter clinical observations for extraoral structures.
           </p>
         </div>
 
@@ -170,13 +161,18 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                 key={finding}
                 disabled={isReadOnly}
                 onClick={() => toggleExtraoral(finding)}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${selected
-                  ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
-                  : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                  } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                  selected
+                    ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
+                    : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
-                <span>{finding}</span>
-                {selected && <Check size={14} className="text-brand" />}
+                <div className="flex items-center gap-2">
+                  <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${selected ? 'bg-brand border-brand text-white' : 'border-border bg-surface'}`}>
+                    {selected && <Check size={11} />}
+                  </span>
+                  <span>{finding}</span>
+                </div>
               </button>
             );
           })}
@@ -185,7 +181,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
         {/* Detailed notes for selected extraoral findings */}
         {extraoral.length > 0 && (
           <div className="space-y-3 pt-2 border-t border-border/60">
-            <p className="text-xs font-semibold text-ink-soft">Extraoral Notes per Finding:</p>
+            <p className="text-xs font-semibold text-ink-soft">Additional Details per Extraoral Finding:</p>
             {extraoral.map((item) => (
               <div key={item.finding} className="space-y-1">
                 <label className="block text-xs font-bold text-ink">{item.finding}</label>
@@ -193,7 +189,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                   type="text"
                   disabled={isReadOnly}
                   className="input-field py-1.5 text-xs"
-                  placeholder={`Notes for ${item.finding}...`}
+                  placeholder={`e.g. Additional details for ${item.finding}...`}
                   value={item.notes || ''}
                   onChange={(e) => updateExtraoralNotes(item.finding, e.target.value)}
                 />
@@ -203,14 +199,14 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
         )}
       </div>
 
-      {/* SECTION 2: INTRAORAL SOFT TISSUE */}
+      {/* 2. INTRAORAL SOFT TISSUE EXAMINATION */}
       <div className="card p-5 space-y-4">
         <div className="border-b border-border pb-2">
           <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wider">
             2. Intraoral Soft Tissue Examination
           </h3>
           <p className="text-xs text-ink-soft">
-            Check areas inspected or displaying lesions/abnormalities, and document observations.
+            Inspect mucosal structures and document clinical observations.
           </p>
         </div>
 
@@ -223,13 +219,18 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                 key={area}
                 disabled={isReadOnly}
                 onClick={() => toggleSoftTissue(area)}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${selected
-                  ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
-                  : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                  } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                  selected
+                    ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
+                    : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
-                <span>{area}</span>
-                {selected && <Check size={14} className="text-brand" />}
+                <div className="flex items-center gap-2">
+                  <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${selected ? 'bg-brand border-brand text-white' : 'border-border bg-surface'}`}>
+                    {selected && <Check size={11} />}
+                  </span>
+                  <span>{area}</span>
+                </div>
               </button>
             );
           })}
@@ -238,7 +239,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
         {/* Detailed notes for selected soft tissue areas */}
         {softTissue.length > 0 && (
           <div className="space-y-3 pt-2 border-t border-border/60">
-            <p className="text-xs font-semibold text-ink-soft">Soft Tissue Inspection Notes:</p>
+            <p className="text-xs font-semibold text-ink-soft">Additional Details per Soft Tissue Area:</p>
             {softTissue.map((item) => (
               <div key={item.area} className="space-y-1">
                 <label className="block text-xs font-bold text-ink">{item.area}</label>
@@ -246,7 +247,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                   type="text"
                   disabled={isReadOnly}
                   className="input-field py-1.5 text-xs"
-                  placeholder={`Observations for ${item.area}...`}
+                  placeholder={`e.g. Additional details for ${item.area}...`}
                   value={item.notes || ''}
                   onChange={(e) => updateSoftTissueNotes(item.area, e.target.value)}
                 />
@@ -256,14 +257,14 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
         )}
       </div>
 
-      {/* SECTION 3: GINGIVAL FINDINGS */}
+      {/* 3. GINGIVAL & PERIODONTAL FINDINGS */}
       <div className="card p-5 space-y-4">
         <div className="border-b border-border pb-2">
           <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wider">
             3. Gingival & Periodontal Findings
           </h3>
           <p className="text-xs text-ink-soft">
-            Select all applicable periodontic condition descriptors.
+            Select periodontal status descriptors and enter clinical details.
           </p>
         </div>
 
@@ -276,16 +277,57 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                 key={finding}
                 disabled={isReadOnly}
                 onClick={() => toggleGingival(finding)}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${selected
-                  ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
-                  : 'border-border bg-surface text-ink-soft hover:bg-bg'
-                  } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                  selected
+                    ? 'border-brand bg-brand-light/30 text-brand-dark shadow-sm'
+                    : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                } ${isReadOnly ? 'cursor-not-allowed opacity-90' : ''}`}
               >
-                <span>{finding}</span>
-                {selected && <Check size={14} className="text-brand" />}
+                <div className="flex items-center gap-2">
+                  <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${selected ? 'bg-brand border-brand text-white' : 'border-border bg-surface'}`}>
+                    {selected && <Check size={11} />}
+                  </span>
+                  <span>{finding}</span>
+                </div>
               </button>
             );
           })}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-ink-soft mb-1">Clinical Details</label>
+          <textarea
+            rows={2}
+            disabled={isReadOnly}
+            className="input-field text-xs"
+            placeholder="Additional periodontal observations..."
+            value={periodontalDetails}
+            onChange={(e) => setPeriodontalDetails(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* 4. OVERALL EXAMINATION NOTES */}
+      <div className="card p-5 space-y-4">
+        <div className="border-b border-border pb-2">
+          <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wider">
+            4. Overall Examination Notes
+          </h3>
+          <p className="text-xs text-ink-soft">
+            Comprehensive diagnostic summary notes for clinical examination.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-ink-soft mb-1">Overall Examination Notes</label>
+          <textarea
+            rows={4}
+            disabled={isReadOnly}
+            className="input-field text-xs"
+            placeholder="Enter additional clinical observations..."
+            value={overallNotes}
+            onChange={(e) => setOverallNotes(e.target.value)}
+          />
         </div>
       </div>
 

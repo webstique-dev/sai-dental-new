@@ -5,7 +5,7 @@ const { checkConsultationNotClosed } = require('./consultationController');
 async function listPrescriptions(req, res, next) {
   try {
     const { consultation, patient } = req.query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
 
     if (consultation) filter.consultation = consultation;
     if (patient) filter.patient = patient;
@@ -24,7 +24,7 @@ async function listPrescriptions(req, res, next) {
 // POST /api/prescriptions
 async function createPrescription(req, res, next) {
   try {
-    const { consultation, patient, medicines } = req.body;
+    const { consultation, patient, medicines, notes } = req.body;
 
     if (!consultation) {
       return res.status(400).json({ message: 'consultation is required.' });
@@ -53,6 +53,7 @@ async function createPrescription(req, res, next) {
         duration: m.duration ? m.duration.trim() : '',
         instructions: m.instructions ? m.instructions.trim() : '',
       })),
+      notes: notes ? String(notes).trim() : '',
       recordedBy: req.user ? req.user._id : undefined,
     });
 
@@ -71,7 +72,32 @@ async function createPrescription(req, res, next) {
   }
 }
 
+// DELETE /api/prescriptions/:id (Soft delete)
+async function deletePrescription(req, res, next) {
+  try {
+    const rx = await Prescription.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+    if (!rx) {
+      return res.status(404).json({ message: 'Prescription not found.' });
+    }
+
+    // Immutability Guard
+    if (rx.consultation) {
+      await checkConsultationNotClosed(rx.consultation);
+    }
+
+    rx.isDeleted = true;
+    rx.deletedAt = new Date();
+    rx.deletedBy = req.user ? req.user._id : undefined;
+    await rx.save();
+
+    return res.json({ message: 'Prescription deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listPrescriptions,
   createPrescription,
+  deletePrescription,
 };

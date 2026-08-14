@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  Activity, Plus, CheckCircle2, AlertTriangle, IndianRupee, Layers, Tag, ChevronRight, Sparkles, Check,
+  Activity, Plus, Trash2, Check,
 } from 'lucide-react';
 import api from '../../../api/axios.js';
+import DatePicker from '../../../components/common/DatePicker.jsx';
+import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
+import { useNotification } from '../../../context/NotificationContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Planned: 'bg-slate-100 text-slate-800 border-slate-200',
@@ -13,50 +16,56 @@ const STATUS_BADGE_CLASSES = {
 };
 
 const PRIORITY_BADGE_CLASSES = {
+  Normal: 'bg-blue-50 text-blue-700 border-blue-200',
   Low: 'bg-blue-50 text-blue-700 border-blue-200',
   Medium: 'bg-amber-50 text-amber-700 border-amber-200',
+  Urgent: 'bg-rose-50 text-rose-700 border-rose-200',
   High: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
   const patientId = consultation?.patient?._id || consultation?.patient?.id;
+  const { showSuccess, showError } = useNotification();
 
   const [treatmentPlans, setTreatmentPlans] = useState([]);
-  const [diagnosesOptions, setDiagnosesOptions] = useState([]);
-  const [catalogItems, setCatalogItems] = useState([]);
+  const [treatmentRecords, setTreatmentRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [submittingPlan, setSubmittingPlan] = useState(false);
+  const [submittingRecord, setSubmittingRecord] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
-  // Notifications
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  // Delete confirmation state
+  const [deletingPlan, setDeletingPlan] = useState(null);
+  const [deletingRecord, setDeletingRecord] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Form State
-  const [selectedDiagnosisId, setSelectedDiagnosisId] = useState('');
-  const [toothNumber, setToothNumber] = useState('');
-  const [treatmentName, setTreatmentName] = useState('');
-  const [description, setDescription] = useState('');
-  const [estimatedCost, setEstimatedCost] = useState('');
-  const [priority, setPriority] = useState('Medium');
-  const [notes, setNotes] = useState('');
-  const [status, setStatus] = useState('Planned');
+  // Form State: Add Treatment Plan (Planned Treatment)
+  const [planToothNumber, setPlanToothNumber] = useState('');
+  const [planProcedure, setPlanProcedure] = useState('');
+  const [planPriority, setPlanPriority] = useState('Normal');
+  const [planEstimatedCost, setPlanEstimatedCost] = useState('');
+  const [planNotes, setPlanNotes] = useState('');
+
+  // Form State: Add Treatment Record (Performed Treatment)
+  const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
+  const [recordToothNumber, setRecordToothNumber] = useState('');
+  const [recordProcedure, setRecordProcedure] = useState('');
+  const [recordCharges, setRecordCharges] = useState('');
+  const [recordNextAppointment, setRecordNextAppointment] = useState('');
 
   const fetchData = async () => {
     if (!consultationId) return;
     try {
       setLoading(true);
-      const [plansRes, diagRes, catalogRes] = await Promise.all([
+      const [plansRes, recordsRes] = await Promise.all([
         api.get(`/treatment-plans?consultation=${consultationId}`),
-        api.get(`/diagnoses?consultation=${consultationId}`),
-        api.get('/treatments?active=true').catch(() => ({ data: { treatments: [] } })),
+        api.get(`/treatment-records?consultation=${consultationId}`).catch(() => ({ data: { treatmentRecords: [] } })),
       ]);
       setTreatmentPlans(plansRes.data?.treatmentPlans || []);
-      setDiagnosesOptions(diagRes.data?.diagnoses || []);
-      setCatalogItems(catalogRes.data?.treatments || []);
+      setTreatmentRecords(recordsRes.data?.treatmentRecords || []);
     } catch (err) {
-      console.error('Failed to load treatment plans:', err);
+      console.error('Failed to load treatment plans and records:', err);
     } finally {
       setLoading(false);
     }
@@ -66,336 +75,523 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
     fetchData();
   }, [consultationId]);
 
+  // Handle Add Planned Treatment
   const handleAddPlan = async (e) => {
     e.preventDefault();
     if (isReadOnly) return;
-    if (!treatmentName || !treatmentName.trim()) {
-      setErrorMessage('Treatment name is required.');
+    if (!planProcedure || !planProcedure.trim()) {
+      showError('Procedure name is required.');
       return;
     }
 
-    setSubmitting(true);
-    setSuccessMessage('');
-    setErrorMessage('');
+    setSubmittingPlan(true);
     try {
       const payload = {
         consultation: consultationId,
         patient: patientId,
-        diagnosis: selectedDiagnosisId || null,
-        tooth: toothNumber ? Number(toothNumber) : null,
-        treatment: treatmentName.trim(),
-        description: description ? description.trim() : '',
-        estimatedCost: Number(estimatedCost) || 0,
-        priority,
-        notes: notes ? notes.trim() : '',
-        status,
+        tooth: planToothNumber ? Number(planToothNumber) : null,
+        treatment: planProcedure.trim(),
+        estimatedCost: Number(planEstimatedCost) || 0,
+        priority: planPriority,
+        notes: planNotes ? planNotes.trim() : '',
+        status: 'Planned',
       };
 
       await api.post('/treatment-plans', payload);
-      setSuccessMessage('Treatment plan added successfully!');
+      showSuccess('Planned treatment added successfully!');
 
-      // Reset form
-      setSelectedDiagnosisId('');
-      setToothNumber('');
-      setTreatmentName('');
-      setDescription('');
-      setEstimatedCost('');
-      setPriority('Medium');
-      setNotes('');
-      setStatus('Planned');
+      setPlanToothNumber('');
+      setPlanProcedure('');
+      setPlanPriority('Normal');
+      setPlanEstimatedCost('');
+      setPlanNotes('');
 
       fetchData();
-      setTimeout(() => setSuccessMessage(''), 3500);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to add treatment plan.');
+      showError(err.response?.data?.message || 'Failed to add treatment plan.');
     } finally {
-      setSubmitting(false);
+      setSubmittingPlan(false);
     }
   };
 
+  // Handle Add Performed Treatment Record
+  const handleAddRecord = async (e) => {
+    e.preventDefault();
+    if (isReadOnly) return;
+    if (!recordProcedure || !recordProcedure.trim()) {
+      showError('Procedure name is required for treatment record.');
+      return;
+    }
+
+    setSubmittingRecord(true);
+    try {
+      const payload = {
+        consultation: consultationId,
+        patient: patientId,
+        date: recordDate ? new Date(recordDate) : new Date(),
+        tooth: recordToothNumber ? Number(recordToothNumber) : null,
+        procedure: recordProcedure.trim(),
+        charges: Number(recordCharges) || 0,
+        nextAppointment: recordNextAppointment ? new Date(recordNextAppointment) : null,
+      };
+
+      await api.post('/treatment-records', payload);
+      showSuccess('Performed treatment record logged successfully!');
+
+      setRecordToothNumber('');
+      setRecordProcedure('');
+      setRecordCharges('');
+      setRecordNextAppointment('');
+
+      fetchData();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to log treatment record.');
+    } finally {
+      setSubmittingRecord(false);
+    }
+  };
+
+  // Status Change for Planned Treatment
   const handleStatusChange = async (planId, newStatus) => {
     if (isReadOnly) return;
     setUpdatingId(planId);
-    setSuccessMessage('');
-    setErrorMessage('');
     try {
       await api.patch(`/treatment-plans/${planId}`, { status: newStatus });
-      setSuccessMessage(
+      showSuccess(
         newStatus === 'Completed'
-          ? 'Treatment completed! Updated status and pushed history to tooth chart.'
+          ? 'Treatment marked as Completed!'
           : `Treatment plan status updated to ${newStatus}.`
       );
       fetchData();
-      setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to update plan status.');
+      showError(err.response?.data?.message || 'Failed to update plan status.');
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const totalEstimatedCost = treatmentPlans.reduce((sum, p) => sum + (p.estimatedCost || 0), 0);
+  const confirmDeletePlan = async () => {
+    if (!deletingPlan || isReadOnly) return;
+    setDeleteLoading(true);
+    const planId = deletingPlan._id || deletingPlan.id;
+    try {
+      await api.delete(`/treatment-plans/${planId}`);
+      showSuccess('Treatment plan deleted successfully.');
+      setTreatmentPlans((prev) => prev.filter((p) => (p._id || p.id) !== planId));
+      setDeletingPlan(null);
+      fetchData();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to delete treatment plan.');
+      setDeletingPlan(null);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const confirmDeleteRecord = async () => {
+    if (!deletingRecord || isReadOnly) return;
+    setDeleteLoading(true);
+    const recId = deletingRecord._id || deletingRecord.id;
+    try {
+      await api.delete(`/treatment-records/${recId}`);
+      showSuccess('Treatment record deleted successfully.');
+      setTreatmentRecords((prev) => prev.filter((r) => (r._id || r.id) !== recId));
+      setDeletingRecord(null);
+      fetchData();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to delete treatment record.');
+      setDeletingRecord(null);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const totalEstimatedCharges = treatmentPlans.reduce((sum, p) => sum + (p.estimatedCost || 0), 0);
+  const totalPerformedCharges = treatmentRecords.reduce((sum, r) => sum + (r.charges || 0), 0);
 
   return (
-    <div className="space-y-6">
-      {/* Notifications */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-sm font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={18} className="text-rose-600 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {/* FORM: ADD TREATMENT PLAN (Hidden when read-only) */}
-      {!isReadOnly && (
-        <div className="card p-5 space-y-4">
-          <div className="border-b border-border pb-3">
-            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-              <Activity size={18} className="text-brand" /> Add Treatment Plan Procedure
-            </h3>
-            <p className="text-xs text-ink-soft">
-              Define procedure steps, link to diagnosis/tooth, set priority, and estimate costs.
-            </p>
-          </div>
-
-          <form onSubmit={handleAddPlan} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block font-semibold text-ink-soft mb-1">Treatment Procedure Name *</label>
-                <input
-                  type="text"
-                  list="doctor-treatment-catalog-list"
-                  className="input-field"
-                  placeholder="e.g. Root Canal Therapy, Composite Restoration, Scaling & Polishing"
-                  value={treatmentName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setTreatmentName(val);
-                    const match = catalogItems.find((c) => c.name.toLowerCase() === val.toLowerCase());
-                    if (match && match.defaultCost !== undefined) {
-                      setEstimatedCost(match.defaultCost);
-                    }
-                  }}
-                />
-                <datalist id="doctor-treatment-catalog-list">
-                  {catalogItems.map((item) => (
-                    <option key={item._id || item.id} value={item.name}>
-                      {item.category ? `[${item.category}] ` : ''}₹{item.defaultCost || 0}
-                    </option>
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Tooth Number (Optional)</label>
-                <input
-                  type="number"
-                  className="input-field font-mono"
-                  placeholder="e.g. 16"
-                  value={toothNumber}
-                  onChange={(e) => setToothNumber(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Linked Diagnosis (Optional)</label>
-                <select
-                  className="input-field"
-                  value={selectedDiagnosisId}
-                  onChange={(e) => setSelectedDiagnosisId(e.target.value)}
-                >
-                  <option value="">Select Diagnosis (Optional)</option>
-                  {diagnosesOptions.map((d) => {
-                    const dId = d._id || d.id;
-                    return (
-                      <option key={dId} value={dId}>
-                        {d.diagnosis} {d.relatedTeeth?.length ? `(Teeth: #${d.relatedTeeth.join(', #')})` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Estimated Cost (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="input-field"
-                  placeholder="e.g. 2500"
-                  value={estimatedCost}
-                  onChange={(e) => setEstimatedCost(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Priority</label>
-                <select
-                  className="input-field"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                >
-                  <option value="Low">Low Priority</option>
-                  <option value="Medium">Medium Priority</option>
-                  <option value="High">High Priority</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Description / Procedure Steps</label>
-                <textarea
-                  rows={2}
-                  className="input-field"
-                  placeholder="Access cavity, biomechanical preparation, obturation details..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Notes</label>
-                <textarea
-                  rows={2}
-                  className="input-field"
-                  placeholder="Post-procedure instructions or consent notes..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-border">
-              <div className="flex items-center gap-2">
-                <label className="font-semibold text-ink-soft">Initial Status:</label>
-                <select
-                  className="input-field py-1 text-xs w-36"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="Planned">Planned</option>
-                  <option value="Approved">Approved</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-
-              <button type="submit" disabled={submitting} className="btn-primary">
-                <Plus size={16} />
-                <span>{submitting ? 'Adding Plan...' : 'Add Treatment Plan'}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* RUNNING LIST OF TREATMENT PLANS AS CARDS */}
-      <div className="card p-5 space-y-4">
-        <div className="border-b border-border pb-3 flex items-center justify-between">
+    <div className="space-y-8">
+      {/* SECTION 1: TREATMENT PLAN (PLANNED TREATMENT) */}
+      <div className="space-y-4">
+        <div className="border-b border-border pb-2 flex items-center justify-between">
           <div>
-            <h3 className="font-display text-sm font-bold text-ink">
-              Treatment Plans for Current Visit ({treatmentPlans.length})
+            <h3 className="font-display text-base font-bold text-ink flex items-center gap-2 uppercase tracking-wider">
+              <Activity size={18} className="text-brand" /> 1. Treatment Plan (Intended / Planned)
             </h3>
             <p className="text-xs text-ink-soft">
-              Total Estimated Cost: <span className="font-bold text-brand text-sm">₹{totalEstimatedCost.toLocaleString()}</span>
+              Define intended procedures for future treatment steps.
             </p>
+          </div>
+          <div className="text-right">
+            <span className="text-xs text-ink-soft">Total Estimated Charges: </span>
+            <span className="font-bold text-brand font-mono text-sm">₹{totalEstimatedCharges.toLocaleString()}</span>
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-6 text-center text-xs text-ink-soft">Loading treatment plans...</div>
-        ) : treatmentPlans.length === 0 ? (
-          <div className="p-8 text-center text-xs text-ink-soft space-y-2">
-            <Activity size={28} className="mx-auto text-ink-soft/40" />
-            <p className="font-semibold text-ink">No treatment plans recorded for this visit.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {treatmentPlans.map((plan) => {
-              const planId = plan._id || plan.id;
-              return (
-                <div
-                  key={planId}
-                  className="rounded-xl border border-border p-4 bg-surface hover:border-brand/30 transition-colors space-y-3"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-display text-base font-bold text-ink">{plan.treatment}</h4>
-                      {plan.tooth ? (
-                        <span className="badge bg-brand-light/40 text-brand-dark border-brand-light font-mono font-bold">
-                          Tooth #{plan.tooth}
-                        </span>
-                      ) : (
-                        <span className="badge bg-slate-100 text-slate-700 border-slate-200">General</span>
-                      )}
-
-                      <span className={`badge border ${PRIORITY_BADGE_CLASSES[plan.priority] || ''}`}>
-                        {plan.priority} Priority
-                      </span>
-                    </div>
-
-                    <div className="text-right font-bold text-brand text-base">
-                      ₹{plan.estimatedCost?.toLocaleString() || 0}
-                    </div>
-                  </div>
-
-                  {plan.description && (
-                    <p className="text-xs text-ink">{plan.description}</p>
-                  )}
-
-                  {plan.diagnosis && (
-                    <div className="text-xs text-ink-soft bg-bg/50 p-2 rounded-lg border border-border/50">
-                      <span className="font-semibold text-ink">Diagnosis: </span>
-                      {plan.diagnosis.diagnosis}
-                    </div>
-                  )}
-
-                  {plan.notes && (
-                    <p className="text-[11px] text-ink-soft italic">Notes: {plan.notes}</p>
-                  )}
-
-                  {/* INLINE STATUS SELECTOR & CONTROLS */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-ink-soft">Status:</span>
-                      <span className={`badge border ${STATUS_BADGE_CLASSES[plan.status] || ''}`}>
-                        {plan.status}
-                      </span>
-                    </div>
-
-                    {!isReadOnly && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-ink-soft">Change Status:</span>
-                        <select
-                          disabled={updatingId === planId}
-                          className="input-field py-1 text-xs font-semibold w-36"
-                          value={plan.status}
-                          onChange={(e) => handleStatusChange(planId, e.target.value)}
-                        >
-                          <option value="Planned">Planned</option>
-                          <option value="Approved">Approved</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
+        {/* Form: Add Treatment Plan */}
+        {!isReadOnly && (
+          <div className="card p-4 space-y-3 bg-surface border-border">
+            <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider">Add Treatment Plan</h4>
+            <form onSubmit={handleAddPlan} className="space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Tooth No.</label>
+                  <input
+                    type="number"
+                    className="input-field font-mono"
+                    placeholder="e.g. 16"
+                    value={planToothNumber}
+                    onChange={(e) => setPlanToothNumber(e.target.value)}
+                  />
                 </div>
-              );
-            })}
+
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold text-ink-soft mb-1">Procedure *</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="e.g. Root Canal Therapy, Scaling, Composite Filling"
+                    value={planProcedure}
+                    onChange={(e) => setPlanProcedure(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Priority</label>
+                  <select
+                    className="input-field"
+                    value={planPriority}
+                    onChange={(e) => setPlanPriority(e.target.value)}
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Estimated Charges (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="input-field font-mono"
+                    placeholder="e.g. 8000"
+                    value={planEstimatedCost}
+                    onChange={(e) => setPlanEstimatedCost(e.target.value)}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold text-ink-soft mb-1">Notes</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Treatment details..."
+                    value={planNotes}
+                    onChange={(e) => setPlanNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button type="submit" disabled={submittingPlan} className="btn-primary py-2 text-xs">
+                  <Plus size={14} />
+                  <span>{submittingPlan ? 'Adding...' : 'Add Treatment Plan'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         )}
+
+        {/* Table: Treatment Plan List */}
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-bg/40 font-display text-xs font-bold text-ink">
+            Planned Treatments Table ({treatmentPlans.length})
+          </div>
+
+          {loading ? (
+            <div className="p-6 text-center text-xs text-ink-soft">Loading treatment plans...</div>
+          ) : treatmentPlans.length === 0 ? (
+            <div className="p-6 text-center text-xs text-ink-soft">No planned treatments recorded.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
+                  <tr>
+                    <th className="px-4 py-3">Tooth</th>
+                    <th className="px-4 py-3">Procedure</th>
+                    <th className="px-4 py-3">Priority</th>
+                    <th className="px-4 py-3">Estimated Charges</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {treatmentPlans.map((plan) => {
+                    const planId = plan._id || plan.id;
+                    return (
+                      <tr key={planId} className="hover:bg-bg/40 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-ink">
+                          {plan.tooth ? `#${plan.tooth}` : 'General'}
+                        </td>
+
+                        <td className="px-4 py-3 font-semibold text-ink">
+                          {plan.treatment}
+                          {plan.notes && <span className="block text-[11px] text-ink-soft italic font-normal">{plan.notes}</span>}
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <span className={`badge border ${PRIORITY_BADGE_CLASSES[plan.priority] || 'bg-blue-50 text-blue-700'}`}>
+                            {plan.priority || 'Normal'}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3 font-mono font-bold text-brand">
+                          ₹{plan.estimatedCost?.toLocaleString() || 0}
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <span className={`badge border ${STATUS_BADGE_CLASSES[plan.status] || 'bg-slate-100 text-slate-800'}`}>
+                            {plan.status || 'Planned'}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          {!isReadOnly && (
+                            <div className="flex items-center justify-end gap-1.5">
+                              {plan.status !== 'Completed' && (
+                                <button
+                                  type="button"
+                                  disabled={updatingId === planId}
+                                  onClick={() => handleStatusChange(planId, 'Completed')}
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-100"
+                                >
+                                  <Check size={12} /> Mark Completed
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => setDeletingPlan(plan)}
+                                title="Delete Plan"
+                                className="p-1 text-ink-soft hover:text-rose-600 rounded-lg hover:bg-rose-50"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* SECTION 2: TREATMENT RECORD (PERFORMED TREATMENT) */}
+      <div className="space-y-4 pt-4 border-t border-border">
+        <div className="border-b border-border pb-2 flex items-center justify-between">
+          <div>
+            <h3 className="font-display text-base font-bold text-ink flex items-center gap-2 uppercase tracking-wider">
+              <Activity size={18} className="text-emerald-600" /> 2. Treatment Record (Actually Performed)
+            </h3>
+            <p className="text-xs text-ink-soft">
+              Record procedures that were actually completed during this visit.
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="text-xs text-ink-soft">Total Performed Charges: </span>
+            <span className="font-bold text-emerald-700 font-mono text-sm">₹{totalPerformedCharges.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Form: Add Treatment Record */}
+        {!isReadOnly && (
+          <div className="card p-4 space-y-3 bg-surface border-border">
+            <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider">Add Treatment Record</h4>
+            <form onSubmit={handleAddRecord} className="space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                <div>
+                  <DatePicker
+                    label="Date"
+                    value={recordDate}
+                    onChange={(date, dateStr) => setRecordDate(dateStr)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Tooth No</label>
+                  <input
+                    type="number"
+                    className="input-field font-mono"
+                    placeholder="e.g. 16"
+                    value={recordToothNumber}
+                    onChange={(e) => setRecordToothNumber(e.target.value)}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold text-ink-soft mb-1">Procedure *</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="e.g. RCT Access & Preparation, Scaling"
+                    value={recordProcedure}
+                    onChange={(e) => setRecordProcedure(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Charges (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="input-field font-mono"
+                    placeholder="e.g. 8000"
+                    value={recordCharges}
+                    onChange={(e) => setRecordCharges(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <DatePicker
+                    label="Next Appointment"
+                    value={recordNextAppointment}
+                    onChange={(date, dateStr) => setRecordNextAppointment(dateStr)}
+                    minDate={new Date()}
+                  />
+                </div>
+                <div className="flex items-end justify-end">
+                  <button type="submit" disabled={submittingRecord} className="btn-primary py-2 text-xs">
+                    <Plus size={14} />
+                    <span>{submittingRecord ? 'Logging...' : 'Add Treatment Record'}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Table: Treatment Record List */}
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-bg/40 font-display text-xs font-bold text-ink">
+            Performed Treatment Records Table ({treatmentRecords.length})
+          </div>
+
+          {loading ? (
+            <div className="p-6 text-center text-xs text-ink-soft">Loading treatment records...</div>
+          ) : treatmentRecords.length === 0 ? (
+            <div className="p-6 text-center text-xs text-ink-soft">No performed treatment records logged for this visit.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
+                  <tr>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Tooth No</th>
+                    <th className="px-4 py-3">Procedure</th>
+                    <th className="px-4 py-3">Charges</th>
+                    <th className="px-4 py-3">Next Appointment</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {treatmentRecords.map((rec) => {
+                    const recId = rec._id || rec.id;
+                    const dateDisplay = rec.date
+                      ? new Date(rec.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                      : 'N/A';
+                    const nextAptDisplay = rec.nextAppointment
+                      ? new Date(rec.nextAppointment).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                      : '—';
+
+                    return (
+                      <tr key={recId} className="hover:bg-bg/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-ink whitespace-nowrap">{dateDisplay}</td>
+
+                        <td className="px-4 py-3 font-mono font-bold text-ink">
+                          {rec.tooth ? `#${rec.tooth}` : 'General'}
+                        </td>
+
+                        <td className="px-4 py-3 font-bold text-ink">{rec.procedure}</td>
+
+                        <td className="px-4 py-3 font-mono font-bold text-emerald-700">
+                          ₹{rec.charges?.toLocaleString() || 0}
+                        </td>
+
+                        <td className="px-4 py-3 text-ink-soft font-mono">{nextAptDisplay}</td>
+
+                        <td className="px-4 py-3 text-right">
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              onClick={() => setDeletingRecord(rec)}
+                              title="Delete Record"
+                              className="p-1 text-ink-soft hover:text-rose-600 rounded-lg hover:bg-rose-50"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CONFIRM DELETE PLAN MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(deletingPlan)}
+        onClose={() => setDeletingPlan(null)}
+        onConfirm={confirmDeletePlan}
+        title="Confirm Delete Treatment Plan"
+        message={
+          deletingPlan ? (
+            <p className="text-xs">
+              Are you sure you want to delete planned treatment{' '}
+              <strong className="text-ink font-bold font-mono">"{deletingPlan.treatment}"</strong>?
+            </p>
+          ) : (
+            'Are you sure you want to delete this treatment plan?'
+          )
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleteLoading}
+      />
+
+      {/* CONFIRM DELETE RECORD MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(deletingRecord)}
+        onClose={() => setDeletingRecord(null)}
+        onConfirm={confirmDeleteRecord}
+        title="Confirm Delete Performed Treatment Record"
+        message={
+          deletingRecord ? (
+            <p className="text-xs">
+              Are you sure you want to delete performed procedure{' '}
+              <strong className="text-ink font-bold font-mono">"{deletingRecord.procedure}"</strong>?
+            </p>
+          ) : (
+            'Are you sure you want to delete this treatment record?'
+          )
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={deleteLoading}
+      />
     </div>
   );
 }

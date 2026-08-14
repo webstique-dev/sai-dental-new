@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import {
-  Wallet, Search, Filter, RefreshCcw, DollarSign, CheckCircle2, AlertTriangle, X,
-  CreditCard, Eye, ShieldAlert
+  Wallet, Search, RefreshCcw, DollarSign, X,
+  CreditCard, ShieldAlert
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import InvoiceList from '../../components/common/InvoiceList.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
 
 export default function AdminBilling() {
+  const { showSuccess, showError } = useNotification();
+
   const [invoices, setInvoices] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,9 +28,6 @@ export default function AdminBilling() {
   const [refundForm, setRefundForm] = useState({ amount: '', reason: '' });
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState(null);
 
-  // Notifications
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -80,7 +80,6 @@ export default function AdminBilling() {
       amount: inv.amountPaid > 0 ? inv.amountPaid : inv.total || 0,
       reason: 'Administrative Refund',
     });
-    setErrorMessage('');
   };
 
   const handleExecuteRefund = async (e) => {
@@ -89,13 +88,11 @@ export default function AdminBilling() {
 
     const amt = Number(refundForm.amount);
     if (isNaN(amt) || amt <= 0) {
-      setErrorMessage('Please enter a valid refund amount greater than zero.');
+      showError('Please enter a valid refund amount greater than zero.');
       return;
     }
 
     setSubmitting(true);
-    setErrorMessage('');
-
     try {
       const invId = refundingInvoice._id || refundingInvoice.id;
       await api.post(`/invoices/${invId}/refund`, {
@@ -103,12 +100,11 @@ export default function AdminBilling() {
         reason: refundForm.reason.trim(),
       });
 
-      setSuccessMessage('Invoice refund processed successfully and status set to Refunded.');
+      showSuccess('Invoice refund processed successfully and status set to Refunded.');
       setRefundingInvoice(null);
       fetchInvoices();
-      setTimeout(() => setSuccessMessage(''), 3500);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to issue refund. Check Admin permissions.');
+      showError(err.response?.data?.message || 'Failed to issue refund. Check Admin permissions.');
     } finally {
       setSubmitting(false);
     }
@@ -127,23 +123,6 @@ export default function AdminBilling() {
           </p>
         </div>
       </div>
-
-      {/* Notifications */}
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-xs font-medium text-emerald-800 border border-emerald-200">
-          <CheckCircle2 size={16} className="text-emerald-600" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-      {errorMessage && (
-        <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-4 text-xs font-medium text-rose-800 border border-rose-200">
-          <AlertTriangle size={16} className="text-rose-600" />
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage('')} className="ml-auto text-rose-600 hover:text-rose-800">
-            <X size={15} />
-          </button>
-        </div>
-      )}
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

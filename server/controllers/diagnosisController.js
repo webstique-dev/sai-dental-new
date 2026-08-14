@@ -7,7 +7,7 @@ const { logAction } = require('../middleware/auditLog');
 async function listDiagnoses(req, res, next) {
   try {
     const { consultation, patient } = req.query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
 
     if (consultation) {
       filter.consultation = consultation;
@@ -88,7 +88,7 @@ async function updateDiagnosis(req, res, next) {
   try {
     const { diagnosis, clinicalFindings, notes, severity, relatedTeeth } = req.body;
 
-    const diag = await Diagnosis.findById(req.params.id);
+    const diag = await Diagnosis.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!diag) {
       return res.status(404).json({ message: 'Diagnosis not found.' });
     }
@@ -117,12 +117,12 @@ async function updateDiagnosis(req, res, next) {
   }
 }
 
-// DELETE /api/diagnoses/:id (Blocked if referenced by a Treatment Plan or if Consultation is Closed)
+// DELETE /api/diagnoses/:id (Soft delete)
 async function deleteDiagnosis(req, res, next) {
   try {
     const diagId = req.params.id;
 
-    const diag = await Diagnosis.findById(diagId);
+    const diag = await Diagnosis.findOne({ _id: diagId, isDeleted: { $ne: true } });
     if (!diag) {
       return res.status(404).json({ message: 'Diagnosis not found.' });
     }
@@ -130,16 +130,13 @@ async function deleteDiagnosis(req, res, next) {
     // Immutability Guard
     await checkConsultationNotClosed(diag.consultation);
 
-    // Check if referenced by TreatmentPlan if model is registered
+    // Check if referenced by active TreatmentPlan
     try {
       if (mongoose.models.TreatmentPlan) {
         const TreatmentPlan = mongoose.model('TreatmentPlan');
         const inUse = await TreatmentPlan.findOne({
-          $or: [
-            { diagnosis: diagId },
-            { 'items.diagnosis': diagId },
-            { 'procedures.diagnosis': diagId },
-          ],
+          diagnosis: diagId,
+          isDeleted: { $ne: true },
         });
         if (inUse) {
           return res.status(400).json({
@@ -148,10 +145,13 @@ async function deleteDiagnosis(req, res, next) {
         }
       }
     } catch (e) {
-      // Model not compiled yet, ignore
+      // Model not compiled yet
     }
 
-    await Diagnosis.findByIdAndDelete(diagId);
+    diag.isDeleted = true;
+    diag.deletedAt = new Date();
+    diag.deletedBy = req.user ? req.user._id : undefined;
+    await diag.save();
 
     return res.json({ message: 'Diagnosis deleted successfully' });
   } catch (err) {

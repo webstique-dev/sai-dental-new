@@ -1,29 +1,30 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Activity, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Activity, Eye, EyeOff } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
+import { useNotification } from '../context/NotificationContext.jsx';
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showError, showSuccess } = useNotification();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
     setSubmitting(true);
     try {
       const user = await login(email, password);
+      showSuccess(`Welcome back, ${user.name || 'User'}!`);
       const redirectTo = location.state?.from?.pathname || ROLE_HOME[user.role] || '/';
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Unable to log in. Check your connection and try again.');
+      showError(err.response?.data?.message || 'Unable to log in. Check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -41,13 +42,6 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4 p-6">
-          {error && (
-            <div className="flex items-start gap-2 rounded-xl bg-state-dangerSoft px-3.5 py-3 text-sm text-state-danger">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink">
               Email
