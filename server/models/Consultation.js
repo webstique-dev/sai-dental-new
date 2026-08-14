@@ -54,6 +54,16 @@ const consultationSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    totalEstimatedCharges: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalPerformedCharges: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,

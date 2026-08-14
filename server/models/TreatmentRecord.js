@@ -30,6 +30,11 @@ const treatmentRecordSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    actualDuration: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     nextAppointment: {
       type: Date,
       default: null,

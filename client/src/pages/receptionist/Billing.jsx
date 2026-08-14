@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  Wallet, Plus, Search, Trash2, X,
-  FileText, DollarSign, CreditCard, ChevronRight, User, Stethoscope, Eye,
+  Wallet, Plus, Search, Trash2, X, Clock, Calendar,
+  FileText, DollarSign, CreditCard, ChevronRight, User, Stethoscope, Eye, Filter, RefreshCw,
+  Banknote, QrCode, Building2, Tag, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
+import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
@@ -21,9 +23,15 @@ export default function Billing() {
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Tab State
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'all'
+
   // Filters
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Pending');
+  const [doctorFilter, setDoctorFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   // Modals
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -47,6 +55,7 @@ export default function Billing() {
   // Record Payment Form state
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [paymentDiscount, setPaymentDiscount] = useState(0);
 
   const [catalogItems, setCatalogItems] = useState([]);
 
@@ -60,7 +69,7 @@ export default function Billing() {
       const docs = docRes.data?.doctors || [];
       setDoctors(docs);
       setCatalogItems(catRes.data?.treatments || []);
-      if (docs.length > 0) {
+      if (docs.length > 0 && !selectedDoctorId) {
         setSelectedDoctorId(docs[0]._id || docs[0].id);
       }
     } catch (err) {
@@ -74,6 +83,9 @@ export default function Billing() {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
       if (statusFilter) params.append('status', statusFilter);
+      if (doctorFilter) params.append('doctor', doctorFilter);
+      if (dateFrom) params.append('dateFrom', dateFrom);
+      if (dateTo) params.append('dateTo', dateTo);
 
       const res = await api.get(`/invoices?${params.toString()}`);
       setInvoices(res.data?.invoices || []);
@@ -93,7 +105,26 @@ export default function Billing() {
       fetchInvoices();
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, doctorFilter, dateFrom, dateTo]);
+
+  // Handle Tab Change
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'pending') {
+      setStatusFilter('Pending');
+    } else {
+      setStatusFilter('');
+    }
+  };
+
+  // Helper: Short summary of procedures
+  const getProceduresSummary = (inv) => {
+    if (!inv.items || inv.items.length === 0) return 'General Dental Consultation';
+    const list = inv.items.map((i) => i.service || i.treatment).filter(Boolean);
+    if (list.length === 0) return 'General Dental Consultation';
+    if (list.length <= 2) return list.join(', ');
+    return `${list.slice(0, 2).join(', ')} (+${list.length - 2} more)`;
+  };
 
   // Live patient search inside Generate Invoice Modal
   useEffect(() => {
@@ -152,14 +183,22 @@ export default function Billing() {
       return;
     }
 
+    const validItems = items.filter((i) => i.service && i.service.trim());
+    if (validItems.length === 0) {
+      const msg = 'At least one valid line item is required.';
+      setErrorMessage(msg);
+      showError(msg);
+      return;
+    }
+
     setSubmitting(true);
     setErrorMessage('');
     try {
       const payload = {
         patient: selectedPatient._id || selectedPatient.id,
-        doctor: selectedDoctorId,
+        doctor: selectedDoctorId || undefined,
         opNumber: selectedPatient.opNumber || '',
-        items,
+        items: validItems,
         discount: Number(discount) || 0,
         tax: Number(tax) || 0,
       };
@@ -179,7 +218,8 @@ export default function Billing() {
 
   const openPaymentModal = (inv) => {
     setActivePaymentInvoice(inv);
-    setPaymentAmount(inv.balance > 0 ? inv.balance : '');
+    setPaymentDiscount(inv.discount || 0);
+    setPaymentAmount(inv.balance > 0 ? inv.balance : inv.total || '');
     setPaymentMethod('Cash');
     setShowConfirmSettlement(false);
     setErrorMessage('');
@@ -196,8 +236,17 @@ export default function Billing() {
     }
 
     setErrorMessage('');
-    // If payment would fully settle remaining balance, trigger settlement confirmation dialog first
-    if (activePaymentInvoice && amt >= activePaymentInvoice.balance) {
+
+    // Compute expected remaining balance
+    const itemsSubtotal = (activePaymentInvoice.items || []).reduce(
+      (sum, item) => sum + (item.quantity || 1) * (item.unitPrice || 0),
+      0
+    );
+    const netTotal = Math.max(0, itemsSubtotal - (Number(paymentDiscount) || 0) + (activePaymentInvoice.tax || 0));
+    const alreadyPaid = activePaymentInvoice.amountPaid || 0;
+    const remainingBalance = Math.max(0, netTotal - alreadyPaid - amt);
+
+    if (remainingBalance === 0) {
       setShowConfirmSettlement(true);
     } else {
       executeRecordPayment();
@@ -213,6 +262,7 @@ export default function Billing() {
       await api.post(`/invoices/${invId}/payments`, {
         amount: Number(paymentAmount),
         method: paymentMethod,
+        discount: Number(paymentDiscount) || 0,
       });
 
       showSuccess(`Payment of ₹${paymentAmount} recorded successfully!`);
@@ -228,183 +278,388 @@ export default function Billing() {
     }
   };
 
+  const pendingBillsCount = invoices.filter((i) => i.paymentStatus === 'Pending' || i.paymentStatus === 'Partially Paid').length;
+
   return (
     <>
       <div className="space-y-6">
-      {/* Header & Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <Wallet size={22} className="text-brand" /> Billing & Invoices
-          </h2>
-          <p className="text-sm text-ink-soft">Generate invoices and record patient payments</p>
-        </div>
+        {/* Header & Primary Action */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
+              <Wallet size={22} className="text-brand" /> Billing & Payments
+            </h2>
+            <p className="text-sm text-ink-soft">Process doctor-closed consultation bills, generate invoices, and record payments</p>
+          </div>
 
-        <button
-          onClick={() => {
-            resetGenerateModal();
-            setShowGenerateModal(true);
-          }}
-          className="btn-primary shrink-0"
-        >
-          <Plus size={18} />
-          <span>Generate Invoice</span>
-        </button>
-      </div>
-
-
-      {/* Search & Filter Bar */}
-      <div className="card p-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="relative sm:col-span-2">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input
-            type="text"
-            className="input-field pl-9 py-2 text-xs"
-            placeholder="Search invoice by patient name, phone, or OP number..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <select
-            className="input-field py-2 text-xs"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+          <button
+            onClick={() => {
+              resetGenerateModal();
+              setShowGenerateModal(true);
+            }}
+            className="btn-primary shrink-0 text-xs"
           >
-            <option value="">All Payment Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Partially Paid">Partially Paid</option>
-            <option value="Paid">Paid</option>
-            <option value="Refunded">Refunded</option>
-          </select>
+            <Plus size={18} />
+            <span>Generate Manual Invoice</span>
+          </button>
+        </div>
+
+        {/* Section / Tab Switcher */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-1 bg-surface border border-border p-1 rounded-2xl w-fit">
+            <button
+              onClick={() => handleTabChange('pending')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'pending'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-ink-soft hover:text-ink hover:bg-bg'
+              }`}
+            >
+              <Clock size={16} />
+              <span>Pending Bills</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'pending' ? 'bg-white text-rose-700' : 'bg-rose-100 text-rose-800'}`}>
+                {pendingBillsCount}
+              </span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('all')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'all'
+                  ? 'bg-brand text-white shadow-sm'
+                  : 'text-ink-soft hover:text-ink hover:bg-bg'
+              }`}
+            >
+              <FileText size={16} />
+              <span>All Invoices & Bills</span>
+            </button>
+          </div>
+
+          <button
+            onClick={fetchInvoices}
+            className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh List
+          </button>
+        </div>
+
+        {/* Filters Bar: Search, Doctor, Date Range, Status */}
+        <div className="card p-4 grid grid-cols-1 gap-3 sm:grid-cols-4 bg-surface text-xs">
+          {/* Patient Search */}
+          <div className="relative sm:col-span-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              className="input-field pl-9 py-1.5 text-xs"
+              placeholder="Search Patient Name, Phone, OP#..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Doctor Filter */}
+          <div>
+            <select
+              className="input-field py-1.5 text-xs"
+              value={doctorFilter}
+              onChange={(e) => setDoctorFilter(e.target.value)}
+            >
+              <option value="">All Doctors</option>
+              {doctors.map((d) => (
+                <option key={d._id || d.id} value={d._id || d.id}>
+                  Dr. {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Range */}
+          <div className="flex items-center gap-2">
+            <DatePicker
+              label=""
+              value={dateFrom}
+              onChange={(d, str) => setDateFrom(str)}
+            />
+            <span className="text-ink-soft font-semibold">to</span>
+            <DatePicker
+              label=""
+              value={dateTo}
+              onChange={(d, str) => setDateTo(str)}
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <select
+              className="input-field py-1.5 text-xs"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Paid">Paid</option>
+              <option value="Refunded">Refunded</option>
+            </select>
+          </div>
+        </div>
+
+        {/* INVOICE & PENDING BILLS LIST TABLE */}
+        <div className="card overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center text-xs text-ink-soft">Loading billing records...</div>
+          ) : invoices.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <Wallet size={36} className="mx-auto text-ink-soft/50" />
+              <p className="font-display text-base font-semibold text-ink">
+                {activeTab === 'pending' ? 'No pending bills found' : 'No invoices found'}
+              </p>
+              <p className="text-xs text-ink-soft">
+                {search || statusFilter || doctorFilter || dateFrom || dateTo
+                  ? 'Try clearing or adjusting your search filters.'
+                  : 'Pending bills generated by doctors upon closing consultations will appear here.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">Patient Details</th>
+                    <th className="px-5 py-3.5">OP Number</th>
+                    <th className="px-5 py-3.5">Attending Doctor</th>
+                    <th className="px-5 py-3.5">Visit Date</th>
+                    <th className="px-5 py-3.5">Procedures Summary</th>
+                    <th className="px-5 py-3.5">Amount Due</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {invoices.map((inv) => {
+                    const invId = inv._id || inv.id;
+                    const patient = inv.patient || {};
+                    const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                    const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
+                    const visitDateStr = inv.createdAt
+                      ? new Date(inv.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : 'N/A';
+                    const procSummary = getProceduresSummary(inv);
+                    const amountDue = inv.balance ?? (inv.total - (inv.amountPaid || 0));
+
+                    return (
+                      <tr key={invId} className="hover:bg-bg/40 transition-colors">
+                        {/* Patient Details */}
+                        <td className="px-5 py-4">
+                          <div className="font-bold text-ink text-sm">{patientName}</div>
+                          {patient.phone && (
+                            <div className="text-[11px] text-ink-soft">{patient.phone}</div>
+                          )}
+                        </td>
+
+                        {/* OP Number */}
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <span className="font-mono font-bold text-brand text-xs">
+                            {inv.opNumber || patient.opNumber || '—'}
+                          </span>
+                        </td>
+
+                        {/* Doctor */}
+                        <td className="px-5 py-4 whitespace-nowrap font-medium text-ink">
+                          {docName}
+                        </td>
+
+                        {/* Visit Date */}
+                        <td className="px-5 py-4 whitespace-nowrap text-ink">
+                          <div className="font-semibold">{visitDateStr}</div>
+                          <div className="text-[10px] text-ink-soft font-mono">ID: {invId.slice(-6).toUpperCase()}</div>
+                        </td>
+
+                        {/* Procedures (Short Summary) */}
+                        <td className="px-5 py-4 max-w-xs font-medium text-ink">
+                          {procSummary}
+                        </td>
+
+                        {/* Amount Due */}
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <div className="font-mono font-bold text-rose-600 text-sm">
+                            ₹{amountDue?.toLocaleString() || 0}
+                          </div>
+                          {inv.amountPaid > 0 && (
+                            <div className="text-[10px] text-emerald-700 font-medium">
+                              Paid: ₹{inv.amountPaid.toLocaleString()}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <span className={`badge border ${STATUS_BADGE_CLASSES[inv.paymentStatus] || 'bg-slate-100 text-slate-800'}`}>
+                            {inv.paymentStatus}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setSelectedInvoiceDetail(inv)}
+                              title="View Invoice Details"
+                              className="btn-secondary text-xs py-1.5 px-2.5"
+                            >
+                              <Eye size={14} /> View
+                            </button>
+
+                            {inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && (
+                              <button
+                                onClick={() => openPaymentModal(inv)}
+                                className="btn-primary text-xs py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 font-bold"
+                              >
+                                <DollarSign size={14} /> Collect Payment
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* INVOICE LIST TABLE */}
-      <div className="card overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-sm text-ink-soft">Loading invoices...</div>
-        ) : invoices.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <Wallet size={36} className="mx-auto text-ink-soft/50" />
-            <p className="font-display text-base font-semibold text-ink">No invoices found</p>
-            <p className="text-sm text-ink-soft">
-              {search || statusFilter ? 'Try clearing your filters.' : 'Click "Generate Invoice" to create a new bill.'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                <tr>
-                  <th className="px-5 py-3.5">Invoice Date</th>
-                  <th className="px-5 py-3.5">Patient</th>
-                  <th className="px-5 py-3.5">Doctor</th>
-                  <th className="px-5 py-3.5">Total Amount</th>
-                  <th className="px-5 py-3.5">Amount Paid</th>
-                  <th className="px-5 py-3.5">Balance</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {invoices.map((inv) => {
-                  const invId = inv._id || inv.id;
-                  const patientName = inv.patient
-                    ? `${inv.patient.firstName} ${inv.patient.lastName}`.trim()
-                    : 'Walk-in Patient';
-                  const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
-                  const dateStr = inv.createdAt
-                    ? new Date(inv.createdAt).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
-                    : 'N/A';
+      {/* VIEW INVOICE DETAILS MODAL */}
+      {selectedInvoiceDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
+              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <FileText size={18} className="text-brand" /> Invoice #{selectedInvoiceDetail._id?.slice(-6).toUpperCase()}
+              </h3>
+              <button onClick={() => setSelectedInvoiceDetail(null)} className="rounded-lg p-1 hover:bg-bg">
+                <X size={18} />
+              </button>
+            </div>
 
-                  return (
-                    <tr key={invId} className="hover:bg-bg/60 transition-colors">
-                      {/* Invoice Date */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="font-semibold text-ink text-xs">{dateStr}</div>
-                        <div className="text-[11px] text-ink-soft font-mono">
-                          ID: {invId.slice(-6).toUpperCase()}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-bg border border-border">
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-ink-soft block">Patient</span>
+                  <span className="font-bold text-ink">
+                    {selectedInvoiceDetail.patient?.firstName} {selectedInvoiceDetail.patient?.lastName}
+                  </span>
+                  <span className="text-xs text-brand font-mono font-bold block">{selectedInvoiceDetail.opNumber || selectedInvoiceDetail.patient?.opNumber}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-ink-soft block">Attending Doctor</span>
+                  <span className="font-bold text-ink">
+                    {selectedInvoiceDetail.doctor ? `Dr. ${selectedInvoiceDetail.doctor.name}` : 'Unassigned'}
+                  </span>
+                  <span className="text-xs text-ink-soft block">
+                    {selectedInvoiceDetail.createdAt ? new Date(selectedInvoiceDetail.createdAt).toLocaleDateString() : ''}
+                  </span>
+                </div>
+              </div>
+
+              {/* Itemized Procedures Breakdown (Read-Only) */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-ink uppercase tracking-wider text-[11px]">Itemized Treatment Procedures</h4>
+                <div className="card overflow-hidden border border-border">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
+                      <tr>
+                        <th className="px-3 py-2">Procedure / Tooth</th>
+                        <th className="px-3 py-2 text-right">Charges</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {(selectedInvoiceDetail.items || []).map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="px-3 py-2 font-medium text-ink">{item.service || item.treatment}</td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-ink">₹{item.unitPrice?.toLocaleString() || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Payment History Log */}
+              {selectedInvoiceDetail.payments && selectedInvoiceDetail.payments.length > 0 && (
+                <div className="space-y-1.5">
+                  <h4 className="font-bold text-ink uppercase tracking-wider text-[11px]">Payment History</h4>
+                  <div className="space-y-1 text-[11px]">
+                    {selectedInvoiceDetail.payments.map((p, idx) => (
+                      <div key={idx} className="flex justify-between p-2 rounded-lg bg-bg border border-border font-medium">
+                        <div>
+                          <span className="font-bold text-emerald-800">{p.method} Payment</span>
+                          <span className="text-ink-soft text-[10px] block">
+                            {new Date(p.date).toLocaleString()} • Staff: {p.recordedBy?.name || 'Reception Staff'}
+                          </span>
                         </div>
-                      </td>
+                        <span className="font-mono font-bold text-emerald-700">₹{p.amount?.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                      {/* Patient */}
-                      <td className="px-5 py-4">
-                        <div className="font-medium text-ink">{patientName}</div>
-                        <div className="text-xs text-brand font-mono">{inv.opNumber || inv.patient?.opNumber || '—'}</div>
-                      </td>
+              {/* Summary Totals */}
+              <div className="p-3 rounded-xl bg-bg border border-border space-y-1.5 text-xs">
+                <div className="flex justify-between font-semibold">
+                  <span>Total Charges:</span>
+                  <span className="font-mono text-ink">₹{selectedInvoiceDetail.total?.toLocaleString() || 0}</span>
+                </div>
+                <div className="flex justify-between text-emerald-800 font-semibold">
+                  <span>Amount Paid:</span>
+                  <span className="font-mono">₹{selectedInvoiceDetail.amountPaid?.toLocaleString() || 0}</span>
+                </div>
+                <div className="flex justify-between text-rose-600 font-bold border-t border-border/60 pt-1.5 text-sm">
+                  <span>Balance Due:</span>
+                  <span className="font-mono">₹{selectedInvoiceDetail.balance?.toLocaleString() || 0}</span>
+                </div>
+              </div>
+            </div>
 
-                      {/* Doctor */}
-                      <td className="px-5 py-4 text-xs text-ink-soft font-medium">
-                        {docName}
-                      </td>
-
-                      {/* Total */}
-                      <td className="px-5 py-4 font-semibold text-ink">
-                        ₹{inv.total?.toLocaleString() || 0}
-                      </td>
-
-                      {/* Paid */}
-                      <td className="px-5 py-4 text-emerald-700 font-medium">
-                        ₹{inv.amountPaid?.toLocaleString() || 0}
-                      </td>
-
-                      {/* Balance */}
-                      <td className="px-5 py-4 font-semibold text-rose-600">
-                        ₹{inv.balance?.toLocaleString() || 0}
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="px-5 py-4">
-                        <span
-                          className={`badge border ${STATUS_BADGE_CLASSES[inv.paymentStatus] || 'bg-slate-100 text-slate-800'
-                            }`}
-                        >
-                          {inv.paymentStatus}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-5 py-4 text-right space-x-1.5 whitespace-nowrap">
-                        <button
-                          onClick={() => setSelectedInvoiceDetail(inv)}
-                          title="View Invoice Items"
-                          className="inline-flex items-center gap-1 rounded-lg border border-border p-1.5 text-xs font-semibold text-ink-soft hover:bg-bg hover:text-ink"
-                        >
-                          <Eye size={14} /> View
-                        </button>
-
-                        {inv.paymentStatus !== 'Paid' && (
-                          <button
-                            onClick={() => openPaymentModal(inv)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-                          >
-                            <CreditCard size={14} /> Record Payment
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <button
+                type="button"
+                className="btn-secondary text-xs"
+                onClick={() => setSelectedInvoiceDetail(null)}
+              >
+                Close
+              </button>
+              {selectedInvoiceDetail.paymentStatus !== 'Paid' && selectedInvoiceDetail.paymentStatus !== 'Refunded' && (
+                <button
+                  type="button"
+                  className="btn-primary text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  onClick={() => {
+                    const inv = selectedInvoiceDetail;
+                    setSelectedInvoiceDetail(null);
+                    openPaymentModal(inv);
+                  }}
+                >
+                  <DollarSign size={14} /> Collect Payment
+                </button>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-      </div>
+        </div>
+      )}
 
-      {/* GENERATE INVOICE MODAL */}
+      {/* GENERATE MANUAL INVOICE MODAL */}
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
-          <div className="card w-full max-w-2xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
-              <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
-                <FileText size={20} className="text-brand" /> Generate New Invoice
+              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+                <Plus size={18} className="text-brand" /> Generate Manual Invoice
               </h3>
               <button onClick={resetGenerateModal} className="rounded-lg p-1 hover:bg-bg">
                 <X size={18} />
@@ -412,167 +667,107 @@ export default function Billing() {
             </div>
 
             <form onSubmit={handleGenerateInvoice} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5 text-xs">
                 {errorMessage && (
                   <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                    <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                    <X size={16} className="text-rose-600 shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
-                {/* Patient & Doctor */}
-                <div className="grid grid-cols-1 gap-4">
-                  {/* Patient Search */}
-                  <PatientSearchInput
-                    selectedPatient={selectedPatient}
-                    onSelect={setSelectedPatient}
-                    required
-                  />
 
-                  {/* Doctor Select */}
-                  <div>
-                    <label className="block text-xs font-semibold text-ink-soft mb-1">Attending Doctor</label>
-                    <select
-                      className="input-field text-xs"
-                      value={selectedDoctorId}
-                      onChange={(e) => setSelectedDoctorId(e.target.value)}
-                    >
-                      <option value="">Select Doctor</option>
-                      {doctors.map((d) => {
-                        const docId = d._id || d.id;
-                        return (
-                          <option key={docId} value={docId}>
-                            Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
+                <PatientSearchInput
+                  selectedPatient={selectedPatient}
+                  onSelect={(p) => {
+                    setSelectedPatient(p);
+                    setErrorMessage('');
+                  }}
+                  required
+                />
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Attending Doctor</label>
+                  <select
+                    className="input-field text-xs"
+                    value={selectedDoctorId}
+                    onChange={(e) => setSelectedDoctorId(e.target.value)}
+                  >
+                    <option value="">Select Doctor</option>
+                    {doctors.map((d) => (
+                      <option key={d._id || d.id} value={d._id || d.id}>
+                        Dr. {d.name} ({d.specialization || 'Dental Specialist'})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Line Items Table */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-ink uppercase tracking-wider">
-                      Treatment & Service Items
-                    </label>
+                    <label className="font-semibold text-ink-soft">Line Items *</label>
                     <button
                       type="button"
                       onClick={handleAddItem}
-                      className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
+                      className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
                     >
-                      <Plus size={14} /> Add Line Item
+                      <Plus size={14} /> Add Item
                     </button>
                   </div>
 
-                  <div className="space-y-2 max-h-56 overflow-y-auto border border-border rounded-xl p-3 bg-bg/30">
-                    {items.map((item, idx) => (
-                      <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
-                        <div className="col-span-5">
-                          <input
-                            type="text"
-                            list="receptionist-treatment-catalog-list"
-                            className="input-field py-1.5 text-xs"
-                            placeholder="Service / Procedure"
-                            value={item.service}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              handleItemChange(idx, 'service', val);
-                              const match = catalogItems.find((c) => c.name.toLowerCase() === val.toLowerCase());
-                              if (match) {
-                                if (match.defaultCost !== undefined) {
-                                  handleItemChange(idx, 'unitPrice', match.defaultCost);
-                                }
-                                if (match.category) {
-                                  handleItemChange(idx, 'treatment', match.category);
-                                }
-                              }
-                            }}
-                          />
-                          <datalist id="receptionist-treatment-catalog-list">
-                            {catalogItems.map((c) => (
-                              <option key={c._id || c.id} value={c.name}>
-                                {c.category ? `[${c.category}] ` : ''}₹{c.defaultCost || 0}
-                              </option>
-                            ))}
-                          </datalist>
-                        </div>
-                        <div className="col-span-3">
-                          <input
-                            type="text"
-                            className="input-field py-1.5 text-xs"
-                            placeholder="Treatment"
-                            value={item.treatment}
-                            onChange={(e) => handleItemChange(idx, 'treatment', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-1">
-                          <input
-                            type="number"
-                            min="1"
-                            className="input-field py-1.5 text-xs text-center"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <input
-                            type="number"
-                            min="0"
-                            className="input-field py-1.5 text-xs"
-                            placeholder="Price"
-                            value={item.unitPrice}
-                            onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-1 text-right">
-                          <button
-                            type="button"
-                            disabled={items.length === 1}
-                            onClick={() => handleRemoveItem(idx)}
-                            className="p-1 text-ink-soft hover:text-rose-600 disabled:opacity-30"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                  {items.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-bg p-2 rounded-xl border border-border">
+                      <div className="col-span-6">
+                        <input
+                          type="text"
+                          className="input-field py-1 text-xs"
+                          placeholder="Item / Procedure Name"
+                          value={item.service}
+                          onChange={(e) => handleItemChange(idx, 'service', e.target.value)}
+                        />
                       </div>
-                    ))}
-                  </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          min="1"
+                          className="input-field py-1 text-xs text-center font-mono"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <input
+                          type="number"
+                          min="0"
+                          className="input-field py-1 text-xs font-mono"
+                          placeholder="Price ₹"
+                          value={item.unitPrice}
+                          onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-span-1 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(idx)}
+                          className="text-ink-soft hover:text-rose-600 p-1"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Discount, Tax, & Computed Total */}
-                <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <label className="block text-ink-soft font-semibold mb-1">Discount Amount (₹)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        className="input-field py-1.5 text-xs"
-                        value={discount}
-                        onChange={(e) => setDiscount(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-ink-soft font-semibold mb-1">Tax Amount (₹)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        className="input-field py-1.5 text-xs"
-                        value={tax}
-                        onChange={(e) => setTax(e.target.value)}
-                      />
-                    </div>
+                <div className="p-3 rounded-xl bg-bg border border-border space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-ink-soft">Subtotal:</span>
+                    <span className="font-mono font-bold text-ink">₹{subtotal.toLocaleString()}</span>
                   </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-border text-sm font-bold">
-                    <span className="text-ink">Calculated Total Amount:</span>
-                    <span className="text-brand text-lg">₹{computedTotal.toLocaleString()}</span>
+                  <div className="flex justify-between items-center font-bold text-ink border-t border-border/60 pt-1.5 text-sm">
+                    <span>Total Amount:</span>
+                    <span className="font-mono text-brand">₹{computedTotal.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button type="button" className="btn-secondary text-xs" onClick={resetGenerateModal}>
                   Cancel
                 </button>
@@ -585,13 +780,13 @@ export default function Billing() {
         </div>
       )}
 
-      {/* RECORD PAYMENT MODAL */}
+      {/* COLLECT PAYMENT & BILL SETTLEMENT MODAL */}
       {activePaymentInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
-          <div className="card w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
+          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-                <CreditCard size={18} className="text-brand" /> Record Payment
+                <DollarSign size={20} className="text-emerald-600" /> Collect Payment & Settle Bill
               </h3>
               <button onClick={() => setActivePaymentInvoice(null)} className="rounded-lg p-1 hover:bg-bg">
                 <X size={18} />
@@ -602,194 +797,224 @@ export default function Billing() {
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5 text-xs">
                 {errorMessage && (
                   <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200">
-                    <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                    <X size={16} className="text-rose-600 shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
 
-                {/* Summary card */}
-                <div className="rounded-xl border border-border bg-bg p-3.5 space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-ink-soft font-semibold">Patient:</span>
-                    <span className="font-bold text-ink">
-                      {activePaymentInvoice.patient?.firstName} {activePaymentInvoice.patient?.lastName} ({activePaymentInvoice.opNumber})
+                {/* Patient & Doctor Visit Header */}
+                <div className="p-3.5 rounded-xl bg-bg border border-border grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-ink-soft block">Patient</span>
+                    <span className="font-bold text-ink text-sm">
+                      {activePaymentInvoice.patient?.firstName} {activePaymentInvoice.patient?.lastName}
+                    </span>
+                    <span className="text-xs text-brand font-mono font-bold block">{activePaymentInvoice.opNumber || activePaymentInvoice.patient?.opNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-ink-soft block">Doctor</span>
+                    <span className="font-bold text-ink text-xs">
+                      {activePaymentInvoice.doctor ? `Dr. ${activePaymentInvoice.doctor.name}` : 'Unassigned'}
+                    </span>
+                    <span className="text-[11px] text-ink-soft block mt-0.5">
+                      Visit: {activePaymentInvoice.createdAt ? new Date(activePaymentInvoice.createdAt).toLocaleDateString() : ''}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-soft font-semibold">Invoice Total:</span>
-                    <span className="font-bold text-ink">₹{activePaymentInvoice.total?.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-ink-soft font-semibold">Remaining Balance:</span>
-                    <span className="font-bold text-rose-600">₹{activePaymentInvoice.balance?.toLocaleString()}</span>
+                </div>
+
+                {/* Read-Only Itemized Charges Table pulled directly from Treatment Record */}
+                <div className="space-y-1.5">
+                  <span className="font-bold text-ink uppercase tracking-wider text-[11px]">Itemized Treatment Record (Read-Only)</span>
+                  <div className="card overflow-hidden border border-border">
+                    <table className="w-full text-left text-xs">
+                      <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
+                        <tr>
+                          <th className="px-3 py-2">Procedure / Tooth</th>
+                          <th className="px-3 py-2 text-right">Charges</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {(activePaymentInvoice.items || []).map((item, idx) => (
+                          <tr key={idx} className="bg-surface">
+                            <td className="px-3 py-2 font-medium text-ink">{item.service || item.treatment}</td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-ink">₹{item.unitPrice?.toLocaleString() || 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
-                {/* Confirmation Alert if payment settles full balance */}
-                {showConfirmSettlement ? (
-                  <div className="space-y-3">
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-900 space-y-2">
-                      <div className="flex items-center gap-2 font-bold text-emerald-800">
-                        <CheckCircle2 size={18} className="text-emerald-600" />
-                        Confirm Full Settlement
+                {/* Optional Discount / Adjustment Field */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1 flex items-center gap-1">
+                      <Tag size={13} className="text-amber-600" /> Discount / Adjustment (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="input-field text-xs font-mono"
+                      placeholder="0"
+                      value={paymentDiscount}
+                      onChange={(e) => setPaymentDiscount(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Payment Amount (₹) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      className="input-field text-xs font-mono font-bold text-emerald-800 text-sm"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Method Selection */}
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1.5">Payment Method *</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: 'Cash', label: 'Cash', icon: Banknote },
+                      { id: 'Card', label: 'Card', icon: CreditCard },
+                      { id: 'UPI', label: 'UPI / QR', icon: QrCode },
+                      { id: 'Other', label: 'Other', icon: Building2 },
+                    ].map((method) => {
+                      const Icon = method.icon;
+                      const isSelected = paymentMethod === method.id;
+                      return (
+                        <button
+                          key={method.id}
+                          type="button"
+                          onClick={() => setPaymentMethod(method.id)}
+                          className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                            isSelected
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm'
+                              : 'bg-bg border-border text-ink-soft hover:bg-surface hover:text-ink'
+                          }`}
+                        >
+                          <Icon size={16} className={isSelected ? 'text-emerald-600' : 'text-ink-soft'} />
+                          <span>{method.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Settlement Summary & Expected Status */}
+                {(() => {
+                  const itemsSub = (activePaymentInvoice.items || []).reduce((sum, i) => sum + (i.quantity || 1) * (i.unitPrice || 0), 0);
+                  const discVal = Number(paymentDiscount) || 0;
+                  const netTot = Math.max(0, itemsSub - discVal + (activePaymentInvoice.tax || 0));
+                  const curPaid = activePaymentInvoice.amountPaid || 0;
+                  const payAmt = Number(paymentAmount) || 0;
+                  const newBalance = Math.max(0, netTot - curPaid - payAmt);
+                  const expectedStatus = newBalance === 0 ? 'Paid' : payAmt > 0 ? 'Partially Paid' : 'Pending';
+
+                  return (
+                    <div className="p-3 rounded-xl bg-bg border border-border space-y-1 text-xs">
+                      <div className="flex justify-between text-ink-soft">
+                        <span>Original Charges Subtotal:</span>
+                        <span className="font-mono">₹{itemsSub.toLocaleString()}</span>
                       </div>
-                      <p>
-                        Recording this payment of <strong>₹{paymentAmount}</strong> will fully settle the remaining balance and update the status to <span className="badge bg-emerald-100 text-emerald-800 border-emerald-200 font-semibold">Paid</span>.
-                      </p>
+                      {discVal > 0 && (
+                        <div className="flex justify-between text-amber-700 font-medium">
+                          <span>Discount Applied:</span>
+                          <span className="font-mono">-₹{discVal.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold">
+                        <span>Net Total:</span>
+                        <span className="font-mono">₹{netTot.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-800 font-semibold">
+                        <span>Already Paid:</span>
+                        <span className="font-mono">₹{curPaid.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-ink border-t border-border/60 pt-1">
+                        <span>Current Payment:</span>
+                        <span className="font-mono text-emerald-700">₹{payAmt.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center font-bold border-t border-border/60 pt-1 text-sm">
+                        <span>Remaining Balance:</span>
+                        <span className={`font-mono ${newBalance === 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                          ₹{newBalance.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 text-[11px]">
+                        <span className="text-ink-soft">Resulting Bill Status:</span>
+                        <span className={`badge border ${STATUS_BADGE_CLASSES[expectedStatus]}`}>
+                          {expectedStatus}
+                        </span>
+                      </div>
                     </div>
-
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                      <button
-                        type="button"
-                        className="btn-secondary text-xs"
-                        onClick={() => setShowConfirmSettlement(false)}
-                      >
-                        Back to Edit
-                      </button>
-                      <button
-                        type="button"
-                        disabled={submitting}
-                        onClick={executeRecordPayment}
-                        className="btn-primary text-xs bg-emerald-600 hover:bg-emerald-700"
-                      >
-                        {submitting ? 'Submitting...' : 'Confirm & Settle Invoice'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4 text-xs">
-                    <div>
-                      <label className="block font-semibold text-ink-soft mb-1">Payment Amount (₹) *</label>
-                      <input
-                        type="number"
-                        min="1"
-                        className="input-field"
-                        placeholder="Enter amount"
-                        value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-ink-soft mb-1">Payment Method *</label>
-                      <select
-                        className="input-field"
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                      >
-                        <option value="Cash">Cash</option>
-                        <option value="Card">Card</option>
-                        <option value="UPI">UPI</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
-              {!showConfirmSettlement && (
-                <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
-                  <button
-                    type="button"
-                    className="btn-secondary text-xs"
-                    onClick={() => setActivePaymentInvoice(null)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary text-xs">
-                    Submit Payment
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+                <button
+                  type="button"
+                  className="btn-secondary text-xs"
+                  onClick={() => setActivePaymentInvoice(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting} className="btn-primary text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                  {submitting ? 'Confirming...' : 'Confirm Payment'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* VIEW INVOICE ITEMS DETAIL MODAL */}
-      {selectedInvoiceDetail && (
+      {/* CONFIRM FULL SETTLEMENT DIALOG */}
+      {showConfirmSettlement && activePaymentInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
-          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
-              <h3 className="font-display text-base font-bold text-ink">
-                Invoice Breakdown Details
-              </h3>
-              <button onClick={() => setSelectedInvoiceDetail(null)} className="rounded-lg p-1 hover:bg-bg">
-                <X size={18} />
+          <div className="card w-full max-w-sm flex flex-col bg-surface p-5 space-y-4 shadow-xl text-xs">
+            <div className="flex items-center gap-3 text-emerald-700">
+              <CheckCircle2 size={28} className="shrink-0" />
+              <div>
+                <h4 className="font-display font-bold text-sm text-ink">Confirm Full Settlement</h4>
+                <p className="text-ink-soft">This payment will fully clear the balance for this bill.</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1 text-emerald-900 font-medium">
+              <div className="flex justify-between">
+                <span>Collecting:</span>
+                <span className="font-mono font-bold text-emerald-800">₹{paymentAmount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Payment Method:</span>
+                <span className="font-bold">{paymentMethod}</span>
+              </div>
+              <div className="flex justify-between border-t border-emerald-200/60 pt-1">
+                <span>Status update to:</span>
+                <span className="badge bg-emerald-100 text-emerald-800 border-emerald-300 font-bold">Paid</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                type="button"
+                className="btn-secondary py-1.5 text-xs"
+                onClick={() => setShowConfirmSettlement(false)}
+              >
+                Back
               </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
-              <div className="flex justify-between border-b border-border/50 pb-2">
-                <div>
-                  <p className="font-bold text-ink text-sm">
-                    {selectedInvoiceDetail.patient?.firstName} {selectedInvoiceDetail.patient?.lastName}
-                  </p>
-                  <p className="text-ink-soft">OP: {selectedInvoiceDetail.opNumber}</p>
-                </div>
-                <div className="text-right">
-                  <span
-                    className={`badge border ${STATUS_BADGE_CLASSES[selectedInvoiceDetail.paymentStatus] || ''
-                      }`}
-                  >
-                    {selectedInvoiceDetail.paymentStatus}
-                  </span>
-                </div>
-              </div>
-
-              {/* Items List */}
-              <div className="space-y-1">
-                <p className="font-semibold text-ink-soft uppercase text-[10px]">Line Items</p>
-                <div className="divide-y divide-border border rounded-xl overflow-hidden bg-bg/40">
-                  {selectedInvoiceDetail.items?.map((it, idx) => (
-                    <div key={idx} className="flex justify-between p-2.5">
-                      <div>
-                        <p className="font-semibold text-ink">{it.service || 'Service'}</p>
-                        <p className="text-[11px] text-ink-soft">{it.treatment}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono text-ink">
-                          {it.quantity} x ₹{it.unitPrice}
-                        </p>
-                        <p className="font-bold text-ink">₹{(it.quantity * it.unitPrice).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Payments History */}
-              {selectedInvoiceDetail.payments?.length > 0 && (
-                <div className="space-y-1">
-                  <p className="font-semibold text-ink-soft uppercase text-[10px]">Recorded Payments</p>
-                  <div className="divide-y divide-border border rounded-xl overflow-hidden bg-bg/40 p-2 space-y-1">
-                    {selectedInvoiceDetail.payments.map((p, idx) => (
-                      <div key={idx} className="flex justify-between text-xs py-1">
-                        <span>
-                          ₹{p.amount} via <strong className="text-brand">{p.method}</strong>
-                        </span>
-                        <span className="text-ink-soft">
-                          {p.date ? new Date(p.date).toLocaleDateString() : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Totals */}
-              <div className="border-t border-border pt-3 space-y-1 text-right">
-                <p className="text-ink-soft">Discount: -₹{selectedInvoiceDetail.discount || 0}</p>
-                <p className="text-ink-soft">Tax: +₹{selectedInvoiceDetail.tax || 0}</p>
-                <p className="font-bold text-sm text-ink">Total: ₹{selectedInvoiceDetail.total?.toLocaleString()}</p>
-                <p className="text-emerald-700 font-semibold">Amount Paid: ₹{selectedInvoiceDetail.amountPaid?.toLocaleString()}</p>
-                <p className="text-rose-600 font-bold">Balance: ₹{selectedInvoiceDetail.balance?.toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
-              <button className="btn-secondary text-xs" onClick={() => setSelectedInvoiceDetail(null)}>
-                Close
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={executeRecordPayment}
+                className="btn-primary py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                {submitting ? 'Processing...' : 'Confirm Payment'}
               </button>
             </div>
           </div>

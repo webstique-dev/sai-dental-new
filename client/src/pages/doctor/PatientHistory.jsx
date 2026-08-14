@@ -596,9 +596,15 @@ export default function PatientHistory() {
 
               {/* 3. TREATMENT PERFORMED / PLANNED */}
               <div className="space-y-2">
-                <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2 border-b border-border pb-1">
-                  <Activity size={15} className="text-brand" /> 3. Treatment Performed & Planned
-                </h4>
+                <div className="flex items-center justify-between border-b border-border pb-1">
+                  <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2">
+                    <Activity size={15} className="text-brand" /> 3. Treatment Performed & Planned
+                  </h4>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-ink-soft">Est. Charges: <strong className="text-brand font-mono">₹{(selectedVisit.totalEstimatedCharges ?? selectedVisit.treatmentPlans?.reduce((sum, tp) => sum + (tp.estimatedCost || 0), 0) ?? 0).toLocaleString()}</strong></span>
+                    <span className="text-ink-soft">Perf. Charges: <strong className="text-emerald-700 font-mono">₹{(selectedVisit.totalPerformedCharges ?? selectedVisit.treatmentRecords?.reduce((sum, tr) => sum + (tr.charges || 0), 0) ?? 0).toLocaleString()}</strong></span>
+                  </div>
+                </div>
                 {((selectedVisit.treatmentRecords && selectedVisit.treatmentRecords.length > 0) || (selectedVisit.treatmentPlans && selectedVisit.treatmentPlans.length > 0)) ? (
                   <div className="space-y-2">
                     {/* Performed Treatment Records */}

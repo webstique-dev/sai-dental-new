@@ -71,6 +71,16 @@ const invoiceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    consultation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Consultation',
+      default: null,
+    },
+    appointment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Appointment',
+      default: null,
+    },
     opNumber: {
       type: String,
       trim: true,

@@ -8,11 +8,13 @@ const TreatmentPlan = require('../models/TreatmentPlan');
 const ToothRecord = require('../models/ToothRecord');
 const User = require('../models/User');
 
-function getTodayDateRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  return { start, end };
+function normalizePaymentMethod(methodStr) {
+  if (!methodStr) return 'Cash';
+  const m = String(methodStr).toUpperCase();
+  if (m.includes('UPI') || m.includes('QR')) return 'UPI';
+  if (m.includes('CARD')) return 'Card';
+  if (m.includes('CASH')) return 'Cash';
+  return 'Other';
 }
 
 function parseDateRange(dateFrom, dateTo) {
@@ -121,15 +123,12 @@ async function getReceptionSummary(req, res, next) {
 
     invoicesWithPayments.forEach((inv) => {
       (inv.payments || []).forEach((p) => {
-        if (p.date && p.date >= start && p.date <= end && p.type !== 'refund') {
-          const amt = p.amount || 0;
+        const pDate = p.date ? new Date(p.date) : inv.createdAt;
+        if (pDate >= start && pDate <= end && p.type !== 'refund') {
+          const amt = Number(p.amount) || 0;
           totalAmount += amt;
-          const m = p.method || 'Cash';
-          if (byMethod[m] !== undefined) {
-            byMethod[m] += amt;
-          } else {
-            byMethod.Other += amt;
-          }
+          const methodKey = normalizePaymentMethod(p.method);
+          byMethod[methodKey] = (byMethod[methodKey] || 0) + amt;
         }
       });
     });

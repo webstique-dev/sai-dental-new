@@ -1,5 +1,6 @@
 const TreatmentRecord = require('../models/TreatmentRecord');
 const { checkConsultationNotClosed } = require('./consultationController');
+const { updateConsultationTotals } = require('../utils/consultationTotalsSync');
 
 // GET /api/treatment-records?consultation=
 async function listTreatmentRecords(req, res, next) {
@@ -24,7 +25,7 @@ async function listTreatmentRecords(req, res, next) {
 // POST /api/treatment-records
 async function createTreatmentRecord(req, res, next) {
   try {
-    const { consultation, patient, date, tooth, procedure, charges, nextAppointment, notes } = req.body;
+    const { consultation, patient, date, tooth, procedure, charges, actualDuration, nextAppointment, notes } = req.body;
 
     if (!consultation) {
       return res.status(400).json({ message: 'consultation is required.' });
@@ -50,6 +51,7 @@ async function createTreatmentRecord(req, res, next) {
       tooth: tooth ? Number(tooth) : null,
       procedure: procedure.trim(),
       charges: charges !== undefined ? Number(charges) : 0,
+      actualDuration: actualDuration ? actualDuration.trim() : '',
       nextAppointment: nextAppointment ? new Date(nextAppointment) : null,
       notes: notes ? notes.trim() : '',
       recordedBy: req.user ? req.user._id : undefined,
@@ -57,11 +59,14 @@ async function createTreatmentRecord(req, res, next) {
 
     await record.save();
 
+    // Recalculate & persist per-visit totals on consultation record
+    await updateConsultationTotals(consultation);
+
     const populated = await TreatmentRecord.findById(record._id)
       .populate('patient', 'firstName lastName opNumber')
       .populate('recordedBy', 'name email');
 
-    return res.status(201).json({
+    return res.json({
       message: 'Treatment record created successfully',
       treatmentRecord: populated,
     });
@@ -85,6 +90,9 @@ async function deleteTreatmentRecord(req, res, next) {
     record.deletedAt = new Date();
     record.deletedBy = req.user ? req.user._id : undefined;
     await record.save();
+
+    // Recalculate & persist per-visit totals on consultation record
+    await updateConsultationTotals(record.consultation);
 
     return res.json({ message: 'Treatment record deleted successfully.' });
   } catch (err) {

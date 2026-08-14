@@ -5,6 +5,7 @@ const FollowUp = require('../models/FollowUp');
 const { logAction } = require('../middleware/auditLog');
 const { syncVisitStatus } = require('../utils/statusSync');
 const { getDayBounds } = require('./appointmentController');
+const { updateConsultationTotals } = require('../utils/consultationTotalsSync');
 
 // Immutability Guard Helper: Rejects write actions on closed consultations with HTTP 403
 async function checkConsultationNotClosed(consultationId) {
@@ -87,6 +88,9 @@ async function listConsultations(req, res, next) {
         const checkOut = c.closedAt || (c.status === 'Completed' ? c.updatedAt : null);
         const reason = c.appointment?.reason || c.queueEntry?.reason || (c.queueEntry?.type === 'Walk-in' ? 'Walk-in Consultation' : 'General Dental Visit');
 
+        const totalEstimatedCharges = c.totalEstimatedCharges || (treatmentPlans || []).reduce((sum, p) => sum + (p.estimatedCost || 0), 0);
+        const totalPerformedCharges = c.totalPerformedCharges || (treatmentRecords || []).reduce((sum, r) => sum + (r.charges || 0), 0);
+
         return {
           _id: c._id,
           id: c._id,
@@ -98,6 +102,8 @@ async function listConsultations(req, res, next) {
           status: c.status || 'Completed',
           reason,
           notes: c.clinicalNotes || c.notes || '',
+          totalEstimatedCharges,
+          totalPerformedCharges,
           examination: exam,
           diagnoses: diagnoses || [],
           treatmentPlans: treatmentPlans || [],
@@ -286,7 +292,7 @@ async function getConsultationById(req, res, next) {
   }
 }
 
-// POST /api/consultations/:id/close (Sets status = Completed, closedAt = now, creates/updates followUp, updates QueueEntry/Appointment)
+// POST /api/consultations/:id/close (Locks clinical records, generates pending invoice, creates follow-up appointment, marks visit Completed)
 async function closeConsultation(req, res, next) {
   try {
     const consultation = await Consultation.findById(req.params.id);
@@ -297,12 +303,14 @@ async function closeConsultation(req, res, next) {
     const { closeNotes, followUp } = req.body || {};
     let savedFollowUp = null;
 
-    // Handle optional Follow-Up payload
+    // 1. Recalculate & persist totals on Consultation
+    await updateConsultationTotals(consultation._id);
+
+    // 2. Handle optional Follow-Up payload & auto-create linked Appointment
     if (followUp && typeof followUp === 'object') {
-      const { recommendedDate, reason, instructions, treatmentStatus, notes } = followUp;
+      const { recommendedDate, time, reason, instructions, treatmentStatus, notes } = followUp;
       const Appointment = require('../models/Appointment');
 
-      // Check if a FollowUp document already exists for this consultation
       let existingFollowUp = await FollowUp.findOne({ consultation: consultation._id });
 
       if (existingFollowUp) {
@@ -322,7 +330,7 @@ async function closeConsultation(req, res, next) {
               patient: consultation.patient,
               doctor: consultation.doctor,
               date: recommendedDate,
-              time: '10:00 AM',
+              time: time || '10:00 AM',
               reason: reason || 'Follow-Up Consultation',
               type: 'Appointment',
               status: 'Scheduled',
@@ -331,6 +339,7 @@ async function closeConsultation(req, res, next) {
             });
           } else {
             appt.date = recommendedDate;
+            if (time) appt.time = time;
             appt.reason = reason || appt.reason || 'Follow-Up Consultation';
             appt.status = 'Scheduled';
           }
@@ -344,6 +353,7 @@ async function closeConsultation(req, res, next) {
       } else {
         savedFollowUp = new FollowUp({
           patient: consultation.patient,
+          doctor: consultation.doctor,
           consultation: consultation._id,
           recommendedDate: recommendedDate || null,
           reason: reason || 'Follow-up Visit',
@@ -360,7 +370,7 @@ async function closeConsultation(req, res, next) {
             patient: consultation.patient,
             doctor: consultation.doctor,
             date: recommendedDate,
-            time: '10:00 AM',
+            time: time || '10:00 AM',
             reason: reason || 'Follow-Up Consultation',
             type: 'Appointment',
             status: 'Scheduled',
@@ -382,15 +392,85 @@ async function closeConsultation(req, res, next) {
         .populate('createdBy', 'name email');
     }
 
+    // 3. Lock & finalize consultation as Completed / Read-Only
     if (closeNotes) {
-      consultation.notes = closeNotes;
+      consultation.clinicalNotes = closeNotes;
     }
-
     consultation.status = 'Completed';
     consultation.closedAt = new Date();
+    consultation.consultation_ended_at = new Date();
+    consultation.completed_at = new Date();
     await consultation.save();
 
-    // Synchronize visit status across QueueEntry and Appointment
+    // 4. Generate Pending Bill (Invoice) itemized by procedure/tooth using Total Performed Charges
+    const Invoice = require('../models/Invoice');
+    const TreatmentRecord = require('../models/TreatmentRecord');
+    const TreatmentPlan = require('../models/TreatmentPlan');
+    const Patient = require('../models/Patient');
+
+    const patientDoc = await Patient.findById(consultation.patient);
+    const opNumber = patientDoc ? patientDoc.opNumber : '';
+
+    let invoice = await Invoice.findOne({ consultation: consultation._id });
+
+    const records = await TreatmentRecord.find({
+      consultation: consultation._id,
+      isDeleted: { $ne: true },
+    });
+
+    const completedPlans = await TreatmentPlan.find({
+      consultation: consultation._id,
+      status: 'Completed',
+      isDeleted: { $ne: true },
+    });
+
+    let invoiceItems = [];
+    if (records.length > 0) {
+      invoiceItems = records.map((r) => ({
+        service: r.procedure + (r.tooth ? ` (Tooth #${r.tooth})` : ''),
+        treatment: r.procedure,
+        quantity: 1,
+        unitPrice: Number(r.charges) || 0,
+      }));
+    } else if (completedPlans.length > 0) {
+      invoiceItems = completedPlans.map((p) => ({
+        service: p.treatment + (p.tooth ? ` (Tooth #${p.tooth})` : ''),
+        treatment: p.treatment,
+        quantity: 1,
+        unitPrice: Number(p.estimatedCost) || 0,
+      }));
+    } else {
+      invoiceItems = [
+        {
+          service: 'General Dental Consultation',
+          treatment: 'Consultation',
+          quantity: 1,
+          unitPrice: 500,
+        },
+      ];
+    }
+
+    if (!invoice) {
+      invoice = new Invoice({
+        patient: consultation.patient,
+        doctor: consultation.doctor,
+        consultation: consultation._id,
+        appointment: consultation.appointment || null,
+        opNumber,
+        items: invoiceItems,
+        paymentStatus: 'Pending',
+        createdBy: req.user ? req.user._id : undefined,
+      });
+      await invoice.save();
+    } else {
+      invoice.items = invoiceItems;
+      if (invoice.amountPaid === 0) {
+        invoice.paymentStatus = 'Pending';
+      }
+      await invoice.save();
+    }
+
+    // 5. Update patient's queue and appointment status to Completed
     await syncVisitStatus({
       consultationId: consultation._id,
       queueEntryId: consultation.queueEntry,
@@ -406,13 +486,15 @@ async function closeConsultation(req, res, next) {
       newValue: {
         status: 'Completed',
         closedAt: consultation.closedAt,
+        invoiceId: invoice._id,
         followUp: savedFollowUp ? savedFollowUp._id : null,
       },
     });
 
     return res.json({
-      message: 'Consultation closed successfully.',
+      message: 'Consultation closed successfully. Pending bill generated.',
       consultation,
+      invoice,
       followUp: savedFollowUp,
     });
   } catch (err) {

@@ -1,6 +1,7 @@
 const TreatmentPlan = require('../models/TreatmentPlan');
 const { applyToothUpdate } = require('./toothChartController');
 const { checkConsultationNotClosed } = require('./consultationController');
+const { updateConsultationTotals } = require('../utils/consultationTotalsSync');
 
 // GET /api/treatment-plans?consultation=&patient=
 async function listTreatmentPlans(req, res, next) {
@@ -34,6 +35,7 @@ async function createTreatmentPlan(req, res, next) {
       treatment,
       description,
       estimatedCost,
+      estimatedDuration,
       priority,
       notes,
       status,
@@ -67,6 +69,7 @@ async function createTreatmentPlan(req, res, next) {
       treatment: treatment.trim(),
       description: description ? description.trim() : '',
       estimatedCost: Number(estimatedCost) || 0,
+      estimatedDuration: estimatedDuration ? estimatedDuration.trim() : '',
       priority: priority || 'Medium',
       notes: notes ? notes.trim() : '',
       status: targetStatus,
@@ -75,9 +78,12 @@ async function createTreatmentPlan(req, res, next) {
 
     await newPlan.save();
 
+    // Recalculate & persist per-visit totals on consultation record
+    await updateConsultationTotals(consultation);
+
     if (targetStatus === 'Completed' && toothNum) {
       await applyToothUpdate(
-        patient,
+        targetPatient,
         toothNum,
         {
           condition: 'Restored',
@@ -110,6 +116,7 @@ async function updateTreatmentPlan(req, res, next) {
       treatment,
       description,
       estimatedCost,
+      estimatedDuration,
       priority,
       notes,
       status,
@@ -132,6 +139,7 @@ async function updateTreatmentPlan(req, res, next) {
     if (treatment !== undefined) plan.treatment = treatment.trim();
     if (description !== undefined) plan.description = description.trim();
     if (estimatedCost !== undefined) plan.estimatedCost = Number(estimatedCost) || 0;
+    if (estimatedDuration !== undefined) plan.estimatedDuration = estimatedDuration.trim();
     if (priority !== undefined) plan.priority = priority;
     if (notes !== undefined) plan.notes = notes.trim();
     if (status !== undefined) plan.status = status;
@@ -139,6 +147,9 @@ async function updateTreatmentPlan(req, res, next) {
     if (diagnosis !== undefined) plan.diagnosis = diagnosis || null;
 
     await plan.save();
+
+    // Recalculate & persist per-visit totals on consultation record
+    await updateConsultationTotals(plan.consultation);
 
     if (oldStatus !== 'Completed' && newStatus === 'Completed' && targetTooth) {
       await applyToothUpdate(
@@ -193,6 +204,9 @@ async function executeTreatmentPlan(req, res, next) {
 
     await plan.save();
 
+    // Recalculate & persist per-visit totals on consultation record
+    await updateConsultationTotals(plan.consultation);
+
     if (oldStatus !== 'Completed' && newStatus === 'Completed' && plan.tooth) {
       await applyToothUpdate(
         plan.patient,
@@ -236,6 +250,9 @@ async function deleteTreatmentPlan(req, res, next) {
     plan.deletedAt = new Date();
     plan.deletedBy = req.user ? req.user._id : undefined;
     await plan.save();
+
+    // Recalculate & persist per-visit totals on consultation record
+    await updateConsultationTotals(plan.consultation);
 
     return res.json({ message: 'Treatment plan deleted successfully.' });
   } catch (err) {
