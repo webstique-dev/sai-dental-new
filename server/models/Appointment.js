@@ -7,6 +7,7 @@ const appointmentStatusOptions = [
   'Completed',
   'Cancelled',
   'No Show',
+  'Missed',
 ];
 
 const appointmentTypeOptions = ['Appointment', 'Walk-in'];
@@ -43,6 +44,11 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       enum: appointmentTypeOptions,
       default: 'Appointment',
+    },
+    followUp: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FollowUp',
+      default: null,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

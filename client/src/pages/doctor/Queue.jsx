@@ -14,6 +14,8 @@ const STATUS_BADGE_CLASSES = {
   Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
   'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
+  Missed: 'bg-purple-100 text-purple-800 border-purple-200',
+  Pending: 'bg-amber-100 text-amber-800 border-amber-200',
 };
 
 export default function DoctorQueue() {

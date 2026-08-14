@@ -9,8 +9,12 @@ import { useNotification } from '../../context/NotificationContext.jsx';
 const STATUS_BADGE_CLASSES = {
   Pending: 'bg-amber-100 text-amber-800 border-amber-200',
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
+  'Checked-In': 'bg-amber-100 text-amber-800 border-amber-200',
+  'In Consultation': 'bg-purple-100 text-purple-800 border-purple-200',
   Completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   Cancelled: 'bg-rose-100 text-rose-800 border-rose-200',
+  'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
+  Missed: 'bg-purple-100 text-purple-800 border-purple-200',
 };
 
 export default function FollowUps() {
@@ -21,7 +25,7 @@ export default function FollowUps() {
   const [loading, setLoading] = useState(true);
 
   // Filter state
-  const [activeTab, setActiveTab] = useState('All'); // 'Pending', 'Scheduled', 'Completed', 'All'
+  const [activeTab, setActiveTab] = useState('All');
   const [search, setSearch] = useState('');
 
   // Modals
@@ -145,8 +149,12 @@ export default function FollowUps() {
         ...addFormData,
       };
 
-      await api.post('/follow-ups', payload);
-      showSuccess('Follow-up reminder created successfully!');
+      const res = await api.post('/follow-ups', payload);
+      showSuccess(
+        addFormData.recommendedDate
+          ? 'Follow-up created and appointment scheduled automatically!'
+          : 'Follow-up created as pending callback.'
+      );
       resetAddModal();
       fetchFollowUps();
     } catch (err) {
@@ -201,7 +209,7 @@ export default function FollowUps() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-xl font-bold text-ink">Follow-Up Reminders</h2>
-          <p className="text-sm text-ink-soft">Track recommended recall dates and convert into booked appointments</p>
+          <p className="text-sm text-ink-soft">Track recommended recall dates and auto-scheduled appointments</p>
         </div>
 
         <button onClick={() => setShowAddModal(true)} className="btn-primary shrink-0">
@@ -214,7 +222,7 @@ export default function FollowUps() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-1 bg-surface border border-border p-1 rounded-2xl overflow-x-auto">
-          {['All', 'Pending', 'Scheduled', 'Completed'].map((tab) => (
+          {['All', 'Scheduled', 'Pending', 'Completed', 'Cancelled', 'Missed'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}

@@ -1,6 +1,15 @@
 const mongoose = require('mongoose');
 
-const followUpStatusOptions = ['Pending', 'Scheduled', 'Completed'];
+const followUpStatusOptions = [
+  'Pending',
+  'Scheduled',
+  'Checked-In',
+  'In Consultation',
+  'Completed',
+  'Cancelled',
+  'No Show',
+  'Missed',
+];
 
 const followUpSchema = new mongoose.Schema(
   {

@@ -1,6 +1,7 @@
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
-const { syncVisitStatus } = require('../utils/statusSync');
+const FollowUp = require('../models/FollowUp');
+const { syncVisitStatus, checkAndMarkMissedAppointments } = require('../utils/statusSync');
 
 function getDayBounds(dateInput) {
   let d;
@@ -32,6 +33,9 @@ function getDayBounds(dateInput) {
 // GET /api/appointments?date=&dateFilterPreset=&doctor=&status=&search=
 async function listAppointments(req, res, next) {
   try {
+    // Auto-flag passed appointments & linked follow-ups as Missed
+    await checkAndMarkMissedAppointments();
+
     const { date, dateFilterPreset, doctor, status, search } = req.query;
     const filter = { isDeleted: { $ne: true } };
 
@@ -129,7 +133,7 @@ async function createAppointment(req, res, next) {
 // PATCH /api/appointments/:id (reschedule or change status)
 async function updateAppointment(req, res, next) {
   try {
-    const { status } = req.body;
+    const { status, date } = req.body;
 
     // Enforce status permissions for receptionists
     if (req.user && req.user.role === 'receptionist' && status) {
@@ -153,9 +157,23 @@ async function updateAppointment(req, res, next) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    // Sync status with related QueueEntry/Consultation if status updated
+    // Sync status with related QueueEntry/Consultation/FollowUp if status updated
     if (status) {
       await syncVisitStatus({ appointmentId: updated._id, status });
+    }
+
+    // If rescheduled to a new date, update linked follow-up
+    if (date) {
+      const linkedFollowUp = await FollowUp.findOne({
+        $or: [{ scheduledAppointment: updated._id }, { _id: updated.followUp }],
+      });
+      if (linkedFollowUp) {
+        linkedFollowUp.recommendedDate = date;
+        if (['Cancelled', 'Missed'].includes(linkedFollowUp.status)) {
+          linkedFollowUp.status = 'Scheduled';
+        }
+        await linkedFollowUp.save();
+      }
     }
 
     return res.json({
@@ -188,7 +206,7 @@ async function cancelAppointment(req, res, next) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    // Sync status across models
+    // Sync status across models (updates linked FollowUp to Cancelled)
     await syncVisitStatus({ appointmentId: cancelled._id, status: 'Cancelled' });
 
     return res.json({

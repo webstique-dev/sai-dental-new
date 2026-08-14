@@ -1,6 +1,7 @@
 const Appointment = require('../models/Appointment');
 const QueueEntry = require('../models/QueueEntry');
 const Consultation = require('../models/Consultation');
+const FollowUp = require('../models/FollowUp');
 
 function getFormattedDateString(date = new Date()) {
   const d = new Date(date);
@@ -11,8 +12,42 @@ function getFormattedDateString(date = new Date()) {
 }
 
 /**
- * Synchronizes visit/appointment status and timestamps across Appointment, QueueEntry, and Consultation models.
- * Standard Statuses: 'Scheduled', 'Checked-In', 'In Consultation', 'Completed', 'Cancelled', 'No Show'
+ * Checks all Scheduled appointments whose date has passed without check-in,
+ * and auto-flags both the appointment and any linked follow-up as 'Missed'.
+ */
+async function checkAndMarkMissedAppointments() {
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const missedAppointments = await Appointment.find({
+      status: 'Scheduled',
+      date: { $lt: startOfToday },
+      isDeleted: { $ne: true },
+    });
+
+    for (const appt of missedAppointments) {
+      appt.status = 'Missed';
+      await appt.save();
+
+      const linkedFollowUp = await FollowUp.findOne({
+        scheduledAppointment: appt._id,
+      });
+
+      if (linkedFollowUp && linkedFollowUp.status === 'Scheduled') {
+        linkedFollowUp.status = 'Missed';
+        await linkedFollowUp.save();
+      }
+    }
+  } catch (err) {
+    console.error('Error auto-flagging missed appointments:', err);
+  }
+}
+
+/**
+ * Synchronizes visit/appointment status across Appointment, QueueEntry, Consultation, and FollowUp models.
+ * State Machine Progression:
+ *   Scheduled -> Checked-In -> In Consultation -> Completed (or Cancelled / Missed)
  */
 async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, status }) {
   let stdStatus = status;
@@ -94,10 +129,42 @@ async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, st
     await Consultation.findByIdAndUpdate(cId, consultUpdate);
   }
 
+  // 5. Update linked FollowUp status ONLY for the target scheduled appointment
+  if (apptId) {
+    const linkedFollowUp = await FollowUp.findOne({ scheduledAppointment: apptId });
+    if (linkedFollowUp) {
+      const current = linkedFollowUp.status;
+      let allowed = false;
+
+      // Strict state machine progression:
+      // Scheduled -> Checked-In / In Consultation / Cancelled / Missed
+      // Checked-In -> In Consultation / Completed / Cancelled
+      // In Consultation -> Completed / Cancelled
+      if (current === 'Scheduled' && ['Checked-In', 'In Consultation', 'Cancelled', 'Missed', 'No Show'].includes(stdStatus)) {
+        allowed = true;
+      } else if (current === 'Checked-In' && ['In Consultation', 'Completed', 'Cancelled'].includes(stdStatus)) {
+        allowed = true;
+      } else if (current === 'In Consultation' && ['Completed', 'Cancelled'].includes(stdStatus)) {
+        allowed = true;
+      } else if (stdStatus === 'Completed' && (current === 'Checked-In' || current === 'In Consultation' || current === 'Scheduled')) {
+        // Only set Completed if consultation is finished
+        allowed = true;
+      } else if (stdStatus === 'Cancelled') {
+        allowed = true;
+      }
+
+      if (allowed) {
+        linkedFollowUp.status = stdStatus === 'No Show' ? 'Missed' : stdStatus;
+        await linkedFollowUp.save();
+      }
+    }
+  }
+
   return { apptId, qId, cId, status: stdStatus };
 }
 
 module.exports = {
   syncVisitStatus,
   getFormattedDateString,
+  checkAndMarkMissedAppointments,
 };

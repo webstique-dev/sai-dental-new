@@ -327,7 +327,7 @@ export default function PatientDetail() {
                 <span className="badge bg-brand/10 text-brand font-mono text-xs font-bold">
                   {patient.opNumber || 'OP-000000'}
                 </span>
-                <span className="text-xs text-ink-soft">ID: {patient._id}</span>
+                {/* <span className="text-xs text-ink-soft">ID: {patient._id}</span> */}
               </div>
             </div>
           </div>

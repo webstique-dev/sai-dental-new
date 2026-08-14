@@ -1,10 +1,15 @@
 const FollowUp = require('../models/FollowUp');
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
+const User = require('../models/User');
+const { checkAndMarkMissedAppointments } = require('../utils/statusSync');
 
 // GET /api/follow-ups?status=&consultation=&patient=
 async function listFollowUps(req, res, next) {
   try {
+    // Auto-flag any passed appointments & follow-ups as Missed
+    await checkAndMarkMissedAppointments();
+
     const { status, search, consultation, patient } = req.query;
     const filter = {};
 
@@ -51,32 +56,65 @@ async function listFollowUps(req, res, next) {
 // POST /api/follow-ups (Manual add by receptionist or doctor)
 async function createFollowUp(req, res, next) {
   try {
-    const { patient, consultation, recommendedDate, reason, instructions, notes, treatmentStatus } = req.body;
+    const { patient, doctor, consultation, recommendedDate, reason, instructions, notes, treatmentStatus, time } = req.body;
 
     if (!patient) {
       return res.status(400).json({ message: 'Patient is required.' });
     }
 
+    const hasDate = Boolean(recommendedDate);
+
     const followUp = new FollowUp({
       patient,
       consultation: consultation || null,
-      recommendedDate: recommendedDate || new Date(),
+      recommendedDate: hasDate ? recommendedDate : null,
       reason: reason || '',
       instructions: instructions || '',
       notes: notes || '',
       treatmentStatus: treatmentStatus || '',
-      status: 'Pending',
+      status: hasDate ? 'Scheduled' : 'Pending',
       createdBy: req.user ? req.user._id : undefined,
     });
 
     await followUp.save();
 
+    // If a recommendedDate is specified, auto-create the linked Appointment immediately
+    if (hasDate) {
+      let assignedDoctor = doctor;
+      if (!assignedDoctor) {
+        const docUser = await User.findOne({ role: 'doctor' });
+        assignedDoctor = docUser ? docUser._id : undefined;
+      }
+
+      const newAppt = new Appointment({
+        patient,
+        doctor: assignedDoctor,
+        date: recommendedDate,
+        time: time || '10:00 AM',
+        reason: reason || 'Follow-Up Consultation',
+        type: 'Appointment',
+        status: 'Scheduled',
+        followUp: followUp._id,
+        createdBy: req.user ? req.user._id : undefined,
+      });
+
+      await newAppt.save();
+      followUp.scheduledAppointment = newAppt._id;
+      await followUp.save();
+    }
+
     const populated = await FollowUp.findById(followUp._id)
       .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate({
+        path: 'scheduledAppointment',
+        populate: { path: 'doctor', select: 'name specialization' },
+      })
       .populate('createdBy', 'name email');
 
     return res.status(201).json({
-      message: 'Follow-up created successfully',
+      message: hasDate
+        ? 'Follow-up created and appointment scheduled automatically'
+        : 'Follow-up created successfully',
       followUp: populated,
     });
   } catch (err) {

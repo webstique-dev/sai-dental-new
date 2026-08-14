@@ -300,6 +300,7 @@ async function closeConsultation(req, res, next) {
     // Handle optional Follow-Up payload
     if (followUp && typeof followUp === 'object') {
       const { recommendedDate, reason, instructions, treatmentStatus, notes } = followUp;
+      const Appointment = require('../models/Appointment');
 
       // Check if a FollowUp document already exists for this consultation
       let existingFollowUp = await FollowUp.findOne({ consultation: consultation._id });
@@ -310,25 +311,74 @@ async function closeConsultation(req, res, next) {
         if (instructions !== undefined) existingFollowUp.instructions = instructions;
         if (notes !== undefined) existingFollowUp.notes = notes;
         if (treatmentStatus !== undefined) existingFollowUp.treatmentStatus = treatmentStatus;
+
+        if (recommendedDate) {
+          let appt = null;
+          if (existingFollowUp.scheduledAppointment) {
+            appt = await Appointment.findById(existingFollowUp.scheduledAppointment);
+          }
+          if (!appt) {
+            appt = new Appointment({
+              patient: consultation.patient,
+              doctor: consultation.doctor,
+              date: recommendedDate,
+              time: '10:00 AM',
+              reason: reason || 'Follow-Up Consultation',
+              type: 'Appointment',
+              status: 'Scheduled',
+              followUp: existingFollowUp._id,
+              createdBy: req.user ? req.user._id : undefined,
+            });
+          } else {
+            appt.date = recommendedDate;
+            appt.reason = reason || appt.reason || 'Follow-Up Consultation';
+            appt.status = 'Scheduled';
+          }
+          await appt.save();
+          existingFollowUp.scheduledAppointment = appt._id;
+          existingFollowUp.status = 'Scheduled';
+        }
+
         await existingFollowUp.save();
         savedFollowUp = existingFollowUp;
       } else {
         savedFollowUp = new FollowUp({
           patient: consultation.patient,
           consultation: consultation._id,
-          recommendedDate: recommendedDate || new Date(),
+          recommendedDate: recommendedDate || null,
           reason: reason || 'Follow-up Visit',
           instructions: instructions || '',
           notes: notes || '',
           treatmentStatus: treatmentStatus || '',
-          status: 'Pending',
+          status: recommendedDate ? 'Scheduled' : 'Pending',
           createdBy: req.user ? req.user._id : undefined,
         });
         await savedFollowUp.save();
+
+        if (recommendedDate) {
+          const newAppt = new Appointment({
+            patient: consultation.patient,
+            doctor: consultation.doctor,
+            date: recommendedDate,
+            time: '10:00 AM',
+            reason: reason || 'Follow-Up Consultation',
+            type: 'Appointment',
+            status: 'Scheduled',
+            followUp: savedFollowUp._id,
+            createdBy: req.user ? req.user._id : undefined,
+          });
+          await newAppt.save();
+          savedFollowUp.scheduledAppointment = newAppt._id;
+          await savedFollowUp.save();
+        }
       }
 
       savedFollowUp = await FollowUp.findById(savedFollowUp._id)
         .populate('patient', 'firstName lastName opNumber phone age sex')
+        .populate({
+          path: 'scheduledAppointment',
+          populate: { path: 'doctor', select: 'name specialization' },
+        })
         .populate('createdBy', 'name email');
     }
 
