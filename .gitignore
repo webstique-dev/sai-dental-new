@@ -9,6 +9,7 @@ build/
 **/build/
 out/
 **/out/
+Dump
 
 # Environment files & secrets
 .env
