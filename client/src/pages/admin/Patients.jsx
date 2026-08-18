@@ -266,6 +266,7 @@ export default function AdminPatients() {
                 <th className="px-4 py-3">Patient Name</th>
                 <th className="px-4 py-3">Phone</th>
                 <th className="px-4 py-3">Age / Sex</th>
+                <th className="px-4 py-3">Patient Type</th>
                 <th className="px-4 py-3">Registration Date</th>
                 <th className="px-4 py-3">Registered By</th>
                 <th className="px-4 py-3 text-right">Actions</th>
@@ -274,13 +275,13 @@ export default function AdminPatients() {
             <tbody className="divide-y divide-border/60">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-ink-soft">
+                  <td colSpan={8} className="px-4 py-8 text-center text-ink-soft">
                     Loading patient directory...
                   </td>
                 </tr>
               ) : patients.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-ink-soft">
+                  <td colSpan={8} className="px-4 py-8 text-center text-ink-soft">
                     No patients match your search query.
                   </td>
                 </tr>
@@ -294,6 +295,7 @@ export default function AdminPatients() {
                       year: 'numeric',
                     })
                     : 'N/A';
+                  const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
 
                   return (
                     <tr
@@ -315,6 +317,16 @@ export default function AdminPatients() {
 
                       <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
                         {p.age ? `${p.age} yrs` : '—'} / {p.sex || '—'}
+                      </td>
+
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`badge font-semibold text-xs border px-2 py-0.5 ${
+                          isChild
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}>
+                          {isChild ? 'Child' : 'Adult'}
+                        </span>
                       </td>
 
                       <td className="px-4 py-3 text-ink-soft whitespace-nowrap">

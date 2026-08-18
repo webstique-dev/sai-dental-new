@@ -88,6 +88,7 @@ export default function Patients() {
                   <th className="px-5 py-3.5">Name</th>
                   <th className="px-5 py-3.5">Phone</th>
                   <th className="px-5 py-3.5">Age / Sex</th>
+                  <th className="px-5 py-3.5">Patient Type</th>
                   <th className="px-5 py-3.5">Registration Date</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
@@ -98,6 +99,7 @@ export default function Patients() {
                   const regDate = p.registrationDate
                     ? new Date(p.registrationDate).toLocaleDateString()
                     : 'N/A';
+                  const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
 
                   return (
                     <tr
@@ -111,11 +113,20 @@ export default function Patients() {
                       <td className="px-5 py-4 font-medium text-ink">
                         {fullName}
                       </td>
-                      <td className="px-5 py-4 text-ink-soft">
+                      <td className="px-5 py-4 text-ink-soft font-mono">
                         {p.phone || '—'}
                       </td>
                       <td className="px-5 py-4 text-ink-soft">
                         {p.age ? `${p.age}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`badge font-semibold text-xs border px-2 py-0.5 ${
+                          isChild
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}>
+                          {isChild ? 'Child' : 'Adult'}
+                        </span>
                       </td>
                       <td className="px-5 py-4 text-ink-soft">
                         {regDate}
