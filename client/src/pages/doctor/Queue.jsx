@@ -800,7 +800,16 @@ export default function DoctorQueue() {
                               </td>
 
                               <td className="px-5 py-4">
-                                <div className="font-bold text-ink">{patientName}</div>
+                                <div className="font-bold text-ink flex items-center gap-1.5">
+                                  <span>{patientName}</span>
+                                  <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${
+                                    (entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12))
+                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                      : 'bg-blue-50 text-blue-800 border-blue-200'
+                                  }`}>
+                                    {(entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12)) ? 'Child' : 'Adult'}
+                                  </span>
+                                </div>
                                 <div className="text-xs text-ink-soft">
                                   {entry.patient?.age ? `${entry.patient.age}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} {entry.patient?.phone ? `• ${entry.patient.phone}` : ''}
                                 </div>

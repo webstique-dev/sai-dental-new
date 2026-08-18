@@ -233,6 +233,7 @@ export default function DoctorPatients() {
                 <th className="px-5 py-3.5">OP Number</th>
                 <th className="px-5 py-3.5">Age / Sex</th>
                 <th className="px-5 py-3.5">Phone</th>
+                <th className="px-5 py-3.5">Patient Type</th>
                 <th className="px-5 py-3.5">
                   <button
                     onClick={() => handleSortToggle('lastVisit')}
@@ -252,13 +253,14 @@ export default function DoctorPatients() {
                     <td className="px-5 py-4"><div className="h-4 w-20 bg-bg rounded" /></td>
                     <td className="px-5 py-4"><div className="h-4 w-16 bg-bg rounded" /></td>
                     <td className="px-5 py-4"><div className="h-4 w-24 bg-bg rounded" /></td>
+                    <td className="px-5 py-4"><div className="h-4 w-20 bg-bg rounded" /></td>
                     <td className="px-5 py-4"><div className="h-4 w-28 bg-bg rounded" /></td>
                     <td className="px-5 py-4 text-right"><div className="h-6 w-16 bg-bg rounded ml-auto" /></td>
                   </tr>
                 ))
               ) : patients.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-ink-soft space-y-2">
+                  <td colSpan={7} className="px-5 py-12 text-center text-ink-soft space-y-2">
                     <UserSquare2 size={32} className="mx-auto text-ink-soft/40" />
                     <p className="font-semibold text-ink text-sm">No patients found</p>
                     <p className="text-xs">Try adjusting your search criteria or resetting filters.</p>
@@ -268,6 +270,7 @@ export default function DoctorPatients() {
                 patients.map((p) => {
                   const pId = p._id || p.id;
                   const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+                  const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
                   const lastVisitStr = p.lastVisitDate
                     ? new Date(p.lastVisitDate).toLocaleDateString(undefined, {
                       month: 'short',
@@ -298,6 +301,17 @@ export default function DoctorPatients() {
                       {/* Phone */}
                       <td className="px-5 py-4 whitespace-nowrap font-mono text-ink-soft">
                         {p.phone || '—'}
+                      </td>
+
+                      {/* Patient Type */}
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className={`badge font-semibold text-xs border px-2 py-0.5 ${
+                          isChild
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}>
+                          {isChild ? 'Child' : 'Adult'}
+                        </span>
                       </td>
 
                       {/* Last Visit */}
