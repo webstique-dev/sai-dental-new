@@ -9,6 +9,7 @@ import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validatePhone, validateAge } from '../../utils/validators.js';
 
 const STATUS_BADGE_CLASSES = {
@@ -154,6 +155,27 @@ export default function Queue() {
     fetchDoctors();
     fetchTodayQueue();
   }, []);
+
+  // Real-Time Socket Event Listeners for Receptionist Queue Workspace
+  useSocketEvent('QUEUE_UPDATED', () => {
+    fetchTodayQueue();
+    if (activeTab === 'completed') fetchCompletedQueue(dateFilter);
+  });
+
+  useSocketEvent('APPOINTMENT_UPDATED', () => {
+    fetchTodayQueue();
+    if (activeTab === 'completed') fetchCompletedQueue(dateFilter);
+  });
+
+  useSocketEvent('CONSULTATION_STARTED', () => {
+    fetchTodayQueue();
+    if (activeTab === 'completed') fetchCompletedQueue(dateFilter);
+  });
+
+  useSocketEvent('CONSULTATION_COMPLETED', () => {
+    fetchTodayQueue();
+    if (activeTab === 'completed') fetchCompletedQueue(dateFilter);
+  });
 
   // Fetch completed queue when activeTab becomes 'completed' or filters change
   useEffect(() => {

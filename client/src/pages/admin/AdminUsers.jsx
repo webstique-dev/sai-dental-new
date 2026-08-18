@@ -3,6 +3,7 @@ import { UserPlus, Power, Edit3, KeyRound, X, ShieldAlert } from 'lucide-react';
 import api from '../../api/axios.js';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validateEmail, validatePhone } from '../../utils/validators.js';
 
 const ROLE_BADGE = {
@@ -44,6 +45,10 @@ export default function AdminUsers() {
       setLoading(false);
     }
   }
+
+  useSocketEvent('USER_STATUS_UPDATED', () => {
+    fetchUsers();
+  });
 
   useEffect(() => {
     fetchUsers();

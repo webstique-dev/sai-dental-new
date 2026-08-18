@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, UserPlus, ChevronLeft, ChevronRight, Eye, UserSquare2 } from 'lucide-react';
 import api from '../../api/axios.js';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 
 export default function Patients() {
   const navigate = useNavigate();
@@ -25,6 +26,14 @@ export default function Patients() {
       setLoading(false);
     }
   };
+
+  useSocketEvent('PATIENT_CREATED', () => {
+    fetchPatients(search, page);
+  });
+
+  useSocketEvent('PATIENT_UPDATED', () => {
+    fetchPatients(search, page);
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => {

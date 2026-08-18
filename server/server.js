@@ -110,13 +110,19 @@ app.use((err, req, res, next) => {
   });
 });
 
+const http = require('http');
+const { initSocket } = require('./utils/socket');
 const { checkAndMarkMissedAppointments } = require('./utils/statusSync');
 
 const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+initSocket(server);
 
 connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Dental Clinic API running on port ${PORT}`);
+  server.listen(PORT, () => {
+    console.log(`Dental Clinic API & Socket.IO running on port ${PORT}`);
     // Run initial missed appointments check on startup & repeat every 15 minutes
     checkAndMarkMissedAppointments(30);
     setInterval(() => {

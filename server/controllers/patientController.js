@@ -2,6 +2,7 @@ const Patient = require('../models/Patient');
 const { logAction } = require('../middleware/auditLog');
 const { canDoctorAccessPatient } = require('../utils/patientAuth');
 const { validatePatientData } = require('../middleware/inputValidation');
+const { emitPatientUpdate } = require('../utils/socket');
 
 // GET /api/patients?search=&lastVisitFrom=&lastVisitTo=&doctorId=&sort=&sortBy=&sortOrder=&page=&limit=
 async function listPatients(req, res, next) {
@@ -242,6 +243,8 @@ async function createPatient(req, res, next) {
       },
     });
 
+    emitPatientUpdate(patient, true);
+
     return res.status(201).json({
       message: 'Patient registered successfully',
       patient,
@@ -310,6 +313,8 @@ async function updatePatient(req, res, next) {
     if (!patient) {
       return res.status(404).json({ message: 'Patient not found' });
     }
+
+    emitPatientUpdate(patient, false);
 
     return res.json({
       message: 'Patient updated successfully',

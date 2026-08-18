@@ -4,6 +4,7 @@ const Appointment = require('../models/Appointment');
 const Consultation = require('../models/Consultation');
 const { syncVisitStatus, getFormattedDateString } = require('../utils/statusSync');
 const { getDayBounds } = require('./appointmentController');
+const { emitQueueUpdate, emitAppointmentUpdate } = require('../utils/socket');
 
 async function getNextTokenForDate(queueDateStr) {
   const { start, end } = getDayBounds(new Date(queueDateStr));
@@ -176,6 +177,9 @@ async function createWalkIn(req, res, next) {
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
 
+    emitQueueUpdate(populated);
+    emitAppointmentUpdate(newAppointment);
+
     return res.status(201).json({
       message: 'Walk-in patient checked in successfully',
       queueEntry: populated,
@@ -236,6 +240,9 @@ async function checkInAppointment(req, res, next) {
         .populate('doctor', 'name email role specialization')
         .populate('appointment', 'time reason status type');
 
+      emitQueueUpdate(populated);
+      emitAppointmentUpdate(populated.appointment || appointment);
+
       return res.json({ message: 'Appointment checked in successfully', queueEntry: populated });
     }
 
@@ -260,6 +267,8 @@ async function checkInAppointment(req, res, next) {
       .populate('patient', 'firstName lastName opNumber phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
+
+    emitQueueUpdate(populated);
 
     return res.json({ message: 'Patient checked in successfully', queueEntry: populated });
   } catch (err) {
@@ -311,6 +320,9 @@ async function updateQueueStatus(req, res, next) {
       .populate('patient', 'firstName lastName opNumber phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
+
+    emitQueueUpdate(populated);
+    if (populated.appointment) emitAppointmentUpdate(populated.appointment);
 
     return res.json({ message: 'Queue status updated successfully', queueEntry: populated });
   } catch (err) {

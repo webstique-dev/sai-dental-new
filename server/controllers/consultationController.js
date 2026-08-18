@@ -6,6 +6,7 @@ const { logAction } = require('../middleware/auditLog');
 const { syncVisitStatus } = require('../utils/statusSync');
 const { getDayBounds } = require('./appointmentController');
 const { updateConsultationTotals } = require('../utils/consultationTotalsSync');
+const { emitConsultationUpdate, emitQueueUpdate } = require('../utils/socket');
 
 // Immutability Guard Helper: Rejects write actions on closed consultations with HTTP 403
 async function checkConsultationNotClosed(consultationId) {
@@ -264,6 +265,8 @@ async function startConsultation(req, res, next) {
       .populate('queueEntry')
       .populate('appointment');
 
+    emitConsultationUpdate(populated, 'CONSULTATION_STARTED');
+
     return res.status(201).json({
       message: 'Consultation started successfully',
       consultation: populated,
@@ -490,6 +493,8 @@ async function closeConsultation(req, res, next) {
         followUp: savedFollowUp ? savedFollowUp._id : null,
       },
     });
+
+    emitConsultationUpdate(consultation, 'CONSULTATION_COMPLETED');
 
     return res.json({
       message: 'Consultation closed successfully. Pending bill generated.',

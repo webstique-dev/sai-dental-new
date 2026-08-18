@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const ClinicSettings = require('../models/ClinicSettings');
 const { logAction } = require('../middleware/auditLog');
+const { emitUserStatusUpdate } = require('../utils/socket');
 
 // All routes here are mounted behind protect + allowRoles('admin') in routes/userRoutes.js
 // per PRD section 27 (Admin User Management) and section 4 (only Admin manages users/roles).
@@ -108,9 +109,12 @@ async function disableUser(req, res) {
       { targetUserId: user._id }
     ).catch(() => {});
 
+    const safeUser = user.toSafeObject();
+    emitUserStatusUpdate(safeUser);
+
     return res.json({
       message: `User ${user.name} is now ${isNowActive ? 'Active' : 'Inactive'}.`,
-      user: user.toSafeObject(),
+      user: safeUser,
     });
   } catch (err) {
     return res.status(500).json({ message: 'Failed to update user status.' });

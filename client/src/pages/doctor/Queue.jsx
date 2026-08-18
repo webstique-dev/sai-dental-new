@@ -8,6 +8,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -231,11 +232,32 @@ export default function DoctorQueue() {
     }
   };
 
-  const refreshAll = () => {
-    fetchDoctorToday();
-    fetchUpcomingAppointments();
-    fetchAppointmentHistory();
+  const refreshAll = async () => {
+    await Promise.all([
+      fetchDoctorToday().catch(() => {}),
+      fetchUpcomingAppointments().catch(() => {}),
+      fetchAppointmentHistory().catch(() => {}),
+    ]);
   };
+
+  const handleRefreshAll = refreshAll;
+
+  // Real-Time Socket Event Listeners for Doctor Workspace
+  useSocketEvent('APPOINTMENT_UPDATED', () => {
+    refreshAll();
+  });
+
+  useSocketEvent('QUEUE_UPDATED', () => {
+    refreshAll();
+  });
+
+  useSocketEvent('CONSULTATION_STARTED', () => {
+    refreshAll();
+  });
+
+  useSocketEvent('CONSULTATION_COMPLETED', () => {
+    refreshAll();
+  });
 
   useEffect(() => {
     refreshAll();

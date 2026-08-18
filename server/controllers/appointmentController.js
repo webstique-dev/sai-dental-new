@@ -2,6 +2,7 @@ const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 const FollowUp = require('../models/FollowUp');
 const { syncVisitStatus, checkAndMarkMissedAppointments } = require('../utils/statusSync');
+const { emitAppointmentUpdate } = require('../utils/socket');
 
 function getDayBounds(dateInput) {
   let d;
@@ -128,6 +129,8 @@ async function createAppointment(req, res, next) {
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 
+    emitAppointmentUpdate(appointment);
+
     return res.status(201).json({
       message: 'Appointment created successfully',
       appointment,
@@ -183,6 +186,8 @@ async function updateAppointment(req, res, next) {
       }
     }
 
+    emitAppointmentUpdate(updated);
+
     return res.json({
       message: 'Appointment updated successfully',
       appointment: updated,
@@ -213,6 +218,8 @@ async function cancelAppointment(req, res, next) {
 
     // Sync status across models (updates linked FollowUp to Cancelled)
     await syncVisitStatus({ appointmentId: cancelled._id, status: 'Cancelled' });
+
+    emitAppointmentUpdate(cancelled);
 
     return res.json({
       message: 'Appointment cancelled successfully',
