@@ -30,6 +30,7 @@ export default function PatientRegistration() {
     lastName: '',
     age: '',
     sex: '',
+    patientType: 'adult',
     dateOfBirth: '',
     occupation: '',
     address: '',
@@ -41,6 +42,7 @@ export default function PatientRegistration() {
     dentalHistory: '',
   });
 
+  const [userManuallySetPatientType, setUserManuallySetPatientType] = useState(false);
   const [similarPatients, setSimilarPatients] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [customMedicalInput, setCustomMedicalInput] = useState('');
@@ -120,6 +122,32 @@ export default function PatientRegistration() {
     return () => clearTimeout(timer);
   }, [formData.firstName, formData.lastName, formData.phone]);
 
+  // Auto-detect Patient Type (Adult vs Child) based on age/DOB unless manually overridden
+  useEffect(() => {
+    if (userManuallySetPatientType) return;
+
+    let calcAge = null;
+    if (formData.age) {
+      calcAge = parseInt(formData.age, 10);
+    } else if (formData.dateOfBirth) {
+      const birth = new Date(formData.dateOfBirth);
+      const now = new Date();
+      let diff = now.getFullYear() - birth.getFullYear();
+      const m = now.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+        diff--;
+      }
+      calcAge = diff;
+    }
+
+    if (calcAge !== null && !isNaN(calcAge)) {
+      const detected = calcAge < 12 ? 'child' : 'adult';
+      if (formData.patientType !== detected) {
+        setFormData((prev) => ({ ...prev, patientType: detected }));
+      }
+    }
+  }, [formData.age, formData.dateOfBirth, userManuallySetPatientType]);
+
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -158,12 +186,10 @@ export default function PatientRegistration() {
       }
     }
 
-    if (formData.phone) {
-      const phoneErr = validatePhone(formData.phone, false);
-      if (phoneErr) {
-        showError(phoneErr);
-        return;
-      }
+    const phoneErr = validatePhone(formData.phone, true);
+    if (phoneErr) {
+      showError(phoneErr);
+      return;
     }
 
     if (formData.dateOfBirth) {
@@ -199,14 +225,15 @@ export default function PatientRegistration() {
       const res = await api.post('/patients', payload);
       const newPatient = res.data?.patient;
 
-      showSuccess(`Patient ${newPatient?.opNumber || ''} registered successfully!`);
+      showSuccess(`Patient ${newPatient?.opNumber || ''} registered successfully! Redirecting to appointments...`);
       setTimeout(() => {
-        if (newPatient?._id) {
-          navigate(`/reception/patients/${newPatient._id}`);
-        } else {
-          navigate('/reception/patients');
-        }
-      }, 1000);
+        navigate('/reception/appointments', {
+          state: {
+            newPatient,
+            autoOpenCreate: true,
+          },
+        });
+      }, 800);
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to register patient. Please try again.');
     } finally {
@@ -217,7 +244,7 @@ export default function PatientRegistration() {
   return (
     <div className="max-w-4xl space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link
             to="/reception/patients"
@@ -226,10 +253,19 @@ export default function PatientRegistration() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h2 className="font-display text-xl font-bold text-ink">New Patient Registration</h2>
-            <p className="text-sm text-ink-soft">Create a new Dental OP Record</p>
+            <h2 className="font-display text-xl font-bold text-ink">Register & Book Appointment</h2>
+            <p className="text-sm text-ink-soft">Create a new Dental OP Record and schedule an appointment</p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="btn-primary shrink-0"
+        >
+          <UserPlus size={18} />
+          <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
+        </button>
       </div>
 
       {/* Soft Duplicate Warning */}
@@ -286,11 +322,11 @@ export default function PatientRegistration() {
               <label className="block text-xs font-semibold text-ink-soft mb-1">Phone Number</label>
               <input
                 type="tel"
-                maxLength={15}
+                maxLength={10}
                 className="input-field font-mono"
                 placeholder="e.g. 9876543210"
                 value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
+                onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
               />
             </div>
             <div>
@@ -329,6 +365,46 @@ export default function PatientRegistration() {
                 onChange={(date, dateStr) => handleChange('dateOfBirth', dateStr)}
                 maxDate={new Date()}
               />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-ink-soft mb-1">
+                Patient Type (Dentition) <span className="text-rose-600">*</span>
+              </label>
+              <div className="inline-flex rounded-xl border border-border bg-bg p-1 w-full" role="radiogroup" aria-label="Patient Type">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={formData.patientType === 'adult'}
+                  onClick={() => {
+                    setUserManuallySetPatientType(true);
+                    handleChange('patientType', 'adult');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    formData.patientType === 'adult'
+                      ? 'bg-brand text-white shadow-sm'
+                      : 'text-ink-soft hover:text-ink'
+                  }`}
+                >
+                  Adult (Permanent 32 Teeth)
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={formData.patientType === 'child'}
+                  onClick={() => {
+                    setUserManuallySetPatientType(true);
+                    handleChange('patientType', 'child');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    formData.patientType === 'child'
+                      ? 'bg-brand text-white shadow-sm'
+                      : 'text-ink-soft hover:text-ink'
+                  }`}
+                >
+                  Child (Primary 20 Teeth)
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">Occupation</label>
@@ -667,7 +743,7 @@ export default function PatientRegistration() {
             className="btn-primary"
           >
             <UserPlus size={18} />
-            <span>{submitting ? 'Registering...' : 'Register Patient'}</span>
+            <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
           </button>
         </div>
       </form>

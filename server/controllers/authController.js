@@ -16,8 +16,9 @@ async function login(req, res) {
     return res.status(401).json({ message: 'Invalid email or password.' });
   }
 
-  if (user.status === 'disabled') {
-    return res.status(403).json({ message: 'This account has been disabled. Contact your administrator.' });
+  const userStatus = (user.status || 'active').toLowerCase();
+  if (userStatus === 'disabled' || userStatus === 'inactive') {
+    return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
   }
 
   const isMatch = await user.comparePassword(password);

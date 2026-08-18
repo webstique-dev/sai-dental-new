@@ -47,10 +47,14 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-white">
-            <Activity size={22} strokeWidth={2.5} />
+          <div className="mb-3 flex h-14 w-auto items-center justify-center">
+            <img
+              src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png"
+              alt="Sai Dental Logo"
+              className="h-14 w-auto object-contain rounded-xl"
+            />
           </div>
-          <h1 className="font-display text-lg font-bold text-ink">Sai Dental Clinic – Digital Platform</h1>
+          {/* <h1 className="font-display text-lg font-bold text-ink">Sai Dental Clinic – Digital Platform</h1> */}
           <p className="mt-1 text-sm text-ink-soft">Sign in to your clinic workspace</p>
         </div>
 

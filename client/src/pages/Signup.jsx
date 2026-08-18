@@ -192,11 +192,11 @@ export default function Signup() {
                 <label className="block font-semibold text-ink-soft mb-1">Phone Number (Optional)</label>
                 <input
                   type="tel"
-                  maxLength={15}
+                  maxLength={10}
                   className="input-field font-mono"
                   placeholder="9876543210"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 />
               </div>
             </div>

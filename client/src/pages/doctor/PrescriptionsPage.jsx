@@ -1,22 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Pill, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Plus, Calendar, Printer
+  Pill, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Calendar, Printer, FileText, ChevronRight
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
-import PrescriptionsTab from './consultation/PrescriptionsTab.jsx';
-import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
+import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistoryPanel.jsx';
 
 export default function PrescriptionsPage() {
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedConsultation, setSelectedConsultation] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
 
   // Filter controls
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [showNewModal, setShowNewModal] = useState(false);
 
   const fetchPrescriptionsList = async () => {
     try {
@@ -50,24 +48,57 @@ export default function PrescriptionsPage() {
 
   const hasActiveFilters = Boolean(search || dateFrom || dateTo);
 
-  // If a record is selected for Viewing/Editing
-  if (selectedConsultation) {
-    const p = selectedConsultation.patient || {};
+  // Group consultations by Patient ID so each patient appears exactly ONCE in the list
+  const patientGroups = useMemo(() => {
+    const map = new Map();
+
+    consultations.forEach((c) => {
+      if (!c.patient) return;
+      const p = c.patient;
+      const pId = (p._id || p.id || p).toString();
+
+      if (!map.has(pId)) {
+        map.set(pId, {
+          patient: p,
+          consultations: [],
+          latestVisitDate: c.startedAt || c.visitDate || c.createdAt,
+          totalPrescriptionsCount: 0,
+        });
+      }
+
+      const group = map.get(pId);
+      group.consultations.push(c);
+
+      const rxCount = (c.prescriptions || []).length;
+      group.totalPrescriptionsCount += rxCount;
+
+      const thisDate = new Date(c.startedAt || c.visitDate || c.createdAt);
+      if (!group.latestVisitDate || thisDate > new Date(group.latestVisitDate)) {
+        group.latestVisitDate = c.startedAt || c.visitDate || c.createdAt;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [consultations]);
+
+  // If a Patient is selected to view their complete prescription history
+  if (selectedPatient) {
+    const p = selectedPatient;
     const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
-    const isCompleted = selectedConsultation.status === 'Completed';
+    const patientId = p._id || p.id;
 
     return (
       <div className="space-y-6 max-w-6xl">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => setSelectedConsultation(null)}
+            onClick={() => setSelectedPatient(null)}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline"
           >
             <ArrowLeft size={16} /> Back to Prescriptions Directory
           </button>
 
-          <span className={`badge border text-xs ${isCompleted ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-purple-100 text-purple-800 border-purple-200'}`}>
-            {isCompleted ? 'Historical / Read-Only' : 'Active Visit Prescription'}
+          <span className="badge border text-xs bg-emerald-100 text-emerald-800 border-emerald-200 font-semibold">
+            Patient Prescription History
           </span>
         </div>
 
@@ -85,14 +116,17 @@ export default function PrescriptionsPage() {
                 </span>
               </div>
               <p className="text-xs text-ink-soft mt-0.5">
-                Doctor: <strong>Dr. {selectedConsultation.doctor?.name || 'Staff Doctor'}</strong> • Date Issued:{' '}
-                <strong>{new Date(selectedConsultation.visitDate || selectedConsultation.startedAt || selectedConsultation.createdAt).toLocaleDateString()}</strong>
+                {p.age ? `Age: ${p.age} yrs` : ''} {p.sex ? `• Sex: ${p.sex}` : ''} {p.phone ? `• Contact: ${p.phone}` : ''}
               </p>
             </div>
           </div>
         </div>
 
-        <PrescriptionsTab consultation={selectedConsultation} isReadOnly={isCompleted} />
+        {/* Complete Prescription History Panel for this Patient */}
+        <PrescriptionHistoryPanel
+          patientId={patientId}
+          title={`${patientName}'s Complete Prescription History`}
+        />
       </div>
     );
   }
@@ -103,19 +137,12 @@ export default function PrescriptionsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <Pill size={26} className="text-brand" /> Clinical Prescriptions Directory
+            <Pill size={26} className="text-brand" /> Prescription History Directory
           </h1>
           <p className="text-xs text-ink-soft mt-0.5">
-            Directory of issued patient prescriptions, medicine dosages, frequencies, and printable output documents.
+            Directory of patient prescription records, medicine dosages, frequencies, and printable output documents.
           </p>
         </div>
-
-        <button
-          onClick={() => setShowNewModal(true)}
-          className="btn-primary py-2 px-4 text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <Plus size={16} /> Issue New Prescription
-        </button>
       </div>
 
       {/* SEARCH & FILTER BAR */}
@@ -166,16 +193,16 @@ export default function PrescriptionsPage() {
         </div>
       </div>
 
-      {/* PRESCRIPTIONS TABLE */}
+      {/* UNIQUE PATIENT PRESCRIPTIONS TABLE */}
       <div className="card overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-xs text-ink-soft">Loading prescription records...</div>
-        ) : consultations.length === 0 ? (
+        ) : patientGroups.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <Pill size={36} className="mx-auto text-ink-soft/40" />
-            <p className="font-display text-base font-semibold text-ink">No prescription records found</p>
+            <p className="font-display text-base font-semibold text-ink">No prescription history available.</p>
             <p className="text-xs text-ink-soft">
-              {hasActiveFilters ? 'Try adjusting your search criteria.' : 'Click "Issue New Prescription" to write a prescription.'}
+              {hasActiveFilters ? 'Try adjusting your search criteria.' : 'Prescriptions created during patient consultations will automatically be recorded here.'}
             </p>
           </div>
         ) : (
@@ -185,41 +212,28 @@ export default function PrescriptionsPage() {
                 <tr>
                   <th className="px-5 py-3.5">Patient Name</th>
                   <th className="px-5 py-3.5">OP Number</th>
-                  <th className="px-5 py-3.5">Date Issued</th>
-                  <th className="px-5 py-3.5">Medicines</th>
-                  <th className="px-5 py-3.5">Doctor</th>
+                  <th className="px-5 py-3.5">Age / Sex</th>
+                  <th className="px-5 py-3.5">Phone Number</th>
+                  <th className="px-5 py-3.5">Latest Visit Date</th>
+                  <th className="px-5 py-3.5">Prescriptions</th>
                   <th className="px-5 py-3.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {consultations.map((c) => {
-                  const cId = c._id || c.id;
-                  const p = c.patient || {};
+                {patientGroups.map((group) => {
+                  const p = group.patient;
+                  const pId = p._id || p.id;
                   const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
-                  const dateIssuedStr = c.startedAt || c.visitDate || c.createdAt
-                    ? new Date(c.startedAt || c.visitDate || c.createdAt).toLocaleDateString(undefined, {
+                  const latestDateStr = group.latestVisitDate
+                    ? new Date(group.latestVisitDate).toLocaleDateString(undefined, {
                         month: 'short', day: 'numeric', year: 'numeric',
                       })
                     : 'N/A';
 
-                  const rxList = c.prescriptions || [];
-                  const medicinesList = [];
-                  rxList.forEach((rx) => {
-                    (rx.medicines || []).forEach((m) => {
-                      medicinesList.push(`${m.medicine}${m.dosage ? ` (${m.dosage})` : ''}`);
-                    });
-                  });
-
-                  const medicinesStr = medicinesList.length > 0
-                    ? medicinesList.join(', ')
-                    : 'No medicines issued for this visit';
-
-                  const doctorName = c.doctor?.name ? `Dr. ${c.doctor.name}` : 'Staff Doctor';
-
                   return (
                     <tr
-                      key={cId}
-                      onClick={() => setSelectedConsultation(c)}
+                      key={pId}
+                      onClick={() => setSelectedPatient(p)}
                       className="hover:bg-bg/60 cursor-pointer transition-colors group"
                     >
                       <td className="px-5 py-4 font-bold text-ink">
@@ -234,15 +248,21 @@ export default function PrescriptionsPage() {
                       </td>
 
                       <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
-                        {dateIssuedStr}
+                        {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''} {!p.age && !p.sex ? '—' : ''}
                       </td>
 
-                      <td className="px-5 py-4 text-brand font-medium max-w-sm">
-                        <span className="line-clamp-2">{medicinesStr}</span>
+                      <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                        {p.phone || '—'}
                       </td>
 
-                      <td className="px-5 py-4 font-semibold text-ink whitespace-nowrap">
-                        {doctorName}
+                      <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                        {latestDateStr}
+                      </td>
+
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className="badge bg-brand-light/50 text-brand-dark font-mono font-bold text-xs">
+                          {group.totalPrescriptionsCount} {group.totalPrescriptionsCount === 1 ? 'Prescription' : 'Prescriptions'}
+                        </span>
                       </td>
 
                       <td className="px-5 py-4 text-right whitespace-nowrap">
@@ -250,11 +270,11 @@ export default function PrescriptionsPage() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedConsultation(c);
+                            setSelectedPatient(p);
                           }}
                           className="btn-secondary py-1 px-3 text-xs font-semibold inline-flex items-center gap-1.5"
                         >
-                          <Eye size={14} /> View
+                          <Eye size={14} /> View History
                         </button>
                       </td>
                     </tr>
@@ -265,34 +285,6 @@ export default function PrescriptionsPage() {
           </div>
         )}
       </div>
-
-      {/* NEW PRESCRIPTION MODAL */}
-      {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm overflow-hidden">
-          <div className="card w-full max-w-xl p-6 bg-surface space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-                <Pill size={18} className="text-brand" /> Issue New Prescription
-              </h3>
-              <button onClick={() => setShowNewModal(false)} className="text-ink-soft hover:text-ink">
-                <X size={18} />
-              </button>
-            </div>
-
-            <DoctorPatientHeader
-              title="Select Patient Workspace"
-              description="Choose a patient from today's active queue or directory to issue a prescription."
-              icon={UserSquare2}
-              onPatientChange={(pId, c) => {
-                if (c) {
-                  setSelectedConsultation(c);
-                  setShowNewModal(false);
-                }
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

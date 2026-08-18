@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const ClinicSettings = require('../models/ClinicSettings');
 const { logAction } = require('../middleware/auditLog');
 
 // All routes here are mounted behind protect + allowRoles('admin') in routes/userRoutes.js
@@ -83,30 +84,92 @@ async function resetPassword(req, res) {
 
 // PATCH /api/users/:id/disable
 async function disableUser(req, res) {
-  const user = await User.findById(req.params.id);
-  if (!user) {
-    return res.status(404).json({ message: 'User not found.' });
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Prevent admin from deactivating their own account
+    if (req.user && req.user._id && req.user._id.toString() === user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot deactivate your own active user account.' });
+    }
+
+    const isCurrentlyActive = (user.status || 'active').toLowerCase() === 'active';
+    user.status = isCurrentlyActive ? 'inactive' : 'active';
+    await user.save();
+
+    const isNowActive = user.status === 'active';
+
+    await logAction(
+      req.user?._id || user._id,
+      isNowActive ? 'USER_ENABLED' : 'USER_DISABLED',
+      `User ${user.name} status changed to ${isNowActive ? 'Active' : 'Inactive'}`,
+      { targetUserId: user._id }
+    ).catch(() => {});
+
+    return res.json({
+      message: `User ${user.name} is now ${isNowActive ? 'Active' : 'Inactive'}.`,
+      user: user.toSafeObject(),
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Failed to update user status.' });
   }
-  user.status = user.status === 'active' ? 'disabled' : 'active';
-  await user.save();
-  res.json({ user: user.toSafeObject() });
 }
 
-// GET /api/users/doctors (accessible by Receptionist and Admin)
+// GET /api/users/doctors (accessible by Receptionist, Admin, Doctor)
 async function listDoctors(req, res) {
   try {
-    const doctors = await User.find({ role: 'doctor', status: 'active' }).select('name email phone specialization role');
+    const [doctors, settings] = await Promise.all([
+      User.find({ role: 'doctor', status: 'active' }).select('name email phone specialization role status'),
+      ClinicSettings.findOne().populate('primaryDoctor', 'name email phone specialization role status'),
+    ]);
+
+    const doctorsMap = new Map();
+
+    // 1. If Primary Doctor is set, add primary doctor first
+    if (settings && settings.primaryDoctor) {
+      const pd = settings.primaryDoctor;
+      const pdIdStr = pd._id.toString();
+      doctorsMap.set(pdIdStr, {
+        _id: pd._id,
+        id: pd._id,
+        name: pd.name,
+        email: pd.email,
+        phone: pd.phone,
+        specialization: pd.specialization,
+        role: pd.role,
+        status: pd.status,
+        isPrimary: true,
+      });
+    }
+
+    // 2. Add remaining active doctors (deduplicating if already present)
+    doctors.forEach((d) => {
+      const dIdStr = d._id.toString();
+      if (!doctorsMap.has(dIdStr)) {
+        doctorsMap.set(dIdStr, {
+          _id: d._id,
+          id: d._id,
+          name: d.name,
+          email: d.email,
+          phone: d.phone,
+          specialization: d.specialization,
+          role: d.role,
+          status: d.status,
+          isPrimary: false,
+        });
+      } else {
+        const existing = doctorsMap.get(dIdStr);
+        existing.isPrimary = true;
+      }
+    });
+
+    const doctorList = Array.from(doctorsMap.values());
+
     res.json({
-      doctors: doctors.map((d) => ({
-        _id: d._id,
-        id: d._id,
-        name: d.name,
-        email: d.email,
-        phone: d.phone,
-        specialization: d.specialization,
-        role: d.role,
-        status: d.status,
-      })),
+      doctors: doctorList,
+      primaryDoctorId: settings?.primaryDoctor?._id || null,
     });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch doctors' });

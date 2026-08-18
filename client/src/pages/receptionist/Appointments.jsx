@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CalendarDays, List, Plus, Search, Filter, X, CheckCircle2, AlertTriangle,
   Clock, UserCheck, UserX, Trash2, Edit3, RefreshCw, ChevronRight,
@@ -75,6 +76,8 @@ const STATUS_BADGE_CLASSES = {
 
 export default function Appointments() {
   const { showSuccess, showError } = useNotification();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Main view state
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
@@ -139,6 +142,27 @@ export default function Appointments() {
     }
     fetchDoctors();
   }, []);
+
+  // Auto-open create modal if redirected from patient registration
+  useEffect(() => {
+    if (location.state?.autoOpenCreate && location.state?.newPatient) {
+      const p = location.state.newPatient;
+      setSelectedPatient(p);
+      setPatientSearch(`${p.firstName || ''} ${p.lastName || ''}`.trim());
+      const firstDocId = doctors[0]?._id || doctors[0]?.id || '';
+      const { dateStr, timeStr } = getInitialExactDateTime();
+      setFormData({
+        patient: p._id,
+        doctor: firstDocId,
+        date: dateStr,
+        time: timeStr,
+        type: 'Appointment',
+        reason: '',
+      });
+      setShowCreateModal(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, doctors, navigate]);
 
   // Fetch appointments based on filters
   const fetchAppointments = async () => {

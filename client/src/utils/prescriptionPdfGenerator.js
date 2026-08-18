@@ -3,24 +3,39 @@
  * and open it in a dedicated window/preview for printing or saving as PDF.
  */
 
-export function generatePrescriptionHTML({ rx, consultation, clinicSettings, diagnoses = [] }) {
+export function generatePrescriptionHTML(params = {}) {
+  const { rx = {}, consultation = {}, clinicSettings = {}, diagnoses = [] } = params || {};
+
   const patient = consultation?.patient || rx?.patient || {};
   const doctor = rx?.recordedBy || consultation?.doctor || {};
 
-  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
-  const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Doctor';
-  const doctorQual = doctor.specialization || 'BDS, MDS - Dental Specialist & Oral Surgeon';
+  const patientName = [patient?.firstName, patient?.lastName].filter(Boolean).join(' ') || 'Patient';
+  const doctorName = doctor?.name ? `Dr. ${doctor.name}` : 'Doctor';
+  const doctorQual = doctor?.specialization || 'BDS, MDS - Dental Specialist & Oral Surgeon';
   const rxDate = new Date(rx?.createdAt || Date.now()).toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
-  const rxRefNo = `RX-${(patient.opNumber || '0000').replace(/[^0-9]/g, '')}-${(rx?._id || '000000').slice(-6).toUpperCase()}`;
-  const visitId = consultation?._id ? `VISIT-${consultation._id.slice(-6).toUpperCase()}` : 'N/A';
 
-  const diagnosisList = diagnoses.length > 0
-    ? diagnoses.map((d) => `${d.diagnosis}${d.relatedTeeth?.length ? ` (Teeth: #${d.relatedTeeth.join(', #')})` : ''}`).join(', ')
+  const opNoStr = String(patient?.opNumber || '0000').replace(/[^0-9A-Za-z-]/g, '');
+  const rxIdStr = String(rx?._id || rx?.id || '000000').slice(-6).toUpperCase();
+  const rxRefNo = `RX-${opNoStr || '0000'}-${rxIdStr}`;
+
+  const visitId = consultation?._id
+    ? `VISIT-${String(consultation._id).slice(-6).toUpperCase()}`
+    : (rx?.consultation
+        ? `VISIT-${String(rx.consultation._id || rx.consultation).slice(-6).toUpperCase()}`
+        : 'N/A');
+
+  const diagnosisList = Array.isArray(diagnoses) && diagnoses.length > 0
+    ? diagnoses.map((d) => `${d?.diagnosis || ''}${d?.relatedTeeth?.length ? ` (Teeth: #${d.relatedTeeth.join(', #')})` : ''}`).filter(Boolean).join(', ')
     : '';
+
+  const safeClinicName = clinicSettings?.clinicName || 'Sai Dental Clinic';
+  const safeAddress = clinicSettings?.address || '123 Healthcare Ave, Medical District';
+  const safePhone = clinicSettings?.phone || '+91 98765 43210';
+  const safeEmail = clinicSettings?.email || 'contact@sai-dentalclinic.com';
 
   const medicinesRows = (rx?.medicines || []).map((m, idx) => `
     <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
@@ -292,16 +307,16 @@ export function generatePrescriptionHTML({ rx, consultation, clinicSettings, dia
         <!-- HEADER -->
         <div class="header">
           <div class="clinic-brand">
-            <div class="clinic-logo-icon">🦷</div>
+            <img src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png" alt="Sai Dental Logo" style="height: 48px; width: auto; object-fit: contain; border-radius: 8px;" />
             <div>
-              <h1 class="clinic-title">${clinicSettings.clinicName || 'Sai Dental Clinic'}</h1>
+              <h1 class="clinic-title">${safeClinicName}</h1>
               <p class="clinic-subtitle">Center for Digital Dentistry & Super-Specialty Oral Care</p>
             </div>
           </div>
           <div class="clinic-contact">
-            <p style="margin: 0; font-weight: 700; color: #0f172a;">${clinicSettings.address || '123 Healthcare Ave, Medical District'}</p>
-            <p style="margin: 2px 0 0 0;">Phone: <strong>${clinicSettings.phone || '+91 98765 43210'}</strong></p>
-            <p style="margin: 2px 0 0 0;">Email: ${clinicSettings.email || 'contact@sai-dentalclinic.com'}</p>
+            <p style="margin: 0; font-weight: 700; color: #0f172a;">${safeAddress}</p>
+            <p style="margin: 2px 0 0 0;">Phone: <strong>${safePhone}</strong></p>
+            <p style="margin: 2px 0 0 0;">Email: ${safeEmail}</p>
             <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Reg No: KDC-84920 / Lic: 2026-DNT</p>
           </div>
         </div>
@@ -396,8 +411,8 @@ export function generatePrescriptionHTML({ rx, consultation, clinicSettings, dia
         <!-- FOOTER & SIGNATURE -->
         <div class="footer-section">
           <div style="font-size: 10px; color: #64748b; line-height: 1.5;">
-            <p style="margin: 0; font-weight: 700; color: #334155;">${clinicSettings.clinicName || 'Sai Dental Clinic'} — Patient Care Services</p>
-            <p style="margin: 0;">Emergency Helpline: <strong>${clinicSettings.phone || '+91 98765 43210'}</strong> | Next Follow-Up: As advised</p>
+            <p style="margin: 0; font-weight: 700; color: #334155;">${safeClinicName} — Patient Care Services</p>
+            <p style="margin: 0;">Emergency Helpline: <strong>${safePhone}</strong> | Next Follow-Up: As advised</p>
             <p style="margin: 2px 0 0 0; font-style: italic;">This is a valid computerized medical prescription issued by a registered practitioner.</p>
           </div>
 

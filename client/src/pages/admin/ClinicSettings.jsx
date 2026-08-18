@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Building2, Clock, CalendarDays, Receipt, Save, RefreshCw,
+  Building2, Clock, CalendarDays, Receipt, Save, RefreshCw, Stethoscope, UserCheck, Star
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
@@ -17,6 +17,8 @@ export default function ClinicSettings() {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [primaryDoctor, setPrimaryDoctor] = useState('');
+  const [doctorsList, setDoctorsList] = useState([]);
   const [appointmentSlotDurationMinutes, setAppointmentSlotDurationMinutes] = useState(30);
   const [taxRate, setTaxRate] = useState(0);
   const [currency, setCurrency] = useState('INR');
@@ -26,13 +28,20 @@ export default function ClinicSettings() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/settings');
-      const s = res.data?.settings || {};
+      const [settingsRes, doctorsRes] = await Promise.all([
+        api.get('/settings').catch(() => ({ data: {} })),
+        api.get('/users/doctors').catch(() => ({ data: { doctors: [] } })),
+      ]);
+
+      const s = settingsRes.data?.settings || {};
+      const dList = doctorsRes.data?.doctors || [];
+      setDoctorsList(dList);
 
       setClinicName(s.clinicName || '');
       setAddress(s.address || '');
       setPhone(s.phone || '');
       setEmail(s.email || '');
+      setPrimaryDoctor(s.primaryDoctor?._id || s.primaryDoctor || '');
       setAppointmentSlotDurationMinutes(s.appointmentSlotDurationMinutes || 30);
       setTaxRate(s.taxRate !== undefined ? s.taxRate : 0);
       setCurrency(s.currency || 'INR');
@@ -88,6 +97,7 @@ export default function ClinicSettings() {
         address,
         phone,
         email,
+        primaryDoctor: primaryDoctor || null,
         workingHours,
         appointmentSlotDurationMinutes: Number(appointmentSlotDurationMinutes) || 30,
         taxRate: Number(taxRate) || 0,
@@ -198,6 +208,40 @@ export default function ClinicSettings() {
                 onChange={(e) => setAddress(e.target.value)}
               />
             </div>
+          </div>
+        </div>
+
+        {/* SECTION: PRIMARY DOCTOR CONFIGURATION */}
+        <div className="card p-5 space-y-4">
+          <div className="border-b border-border pb-3">
+            <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+              <Stethoscope size={18} className="text-brand" /> Primary Doctor Assignment
+            </h3>
+            <p className="text-xs text-ink-soft mt-0.5">
+              Select the clinic's Primary Doctor. This doctor will be prioritized and made consistently available across all doctor-selection fields in appointments, patient registration, and consultations.
+            </p>
+          </div>
+
+          <div className="max-w-md text-xs space-y-2">
+            <label className="block font-semibold text-ink-soft">Designated Primary Doctor</label>
+            <select
+              className="input-field font-semibold py-2"
+              value={primaryDoctor}
+              onChange={(e) => setPrimaryDoctor(e.target.value)}
+            >
+              <option value="">-- Select Primary Doctor --</option>
+              {doctorsList.map((doc) => {
+                const docId = doc._id || doc.id;
+                return (
+                  <option key={docId} value={docId}>
+                    Dr. {doc.name} {doc.specialization ? `(${doc.specialization})` : ''} {doc.isPrimary ? '★ [Current Primary]' : ''}
+                  </option>
+                );
+              })}
+            </select>
+            <p className="text-[11px] text-ink-soft italic">
+              Updating the Primary Doctor automatically updates all doctor selection dropdowns system-wide without producing duplicate doctor entries.
+            </p>
           </div>
         </div>
 

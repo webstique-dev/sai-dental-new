@@ -97,12 +97,27 @@ async function createWalkIn(req, res, next) {
 
     if (!targetPatientId) {
       const pData = patientData || {};
+      const cleanPhone = (pData.phone || '').toString().trim().replace(/\D/g, '');
+
+      if (!cleanPhone || cleanPhone.length !== 10) {
+        return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+      }
+
+      const existingPatient = await Patient.findOne({
+        phone: cleanPhone,
+        isDeleted: { $ne: true },
+      });
+
+      if (existingPatient) {
+        return res.status(409).json({ message: 'This phone number is already registered.' });
+      }
+
       const newPatient = new Patient({
         firstName: pData.firstName || '',
         lastName: pData.lastName || '',
         age: pData.age ? parseInt(pData.age, 10) : undefined,
         sex: pData.sex || '',
-        phone: pData.phone || '',
+        phone: cleanPhone,
         address: pData.address || '',
         occupation: pData.occupation || '',
         medicalHistory: pData.medicalHistory || [],

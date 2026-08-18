@@ -4,10 +4,17 @@ import {
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 
+// Permanent (Adult) Teeth Quadrants (32 teeth)
 const QUAD_UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
 const QUAD_UPPER_LEFT = [21, 22, 23, 24, 25, 26, 27, 28];
 const QUAD_LOWER_RIGHT = [48, 47, 46, 45, 44, 43, 42, 41];
 const QUAD_LOWER_LEFT = [31, 32, 33, 34, 35, 36, 37, 38];
+
+// Primary (Child/Deciduous) Teeth Quadrants (20 teeth) - FDI 2-digit system
+const PRIMARY_QUAD_UPPER_RIGHT = [55, 54, 53, 52, 51];
+const PRIMARY_QUAD_UPPER_LEFT = [61, 62, 63, 64, 65];
+const PRIMARY_QUAD_LOWER_RIGHT = [85, 84, 83, 82, 81];
+const PRIMARY_QUAD_LOWER_LEFT = [71, 72, 73, 74, 75];
 
 const CONDITION_CODES = {
   Healthy: { code: 'H', color: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
@@ -43,20 +50,27 @@ const CONDITION_SVG_STYLES = {
 
 function getToothType(tNum) {
   const digit = tNum % 10;
+  const isPrimary = (tNum >= 51 && tNum <= 55) || (tNum >= 61 && tNum <= 65) || (tNum >= 71 && tNum <= 75) || (tNum >= 81 && tNum <= 85);
+
   if (digit === 1 || digit === 2) return 'incisor';
   if (digit === 3) return 'canine';
-  if (digit === 4 || digit === 5) return 'premolar';
-  return 'molar'; // 6, 7, 8
+  if (isPrimary) {
+    if (digit === 4 || digit === 5) return 'molar';
+  } else {
+    if (digit === 4 || digit === 5) return 'premolar';
+    if (digit >= 6) return 'molar';
+  }
+  return 'molar';
 }
 
 function ToothSvg({ tNum, condition, isSelected }) {
   const toothType = getToothType(tNum);
-  const isLowerArch = tNum >= 31 && tNum <= 48;
+  const isLowerArch = (tNum >= 31 && tNum <= 48) || (tNum >= 71 && tNum <= 85);
   const cfg = CONDITION_SVG_STYLES[condition] || CONDITION_SVG_STYLES.Healthy;
   const isMissing = condition === 'Missing' || condition === 'Extraction';
 
   return (
-    <div className="relative flex items-center justify-center w-10 h-16 sm:w-11 sm:h-18 my-1 shrink-0">
+    <div className="relative flex items-center justify-center w-5 h-8 xs:w-6 xs:h-9 sm:w-8 sm:h-12 my-0.5 shrink-0">
       <svg
         viewBox="0 0 50 85"
         className={`w-full h-full transition-all duration-200 ${
@@ -112,27 +126,22 @@ function ToothSvg({ tNum, condition, isSelected }) {
         {toothType === 'molar' && <path d="M 11 40 Q 25 45 39 40" fill="none" stroke={cfg.stroke} strokeWidth="1.2" opacity="0.5" />}
 
         {/* SPECIAL CONDITION OVERLAYS */}
-        {/* Caries / Decayed lesion */}
         {(condition === 'Caries' || condition === 'Decayed') && (
           <circle cx="25" cy="62" r="6.5" fill="#F43F5E" stroke="#9F1239" strokeWidth="1.5" />
         )}
 
-        {/* Filling */}
         {condition === 'Filling' && (
           <path d="M 17 56 Q 25 51 33 56 Q 35 68 25 73 Q 15 68 17 56 Z" fill="#2563EB" opacity="0.85" stroke="#1D4ED8" strokeWidth="1" />
         )}
 
-        {/* RCT (Root Canal Treatment) purple canal path */}
         {condition === 'RCT' && (
           <path d="M 25 8 L 25 65 M 19 12 L 25 45 M 31 12 L 25 45" fill="none" stroke="#9333EA" strokeWidth="3" strokeLinecap="round" />
         )}
 
-        {/* Crown / Bridge highlight cap */}
         {(condition === 'Crown' || condition === 'Bridge') && (
           <path d="M 10 46 Q 25 40 40 46 L 38 76 Q 25 80 12 76 Z" fill="#F59E0B" fillOpacity="0.4" stroke="#D97706" strokeWidth="2.2" />
         )}
 
-        {/* Implant metallic screw root threads */}
         {condition === 'Implant' && (
           <g stroke="#0891B2" strokeWidth="2.2" strokeLinecap="round">
             <line x1="16" y1="12" x2="34" y2="12" />
@@ -142,7 +151,6 @@ function ToothSvg({ tNum, condition, isSelected }) {
           </g>
         )}
 
-        {/* Missing / Extraction cross overlay */}
         {isMissing && (
           <g stroke="#EF4444" strokeWidth="3.5" strokeLinecap="round">
             <line x1="8" y1="8" x2="42" y2="77" />
@@ -163,12 +171,13 @@ function formatTeethListPhrase(numbers) {
   return `teeth ${copy.join(', ')} and ${last}`;
 }
 
-export default function ToothChart({ patientId, consultationId, isReadOnly = false }) {
+export default function ToothChart({ patientId, consultationId, isReadOnly = false, patient = null }) {
   const [teethMap, setTeethMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedTeeth, setSelectedTeeth] = useState([]);
   const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [patientType, setPatientType] = useState('adult'); // 'adult' | 'child'
 
   // Notifications
   const [successMessage, setSuccessMessage] = useState('');
@@ -178,6 +187,29 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
   const [formCondition, setFormCondition] = useState('Healthy');
   const [formTreatment, setFormTreatment] = useState('');
   const [formNotes, setFormNotes] = useState('');
+
+  // Load patientType strictly from patient registration record
+  useEffect(() => {
+    if (patient) {
+      const type = patient.patientType || (patient.age !== undefined && patient.age !== null && Number(patient.age) < 12 ? 'child' : 'adult');
+      setPatientType(type);
+      return;
+    }
+    if (!patientId) return;
+    async function fetchPatientInfo() {
+      try {
+        const res = await api.get(`/patients/${patientId}`);
+        const p = res.data?.patient;
+        if (p) {
+          const type = p.patientType || (p.age !== undefined && p.age !== null && Number(p.age) < 12 ? 'child' : 'adult');
+          setPatientType(type);
+        }
+      } catch (err) {
+        console.error('Failed to load patient info for tooth chart:', err);
+      }
+    }
+    fetchPatientInfo();
+  }, [patient, patientId]);
 
   const fetchToothChart = async () => {
     if (!patientId) return;
@@ -214,7 +246,6 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         setSelectedTeeth([]);
       } else {
         setSelectedTeeth([tNum]);
-        // Pre-fill form with clicked tooth's current condition
         const current = teethMap[tNum]?.currentCondition || 'Healthy';
         setFormCondition(current);
         setFormTreatment('');
@@ -267,65 +298,64 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
     }
   };
 
-  // Render a single Tooth Card/Element with Anatomical SVG Silhouette
   const renderToothCard = (tNum) => {
     const record = teethMap[tNum] || {};
     const cond = record.currentCondition || 'Healthy';
-    const info = CONDITION_CODES[cond] || CONDITION_CODES.Healthy;
+    const codeCfg = CONDITION_CODES[cond] || CONDITION_CODES.Healthy;
     const isSelected = selectedTeeth.includes(tNum);
     const hasHistory = record.history && record.history.length > 0;
-    const isLowerArch = tNum >= 31 && tNum <= 48;
+    const isLowerArch = (tNum >= 31 && tNum <= 48) || (tNum >= 71 && tNum <= 85);
 
     return (
       <button
         type="button"
         key={tNum}
         onClick={() => handleToothClick(tNum)}
-        className={`flex flex-col items-center justify-between p-1.5 sm:p-2 rounded-xl border transition-all duration-150 relative select-none w-[52px] sm:w-[60px] min-h-[125px] sm:min-h-[135px] ${
+        className={`flex flex-col items-center justify-between p-0.5 sm:p-1 rounded-lg sm:rounded-xl border transition-all duration-150 relative select-none flex-1 max-w-[34px] xs:max-w-[40px] sm:max-w-[46px] min-w-[24px] sm:min-w-[30px] min-h-[85px] xs:min-h-[95px] sm:min-h-[110px] ${
           isSelected
-            ? 'border-brand bg-brand-light/40 shadow-lg ring-2 ring-brand scale-105 z-10'
+            ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
             : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
         }`}
       >
-        {/* UPPER ARCH: Top = Tooth Number | Middle = SVG Icon | Bottom = Condition Badge */}
+        {/* UPPER ARCH */}
         {!isLowerArch ? (
           <>
-            <span className="font-mono text-xs font-bold text-ink">{tNum}</span>
+            <span className="font-mono text-[9px] xs:text-[10px] sm:text-xs font-bold text-ink leading-none">{tNum}</span>
 
             <ToothSvg tNum={tNum} condition={cond} isSelected={isSelected} />
 
-            <div className="flex flex-col items-center gap-0.5 w-full">
-              <span className="text-[10px] font-semibold text-ink-soft truncate max-w-[50px]">
-                {cond}
+            <div className="flex flex-col items-center gap-0.5 w-full min-w-0">
+              <span className={`px-1 py-0.2 rounded text-[7px] xs:text-[8px] sm:text-[9px] font-extrabold uppercase leading-tight border ${codeCfg.color}`}>
+                {codeCfg.code}
               </span>
               {hasHistory ? (
-                <span className="text-[9px] font-bold text-brand flex items-center gap-0.5">
-                  <History size={10} /> {record.history.length}
+                <span className="text-[7px] sm:text-[8px] font-bold text-brand flex items-center justify-center gap-0.5 w-full">
+                  <History size={8} /> {record.history.length}
                 </span>
               ) : (
-                <span className="text-[9px] text-ink-soft/40">—</span>
+                <span className="text-[7px] text-ink-soft/30">—</span>
               )}
             </div>
           </>
         ) : (
-          /* LOWER ARCH: Top = Condition Badge | Middle = Flipped SVG Icon | Bottom = Tooth Number */
+          /* LOWER ARCH */
           <>
-            <div className="flex flex-col items-center gap-0.5 w-full">
+            <div className="flex flex-col items-center gap-0.5 w-full min-w-0">
               {hasHistory ? (
-                <span className="text-[9px] font-bold text-brand flex items-center gap-0.5">
-                  <History size={10} /> {record.history.length}
+                <span className="text-[7px] sm:text-[8px] font-bold text-brand flex items-center justify-center gap-0.5 w-full">
+                  <History size={8} /> {record.history.length}
                 </span>
               ) : (
-                <span className="text-[9px] text-ink-soft/40">—</span>
+                <span className="text-[7px] text-ink-soft/30">—</span>
               )}
-              <span className="text-[10px] font-semibold text-ink-soft truncate max-w-[50px]">
-                {cond}
+              <span className={`px-1 py-0.2 rounded text-[7px] xs:text-[8px] sm:text-[9px] font-extrabold uppercase leading-tight border ${codeCfg.color}`}>
+                {codeCfg.code}
               </span>
             </div>
 
             <ToothSvg tNum={tNum} condition={cond} isSelected={isSelected} />
 
-            <span className="font-mono text-xs font-bold text-ink">{tNum}</span>
+            <span className="font-mono text-[9px] xs:text-[10px] sm:text-xs font-bold text-ink leading-none">{tNum}</span>
           </>
         )}
       </button>
@@ -338,9 +368,9 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
   const historySubtitleText = loading
     ? 'Loading treatment history...'
     : selectedTeeth.length === 0
-    ? 'Select a tooth to view its permanent treatment log across all visits.'
+    ? 'Select a tooth to view its treatment log across all visits.'
     : selectedTeeth.length === 1
-    ? `Permanent treatment log for Tooth #${selectedTeeth[0]}`
+    ? `Treatment log for Tooth #${selectedTeeth[0]}`
     : `Treatment history for the selected teeth (${selectedTeeth.join(', ')})`;
 
   return (
@@ -359,7 +389,9 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         </div>
       )}
 
-      {/* Chart Toolbar & Legend */}
+
+
+      {/* Chart Toolbar & Dentition Summary */}
       <div className="card p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
           <div>
@@ -367,11 +399,18 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
               <Layers size={18} className="text-brand" /> FDI Anatomical Interactive Tooth Chart
             </h3>
             <p className="text-xs text-ink-soft">
-              Anatomically shaped teeth (Incisor, Canine, Premolar, Molar). Upper arch roots point up; lower arch roots point down.
+              {patientType === 'child'
+                ? 'Primary (Deciduous) 20-tooth dentition chart loaded strictly based on patient registration.'
+                : 'Permanent 32-tooth dentition chart loaded strictly based on patient registration.'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Read-Only Registered Patient Type Badge */}
+            <span className="badge bg-brand-light/50 text-brand-dark border border-brand/20 text-xs font-semibold px-3 py-1">
+              {patientType === 'child' ? 'Pediatric Dentition (20 Primary Teeth)' : 'Adult Dentition (32 Permanent Teeth)'}
+            </span>
+
             <button
               type="button"
               onClick={() => setMultiSelectMode(!multiSelectMode)}
@@ -413,61 +452,123 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         </div>
       </div>
 
-      {/* FDI CHART GRID ARCHES */}
-      <div className="card p-5 space-y-6 overflow-x-auto">
+      {/* FDI CHART GRID ARCHES - STRICTLY DISPLAY ONLY THE REGISTERED CHART TYPE */}
+      <div
+        className="card p-2 sm:p-4 space-y-4 overflow-x-auto scrollbar-none w-full max-w-full"
+        aria-live="polite"
+        aria-label={`Tooth chart for ${patientType === 'child' ? 'Primary Child teeth' : 'Permanent Adult teeth'}`}
+      >
         {loading ? (
           <div className="p-8 text-center text-sm text-ink-soft">Loading patient tooth records...</div>
         ) : (
-          <div className="min-w-[850px] space-y-6">
-            {/* UPPER ARCH (Maxillary) */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-ink-soft uppercase tracking-wider px-2">
-                <span>Maxillary Right (18 - 11)</span>
-                <span className="text-brand font-display font-extrabold">UPPER ARCH (MAXILLA)</span>
-                <span>Maxillary Left (21 - 28)</span>
-              </div>
+          <div className="w-full min-w-[440px] sm:min-w-0 space-y-4">
+            {patientType === 'child' ? (
+              /* PRIMARY (CHILD) 20-TEETH CHART ONLY */
+              <>
+                {/* UPPER ARCH (Maxillary Primary) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                    <span>Upper Right (55 - 51)</span>
+                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">PRIMARY UPPER ARCH (MAXILLA)</span>
+                    <span>Upper Left (61 - 65)</span>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4 bg-bg/40 p-3 rounded-2xl border border-border">
-                {/* Upper Right Quadrant */}
-                <div className="flex justify-end gap-1.5">
-                  {QUAD_UPPER_RIGHT.map(renderToothCard)}
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                    {/* Quadrant 5: Upper Right */}
+                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                      {PRIMARY_QUAD_UPPER_RIGHT.map(renderToothCard)}
+                    </div>
+                    {/* Quadrant 6: Upper Left */}
+                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                      {PRIMARY_QUAD_UPPER_LEFT.map(renderToothCard)}
+                    </div>
+                  </div>
                 </div>
-                {/* Upper Left Quadrant */}
-                <div className="flex justify-start gap-1.5 border-l border-border/80 pl-3">
-                  {QUAD_UPPER_LEFT.map(renderToothCard)}
-                </div>
-              </div>
-            </div>
 
-            {/* BITE LINE DIVIDER */}
-            <div className="relative flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-dashed border-brand/30"></div>
-              </div>
-              <span className="relative bg-surface px-4 text-[10px] font-mono font-bold text-brand border border-brand/20 rounded-full">
-                OCCLUSAL BITE LINE
-              </span>
-            </div>
-
-            {/* LOWER ARCH (Mandibular) */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-ink-soft uppercase tracking-wider px-2">
-                <span>Mandibular Right (48 - 41)</span>
-                <span className="text-brand font-display font-extrabold">LOWER ARCH (MANDIBLE)</span>
-                <span>Mandibular Left (31 - 38)</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 bg-bg/40 p-3 rounded-2xl border border-border">
-                {/* Lower Right Quadrant */}
-                <div className="flex justify-end gap-1.5">
-                  {QUAD_LOWER_RIGHT.map(renderToothCard)}
+                {/* BITE LINE DIVIDER */}
+                <div className="relative flex items-center justify-center my-1">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-dashed border-brand/30"></div>
+                  </div>
+                  <span className="relative bg-surface px-3 py-0.5 text-[8px] sm:text-[9px] font-mono font-bold text-brand border border-brand/20 rounded-full">
+                    PRIMARY OCCLUSAL BITE LINE
+                  </span>
                 </div>
-                {/* Lower Left Quadrant */}
-                <div className="flex justify-start gap-1.5 border-l border-border/80 pl-3">
-                  {QUAD_LOWER_LEFT.map(renderToothCard)}
+
+                {/* LOWER ARCH (Mandibular Primary) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                    <span>Lower Right (85 - 81)</span>
+                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">PRIMARY LOWER ARCH (MANDIBLE)</span>
+                    <span>Lower Left (71 - 75)</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                    {/* Quadrant 8: Lower Right */}
+                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                      {PRIMARY_QUAD_LOWER_RIGHT.map(renderToothCard)}
+                    </div>
+                    {/* Quadrant 7: Lower Left */}
+                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                      {PRIMARY_QUAD_LOWER_LEFT.map(renderToothCard)}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            ) : (
+              /* PERMANENT (ADULT) 32-TEETH CHART ONLY */
+              <>
+                {/* UPPER ARCH (Maxillary Permanent) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                    <span>Maxillary Right (18 - 11)</span>
+                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">UPPER ARCH (MAXILLA)</span>
+                    <span>Maxillary Left (21 - 28)</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                    {/* Quadrant 1: Upper Right */}
+                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                      {QUAD_UPPER_RIGHT.map(renderToothCard)}
+                    </div>
+                    {/* Quadrant 2: Upper Left */}
+                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                      {QUAD_UPPER_LEFT.map(renderToothCard)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* BITE LINE DIVIDER */}
+                <div className="relative flex items-center justify-center my-1">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-dashed border-brand/30"></div>
+                  </div>
+                  <span className="relative bg-surface px-3 py-0.5 text-[8px] sm:text-[9px] font-mono font-bold text-brand border border-brand/20 rounded-full">
+                    OCCLUSAL BITE LINE
+                  </span>
+                </div>
+
+                {/* LOWER ARCH (Mandibular Permanent) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                    <span>Mandibular Right (48 - 41)</span>
+                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">LOWER ARCH (MANDIBLE)</span>
+                    <span>Mandibular Left (31 - 38)</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                    {/* Quadrant 4: Lower Right */}
+                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                      {QUAD_LOWER_RIGHT.map(renderToothCard)}
+                    </div>
+                    {/* Quadrant 3: Lower Left */}
+                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                      {QUAD_LOWER_LEFT.map(renderToothCard)}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -574,11 +675,11 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
             <div className="p-12 text-center text-xs text-ink-soft space-y-2">
               <Info size={28} className="mx-auto text-brand/50" />
               <p className="font-semibold text-ink">Select a tooth on the chart above</p>
-              <p>Select any tooth to view its permanent treatment log across all visits.</p>
+              <p>Select any tooth to view its treatment log across all visits.</p>
             </div>
           ) : selectedTeeth.length === 1 ? (
             /* SINGLE TOOTH SELECTION LOG */
-            <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[360px] overflow-y-auto scrollbar-none pr-1">
               {selectedToothSingle?.history && selectedToothSingle.history.length > 0 ? (
                 <div className="divide-y divide-border border rounded-xl overflow-hidden bg-bg/30">
                   {[...selectedToothSingle.history]
@@ -618,7 +719,7 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
             </div>
           ) : (
             /* MULTIPLE TEETH SELECTION LOG */
-            <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+            <div className="space-y-4 max-h-[380px] overflow-y-auto scrollbar-none pr-1">
               {totalHistoryCount === 0 ? (
                 <div className="p-8 text-center text-xs text-ink-soft space-y-2 bg-bg/30 rounded-xl border border-border">
                   <Shield size={28} className="mx-auto text-ink-soft/40" />

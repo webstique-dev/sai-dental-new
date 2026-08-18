@@ -11,7 +11,10 @@ async function testAllFormValidations() {
   console.log('   Phone "987abc1234" (has letters):', invalidPhone1.length > 0 ? `REJECTED ✓ (${invalidPhone1[0]})` : 'FAILED ✗');
 
   const invalidPhone2 = validatePatientData({ firstName: 'John', phone: '1234' });
-  console.log('   Phone "1234" (too short):', invalidPhone2.length > 0 ? `REJECTED ✓ (${invalidPhone2[0]})` : 'FAILED ✗');
+  console.log('   Phone "1234" (too short <10 digits):', invalidPhone2.length > 0 ? `REJECTED ✓ (${invalidPhone2[0]})` : 'FAILED ✗');
+
+  const invalidPhone3 = validatePatientData({ firstName: 'John', phone: '98765432101' });
+  console.log('   Phone "98765432101" (too long >10 digits):', invalidPhone3.length > 0 ? `REJECTED ✓ (${invalidPhone3[0]})` : 'FAILED ✗');
 
   const validPhone = validatePatientData({ firstName: 'John', phone: '9876543210' });
   console.log('   Phone "9876543210" (valid 10 digits):', validPhone.length === 0 ? 'ACCEPTED ✓' : 'FAILED ✗');

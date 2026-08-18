@@ -30,6 +30,9 @@ export default function AdminUsers() {
   const [resetUser, setResetUser] = useState(null);
   const [resetPasswords, setResetPasswords] = useState({ newPassword: '', confirmPassword: '' });
 
+  // Status Toggle Confirmation State
+  const [statusToggleConfirmUser, setStatusToggleConfirmUser] = useState(null);
+
   async function fetchUsers() {
     setLoading(true);
     try {
@@ -93,15 +96,32 @@ export default function AdminUsers() {
     }
   }
 
-  async function toggleStatus(id) {
+  function handleRequestToggleStatus(u) {
+    const isAct = u.status === 'active' || u.isActive === true;
+    const userId = u.id || u._id;
+    setStatusToggleConfirmUser({
+      id: userId,
+      name: u.name,
+      isCurrentlyActive: isAct,
+    });
+  }
+
+  async function executeToggleStatus() {
+    if (!statusToggleConfirmUser) return;
+    const { id, name } = statusToggleConfirmUser;
+    setStatusToggleConfirmUser(null);
+
     try {
       const { data } = await api.patch(`/users/${id}/disable`);
       const updatedUser = data.user;
+
       setUsers((prev) =>
         prev.map((u) => ((u.id === id || u._id === id) ? updatedUser : u))
       );
+
+      const isNowActive = updatedUser.status === 'active' || updatedUser.isActive === true;
       showSuccess(
-        `User ${updatedUser.name} is now ${updatedUser.isActive ? 'Active' : 'Disabled'}.`
+        data.message || `User ${updatedUser.name || name} is now ${isNowActive ? 'Active' : 'Inactive'}.`
       );
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to update user status.');
@@ -249,11 +269,11 @@ export default function AdminUsers() {
               <label className="block text-xs font-medium text-ink-soft">Phone Number</label>
               <input
                 type="tel"
-                maxLength={15}
+                maxLength={10}
                 className="input-field mt-1 text-xs font-mono"
                 placeholder="9876543210"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 15) })}
+                onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
               />
             </div>
             <div>
@@ -314,6 +334,8 @@ export default function AdminUsers() {
               <tbody className="divide-y divide-border">
                 {users.map((u) => {
                   const userId = u.id || u._id;
+                  const isUserActive = u.status === 'active' || u.isActive === true;
+
                   return (
                     <tr key={userId} className="hover:bg-bg/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-ink">{u.name}</td>
@@ -325,8 +347,8 @@ export default function AdminUsers() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`badge ${u.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                          {u.isActive ? 'Active' : 'Disabled'}
+                        <span className={`badge font-bold border text-[11px] px-2 py-0.5 ${isUserActive ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                          {isUserActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -351,15 +373,16 @@ export default function AdminUsers() {
 
                           <button
                             type="button"
-                            onClick={() => toggleStatus(userId)}
-                            className={`inline-flex items-center gap-1 text-[11px] font-medium p-1.5 rounded-lg transition-colors ${
-                              u.isActive
-                                ? 'text-rose-600 hover:bg-rose-50'
-                                : 'text-emerald-700 hover:bg-emerald-50'
+                            onClick={() => handleRequestToggleStatus(u)}
+                            className={`inline-flex items-center gap-1 text-[11px] font-semibold p-1.5 rounded-lg transition-colors border ${
+                              isUserActive
+                                ? 'text-rose-700 bg-rose-50/50 hover:bg-rose-100/70 border-rose-200'
+                                : 'text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200'
                             }`}
-                            title={u.isActive ? 'Disable User' : 'Enable User'}
+                            title={isUserActive ? 'Deactivate User Account' : 'Activate User Account'}
                           >
                             <Power size={14} />
+                            <span>{isUserActive ? 'Disable' : 'Activate'}</span>
                           </button>
                         </div>
                       </td>
@@ -400,10 +423,12 @@ export default function AdminUsers() {
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">Phone Number</label>
                 <input
-                  type="text"
-                  className="input-field py-1.5"
+                  type="tel"
+                  maxLength={10}
+                  className="input-field py-1.5 font-mono"
+                  placeholder="9876543210"
                   value={editForm.phone}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                 />
               </div>
 
@@ -529,6 +554,31 @@ export default function AdminUsers() {
           </div>
         </div>
       )}
+
+      {/* STATUS TOGGLE CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={Boolean(statusToggleConfirmUser)}
+        onClose={() => setStatusToggleConfirmUser(null)}
+        onConfirm={executeToggleStatus}
+        title={statusToggleConfirmUser?.isCurrentlyActive ? 'Deactivate User Account' : 'Reactivate User Account'}
+        message={
+          statusToggleConfirmUser ? (
+            <div className="space-y-2 text-xs">
+              <p>
+                Are you sure you want to {statusToggleConfirmUser.isCurrentlyActive ? 'deactivate' : 'reactivate'} staff account <strong>"{statusToggleConfirmUser.name}"</strong>?
+              </p>
+              <p className={statusToggleConfirmUser.isCurrentlyActive ? "text-rose-800 bg-rose-50 p-2.5 rounded-lg border border-rose-200 font-medium" : "text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 font-medium"}>
+                {statusToggleConfirmUser.isCurrentlyActive
+                  ? "Deactivated users will be prevented from logging in and accessing system features until reactivated."
+                  : "This user will regain full system login access."}
+              </p>
+            </div>
+          ) : ''
+        }
+        confirmText={statusToggleConfirmUser?.isCurrentlyActive ? 'Deactivate Account' : 'Activate Account'}
+        cancelText="Cancel"
+        variant={statusToggleConfirmUser?.isCurrentlyActive ? 'danger' : 'info'}
+      />
     </div>
   );
 }

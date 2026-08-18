@@ -3,7 +3,7 @@ const { checkConsultationNotClosed } = require('./consultationController');
 const { logAction } = require('../middleware/auditLog');
 const { canDoctorAccessPatient } = require('../utils/patientAuth');
 
-const ALL_FDI_TEETH = [
+const ALL_PERMANENT_TEETH = [
   // Upper Right (18 - 11)
   18, 17, 16, 15, 14, 13, 12, 11,
   // Upper Left (21 - 28)
@@ -14,7 +14,20 @@ const ALL_FDI_TEETH = [
   31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
-// GET /api/tooth-chart/:patientId (Returns all 32 FDI teeth)
+const ALL_PRIMARY_TEETH = [
+  // Upper Right Primary (55 - 51)
+  55, 54, 53, 52, 51,
+  // Upper Left Primary (61 - 65)
+  61, 62, 63, 64, 65,
+  // Lower Right Primary (85 - 81)
+  85, 84, 83, 82, 81,
+  // Lower Left Primary (71 - 75)
+  71, 72, 73, 74, 75,
+];
+
+const ALL_FDI_TEETH = [...ALL_PERMANENT_TEETH, ...ALL_PRIMARY_TEETH];
+
+// GET /api/tooth-chart/:patientId (Returns all FDI teeth for permanent and primary dentition)
 async function getPatientToothChart(req, res, next) {
   try {
     const { patientId } = req.params;
@@ -34,10 +47,14 @@ async function getPatientToothChart(req, res, next) {
 
     const recordMap = {};
     records.forEach((r) => {
-      recordMap[r.toothNumber] = r;
+      recordMap[r.toothNumber] = r.toObject ? r.toObject() : r;
     });
 
-    const fullChart = ALL_FDI_TEETH.map((tNum) => {
+    const allToothNumbers = Array.from(
+      new Set([...ALL_FDI_TEETH, ...Object.keys(recordMap).map(Number)])
+    );
+
+    const fullChart = allToothNumbers.map((tNum) => {
       if (recordMap[tNum]) {
         return recordMap[tNum];
       }

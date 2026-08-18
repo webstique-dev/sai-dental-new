@@ -13,7 +13,9 @@ const defaultWorkingHours = [
 // GET /api/settings (singleton read - creates default if none exists)
 async function getSettings(req, res, next) {
   try {
-    let settings = await ClinicSettings.findOne().populate('updatedBy', 'name email role');
+    let settings = await ClinicSettings.findOne()
+      .populate('updatedBy', 'name email role')
+      .populate('primaryDoctor', 'name email role phone specialization status');
     if (!settings) {
       settings = new ClinicSettings({
         workingHours: defaultWorkingHours,
@@ -41,6 +43,7 @@ async function updateSettings(req, res, next) {
       address,
       phone,
       email,
+      primaryDoctor,
       workingHours,
       appointmentSlotDurationMinutes,
       taxRate,
@@ -51,6 +54,7 @@ async function updateSettings(req, res, next) {
     if (address !== undefined) settings.address = address;
     if (phone !== undefined) settings.phone = phone;
     if (email !== undefined) settings.email = email;
+    if (primaryDoctor !== undefined) settings.primaryDoctor = primaryDoctor || null;
     if (workingHours !== undefined) settings.workingHours = workingHours;
     if (appointmentSlotDurationMinutes !== undefined) {
       settings.appointmentSlotDurationMinutes = Number(appointmentSlotDurationMinutes) || 30;
@@ -63,7 +67,9 @@ async function updateSettings(req, res, next) {
     }
 
     await settings.save();
-    const updated = await ClinicSettings.findById(settings._id).populate('updatedBy', 'name email role');
+    const updated = await ClinicSettings.findById(settings._id)
+      .populate('updatedBy', 'name email role')
+      .populate('primaryDoctor', 'name email role phone specialization status');
 
     return res.json({
       message: 'Clinic settings updated successfully.',

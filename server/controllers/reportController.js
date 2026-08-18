@@ -34,6 +34,14 @@ function parseDateRange(dateFrom, dateTo) {
   return { start, end };
 }
 
+function getTodayDateRange() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
 // GET /api/reports/reception-summary?dateFrom=&dateTo=
 async function getReceptionSummary(req, res, next) {
   try {

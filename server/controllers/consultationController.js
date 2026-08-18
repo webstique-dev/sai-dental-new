@@ -576,6 +576,9 @@ async function getDoctorSummary(req, res, next) {
               firstName: nextQueueEntry.patient.firstName,
               lastName: nextQueueEntry.patient.lastName,
               opNumber: nextQueueEntry.patient.opNumber,
+              age: nextQueueEntry.patient.age,
+              sex: nextQueueEntry.patient.sex,
+              phone: nextQueueEntry.patient.phone,
             }
           : null,
       };

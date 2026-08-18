@@ -5,7 +5,6 @@ import {
   Edit3, Briefcase, MapPin, Activity, Heart, Pill, Stethoscope, CheckCircle2, X, Save, Plus
 } from 'lucide-react';
 import api from '../../api/axios.js';
-import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
@@ -343,7 +342,7 @@ export default function PatientDetail() {
         </div>
 
         {/* Basic Demographics & Contact Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
           <div className="space-y-1">
             <span className="flex items-center gap-1.5 text-xs text-ink-soft font-medium">
               <User size={14} className="text-brand" /> Age / Sex
@@ -365,6 +364,15 @@ export default function PatientDetail() {
               <Calendar size={14} className="text-brand" /> Date of Birth
             </span>
             <p className="font-semibold text-ink">{dobStr || 'Not specified'}</p>
+          </div>
+
+          <div className="space-y-1">
+            <span className="flex items-center gap-1.5 text-xs text-ink-soft font-medium">
+              <UserSquare2 size={14} className="text-brand" /> Patient Type
+            </span>
+            <p className="font-semibold text-ink capitalize">
+              {patient.patientType === 'child' ? 'Child (Primary Dentition)' : 'Adult (Permanent Dentition)'}
+            </p>
           </div>
 
           <div className="space-y-1">
@@ -494,8 +502,7 @@ export default function PatientDetail() {
         </div>
       </div>
 
-      {/* Patient Documents Panel (Shared view/upload for Receptionist) */}
-      <DocumentsPanel patientId={patient._id || patient.id} title="Patient Attached Files & Invoices" />
+
 
       {/* EDIT PATIENT PROFILE MODAL */}
       {showEditModal && (
@@ -553,10 +560,10 @@ export default function PatientDetail() {
                       <label className="block font-semibold text-ink-soft mb-1">Phone Number</label>
                       <input
                         type="tel"
-                        maxLength={15}
+                        maxLength={10}
                         className="input-field py-1.5 font-mono"
                         value={editForm.phone}
-                        onChange={(e) => handleEditChange('phone', e.target.value.replace(/\D/g, '').slice(0, 15))}
+                        onChange={(e) => handleEditChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                       />
                     </div>
                     <div>

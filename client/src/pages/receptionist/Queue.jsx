@@ -217,12 +217,10 @@ export default function Queue() {
             return;
           }
         }
-        if (newPatientData.phone) {
-          const phoneErr = validatePhone(newPatientData.phone, false);
-          if (phoneErr) {
-            showError(phoneErr);
-            return;
-          }
+        const phoneErr = validatePhone(newPatientData.phone, true);
+        if (phoneErr) {
+          showError(phoneErr);
+          return;
         }
         if (newPatientData.age !== '' && newPatientData.age !== undefined && newPatientData.age !== null) {
           const ageErr = validateAge(newPatientData.age, false);
@@ -968,11 +966,11 @@ export default function Queue() {
                         <label className="block text-ink-soft font-semibold mb-1">Phone Number</label>
                         <input
                           type="tel"
-                          maxLength={15}
+                          maxLength={10}
                           className="input-field font-mono"
                           placeholder="e.g. 9876543210"
                           value={newPatientData.phone}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value.replace(/\D/g, '').slice(0, 15) })}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                         />
                       </div>
                       <div>

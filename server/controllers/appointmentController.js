@@ -37,7 +37,12 @@ async function listAppointments(req, res, next) {
     await checkAndMarkMissedAppointments();
 
     const { date, dateFilterPreset, doctor, status, search } = req.query;
-    const filter = { isDeleted: { $ne: true } };
+    const filter = {
+      $or: [
+        { isDeleted: { $ne: true } },
+        { status: 'Cancelled' },
+      ],
+    };
 
     // Filter by date or preset
     if (dateFilterPreset === 'today') {
@@ -54,6 +59,8 @@ async function listAppointments(req, res, next) {
     // Filter by doctor
     if (doctor) {
       filter.doctor = doctor;
+    } else if (req.user && req.user.role === 'doctor') {
+      filter.doctor = req.user._id;
     }
 
     // Filter by status
@@ -81,7 +88,7 @@ async function listAppointments(req, res, next) {
 
     const appointments = await Appointment.find(filter)
       .sort({ date: 1, time: 1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 
@@ -117,7 +124,7 @@ async function createAppointment(req, res, next) {
     await newAppointment.save();
 
     const appointment = await Appointment.findById(newAppointment._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 
@@ -149,7 +156,7 @@ async function updateAppointment(req, res, next) {
       req.body,
       { new: true, runValidators: true }
     )
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 
@@ -185,20 +192,18 @@ async function updateAppointment(req, res, next) {
   }
 }
 
-// DELETE /api/appointments/:id (Soft cancel / soft delete — set status to Cancelled and mark isDeleted)
+// DELETE /api/appointments/:id (Cancel appointment — set status to Cancelled immediately, keep in history)
 async function cancelAppointment(req, res, next) {
   try {
     const cancelled = await Appointment.findOneAndUpdate(
       { _id: req.params.id, isDeleted: { $ne: true } },
       {
         status: 'Cancelled',
-        isDeleted: true,
-        deletedAt: new Date(),
-        deletedBy: req.user ? req.user._id : undefined,
+        isDeleted: false,
       },
       { new: true }
     )
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 

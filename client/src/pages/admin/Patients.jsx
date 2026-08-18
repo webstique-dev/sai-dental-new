@@ -588,10 +588,10 @@ export default function AdminPatients() {
                     <label className="block font-semibold text-ink-soft mb-1">Phone</label>
                     <input
                       type="tel"
-                      maxLength={15}
+                      maxLength={10}
                       className="input-field py-1.5 font-mono"
                       value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 15) })}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     />
                   </div>
                   <div>

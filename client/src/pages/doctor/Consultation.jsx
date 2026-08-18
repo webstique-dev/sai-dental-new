@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, UserSquare2, Phone, Calendar, Stethoscope, FileText,
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
-  Check, Lock, X, LogOut,
+  Check, Lock, X, LogOut, ChevronDown, ChevronUp, HeartPulse, ShieldAlert, MapPin, Briefcase
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
@@ -17,10 +17,10 @@ import InvestigationsTab from './consultation/InvestigationsTab.jsx';
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
   { id: 'tooth-chart', label: 'Tooth Chart', icon: Grid3x3 },
+  { id: 'prescriptions', label: 'Prescription', icon: Pill },
   { id: 'diagnosis', label: 'Diagnosis', icon: Stethoscope },
-  { id: 'treatment-plan', label: 'Treatment Plan', icon: Activity },
-  { id: 'prescriptions', label: 'Prescriptions', icon: Pill },
   { id: 'investigations', label: 'Investigations', icon: Search },
+  { id: 'treatment-plan', label: 'Treatment Plan', icon: Activity },
 ];
 
 export default function Consultation() {
@@ -31,6 +31,19 @@ export default function Consultation() {
   const [activeTab, setActiveTab] = useState('examination');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Accordion state: first 3 expanded by default, 4 & 5 collapsed by default
+  const [accordions, setAccordions] = useState({
+    details: true,
+    contact: true,
+    vitals: true,
+    medical: false,
+    dental: false,
+  });
+
+  const toggleAccordion = (key) => {
+    setAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // Close Consultation & Follow-Up Modal State
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -130,10 +143,6 @@ export default function Consultation() {
         setCloseModalError('Please select a recommended follow-up date.');
         return;
       }
-      if (!followUpForm.reason || !followUpForm.reason.trim()) {
-        setCloseModalError('Please specify a reason for the follow-up.');
-        return;
-      }
     }
 
     setClosing(true);
@@ -205,8 +214,52 @@ export default function Consultation() {
   const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
   const isCompleted = consultation.status === 'Completed';
 
+  const dobStr = patient.dateOfBirth || patient.dob
+    ? new Date(patient.dateOfBirth || patient.dob).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+    })
+    : 'N/A';
+
+  const regDateStr = patient.registrationDate || patient.createdAt
+    ? new Date(patient.registrationDate || patient.createdAt).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+    })
+    : 'N/A';
+
+  const pType = patient.patientType || (patient.age !== undefined && patient.age !== null && Number(patient.age) < 12 ? 'child' : 'adult');
+
+  const vitals = patient.vitals || {};
+  const bp = vitals.bp || vitals.bloodPressure || '120/80 mmHg';
+  const pulse = vitals.pulse || vitals.heartRate || '72 bpm';
+  const temp = vitals.temperature || '98.6 °F';
+  const bloodGroup = patient.bloodGroup || vitals.bloodGroup || 'O+';
+
+  const medicalHistoryList = Array.isArray(patient.medicalHistory)
+    ? patient.medicalHistory
+    : patient.medicalHistory
+      ? [patient.medicalHistory]
+      : [];
+
+  const dentalHistoryList = Array.isArray(patient.dentalHistory)
+    ? patient.dentalHistory
+    : patient.dentalHistory
+      ? [patient.dentalHistory]
+      : [];
+
+  const allergiesList = Array.isArray(patient.allergies)
+    ? patient.allergies
+    : patient.allergies
+      ? [patient.allergies]
+      : [];
+
+  const habitsList = Array.isArray(patient.habits)
+    ? patient.habits
+    : patient.habits
+      ? [patient.habits]
+      : [];
+
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-7xl">
       {/* Top Header Navigation & Action Bar */}
       <div className="flex items-center justify-between">
         <Link
@@ -241,145 +294,292 @@ export default function Consultation() {
         </div>
       )}
 
-      {/* Patient Header Card */}
-      <div className="card p-5 space-y-4 bg-surface border-brand/20">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-dark">
-              <UserSquare2 size={26} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-xl font-bold text-ink">{fullName}</h2>
-                <span
-                  className={`badge border ${isCompleted
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                    : 'bg-purple-100 text-purple-800 border-purple-200'
-                    }`}
-                >
-                  {consultation.status}
-                </span>
-              </div>
-              <p className="text-xs text-ink-soft mt-0.5">
-                OP Number: <span className="font-mono font-bold text-brand">{patient.opNumber || 'N/A'}</span>
-                {patient.phone ? ` • Phone: ${patient.phone}` : ''}
-              </p>
-            </div>
-          </div>
-
-          <div className="text-xs text-ink-soft text-right">
-            Started at:{' '}
-            <span className="font-semibold text-ink">
-              {consultation.startedAt ? new Date(consultation.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-            </span>
-            <span className="block text-[11px]">Doctor: Dr. {consultation.doctor?.name}</span>
-          </div>
-        </div>
-
-        {/* Quick Patient Metadata Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div>
-            <span className="text-ink-soft font-medium block">Age / Sex / DOB</span>
-            <span className="font-semibold text-ink">
-              {patient.age !== undefined && patient.age !== null ? `${patient.age} yrs` : 'N/A'} {patient.sex ? `/ ${patient.sex}` : ''}
-            </span>
-            {patient.dateOfBirth && (
-              <span className="text-[11px] text-ink-soft block">
-                DOB: {new Date(patient.dateOfBirth).toLocaleDateString()}
+      {/* TWO-COLUMN RESPONSIVE LAYOUT */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* PATIENT REGISTRATION DETAILS (FIXED/STICKY ON LAPTOP/DESKTOP >=1024px, HIDDEN SCROLLBAR, COLLAPSIBLE ACCORDIONS) */}
+        <div className="lg:col-span-4 lg:order-2 space-y-3 lg:sticky lg:top-4 self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto scrollbar-none pr-0.5">
+          {/* Card 1: Core Registration Profile & Demographics */}
+          <div className="card bg-surface border-border overflow-hidden shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleAccordion('details')}
+              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <UserSquare2 size={16} className="text-brand" /> Patient Details
               </span>
+              {accordions.details ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
+
+            {accordions.details && (
+              <div className="p-4 pt-0 space-y-4 text-xs border-t border-border/60">
+                <div className="flex items-center gap-3.5 pt-3">
+                  <div className="h-12 w-12 rounded-2xl bg-brand text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-md">
+                    {fullName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-display text-base font-bold text-ink">{fullName}</h3>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className="font-mono text-xs font-bold text-brand">OP #{patient.opNumber || 'N/A'}</span>
+                      <span className={`badge text-[10px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                        {pType === 'child' ? 'Child' : 'Adult'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Age / Sex</span>
+                    <span className="font-semibold text-ink">{patient.age !== undefined ? `${patient.age} yrs` : 'N/A'} / {patient.sex || 'N/A'}</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Date of Birth</span>
+                    <span className="font-medium text-ink">{dobStr}</span>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
-          <div>
-            <span className="text-ink-soft font-medium block">Occupation & Address</span>
-            <span className="font-semibold text-ink block truncate">
-              {patient.occupation || 'No occupation listed'}
-            </span>
-            <span className="text-[11px] text-ink-soft block truncate">
-              {patient.address || 'No address listed'}
-            </span>
+          {/* Card 2: Contact & Personal Information */}
+          <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
+            <button
+              type="button"
+              onClick={() => toggleAccordion('contact')}
+              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Phone size={15} className="text-brand" /> Contact Information
+              </span>
+              {accordions.contact ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
+
+            {accordions.contact && (
+              <div className="p-4 pt-0 space-y-2.5 border-t border-border/60 pt-3">
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Phone Number</span>
+                  <span className="font-mono font-semibold text-ink text-xs">{patient.phone || 'N/A'}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Occupation</span>
+                  <span className="font-medium text-ink flex items-center gap-1">
+                    <Briefcase size={12} className="text-ink-soft shrink-0" /> {patient.occupation || 'N/A'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
+                  <span className="font-medium text-ink">{regDateStr}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Address</span>
+                  <span className="font-medium text-ink leading-relaxed flex items-start gap-1">
+                    <MapPin size={12} className="text-ink-soft shrink-0 mt-0.5" /> {patient.address || 'N/A'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div>
-            <span className="text-ink-soft font-medium block">Vitals & Lifestyle</span>
-            <span className="font-semibold text-ink block">
-              BP: {patient.vitals?.bp || 'N/A'} | RBS: {patient.vitals?.rbs || 'N/A'}
-            </span>
-            <span className="text-[11px] text-ink-soft block truncate">
-              Habits: {patient.habits && patient.habits.length > 0 ? (Array.isArray(patient.habits) ? patient.habits.join(', ') : patient.habits) : 'None'}
-            </span>
+          {/* Card 3: Clinical Vitals */}
+          <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
+            <button
+              type="button"
+              onClick={() => toggleAccordion('vitals')}
+              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <HeartPulse size={15} className="text-rose-600" /> Patient Vitals
+              </span>
+              {accordions.vitals ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
+
+            {accordions.vitals && (
+              <div className="p-4 pt-0 border-t border-border/60 pt-3">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="p-2.5 rounded-xl bg-bg border border-border">
+                    <span className="text-[10px] text-ink-soft block font-semibold">Blood Pressure</span>
+                    <span className="font-mono font-bold text-ink text-xs">{bp}</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-bg border border-border">
+                    <span className="text-[10px] text-ink-soft block font-semibold">Heart Rate</span>
+                    <span className="font-mono font-bold text-ink text-xs">{pulse}</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-bg border border-border">
+                    <span className="text-[10px] text-ink-soft block font-semibold">Temperature</span>
+                    <span className="font-mono font-bold text-ink text-xs">{temp}</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-bg border border-border">
+                    <span className="text-[10px] text-ink-soft block font-semibold">Blood Group</span>
+                    <span className="font-mono font-bold text-brand text-xs">{bloodGroup}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div>
-            <span className="text-ink-soft font-medium block">Medical History & Rx</span>
-            <span className="font-semibold text-amber-800 block truncate">
-              {patient.medicalHistory && patient.medicalHistory.length > 0
-                ? (Array.isArray(patient.medicalHistory) ? patient.medicalHistory.join(', ') : patient.medicalHistory)
-                : 'No alerts'}
-            </span>
-            <span className="text-[11px] text-ink-soft block truncate">
-              Meds: {patient.currentMedications || 'None'}
-            </span>
+          {/* Card 4: Medical History & Allergies (Collapsed by default) */}
+          <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
+            <button
+              type="button"
+              onClick={() => toggleAccordion('medical')}
+              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <ShieldAlert size={15} className="text-amber-600" /> Medical History & Allergies
+              </span>
+              {accordions.medical ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
+
+            {accordions.medical && (
+              <div className="p-4 pt-0 space-y-3 border-t border-border/60 pt-3">
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Known Drug Allergies</span>
+                  {allergiesList.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {allergiesList.map((alg, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200 font-semibold text-[11px]">
+                          {alg}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-ink-soft/70 italic">No known drug allergies reported</span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Systemic Medical History</span>
+                  {medicalHistoryList.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {medicalHistoryList.map((mItem, i) => (
+                        <span key={i} className="badge bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold">
+                          {mItem}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-ink-soft/70 italic">No systemic conditions logged</span>
+                  )}
+                </div>
+
+                {patient.currentMedications && (
+                  <div>
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Current Medications</span>
+                    <p className="text-ink font-medium leading-relaxed bg-bg/50 p-2 rounded-lg border border-border">
+                      {patient.currentMedications}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Card 5: Past Dental History & Personal Habits (Collapsed by default) */}
+          <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
+            <button
+              type="button"
+              onClick={() => toggleAccordion('dental')}
+              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Stethoscope size={15} className="text-brand" /> Dental History & Habits
+              </span>
+              {accordions.dental ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
+
+            {accordions.dental && (
+              <div className="p-4 pt-0 space-y-3 border-t border-border/60 pt-3">
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Previous Dental Procedures</span>
+                  {dentalHistoryList.length > 0 ? (
+                    <p className="text-ink font-medium leading-relaxed bg-bg/50 p-2 rounded-lg border border-border">
+                      {dentalHistoryList.join(', ')}
+                    </p>
+                  ) : (
+                    <span className="text-ink-soft/70 italic">No past dental procedures on record</span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Personal Habits</span>
+                  {habitsList.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {habitsList.map((hItem, i) => (
+                        <span key={i} className="badge bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-semibold">
+                          {hItem}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-ink-soft/70 italic">No personal habits reported</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {patient.dentalHistory && (
-          <div className="pt-2 border-t border-border/60 text-xs">
-            <span className="text-ink-soft font-semibold block">Dental History & Registration Complaints:</span>
-            <p className="text-ink font-medium text-[11px] bg-bg/50 p-2 rounded border border-border mt-1">
-              {patient.dentalHistory}
-            </p>
+        {/* MAIN CLINICAL WORKSPACE COLUMN (BELOW ON MOBILE/TABLET <1024px, LEFT-SIDE ON LAPTOP/DESKTOP >=1024px) */}
+        <div className="lg:col-span-8 lg:order-1 space-y-4">
+          {/* CLINICAL TAB BAR */}
+          <div className="flex border-b border-border space-x-1 overflow-x-auto scrollbar-none">
+            {CLINICAL_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${isActive
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                    }`}
+                >
+                  <Icon size={16} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
 
-      {/* CLINICAL TAB BAR */}
-      <div className="space-y-4">
-        <div className="flex border-b border-border space-x-1 overflow-x-auto">
-          {CLINICAL_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${isActive
-                  ? 'border-brand text-brand'
-                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                  }`}
-              >
-                <Icon size={16} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          {/* CLINICAL TABS CONTENT - Kept persistently mounted to preserve unsaved form inputs & draft states */}
+          <div className={activeTab === 'examination' ? 'block' : 'hidden'}>
+            <ExaminationTab consultation={consultation} isReadOnly={isCompleted} />
+          </div>
+
+          <div className={activeTab === 'tooth-chart' ? 'block' : 'hidden'}>
+            <ToothChart
+              patientId={consultation.patient?._id || consultation.patient?.id}
+              consultationId={consultation._id || consultation.id}
+              isReadOnly={isCompleted}
+              patient={consultation.patient}
+            />
+          </div>
+
+          <div className={activeTab === 'prescriptions' ? 'block' : 'hidden'}>
+            <PrescriptionsTab consultation={consultation} isReadOnly={isCompleted} />
+          </div>
+
+          <div className={activeTab === 'diagnosis' ? 'block' : 'hidden'}>
+            <DiagnosisTab consultation={consultation} isReadOnly={isCompleted} />
+          </div>
+
+          <div className={activeTab === 'investigations' ? 'block' : 'hidden'}>
+            <InvestigationsTab consultation={consultation} isReadOnly={isCompleted} />
+          </div>
+
+          <div className={activeTab === 'treatment-plan' ? 'block' : 'hidden'}>
+            <TreatmentPlanTab consultation={consultation} isReadOnly={isCompleted} />
+          </div>
         </div>
-
-        {/* ACTIVE TAB CONTENT */}
-        {activeTab === 'examination' ? (
-          <ExaminationTab consultation={consultation} isReadOnly={isCompleted} />
-        ) : activeTab === 'tooth-chart' ? (
-          <ToothChart
-            patientId={consultation.patient?._id || consultation.patient?.id}
-            consultationId={consultation._id || consultation.id}
-            isReadOnly={isCompleted}
-          />
-        ) : activeTab === 'diagnosis' ? (
-          <DiagnosisTab consultation={consultation} isReadOnly={isCompleted} />
-        ) : activeTab === 'treatment-plan' ? (
-          <TreatmentPlanTab consultation={consultation} isReadOnly={isCompleted} />
-        ) : activeTab === 'prescriptions' ? (
-          <PrescriptionsTab consultation={consultation} isReadOnly={isCompleted} />
-        ) : activeTab === 'investigations' ? (
-          <InvestigationsTab consultation={consultation} isReadOnly={isCompleted} />
-        ) : (
-          <div className="card p-8 text-center space-y-3">
-            <Stethoscope size={36} className="mx-auto text-brand/60" />
-            <h3 className="font-display text-base font-bold text-ink">
-              {CLINICAL_TABS.find((t) => t.id === activeTab)?.label} Module
-            </h3>
-          </div>
-        )}
       </div>
 
       {/* 2-PART CLOSE CONSULTATION MODAL */}
@@ -459,13 +659,12 @@ export default function Consultation() {
 
                         <div>
                           <label className="block font-semibold text-ink-soft mb-1">
-                            Reason for Follow-Up <span className="text-rose-600">*</span>
+                            Reason for Follow-Up <span className="text-ink-soft/70 font-normal">(Optional)</span>
                           </label>
                           <input
                             type="text"
-                            required={enableFollowUp}
                             className="input-field py-1.5"
-                            placeholder="e.g. Suture removal, Crown fit check"
+                            placeholder="e.g. Suture removal, Crown fit check (optional)"
                             value={followUpForm.reason}
                             onChange={(e) => setFollowUpForm({ ...followUpForm, reason: e.target.value })}
                           />

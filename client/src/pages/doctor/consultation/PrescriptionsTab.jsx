@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Pill, Plus, Trash2, Printer, FileText, X, Stethoscope,
+  Pill, Plus, Trash2, Printer, FileText, X, Stethoscope, Save,
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { openPrescriptionPDFWindow } from '../../../utils/prescriptionPdfGenerator.js';
@@ -182,7 +182,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
               <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-                <Pill size={18} className="text-brand" /> Issue New Prescription (Rx)
+                <Pill size={18} className="text-brand" /> Save Prescription (Rx)
               </h3>
               <p className="text-xs text-ink-soft">
                 Add medicine items with dosage, frequency, duration, instructions, and general notes.
@@ -280,8 +280,8 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
 
             <div className="flex justify-end pt-1">
               <button type="submit" disabled={submitting} className="btn-primary">
-                <Pill size={16} />
-                <span>{submitting ? 'Saving Prescription...' : 'Issue Medicine Prescription'}</span>
+                <Save size={16} />
+                <span>{submitting ? 'Saving Prescription...' : 'Save Prescription'}</span>
               </button>
             </div>
           </form>
@@ -306,7 +306,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
         ) : prescriptions.length === 0 ? (
           <div className="p-8 text-center text-xs text-ink-soft space-y-2">
             <Pill size={28} className="mx-auto text-ink-soft/40" />
-            <p className="font-semibold text-ink">No prescriptions issued for this consultation yet.</p>
+            <p className="font-semibold text-ink">No prescription history available.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -361,7 +361,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                   </div>
 
                   {/* Medicines Table */}
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto scrollbar-none">
                     <table className="w-full text-left text-xs">
                       <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
                         <tr>

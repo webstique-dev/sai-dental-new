@@ -90,7 +90,6 @@ export default function App() {
           <Route path="/reception/queue" element={<Queue />} />
           <Route path="/reception/billing" element={<Billing />} />
           <Route path="/reception/follow-ups" element={<FollowUps />} />
-          <Route path="/reception/reports" element={<ReceptionistReports />} />
         </Route>
       </Route>
 
@@ -99,6 +98,7 @@ export default function App() {
         <Route element={<DashboardLayout title="Clinical" />}>
           <Route path="/doctor" element={<DoctorDashboard />} />
           <Route path="/doctor/queue" element={<DoctorQueue />} />
+          <Route path="/doctor/appointments" element={<DoctorQueue />} />
           <Route path="/doctor/consultation/:consultationId" element={<Consultation />} />
           <Route path="/doctor/patients" element={<DoctorPatients />} />
           <Route path="/doctor/patients/:patientId" element={<PatientProfileEMR />} />
@@ -110,6 +110,7 @@ export default function App() {
           <Route path="/doctor/treatment-plans" element={<TreatmentPlansPage />} />
           <Route path="/doctor/prescriptions" element={<PrescriptionsPage />} />
           <Route path="/doctor/follow-ups" element={<FollowUps />} />
+          <Route path="/doctor/reports" element={<Reports />} />
         </Route>
       </Route>
 

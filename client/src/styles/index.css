@@ -101,3 +101,15 @@
   border-color: #64748b !important;
   border-width: 2px 2px 0 0 !important;
 }
+
+/* Hide scrollbar utility class across browsers */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'disabled'],
+      enum: ['active', 'inactive', 'disabled'],
       default: 'active',
     },
   },
@@ -57,13 +57,19 @@ userSchema.methods.comparePassword = function comparePassword(candidate) {
 };
 
 userSchema.methods.toSafeObject = function toSafeObject() {
+  const rawStatus = (this.status || 'active').toLowerCase();
+  const isAct = rawStatus === 'active';
+  const displayStatus = isAct ? 'active' : 'inactive';
+
   return {
     id: this._id,
+    _id: this._id,
     name: this.name,
     email: this.email,
     phone: this.phone,
     role: this.role,
-    status: this.status,
+    status: displayStatus,
+    isActive: isAct,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

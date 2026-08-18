@@ -1,14 +1,11 @@
-export function validatePhone(phone, required = false) {
+export function validatePhone(phone, required = true) {
   if (!phone || !phone.toString().trim()) {
     if (required) return 'Phone number is required.';
     return null;
   }
-  const cleanPhone = phone.toString().trim();
-  if (!/^\d+$/.test(cleanPhone)) {
-    return 'Phone number must contain numbers only (no letters or special characters).';
-  }
-  if (cleanPhone.length < 7 || cleanPhone.length > 15) {
-    return 'Phone number must be between 7 and 15 digits long.';
+  const cleanPhone = phone.toString().trim().replace(/\D/g, '');
+  if (cleanPhone.length !== 10) {
+    return 'Phone number must be exactly 10 digits.';
   }
   return null;
 }

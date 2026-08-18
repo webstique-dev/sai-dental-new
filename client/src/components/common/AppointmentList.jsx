@@ -71,6 +71,8 @@ export default function AppointmentList({
             const isScheduled = apt.status === 'Scheduled';
             const isLockedStatus = ['Completed', 'Cancelled', 'No Show'].includes(apt.status);
 
+            const pType = apt.patient?.patientType || (apt.patient?.age !== undefined && apt.patient?.age !== null && Number(apt.patient.age) < 12 ? 'child' : 'adult');
+
             return (
               <tr key={aptId} className="hover:bg-bg/60 transition-colors">
                 <td className="px-5 py-4 whitespace-nowrap">
@@ -82,10 +84,13 @@ export default function AppointmentList({
 
                 <td className="px-5 py-4">
                   <div className="font-medium text-ink">{patientName}</div>
-                  <div className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
+                  <div className="text-xs text-ink-soft flex items-center gap-1.5 flex-wrap mt-0.5">
                     {apt.patient?.opNumber && (
                       <span className="text-brand font-mono font-bold">{apt.patient.opNumber}</span>
                     )}
+                    <span className={`badge text-[10px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                      {pType === 'child' ? 'Child' : 'Adult'}
+                    </span>
                     {apt.patient?.phone && <span>{apt.patient.phone}</span>}
                   </div>
                 </td>
@@ -144,8 +149,8 @@ export default function AppointmentList({
                       </button>
                     )}
 
-                    {/* 3. No Show action for Scheduled appointments */}
-                    {isScheduled && onNoShow && (
+                    {/* 3. No Show action for Scheduled or Missed appointments */}
+                    {(isScheduled || apt.status === 'Missed') && onNoShow && (
                       <button
                         onClick={() => onNoShow(apt)}
                         title="Mark No Show"

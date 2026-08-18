@@ -19,8 +19,9 @@ async function protect(req, res, next) {
       return res.status(401).json({ message: 'Not authorized. User no longer exists.' });
     }
 
-    if (user.status === 'disabled') {
-      return res.status(403).json({ message: 'This account has been disabled.' });
+    const userStatus = (user.status || 'active').toLowerCase();
+    if (userStatus === 'disabled' || userStatus === 'inactive') {
+      return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
     }
 
     req.user = user; // full mongoose doc, password excluded by schema select:false

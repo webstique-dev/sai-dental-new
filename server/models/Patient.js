@@ -41,6 +41,11 @@ const patientSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    patientType: {
+      type: String,
+      enum: ['adult', 'child'],
+      default: 'adult',
+    },
     dateOfBirth: {
       type: Date,
     },
@@ -108,22 +113,38 @@ const patientSchema = new mongoose.Schema(
 );
 
 // Pre-save hook to auto-generate sequential OP number if not present
+// Format: YYYY-MM-001 (e.g. 2026-08-001), sequence restarts from 001 at start of each year
 patientSchema.pre('save', async function (next) {
   if (!this.opNumber) {
     try {
       const Patient = mongoose.model('Patient');
-      const count = await Patient.countDocuments();
-      const lastPatient = await Patient.findOne({ opNumber: { $exists: true, $ne: '' } }, { opNumber: 1 })
-        .sort({ createdAt: -1 });
+      const targetDate = this.registrationDate || this.createdAt || new Date();
+      const yearStr = String(targetDate.getFullYear());
+      const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
 
-      let nextSeq = count + 1;
-      if (lastPatient && lastPatient.opNumber) {
-        const match = lastPatient.opNumber.match(/OP-(\d+)/);
-        if (match) {
-          nextSeq = Math.max(nextSeq, parseInt(match[1], 10) + 1);
+      // Find all patients with opNumber matching yearStr (e.g., ^2026-)
+      const regexYear = new RegExp(`^${yearStr}-`);
+      const existingYearPatients = await Patient.find(
+        { opNumber: regexYear },
+        { opNumber: 1 }
+      );
+
+      let maxSeq = 0;
+      for (const p of existingYearPatients) {
+        if (p.opNumber) {
+          const parts = p.opNumber.split('-');
+          if (parts.length >= 3) {
+            const seqNum = parseInt(parts[parts.length - 1], 10);
+            if (!isNaN(seqNum) && seqNum > maxSeq) {
+              maxSeq = seqNum;
+            }
+          }
         }
       }
-      this.opNumber = `OP-${String(nextSeq).padStart(6, '0')}`;
+
+      const nextSeq = maxSeq + 1;
+      const seqStr = String(nextSeq).padStart(3, '0');
+      this.opNumber = `${yearStr}-${monthStr}-${seqStr}`;
     } catch (err) {
       return next(err);
     }

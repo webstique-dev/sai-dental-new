@@ -207,6 +207,22 @@ async function createPatient(req, res, next) {
       return res.status(400).json({ message: errors[0], errors });
     }
 
+    const cleanPhone = (data.phone || '').toString().trim().replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+    }
+
+    const existingPatient = await Patient.findOne({
+      phone: cleanPhone,
+      isDeleted: { $ne: true },
+    });
+
+    if (existingPatient) {
+      return res.status(409).json({ message: 'This phone number is already registered.' });
+    }
+
+    data.phone = cleanPhone;
+
     if (req.user && req.user._id) {
       data.registeredBy = req.user._id;
     }
@@ -265,6 +281,25 @@ async function updatePatient(req, res, next) {
     const errors = validatePatientData(req.body, true);
     if (errors.length > 0) {
       return res.status(400).json({ message: errors[0], errors });
+    }
+
+    if (req.body.phone !== undefined) {
+      const cleanPhone = (req.body.phone || '').toString().trim().replace(/\D/g, '');
+      if (!cleanPhone || cleanPhone.length !== 10) {
+        return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+      }
+
+      const existingPatient = await Patient.findOne({
+        phone: cleanPhone,
+        _id: { $ne: req.params.id },
+        isDeleted: { $ne: true },
+      });
+
+      if (existingPatient) {
+        return res.status(409).json({ message: 'This phone number is already registered.' });
+      }
+
+      req.body.phone = cleanPhone;
     }
 
     const patient = await Patient.findByIdAndUpdate(req.params.id, req.body, {

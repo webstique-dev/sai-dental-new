@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  CalendarDays, Plus, Search, Calendar, Phone, CheckCircle2, UserCheck, X, Clock, AlertTriangle, User,
+  CalendarDays, Plus, Search, Calendar, Phone, CheckCircle2, UserCheck, X, Clock, AlertTriangle, User, List,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
+import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
 const STATUS_BADGE_CLASSES = {
@@ -38,9 +39,11 @@ export default function FollowUps() {
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filter state
+  // Filter & View Mode state
   const [activeTab, setActiveTab] = useState('All');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -268,11 +271,56 @@ export default function FollowUps() {
             <p className="text-sm text-ink-soft">Directly schedule follow-up appointments and track patient visits</p>
           </div>
 
-          <button onClick={() => setShowAddModal(true)} className="btn-primary shrink-0">
-            <Plus size={18} />
-            <span>Add Follow-Up Appointment</span>
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            {/* View Mode Toggle */}
+            <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-sm">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === 'list' ? 'bg-brand text-white shadow-sm' : 'text-ink-soft hover:text-ink'
+                }`}
+              >
+                <List size={15} /> List View
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === 'calendar' ? 'bg-brand text-white shadow-sm' : 'text-ink-soft hover:text-ink'
+                }`}
+              >
+                <CalendarDays size={15} /> Calendar View
+              </button>
+            </div>
+
+            <button onClick={() => setShowAddModal(true)} className="btn-primary shrink-0">
+              <Plus size={18} />
+              <span>Add Follow-Up Appointment</span>
+            </button>
+          </div>
         </div>
+
+        {viewMode === 'calendar' ? (
+          <AppointmentCalendar
+            calendarDate={calendarDate}
+            setCalendarDate={setCalendarDate}
+            appointments={followUps.map((fu) => ({
+              _id: fu._id || fu.id,
+              date: fu.recommendedDate,
+              time: fu.scheduledAppointment?.time || '10:00 AM',
+              status: fu.status,
+              patient: fu.patient,
+              doctor: fu.createdBy || { name: 'Staff Doctor' },
+            }))}
+            allowEdit={true}
+            onEdit={(fuApt) => {
+              const matched = followUps.find((f) => (f._id || f.id) === fuApt._id);
+              if (matched && matched.status === 'Pending') {
+                openScheduleModal(matched);
+              }
+            }}
+          />
+        ) : (
+          <>
 
         {/* Tabs & Search Bar */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -429,6 +477,8 @@ export default function FollowUps() {
             </div>
           )}
         </div>
+      </>
+      )}
       </div>
 
       {/* ADD FOLLOW-UP MODAL */}

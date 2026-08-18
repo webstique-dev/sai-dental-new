@@ -56,6 +56,11 @@ const clinicSettingsSchema = new mongoose.Schema(
       type: String,
       default: 'INR',
     },
+    primaryDoctor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

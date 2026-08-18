@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Check } from 'lucide-react';
+import { Save, Check, FileHeart } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
 
@@ -141,6 +141,29 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
+      {/* TOP SAVE ACTION BAR */}
+      {!isReadOnly && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 card p-4 bg-surface border-brand/20 shadow-sm">
+          <div>
+            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+              <FileHeart size={18} className="text-brand" /> Clinical Examination Findings
+            </h3>
+            <p className="text-xs text-ink-soft mt-0.5">
+              Record extraoral, intraoral soft tissue, and periodontal findings below.
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="btn-primary px-5 py-2.5 text-xs flex items-center justify-center gap-2 font-bold shrink-0 shadow-sm"
+          >
+            <Save size={15} />
+            <span>{saving ? 'Saving Examination...' : 'Save Examination Findings'}</span>
+          </button>
+        </div>
+      )}
+
       {/* 1. EXTRAORAL EXAMINATION */}
       <div className="card p-5 space-y-4">
         <div className="border-b border-border pb-2">

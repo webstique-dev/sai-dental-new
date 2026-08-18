@@ -5,8 +5,8 @@ const allowRoles = require('../middleware/roleCheck');
 
 const router = express.Router();
 
-// Protected for Doctor and Admin
-router.use(protect, allowRoles('doctor', 'admin'));
+// Protected for Receptionist, Doctor, and Admin
+router.use(protect, allowRoles('receptionist', 'doctor', 'admin'));
 
 router.get('/', listPrescriptions);
 router.post('/', createPrescription);

@@ -15,12 +15,14 @@ function validatePatientData(data, isUpdate = false) {
     }
   }
 
-  if (data.phone && data.phone.toString().trim()) {
-    const cleanPhone = data.phone.toString().trim();
-    if (!/^\d+$/.test(cleanPhone)) {
-      errors.push('Phone number must contain numbers only (no letters or special characters).');
-    } else if (cleanPhone.length < 7 || cleanPhone.length > 15) {
-      errors.push('Phone number must be between 7 and 15 digits long.');
+  if (!isUpdate || data.phone !== undefined) {
+    if (!data.phone || !data.phone.toString().trim()) {
+      errors.push('Phone number is required.');
+    } else {
+      const cleanPhone = data.phone.toString().trim().replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        errors.push('Phone number must be exactly 10 digits.');
+      }
     }
   }
 
@@ -70,8 +72,8 @@ function validateUserData(data, isUpdate = false) {
 
   if (data.phone && data.phone.toString().trim()) {
     const cleanPhone = data.phone.toString().trim();
-    if (!/^\d+$/.test(cleanPhone) || cleanPhone.length < 7 || cleanPhone.length > 15) {
-      errors.push('Phone number must be numbers only (7-15 digits).');
+    if (!/^\d+$/.test(cleanPhone) || cleanPhone.length !== 10) {
+      errors.push('Phone number must be numbers only and exactly 10 digits long.');
     }
   }
 
