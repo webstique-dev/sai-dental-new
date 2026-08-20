@@ -1,35 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, Building2, Stethoscope, ArrowRight, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
 import { useNotification } from '../context/NotificationContext.jsx';
 import { validateName, validateEmail, validatePhone } from '../utils/validators.js';
 
 const ROLES_CONFIG = [
-  {
-    role: 'admin',
-    title: 'Admin',
-    description: 'Manages users, settings, and clinic-wide oversight',
-    icon: ShieldCheck,
-    selectedClasses: 'border-role-admin bg-role-adminSoft/50 text-role-admin shadow-sm',
-    badgeClass: 'bg-role-admin text-white',
-  },
-  {
-    role: 'receptionist',
-    title: 'Receptionist',
-    description: 'Manages patient flow, appointments, and billing',
-    icon: Building2,
-    selectedClasses: 'border-role-reception bg-role-receptionSoft/50 text-role-reception shadow-sm',
-    badgeClass: 'bg-role-reception text-white',
-  },
-  {
-    role: 'doctor',
-    title: 'Doctor',
-    description: 'Manages clinical care, diagnosis, and treatment',
-    icon: Stethoscope,
-    selectedClasses: 'border-role-doctor bg-role-doctorSoft/50 text-role-doctor shadow-sm',
-    badgeClass: 'bg-role-doctor text-white',
-  },
+  { role: 'admin', title: 'Admin' },
+  { role: 'receptionist', title: 'Receptionist' },
+  { role: 'doctor', title: 'Doctor' },
 ];
 
 export default function Signup() {
@@ -109,115 +88,141 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center p-4 sm:p-6 font-body">
-      <div className="w-full max-w-xl space-y-6">
-        {/* Header Branding */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand text-white font-display text-xl font-extrabold shadow-md mb-1">
-            DC
-          </div>
-          <h1 className="font-display text-2xl font-bold text-ink">Create Clinic Staff Account</h1>
-          <p className="text-xs text-ink-soft">
-            Register your account to access your assigned role dashboard.
-          </p>
+    <div className="flex min-h-screen w-full items-center justify-center bg-white md:bg-[#f4f4f6] p-0 md:p-4 lg:p-6">
+      {/* Main Split Card Container */}
+      <div className="w-full min-h-screen md:min-h-[600px] max-w-5xl rounded-none md:rounded-[32px] bg-white p-2.5 md:p-3 shadow-none md:shadow-xl md:shadow-slate-200/60 border-0 md:border md:border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 items-stretch">
+
+        {/* Left Column: Full Hero Image (Hidden under 768px) */}
+        <div className="hidden md:block relative rounded-[24px] overflow-hidden min-h-[300px] lg:min-h-[580px] bg-[#e8e7e3]">
+          <img
+            src="https://res.cloudinary.com/rlokioxu/image/upload/v1787221031/Login-image_b3unca.png"
+            alt="Sai Dental Registration Graphic"
+            className="w-full h-full object-cover rounded-[24px]"
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="card p-6 space-y-5 bg-surface">
-          {/* Step 1: Select Role */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-ink uppercase tracking-wider">
-              Select Your Operational Role *
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {ROLES_CONFIG.map((rc) => {
-                const Icon = rc.icon;
-                const isSelected = selectedRole === rc.role;
-
-                return (
-                  <div
-                    key={rc.role}
-                    onClick={() => setSelectedRole(rc.role)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${isSelected
-                      ? rc.selectedClasses
-                      : 'border-border bg-bg/40 text-ink-soft hover:border-border/80 hover:bg-bg'
-                      }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <Icon size={20} className={isSelected ? 'text-current' : 'text-ink-soft'} />
-                      {isSelected && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${rc.badgeClass}`}>
-                          Selected
-                        </span>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="font-display text-sm font-bold text-ink">{rc.title}</h3>
-                      <p className="text-[11px] text-ink-soft leading-snug mt-0.5">{rc.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        {/* Right Column: Form Container */}
+        <div className="flex flex-col justify-center px-4 py-8 sm:px-8 lg:px-12 w-full max-w-md mx-auto md:max-w-none">
+          {/* Top Brand Logo */}
+          <div className="flex items-center justify-center gap-2.5 mb-3">
+            <img
+              src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png"
+              alt="Sai Dental"
+              className="h-8 w-auto object-contain"
+            />
           </div>
 
-          {/* Step 2: Credentials Inputs */}
-          <div className="space-y-4 text-xs border-t border-border pt-4">
+          {/* Heading & Subheading */}
+          <div className="text-center mb-6">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Create Account
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
+              Select your role and enter details to register your account
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
+            {/* Operational Role Selector (Pills) */}
             <div>
-              <label className="block font-semibold text-ink-soft mb-1">Full Name *</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                Operational Role <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {ROLES_CONFIG.map((rc) => {
+                  const isSelected = selectedRole === rc.role;
+                  return (
+                    <button
+                      type="button"
+                      key={rc.role}
+                      onClick={() => setSelectedRole(rc.role)}
+                      className={`py-2 px-3 rounded-full text-xs font-bold transition-all text-center border ${isSelected
+                          ? 'bg-[linear-gradient(135deg,#1E64EA_0%,#2090F0_50%,#14C9FE_100%)] text-white border-transparent shadow-sm'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
+                        }`}
+                    >
+                      {rc.title}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Full Name */}
+            <div>
+              <label htmlFor="signup-name" className="block text-xs font-semibold text-slate-500 mb-1">
+                Full Name <span className="text-rose-500">*</span>
+              </label>
               <input
+                id="signup-name"
                 type="text"
                 required
-                className="input-field"
+                autoComplete="off"
                 placeholder="e.g. Dr. Sarah Jenkins or John Smith"
                 value={name}
                 onChange={(e) => setName(e.target.value.replace(/[^a-zA-Z\s'.-]/g, ''))}
+                className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400"
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Email & Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-ink-soft mb-1">Email Address *</label>
+                <label htmlFor="signup-email" className="block text-xs font-semibold text-slate-500 mb-1">
+                  Email Address <span className="text-rose-500">*</span>
+                </label>
                 <input
+                  id="signup-email"
                   type="email"
                   required
-                  className="input-field"
+                  autoComplete="off"
                   placeholder="name@clinic.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-ink-soft mb-1">Phone Number (Optional)</label>
+                <label htmlFor="signup-phone" className="block text-xs font-semibold text-slate-500 mb-1">
+                  Phone (Optional)
+                </label>
                 <input
+                  id="signup-phone"
                   type="tel"
                   maxLength={10}
-                  className="input-field font-mono"
+                  autoComplete="off"
                   placeholder="9876543210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400 font-mono"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Password & Confirm Password */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold text-ink-soft mb-1">Password * (Min 6 chars)</label>
+                <label htmlFor="signup-password" className="block text-xs font-semibold text-slate-500 mb-1">
+                  Password <span className="text-rose-500">*</span>
+                </label>
                 <div className="relative">
                   <input
+                    id="signup-password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     minLength={6}
-                    className="input-field font-mono pr-10"
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-full border border-slate-200 px-4 py-2.5 pr-10 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400 font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-soft hover:text-ink"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -226,52 +231,60 @@ export default function Signup() {
               </div>
 
               <div>
-                <label className="block font-semibold text-ink-soft mb-1">Confirm Password *</label>
+                <label htmlFor="signup-confirm-password" className="block text-xs font-semibold text-slate-500 mb-1">
+                  Confirm Password <span className="text-rose-500">*</span>
+                </label>
                 <div className="relative">
                   <input
+                    id="signup-confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
                     minLength={6}
-                    className={`input-field font-mono pr-10 ${confirmPassword && password !== confirmPassword ? 'border-rose-400 focus:ring-rose-200' : ''
-                      }`}
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`w-full rounded-full border px-4 py-2.5 pr-10 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:ring-4 transition-all placeholder:text-slate-400 font-mono ${confirmPassword && password !== confirmPassword
+                        ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/10'
+                        : 'border-slate-200 focus:border-[#1E64EA] focus:ring-[#1E64EA]/15'
+                      }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((v) => !v)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-soft hover:text-ink"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
                     aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   >
                     {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                {confirmPassword && password !== confirmPassword && (
-                  <p className="text-[11px] text-rose-600 font-semibold mt-1">Passwords do not match.</p>
-                )}
               </div>
             </div>
-          </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={submitting || !selectedRole}
-            className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm mt-2"
-          >
-            <UserPlus size={16} />
-            {submitting ? 'Creating Account...' : 'Complete Registration & Sign In'}
-          </button>
-        </form>
+            {/* Password Mismatch Warning */}
+            {confirmPassword && password !== confirmPassword && (
+              <p className="text-[11px] text-rose-600 font-semibold mt-1">Passwords do not match.</p>
+            )}
 
-        {/* Footer Navigation */}
-        <div className="text-center text-xs text-ink-soft">
-          Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand hover:underline inline-flex items-center gap-1">
-            Log in here <ArrowRight size={13} />
-          </Link>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={submitting || !selectedRole}
+              className="w-full rounded-full bg-[linear-gradient(135deg,#1E64EA_0%,#2090F0_50%,#14C9FE_100%)] text-white hover:brightness-105 active:scale-[0.99] py-3.5 px-6 font-bold text-sm shadow-md shadow-blue-500/20 transition-all mt-3 disabled:opacity-60"
+            >
+              {submitting ? 'Creating Account...' : 'Complete Registration'}
+            </button>
+          </form>
+
+          {/* Footer Link */}
+          <p className="text-center text-xs font-medium text-slate-400 mt-6">
+            Already have an account?{' '}
+            <Link to="/login" className="font-bold text-[#1E64EA] hover:underline transition-colors">
+              Log in
+            </Link>
+          </p>
         </div>
+
       </div>
     </div>
   );

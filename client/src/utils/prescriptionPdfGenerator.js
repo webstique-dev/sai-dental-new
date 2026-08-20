@@ -98,7 +98,7 @@ export function generatePrescriptionHTML(params = {}) {
         .clinic-logo-icon {
           width: 46px;
           height: 46px;
-          background: #0d9488;
+          background: linear-gradient(135deg, #1E64EA 0%, #2090F0 50%, #14C9FE 100%);
           color: #ffffff;
           border-radius: 12px;
           display: flex;
@@ -110,7 +110,7 @@ export function generatePrescriptionHTML(params = {}) {
         .clinic-title {
           font-size: 20px;
           font-weight: 900;
-          color: #0f172a;
+          color: #0B1A2E;
           text-transform: uppercase;
           letter-spacing: -0.3px;
           margin: 0;
@@ -118,7 +118,7 @@ export function generatePrescriptionHTML(params = {}) {
         .clinic-subtitle {
           font-size: 11px;
           font-weight: 700;
-          color: #0d9488;
+          color: #1E64EA;
           text-transform: uppercase;
           letter-spacing: 0.5px;
           margin: 2px 0 0 0;
@@ -133,8 +133,8 @@ export function generatePrescriptionHTML(params = {}) {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: #f0f9ff;
+          border: 1px solid #cbd5e1;
           border-radius: 12px;
           padding: 12px 18px;
           margin-bottom: 16px;
@@ -142,13 +142,13 @@ export function generatePrescriptionHTML(params = {}) {
         .doctor-name {
           font-size: 14px;
           font-weight: 800;
-          color: #0f172a;
+          color: #0B1A2E;
           margin: 0;
         }
         .doctor-qual {
           font-size: 11px;
           font-weight: 700;
-          color: #0d9488;
+          color: #1E64EA;
           margin: 1px 0 0 0;
         }
         .patient-card {
@@ -173,7 +173,7 @@ export function generatePrescriptionHTML(params = {}) {
         .patient-value {
           font-size: 12px;
           font-weight: 800;
-          color: #0f172a;
+          color: #0B1A2E;
         }
         .diagnosis-box {
           background: #fffbeb;
@@ -187,7 +187,7 @@ export function generatePrescriptionHTML(params = {}) {
           display: flex;
           align-items: center;
           gap: 8px;
-          border-bottom: 2px solid #0d9488;
+          border-bottom: 2px solid #1E64EA;
           padding-bottom: 4px;
           margin-bottom: 12px;
           margin-top: 8px;
@@ -196,7 +196,7 @@ export function generatePrescriptionHTML(params = {}) {
           font-size: 32px;
           font-weight: 900;
           font-family: Georgia, serif;
-          color: #0d9488;
+          color: #1E64EA;
           line-height: 1;
         }
         .med-table {
@@ -294,10 +294,10 @@ export function generatePrescriptionHTML(params = {}) {
           <span style="font-weight: 800; font-size: 14px;">Medical Prescription PDF Preview</span>
         </div>
         <div style="display: flex; gap: 10px;">
-          <button onclick="window.print()" style="background: #0d9488; color: #ffffff; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+          <button onclick="window.print()" style="background: linear-gradient(135deg, #1E64EA 0%, #2090F0 50%, #14C9FE 100%); color: #ffffff; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
             <span>🖨️</span> Print / Save as PDF
           </button>
-          <button onclick="window.close()" style="background: #334155; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer;">
+          <button onclick="window.close()" style="background: #0B1A2E; color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer;">
             Close Preview
           </button>
         </div>
@@ -310,7 +310,7 @@ export function generatePrescriptionHTML(params = {}) {
             <img src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png" alt="Sai Dental Logo" style="height: 48px; width: auto; object-fit: contain; border-radius: 8px;" />
           </div>
           <div class="clinic-contact">
-            <p style="margin: 0; font-weight: 700; color: #0f172a;">${safeAddress}</p>
+            <p style="margin: 0; font-weight: 700; color: #0B1A2E;">${safeAddress}</p>
             <p style="margin: 2px 0 0 0;">Phone: <strong>${safePhone}</strong></p>
             <p style="margin: 2px 0 0 0;">Email: ${safeEmail}</p>
             <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Reg No: KDC-84920 / Lic: 2026-DNT</p>
@@ -326,7 +326,7 @@ export function generatePrescriptionHTML(params = {}) {
           </div>
           <div style="text-align: right;">
             <p style="margin: 0; font-size: 12px; font-weight: 700;">Date: <span style="font-family: monospace;">${rxDate}</span></p>
-            <p style="margin: 2px 0 0 0; font-size: 11px; font-family: monospace; font-weight: 700; color: #0d9488;">${rxRefNo}</p>
+            <p style="margin: 2px 0 0 0; font-size: 11px; font-family: monospace; font-weight: 700; color: #1E64EA;">${rxRefNo}</p>
             <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">${visitId}</p>
           </div>
         </div>
