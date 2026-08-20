@@ -129,19 +129,25 @@ async function getDoctorTodayQueue(req, res, next) {
       status: { $in: ['Checked-In', 'In Consultation'] },
     });
 
+    const { getFormattedDateString } = require('../utils/statusSync');
+    const queueDateStr = getFormattedDateString(new Date());
+
     for (const apt of checkedInAppointments) {
       let qEntry = await QueueEntry.findOne({ appointment: apt._id });
       if (!qEntry) {
         const lastEntry = await QueueEntry.findOne({ date: { $gte: start, $lte: end } }).sort({ token: -1 });
-        const nextToken = lastEntry && lastEntry.token ? lastEntry.token + 1 : 1;
+        const nextToken = lastEntry && (lastEntry.token || lastEntry.queue_token) ? (lastEntry.token || lastEntry.queue_token) + 1 : 1;
         qEntry = new QueueEntry({
           token: nextToken,
+          queue_token: nextToken,
           patient: apt.patient,
           doctor: apt.doctor,
           appointment: apt._id,
           type: apt.type || 'Appointment',
           status: apt.status,
+          checked_in_at: new Date(),
           checkInTime: new Date(),
+          queue_date: queueDateStr,
           date: new Date(),
         });
         await qEntry.save();
@@ -515,6 +521,40 @@ async function getDoctorSummary(req, res, next) {
 
     const { start, end } = getDayBounds(new Date());
 
+    // Ensure all checked-in/in-consultation appointments for today have an active QueueEntry before calculating counts
+    const checkedInAppointments = await Appointment.find({
+      date: { $gte: start, $lte: end },
+      status: { $in: ['Checked-In', 'In Consultation'] },
+    });
+
+    const { getFormattedDateString } = require('../utils/statusSync');
+    const queueDateStr = getFormattedDateString(new Date());
+
+    for (const apt of checkedInAppointments) {
+      let qEntry = await QueueEntry.findOne({ appointment: apt._id });
+      if (!qEntry) {
+        const lastEntry = await QueueEntry.findOne({ date: { $gte: start, $lte: end } }).sort({ token: -1 });
+        const nextToken = lastEntry && (lastEntry.token || lastEntry.queue_token) ? (lastEntry.token || lastEntry.queue_token) + 1 : 1;
+        qEntry = new QueueEntry({
+          token: nextToken,
+          queue_token: nextToken,
+          patient: apt.patient,
+          doctor: apt.doctor,
+          appointment: apt._id,
+          type: apt.type || 'Appointment',
+          status: apt.status,
+          checked_in_at: new Date(),
+          checkInTime: new Date(),
+          queue_date: queueDateStr,
+          date: new Date(),
+        });
+        await qEntry.save();
+      } else if (qEntry.status !== apt.status) {
+        qEntry.status = apt.status;
+        await qEntry.save();
+      }
+    }
+
     // 1. patientsInQueue: count of QueueEntry with status Checked-In or In Consultation, assigned to this doctor, for today
     const queueFilter = {
       date: { $gte: start, $lte: end },
@@ -560,7 +600,26 @@ async function getDoctorSummary(req, res, next) {
     }
     const followUpsDue = await FollowUp.countDocuments(fuFilter);
 
-    // 5. nextInQueue: single next patient in this doctor's queue (lowest token number with status Checked-In today)
+    // 5. todaysAppointments & upcomingAppointments
+    const todaysApptFilter = {
+      date: { $gte: start, $lte: end },
+      isDeleted: { $ne: true },
+    };
+    if (targetDoctorId) {
+      todaysApptFilter.doctor = targetDoctorId;
+    }
+    const todaysAppointments = await Appointment.countDocuments(todaysApptFilter);
+
+    const upcomingApptFilter = {
+      date: { $gt: end },
+      isDeleted: { $ne: true },
+    };
+    if (targetDoctorId) {
+      upcomingApptFilter.doctor = targetDoctorId;
+    }
+    const upcomingAppointments = await Appointment.countDocuments(upcomingApptFilter);
+
+    // 6. nextInQueue: single next patient in this doctor's queue (lowest token number with status Checked-In today)
     const nextQueueEntry = await QueueEntry.findOne(queueFilter)
       .sort({ token: 1 })
       .populate('patient', 'firstName lastName opNumber phone age sex');
@@ -590,6 +649,8 @@ async function getDoctorSummary(req, res, next) {
     return res.json({
       patientsInQueue,
       todaysConsultations,
+      todaysAppointments,
+      upcomingAppointments,
       activeTreatmentPlans,
       followUpsDue,
       nextInQueue,

@@ -141,6 +141,7 @@ export default function PatientSearchInput({
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input
               type="text"
+              autoComplete="off"
               className="input-field pl-9 pr-8 py-2 text-xs font-medium focus:ring-2 focus:ring-brand/20"
               placeholder={placeholder}
               value={query}

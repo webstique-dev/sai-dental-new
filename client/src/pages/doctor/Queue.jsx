@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List
 } from 'lucide-react';
@@ -23,10 +23,18 @@ const STATUS_BADGE_CLASSES = {
 
 export default function DoctorQueue() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
   const { showSuccess, showError } = useNotification();
 
   // Active Tab: 'today' (default) | 'upcoming' | 'history'
-  const [activeTab, setActiveTab] = useState('today');
+  const [activeTab, setActiveTab] = useState(() => (tabParam && ['today', 'upcoming', 'history'].includes(tabParam) ? tabParam : 'today'));
+
+  useEffect(() => {
+    if (tabParam && ['today', 'upcoming', 'history'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   // VIEW MODE: 'list' (default) | 'calendar'
   const [viewMode, setViewMode] = useState('list');
@@ -122,7 +130,7 @@ export default function DoctorQueue() {
       const combinedToday = [...queueList];
       todayApts.forEach((apt) => {
         const aptId = (apt._id || apt.id).toString();
-        if (!checkedInAptIds.has(aptId) && apt.status === 'Scheduled') {
+        if (!checkedInAptIds.has(aptId)) {
           combinedToday.push({
             id: apt._id || apt.id,
             _id: apt._id || apt.id,
@@ -130,11 +138,11 @@ export default function DoctorQueue() {
             patient: apt.patient,
             doctor: apt.doctor,
             type: apt.type || 'Appointment',
-            reason: apt.reason || 'Scheduled Visit',
-            checkInTime: null,
-            status: 'Scheduled',
+            reason: apt.reason || (apt.status === 'In Consultation' ? 'In-Consultation Visit' : 'Scheduled Visit'),
+            checkInTime: apt.checkInTime || null,
+            status: apt.status,
             appointment: apt,
-            isScheduledOnly: true,
+            isScheduledOnly: apt.status === 'Scheduled',
           });
         }
       });

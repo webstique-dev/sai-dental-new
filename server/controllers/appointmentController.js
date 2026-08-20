@@ -1,7 +1,8 @@
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 const FollowUp = require('../models/FollowUp');
-const { syncVisitStatus, checkAndMarkMissedAppointments } = require('../utils/statusSync');
+const QueueEntry = require('../models/QueueEntry');
+const { syncVisitStatus, checkAndMarkMissedAppointments, getFormattedDateString } = require('../utils/statusSync');
 const { emitAppointmentUpdate } = require('../utils/socket');
 const { buildPatientSearchFilter } = require('../utils/patientSearchHelper');
 
@@ -29,64 +30,49 @@ function getDayBounds(dateInput) {
   const minStart = new Date(Math.min(localStart.getTime(), utcStart.getTime()));
   const maxEnd = new Date(Math.max(localEnd.getTime(), utcEnd.getTime()));
 
-  return { start: minStart, end: maxEnd, localStart, localEnd };
+  return { start: minStart, end: maxEnd, minStart, maxEnd };
 }
 
 // GET /api/appointments?date=&dateFilterPreset=&doctor=&status=&search=
 async function listAppointments(req, res, next) {
   try {
-    // Auto-flag passed appointments & linked follow-ups as Missed
+    const { date, dateFilterPreset, doctor, status, search } = req.query;
+    const filter = { isDeleted: { $ne: true } };
+
+    // Automatically check and transition past un-checked-in appointments to Missed
     await checkAndMarkMissedAppointments();
 
-    const { date, dateFilterPreset, doctor, status, search } = req.query;
-    const filter = {
-      $or: [
-        { isDeleted: { $ne: true } },
-        { status: 'Cancelled' },
-      ],
-    };
-
-    // Filter by date or preset
     if (dateFilterPreset === 'today') {
       const { start, end } = getDayBounds(new Date());
       filter.date = { $gte: start, $lte: end };
     } else if (dateFilterPreset === 'upcoming') {
-      const { localStart } = getDayBounds(new Date());
-      filter.date = { $gte: localStart };
+      const now = new Date();
+      filter.date = { $gte: now };
     } else if (date) {
       const { start, end } = getDayBounds(date);
       filter.date = { $gte: start, $lte: end };
     }
 
-    // Filter by doctor
     if (doctor) {
       filter.doctor = doctor;
     } else if (req.user && req.user.role === 'doctor') {
       filter.doctor = req.user._id;
     }
-
-    // Filter by status
     if (status) {
       filter.status = status;
     }
 
-    // Filter by patient search term (name/phone/opNumber)
-    const patientSearchFilter = buildPatientSearchFilter(search);
-    if (patientSearchFilter) {
-      const matchingPatients = await Patient.find({
-        ...patientSearchFilter,
-        isDeleted: { $ne: true },
-      }).select('_id');
-
+    if (search && search.trim()) {
+      const patientFilter = buildPatientSearchFilter(search.trim());
+      const matchingPatients = await Patient.find(patientFilter).select('_id');
       const patientIds = matchingPatients.map((p) => p._id);
       filter.patient = { $in: patientIds };
     }
 
     const appointments = await Appointment.find(filter)
-      .sort({ date: 1, time: 1 })
       .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
-      .populate('createdBy', 'name email');
+      .sort({ date: 1, time: 1 });
 
     return res.json({ appointments });
   } catch (err) {
@@ -102,22 +88,54 @@ async function createAppointment(req, res, next) {
       data.createdBy = req.user._id;
     }
 
-    // Default status is Scheduled if not specified
+    // Default status is Checked-In if not specified
     if (!data.status) {
-      data.status = 'Scheduled';
+      data.status = 'Checked-In';
     }
 
-    // Prevent receptionist from creating appointment directly as In Consultation or Completed
+    // Normalize Check-in to Checked-In
+    if (data.status === 'Check-in') {
+      data.status = 'Checked-In';
+    }
+
+    // Prevent receptionist from creating appointment directly as Completed
     if (req.user && req.user.role === 'receptionist') {
-      if (['In Consultation', 'Completed'].includes(data.status)) {
+      if (data.status === 'Completed') {
         return res.status(403).json({
-          message: 'Receptionists are not permitted to set status to In Consultation or Completed.',
+          message: 'Receptionists are not permitted to set status to Completed.',
         });
       }
     }
 
     const newAppointment = new Appointment(data);
     await newAppointment.save();
+
+    // If created with Checked-In or In Consultation status, generate a QueueEntry so it goes directly to doctor queue
+    if (['Checked-In', 'In Consultation'].includes(data.status)) {
+      const now = new Date();
+      const { minStart, maxEnd } = getDayBounds(now);
+      const queueDateStr = getFormattedDateString(now);
+      let qEntry = await QueueEntry.findOne({ appointment: newAppointment._id });
+      if (!qEntry) {
+        const lastEntry = await QueueEntry.findOne({ date: { $gte: minStart, $lte: maxEnd } }).sort({ token: -1 });
+        const nextToken = lastEntry && (lastEntry.token || lastEntry.queue_token) ? (lastEntry.token || lastEntry.queue_token) + 1 : 1;
+        qEntry = new QueueEntry({
+          token: nextToken,
+          queue_token: nextToken,
+          patient: newAppointment.patient,
+          doctor: newAppointment.doctor,
+          appointment: newAppointment._id,
+          type: newAppointment.type || 'Appointment',
+          status: data.status,
+          checked_in_at: now,
+          checkInTime: now,
+          queue_date: queueDateStr,
+          consultation_started_at: data.status === 'In Consultation' ? now : undefined,
+          date: now,
+        });
+        await qEntry.save();
+      }
+    }
 
     const appointment = await Appointment.findById(newAppointment._id)
       .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
@@ -142,9 +160,9 @@ async function updateAppointment(req, res, next) {
 
     // Enforce status permissions for receptionists
     if (req.user && req.user.role === 'receptionist' && status) {
-      if (['In Consultation', 'Completed'].includes(status)) {
+      if (status === 'Completed') {
         return res.status(403).json({
-          message: 'Receptionists are not permitted to set appointment status to In Consultation or Completed.',
+          message: 'Receptionists are not permitted to set appointment status to Completed.',
         });
       }
     }

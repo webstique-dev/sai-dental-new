@@ -58,7 +58,7 @@ export default function Login() {
           <p className="mt-1 text-sm text-ink-soft">Sign in to your clinic workspace</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card space-y-4 p-6">
+        <form onSubmit={handleSubmit} autoComplete="off" className="card space-y-4 p-6">
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink">
               Email
@@ -67,7 +67,7 @@ export default function Login() {
               id="email"
               type="email"
               required
-              autoComplete="email"
+              autoComplete="off"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
@@ -84,7 +84,7 @@ export default function Login() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 required
-                autoComplete="current-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-field pr-10"

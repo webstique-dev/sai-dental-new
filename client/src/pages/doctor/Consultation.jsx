@@ -18,8 +18,8 @@ const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
   { id: 'tooth-chart', label: 'Tooth Chart', icon: Grid3x3 },
   { id: 'prescriptions', label: 'Prescription', icon: Pill },
-  { id: 'diagnosis', label: 'Diagnosis', icon: Stethoscope },
-  { id: 'investigations', label: 'Investigations', icon: Search },
+  // { id: 'diagnosis', label: 'Diagnosis', icon: Stethoscope },
+  // { id: 'investigations', label: 'Investigations', icon: Search },
   { id: 'treatment-plan', label: 'Treatment Plan', icon: Activity },
 ];
 

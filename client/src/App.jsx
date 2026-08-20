@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, ROLE_HOME } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import DashboardLayout from './components/layout/DashboardLayout.jsx';
+import { setupGlobalAutocompleteDisable } from './utils/disableAutocomplete.js';
 
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
@@ -42,6 +44,11 @@ import DentalPreloader from './components/common/DentalPreloader.jsx';
 
 export default function App() {
   const { user, loading, initialLoading, initialError, retryInitialLoad } = useAuth();
+
+  useEffect(() => {
+    const cleanup = setupGlobalAutocompleteDisable();
+    return () => cleanup && cleanup();
+  }, []);
 
   if (loading || initialLoading || initialError) {
     return (

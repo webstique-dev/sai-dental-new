@@ -20,7 +20,6 @@ const toothHistorySchema = new mongoose.Schema(
   {
     condition: {
       type: String,
-      enum: toothConditionOptions,
       required: true,
     },
     treatment: {
@@ -63,7 +62,6 @@ const toothRecordSchema = new mongoose.Schema(
     },
     currentCondition: {
       type: String,
-      enum: toothConditionOptions,
       default: 'Healthy',
     },
     history: [toothHistorySchema],

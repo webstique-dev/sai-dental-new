@@ -158,6 +158,7 @@ export default function SplitTimeInput({
         <div className="flex items-center gap-0.5">
           <input
             type="text"
+            autoComplete="off"
             inputMode="numeric"
             maxLength={2}
             value={timeState.hour}
@@ -170,6 +171,7 @@ export default function SplitTimeInput({
           <span className="font-mono font-bold text-slate-400 text-xs select-none px-0.5">:</span>
           <input
             type="text"
+            autoComplete="off"
             inputMode="numeric"
             maxLength={2}
             value={timeState.minute}

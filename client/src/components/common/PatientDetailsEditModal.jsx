@@ -272,7 +272,7 @@ export default function PatientDetailsEditModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+        <form onSubmit={handleFormSubmit} autoComplete="off" className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
           {errorMessage && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
               <AlertTriangle size={16} className="shrink-0" />

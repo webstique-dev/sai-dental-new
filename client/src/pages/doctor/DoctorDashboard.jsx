@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ClipboardList, Users, Activity, Bell, Play, ArrowRight, RefreshCw } from 'lucide-react';
+import { CalendarDays, Clock, ClipboardList, Play, ArrowRight, RefreshCw } from 'lucide-react';
 import StatCard from '../../components/common/StatCard.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -51,28 +51,18 @@ export default function DoctorDashboard() {
 
   const stats = [
     {
-      label: 'Patients in Queue',
-      value: loading ? '...' : String(summary?.patientsInQueue ?? 0),
-      sub: 'Waiting or checked in today',
-      icon: ClipboardList,
+      label: "Today's Appointments",
+      value: loading ? '...' : String(summary?.todaysAppointments ?? summary?.patientsInQueue ?? 0),
+      sub: 'Scheduled & checked in today',
+      icon: CalendarDays,
+      onClick: () => navigate('/doctor/queue?tab=today'),
     },
     {
-      label: "Today's Consultations",
-      value: loading ? '...' : String(summary?.todaysConsultations ?? 0),
-      sub: 'Started & completed today',
-      icon: Users,
-    },
-    {
-      label: 'Active Treatment Plans',
-      value: loading ? '...' : String(summary?.activeTreatmentPlans ?? 0),
-      sub: 'Planned or in progress',
-      icon: Activity,
-    },
-    {
-      label: 'Follow-Ups Due',
-      value: loading ? '...' : String(summary?.followUpsDue ?? 0),
-      sub: 'Pending return visits',
-      icon: Bell,
+      label: 'Upcoming Appointments',
+      value: loading ? '...' : String(summary?.upcomingAppointments ?? 0),
+      sub: 'Future scheduled visits',
+      icon: Clock,
+      onClick: () => navigate('/doctor/queue?tab=upcoming'),
     },
   ];
 
@@ -104,7 +94,7 @@ export default function DoctorDashboard() {
       )}
 
       {/* STAT CARDS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {stats.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}

@@ -157,6 +157,7 @@ const CustomInputTrigger = forwardRef(
 
         <input
           {...props}
+          autoComplete="off"
           id={id}
           name={name}
           ref={ref}

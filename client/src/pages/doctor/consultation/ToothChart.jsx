@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  CheckCircle2, AlertTriangle, Save, History, Layers, Info, Check, RefreshCw, X, Shield, Loader2,
+  CheckCircle2, AlertTriangle, Save, History, Layers, Info, Check, RefreshCw, X, Shield, Loader2, ChevronDown, Plus,
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 
@@ -32,6 +32,48 @@ const CONDITION_CODES = {
   Other: { code: 'O', color: 'bg-gray-100 text-gray-800 border-gray-300', dot: 'bg-gray-400' },
 };
 
+const INITIAL_CONDITION_OPTIONS = [
+  'Healthy [H]',
+  'Caries [D]',
+  'Decayed [Dec]',
+  'Missing [M]',
+  'Filling [F]',
+  'RCT [RCT]',
+  'Crown [Cr]',
+  'Bridge [Br]',
+  'Implant [I]',
+  'Extraction [X]',
+  'Restored [Res]',
+  'Prosthetic [P]',
+  'Other [O]',
+];
+
+function getConditionCodeObj(cond) {
+  if (!cond) return { code: 'H', color: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' };
+
+  let baseName = cond;
+  let code = '';
+
+  if (cond.includes('[') && cond.includes(']')) {
+    const parts = cond.split('[');
+    baseName = parts[0].trim();
+    code = parts[1].replace(']', '').trim();
+  }
+
+  if (CONDITION_CODES[baseName]) {
+    return {
+      ...CONDITION_CODES[baseName],
+      code: code || CONDITION_CODES[baseName].code,
+    };
+  }
+
+  return {
+    code: code || baseName.slice(0, 3).toUpperCase(),
+    color: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    dot: 'bg-indigo-500',
+  };
+}
+
 const CONDITION_SVG_STYLES = {
   Healthy: { fill: '#ECFDF5', stroke: '#10B981' },
   Caries: { fill: '#FFE4E6', stroke: '#F43F5E' },
@@ -47,6 +89,115 @@ const CONDITION_SVG_STYLES = {
   Prosthetic: { fill: '#E0E7FF', stroke: '#6366F1' },
   Other: { fill: '#F3F4F6', stroke: '#6B7280' },
 };
+
+const CUSTOM_SVG_STYLE = { fill: '#E0E7FF', stroke: '#6366F1' };
+
+function getToothSvgStyle(condition) {
+  let baseName = condition || 'Healthy';
+  if (condition && condition.includes('[')) {
+    baseName = condition.split('[')[0].trim();
+  }
+  return CONDITION_SVG_STYLES[baseName] || CUSTOM_SVG_STYLE;
+}
+
+function ConditionCombobox({ value, onChange, options }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(value || '');
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    setSearchQuery(value || '');
+  }, [value]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const exactMatch = options.some(
+    (opt) =>
+      opt.toLowerCase() === searchQuery.trim().toLowerCase() ||
+      opt.split('[')[0].trim().toLowerCase() === searchQuery.trim().toLowerCase()
+  );
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <div className="relative">
+        <input
+          type="text"
+          autoComplete="off"
+          className="input-field w-full font-semibold pr-8"
+          placeholder="Select or type condition..."
+          value={searchQuery}
+          onFocus={() => setIsOpen(true)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            onChange(e.target.value);
+            setIsOpen(true);
+          }}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink p-1"
+        >
+          <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-surface border border-border rounded-xl shadow-xl py-1 text-xs">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => (
+              <button
+                type="button"
+                key={opt}
+                className={`w-full text-left px-3 py-2 hover:bg-brand-light/40 font-semibold flex items-center justify-between ${opt === value ? 'bg-brand-light/60 text-brand font-bold' : 'text-ink'
+                  }`}
+                onClick={() => {
+                  onChange(opt);
+                  setSearchQuery(opt);
+                  setIsOpen(false);
+                }}
+              >
+                <span>{opt}</span>
+                {opt === value && <Check size={14} className="text-brand shrink-0" />}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-ink-soft italic text-center">
+              No matching condition found
+            </div>
+          )}
+
+          {searchQuery.trim() && !exactMatch && (
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2.5 bg-brand-light/30 hover:bg-brand-light/60 text-brand font-bold border-t border-border flex items-center gap-1.5"
+              onClick={() => {
+                const newCond = searchQuery.trim();
+                onChange(newCond);
+                setIsOpen(false);
+              }}
+            >
+              <Plus size={13} /> Add new condition: "{searchQuery.trim()}"
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function getToothType(tNum) {
   const digit = tNum % 10;
@@ -66,16 +217,19 @@ function getToothType(tNum) {
 function ToothSvg({ tNum, condition, isSelected }) {
   const toothType = getToothType(tNum);
   const isLowerArch = (tNum >= 31 && tNum <= 48) || (tNum >= 71 && tNum <= 85);
-  const cfg = CONDITION_SVG_STYLES[condition] || CONDITION_SVG_STYLES.Healthy;
-  const isMissing = condition === 'Missing' || condition === 'Extraction';
+  let baseName = condition || 'Healthy';
+  if (condition && condition.includes('[')) {
+    baseName = condition.split('[')[0].trim();
+  }
+  const cfg = getToothSvgStyle(condition);
+  const isMissing = baseName === 'Missing' || baseName === 'Extraction';
 
   return (
     <div className="relative flex items-center justify-center w-5 h-8 xs:w-6 xs:h-9 sm:w-8 sm:h-12 my-0.5 shrink-0">
       <svg
         viewBox="0 0 50 85"
-        className={`w-full h-full transition-all duration-200 ${
-          isLowerArch ? 'rotate-180' : ''
-        }`}
+        className={`w-full h-full transition-all duration-200 ${isLowerArch ? 'rotate-180' : ''
+          }`}
       >
         {/* Base Anatomical Tooth Silhouette Paths */}
         {toothType === 'incisor' && (
@@ -184,9 +338,21 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
   const [errorMessage, setErrorMessage] = useState('');
 
   // Form state for updating selected tooth/teeth
-  const [formCondition, setFormCondition] = useState('Healthy');
+  const [formCondition, setFormCondition] = useState('Healthy [H]');
+  const [iconicCode, setIconicCode] = useState('');
   const [formTreatment, setFormTreatment] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [conditionOptions, setConditionOptions] = useState(INITIAL_CONDITION_OPTIONS);
+
+  const isNewCustomCondition = (cond) => {
+    if (!cond || !cond.trim()) return false;
+    const trimmed = cond.trim().toLowerCase();
+    return !conditionOptions.some((opt) => {
+      const optLower = opt.toLowerCase();
+      const optBaseLower = opt.split('[')[0].trim().toLowerCase();
+      return optLower === trimmed || optBaseLower === trimmed;
+    });
+  };
 
   // Load patientType strictly from patient registration record
   useEffect(() => {
@@ -220,6 +386,9 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
       const map = {};
       teethList.forEach((t) => {
         map[t.toothNumber] = t;
+        if (t.currentCondition) {
+          setConditionOptions((prev) => (prev.includes(t.currentCondition) ? prev : [...prev, t.currentCondition]));
+        }
       });
       setTeethMap(map);
     } catch (err) {
@@ -246,8 +415,12 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         setSelectedTeeth([]);
       } else {
         setSelectedTeeth([tNum]);
-        const current = teethMap[tNum]?.currentCondition || 'Healthy';
+        const current = teethMap[tNum]?.currentCondition || 'Healthy [H]';
         setFormCondition(current);
+        if (current && !conditionOptions.includes(current)) {
+          setConditionOptions((prev) => [...prev, current]);
+        }
+        setIconicCode('');
         setFormTreatment('');
         setFormNotes('');
       }
@@ -262,6 +435,17 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
       return;
     }
 
+    let saveCondition = formCondition.trim();
+    if (!saveCondition) {
+      setErrorMessage('Please select or enter a condition.');
+      return;
+    }
+
+    if (isNewCustomCondition(saveCondition)) {
+      const code = iconicCode.trim().toUpperCase() || saveCondition.slice(0, 3).toUpperCase();
+      saveCondition = `${saveCondition} [${code}]`;
+    }
+
     setSaving(true);
     setSuccessMessage('');
     setErrorMessage('');
@@ -269,7 +453,7 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
       if (selectedTeeth.length === 1) {
         const tNum = selectedTeeth[0];
         await api.patch(`/tooth-chart/${patientId}/${tNum}`, {
-          condition: formCondition,
+          condition: saveCondition,
           treatment: formTreatment,
           notes: formNotes,
           consultationId,
@@ -277,16 +461,22 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
       } else {
         await api.post(`/tooth-chart/${patientId}/bulk`, {
           teeth: selectedTeeth,
-          condition: formCondition,
+          condition: saveCondition,
           treatment: formTreatment,
           notes: formNotes,
           consultationId,
         });
       }
 
+      if (!conditionOptions.includes(saveCondition)) {
+        setConditionOptions((prev) => [...prev, saveCondition]);
+      }
+
       setSuccessMessage(
-        `Updated ${selectedTeeth.length} tooth record(s) to ${formCondition}!`
+        `Updated ${selectedTeeth.length} tooth record(s) to ${saveCondition}!`
       );
+      setFormCondition(saveCondition);
+      setIconicCode('');
       setFormTreatment('');
       setFormNotes('');
       await fetchToothChart();
@@ -300,8 +490,8 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
 
   const renderToothCard = (tNum) => {
     const record = teethMap[tNum] || {};
-    const cond = record.currentCondition || 'Healthy';
-    const codeCfg = CONDITION_CODES[cond] || CONDITION_CODES.Healthy;
+    const cond = record.currentCondition || 'Healthy [H]';
+    const codeCfg = getConditionCodeObj(cond);
     const isSelected = selectedTeeth.includes(tNum);
     const hasHistory = record.history && record.history.length > 0;
     const isLowerArch = (tNum >= 31 && tNum <= 48) || (tNum >= 71 && tNum <= 85);
@@ -311,11 +501,10 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
         type="button"
         key={tNum}
         onClick={() => handleToothClick(tNum)}
-        className={`flex flex-col items-center justify-between p-0.5 sm:p-1 rounded-lg sm:rounded-xl border transition-all duration-150 relative select-none flex-1 max-w-[34px] xs:max-w-[40px] sm:max-w-[46px] min-w-[24px] sm:min-w-[30px] min-h-[85px] xs:min-h-[95px] sm:min-h-[110px] ${
-          isSelected
+        className={`flex flex-col items-center justify-between p-0.5 sm:p-1 rounded-lg sm:rounded-xl border transition-all duration-150 relative select-none flex-1 max-w-[34px] xs:max-w-[40px] sm:max-w-[46px] min-w-[24px] sm:min-w-[30px] min-h-[85px] xs:min-h-[95px] sm:min-h-[110px] ${isSelected
             ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
             : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
-        }`}
+          }`}
       >
         {/* UPPER ARCH */}
         {!isLowerArch ? (
@@ -368,10 +557,10 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
   const historySubtitleText = loading
     ? 'Loading treatment history...'
     : selectedTeeth.length === 0
-    ? 'Select a tooth to view its treatment log across all visits.'
-    : selectedTeeth.length === 1
-    ? `Treatment log for Tooth #${selectedTeeth[0]}`
-    : `Treatment history for the selected teeth (${selectedTeeth.join(', ')})`;
+      ? 'Select a tooth to view its treatment log across all visits.'
+      : selectedTeeth.length === 1
+        ? `Treatment log for Tooth #${selectedTeeth[0]}`
+        : `Treatment history for the selected teeth (${selectedTeeth.join(', ')})`;
 
   return (
     <div className="space-y-6">
@@ -398,11 +587,11 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
             <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
               <Layers size={18} className="text-brand" /> FDI Anatomical Interactive Tooth Chart
             </h3>
-            <p className="text-xs text-ink-soft">
+            {/* <p className="text-xs text-ink-soft">
               {patientType === 'child'
                 ? 'Primary (Deciduous) 20-tooth dentition chart loaded strictly based on patient registration.'
                 : 'Permanent 32-tooth dentition chart loaded strictly based on patient registration.'}
-            </p>
+            </p> */}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -414,11 +603,10 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
             <button
               type="button"
               onClick={() => setMultiSelectMode(!multiSelectMode)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                multiSelectMode
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${multiSelectMode
                   ? 'bg-purple-600 text-white border-purple-700'
                   : 'bg-surface border-border text-ink-soft hover:text-ink'
-              }`}
+                }`}
             >
               {multiSelectMode ? 'Multi-Select Enabled' : 'Enable Multi-Select'}
             </button>
@@ -583,8 +771,8 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                 {selectedTeeth.length === 0
                   ? 'Record Finding for Selected Teeth'
                   : selectedTeeth.length === 1
-                  ? `Update Tooth #${selectedTeeth[0]}`
-                  : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
+                    ? `Update Tooth #${selectedTeeth[0]}`
+                    : `Update ${selectedTeeth.length} Selected Teeth (${selectedTeeth.join(', ')})`}
               </h4>
               <p className="text-xs text-ink-soft">
                 Select teeth on the chart above and assign new conditions.
@@ -594,20 +782,33 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
             <form onSubmit={handleSaveCondition} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">New Condition *</label>
-                <select
-                  className="input-field"
+                <ConditionCombobox
                   value={formCondition}
-                  onChange={(e) => setFormCondition(e.target.value)}
-                >
-                  <option value="Healthy">Healthy [H]</option>
-                  <option value="Caries">Caries [D]</option>
-                  <option value="Missing">Missing [M]</option>
-                  <option value="Filling">Filling [F]</option>
-                  <option value="RCT">RCT [RCT]</option>
-                  <option value="Crown">Crown [Cr]</option>
-                  <option value="Bridge">Bridge [Br]</option>
-                  <option value="Implant">Implant [I]</option>
-                </select>
+                  onChange={(val) => setFormCondition(val)}
+                  options={conditionOptions}
+                />
+                <p className="text-[11px] text-ink-soft mt-1">
+                  Click to select an existing condition or type to add a new custom condition.
+                </p>
+
+                {isNewCustomCondition(formCondition) && (
+                  <div className="mt-2.5 p-3 bg-brand-light/30 border border-brand/20 rounded-xl space-y-1.5 animate-fadeIn">
+                    <label className="block font-semibold text-brand text-xs">
+                      Iconic Letter / Short Code for "{formCondition}"
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      className="input-field uppercase font-mono text-xs"
+                      placeholder="e.g. FL, FR, F1 (1-3 letters)"
+                      value={iconicCode}
+                      onChange={(e) => setIconicCode(e.target.value.toUpperCase())}
+                    />
+                    <p className="text-[10px] text-ink-soft">
+                      Enter a short iconic letter/code to display on the FDI Anatomical Tooth Chart badge.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -642,8 +843,8 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                   {saving
                     ? 'Saving Records...'
                     : selectedTeeth.length === 0
-                    ? 'Click Teeth Above First'
-                    : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
+                      ? 'Click Teeth Above First'
+                      : `Apply to ${selectedTeeth.length} Tooth/Teeth`}
                 </span>
               </button>
             </form>

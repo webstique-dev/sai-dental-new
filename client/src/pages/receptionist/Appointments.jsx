@@ -105,7 +105,7 @@ export default function Appointments() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Create Form state (Status field removed - defaults to Scheduled)
+  // Create Form state (Status defaults to Check-in / Checked-In)
   const [patientSearch, setPatientSearch] = useState('');
   const [patientOptions, setPatientOptions] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -116,6 +116,7 @@ export default function Appointments() {
     time: '09:30',
     type: 'Walk-In',
     reason: '',
+    status: 'Checked-In',
   });
 
   // Edit Form state
@@ -143,6 +144,10 @@ export default function Appointments() {
                      || docList[0];
         setDoctors(docList);
         setPrimaryDoctor(primDoc || null);
+        if (primDoc) {
+          const pId = primDoc._id || primDoc.id;
+          setFormData((prev) => ({ ...prev, doctor: prev.doctor || pId }));
+        }
       } catch (err) {
         console.error('Failed to load doctors:', err);
       }
@@ -165,6 +170,7 @@ export default function Appointments() {
         time: timeStr,
         type: 'Appointment',
         reason: '',
+        status: 'Checked-In',
       });
       setShowCreateModal(true);
       navigate(location.pathname, { replace: true, state: {} });
@@ -233,6 +239,7 @@ export default function Appointments() {
       time: timeStr,
       type: 'Appointment',
       reason: '',
+      status: 'Checked-In',
     });
     setShowCreateModal(true);
   };
@@ -240,21 +247,37 @@ export default function Appointments() {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     if (!selectedPatient) {
-      setErrorMessage('Please search and select a patient.');
+      const msg = 'Please search and select a patient.';
+      setErrorMessage(msg);
+      showError(msg);
       return;
     }
+    const docId = formData.doctor || (primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || ''));
+    if (!docId) {
+      const msg = 'Please select an assigned doctor.';
+      setErrorMessage(msg);
+      showError(msg);
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
+        doctor: docId,
         patient: selectedPatient._id,
-        status: 'Scheduled', // Every new appointment is automatically Scheduled
+        status: formData.status || 'Checked-In',
       };
       await api.post('/appointments', payload);
-      showSuccess('Appointment created successfully and marked as Scheduled!');
+      const successMsg = formData.status === 'Scheduled'
+        ? 'Appointment booked as Scheduled!'
+        : 'Appointment checked in & sent directly to doctor queue as Checked-In!';
+      showSuccess(successMsg);
       setShowCreateModal(false);
       fetchAppointments();
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to create appointment');
+      const msg = err.response?.data?.message || 'Failed to create appointment';
+      showError(msg);
+      setErrorMessage(msg);
     }
   };
 
@@ -430,6 +453,7 @@ export default function Appointments() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input
               type="text"
+              autoComplete="off"
               className="input-field pl-9 py-2 text-xs"
               placeholder="Search by Patient Name, Phone Number, or OP Number..."
               value={search}
@@ -531,7 +555,7 @@ export default function Appointments() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <form onSubmit={handleCreateSubmit} autoComplete="off" className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
                 {/* Patient Selector */}
                 <PatientSearchInput
@@ -558,6 +582,26 @@ export default function Appointments() {
                       );
                     })}
                   </select>
+                </div>
+
+                {/* Status / Initial Action */}
+                <div>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">
+                    Appointment Status / Action <span className="text-rose-600">*</span>
+                  </label>
+                  <select
+                    className="input-field font-semibold"
+                    value={formData.status || 'Checked-In'}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  >
+                    <option value="Checked-In">Check-in</option>
+                    <option value="Scheduled">Scheduled</option>
+                  </select>
+                  <p className="text-[11px] text-ink-soft mt-1">
+                    {formData.status === 'Scheduled'
+                      ? 'Will appear under Scheduled appointments.'
+                      : 'Status will be set to Checked-In and sent directly to the doctor queue.'}
+                  </p>
                 </div>
 
                 {/* Date & Time */}
@@ -597,6 +641,7 @@ export default function Appointments() {
                   <label className="block text-xs font-semibold text-ink-soft mb-1">Reason for Visit</label>
                   <input
                     type="text"
+                    autoComplete="off"
                     className="input-field"
                     placeholder="e.g. Toothache, Scaling, Root Canal follow-up"
                     value={formData.reason}
@@ -635,7 +680,7 @@ export default function Appointments() {
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <form onSubmit={handleEditSubmit} autoComplete="off" className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
                 <div className="rounded-xl bg-bg p-3 text-xs">
                   <span className="text-ink-soft font-semibold block">Patient</span>
@@ -718,6 +763,7 @@ export default function Appointments() {
                   <label className="block text-xs font-semibold text-ink-soft mb-1">Reason for Visit</label>
                   <input
                     type="text"
+                    autoComplete="off"
                     className="input-field"
                     value={editFormData.reason}
                     onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}

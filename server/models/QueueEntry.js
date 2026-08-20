@@ -8,7 +8,7 @@ const queueStatusOptions = [
   'Cancelled',
   'No Show',
 ];
-const queueTypeOptions = ['Appointment', 'Walk-in'];
+const queueTypeOptions = ['Appointment', 'Walk-in', 'Walk-In', 'Phone Booking', 'Online Booking'];
 
 const queueEntrySchema = new mongoose.Schema(
   {

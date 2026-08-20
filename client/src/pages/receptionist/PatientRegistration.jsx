@@ -45,6 +45,7 @@ export default function PatientRegistration() {
   const [userManuallySetPatientType, setUserManuallySetPatientType] = useState(false);
   const [similarPatients, setSimilarPatients] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
   const [customMedicalInput, setCustomMedicalInput] = useState('');
   const [customHabitInput, setCustomHabitInput] = useState('');
   const [customVitalLabel, setCustomVitalLabel] = useState('');
@@ -150,6 +151,9 @@ export default function PatientRegistration() {
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: null }));
+    }
   };
 
   const handleVitalsChange = (field, value) => {
@@ -172,40 +176,41 @@ export default function PatientRegistration() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const newErrors = {};
+
     const nameErr = validateName(formData.firstName, 'First Name', true);
-    if (nameErr) {
-      showError(nameErr);
-      return;
-    }
+    if (nameErr) newErrors.firstName = nameErr;
 
     if (formData.lastName) {
       const lastNameErr = validateName(formData.lastName, 'Last Name', false);
-      if (lastNameErr) {
-        showError(lastNameErr);
-        return;
-      }
+      if (lastNameErr) newErrors.lastName = lastNameErr;
     }
 
     const phoneErr = validatePhone(formData.phone, true);
-    if (phoneErr) {
-      showError(phoneErr);
-      return;
-    }
+    if (phoneErr) newErrors.phone = phoneErr;
 
     if (formData.dateOfBirth) {
       const dobErr = validateDOB(formData.dateOfBirth, false);
-      if (dobErr) {
-        showError(dobErr);
-        return;
-      }
+      if (dobErr) newErrors.dateOfBirth = dobErr;
     }
 
     if (formData.age !== '' && formData.age !== undefined && formData.age !== null) {
       const ageErr = validateAge(formData.age, false);
-      if (ageErr) {
-        showError(ageErr);
-        return;
-      }
+      if (ageErr) newErrors.age = ageErr;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      showError('Please fill in all required fields correctly before submitting.');
+
+      setTimeout(() => {
+        const firstErrorField = document.querySelector('.border-rose-500, [aria-invalid="true"]');
+        if (firstErrorField) {
+          firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (firstErrorField.focus) firstErrorField.focus();
+        }
+      }, 100);
+      return;
     }
 
     setSubmitting(true);
@@ -298,36 +303,60 @@ export default function PatientRegistration() {
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">First Name *</label>
+              <label className="block text-xs font-semibold text-ink-soft mb-1">
+                First Name <span className="text-rose-600">*</span>
+              </label>
               <input
                 type="text"
-                required
-                className="input-field"
+                className={`input-field ${errors.firstName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                  }`}
                 placeholder="e.g. John"
+                autoComplete="off"
                 value={formData.firstName}
                 onChange={(e) => handleChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
               />
+              {errors.firstName && (
+                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {errors.firstName}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">Last Name</label>
               <input
                 type="text"
-                className="input-field"
+                autoComplete="off"
+                className={`input-field ${errors.lastName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                  }`}
                 placeholder="e.g. Doe"
                 value={formData.lastName}
                 onChange={(e) => handleChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
               />
+              {errors.lastName && (
+                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {errors.lastName}
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Phone Number</label>
+              <label className="block text-xs font-semibold text-ink-soft mb-1">
+                Phone Number <span className="text-rose-600">*</span>
+              </label>
               <input
                 type="tel"
+                autoComplete="off"
                 maxLength={10}
-                className="input-field font-mono"
+                className={`input-field font-mono ${errors.phone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                  }`}
                 placeholder="e.g. 9876543210"
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
               />
+              {errors.phone && (
+                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {errors.phone}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">Sex / Gender</label>
@@ -346,8 +375,10 @@ export default function PatientRegistration() {
               <label className="block text-xs font-semibold text-ink-soft mb-1">Age</label>
               <input
                 type="text"
+                autoComplete="off"
                 maxLength={3}
-                className="input-field font-mono"
+                className={`input-field font-mono ${errors.age ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                  }`}
                 placeholder="e.g. 35"
                 value={formData.age}
                 onChange={(e) => {
@@ -357,6 +388,11 @@ export default function PatientRegistration() {
                   }
                 }}
               />
+              {errors.age && (
+                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {errors.age}
+                </p>
+              )}
             </div>
             <div>
               <DatePicker
@@ -364,6 +400,7 @@ export default function PatientRegistration() {
                 value={formData.dateOfBirth}
                 onChange={(date, dateStr) => handleChange('dateOfBirth', dateStr)}
                 maxDate={new Date()}
+                error={errors.dateOfBirth}
               />
             </div>
 
@@ -380,11 +417,10 @@ export default function PatientRegistration() {
                     setUserManuallySetPatientType(true);
                     handleChange('patientType', 'adult');
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    formData.patientType === 'adult'
-                      ? 'bg-brand text-white shadow-sm'
-                      : 'text-ink-soft hover:text-ink'
-                  }`}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'adult'
+                    ? 'bg-brand text-white shadow-sm'
+                    : 'text-ink-soft hover:text-ink'
+                    }`}
                 >
                   Adult (Permanent 32 Teeth)
                 </button>
@@ -396,11 +432,10 @@ export default function PatientRegistration() {
                     setUserManuallySetPatientType(true);
                     handleChange('patientType', 'child');
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    formData.patientType === 'child'
-                      ? 'bg-brand text-white shadow-sm'
-                      : 'text-ink-soft hover:text-ink'
-                  }`}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'child'
+                    ? 'bg-brand text-white shadow-sm'
+                    : 'text-ink-soft hover:text-ink'
+                    }`}
                 >
                   Child (Primary 20 Teeth)
                 </button>
@@ -410,6 +445,7 @@ export default function PatientRegistration() {
               <label className="block text-xs font-semibold text-ink-soft mb-1">Occupation</label>
               <input
                 type="text"
+                autoComplete="off"
                 className="input-field"
                 placeholder="e.g. Teacher, Engineer"
                 value={formData.occupation}
@@ -420,6 +456,7 @@ export default function PatientRegistration() {
               <label className="block text-xs font-semibold text-ink-soft mb-1">Address</label>
               <input
                 type="text"
+                autoComplete="off"
                 className="input-field"
                 placeholder="Street, City, Pin Code"
                 value={formData.address}
@@ -465,6 +502,7 @@ export default function PatientRegistration() {
             <div className="flex items-center gap-2">
               <input
                 type="text"
+                autoComplete="off"
                 className="input-field py-2 text-sm flex-1"
                 placeholder="Enter additional medical condition (e.g. Penicillin Allergy, Glaucoma)..."
                 value={customMedicalInput}
@@ -543,6 +581,7 @@ export default function PatientRegistration() {
               <label className="block text-xs font-semibold text-ink-soft mb-1">Blood Pressure (BP)</label>
               <input
                 type="text"
+                autoComplete="off"
                 className="input-field"
                 placeholder="e.g. 120/80 mmHg"
                 value={formData.vitals?.bp || ''}
@@ -553,6 +592,7 @@ export default function PatientRegistration() {
               <label className="block text-xs font-semibold text-ink-soft mb-1">Random Blood Sugar (RBS)</label>
               <input
                 type="text"
+                autoComplete="off"
                 className="input-field"
                 placeholder="e.g. 110 mg/dL"
                 value={formData.vitals?.rbs || ''}
@@ -660,6 +700,7 @@ export default function PatientRegistration() {
             <div className="flex items-center gap-2">
               <input
                 type="text"
+                autoComplete="off"
                 className="input-field py-2 text-sm flex-1"
                 placeholder="Enter additional habit (e.g. Vaping, Betel Nut, E-Cigarette)..."
                 value={customHabitInput}
