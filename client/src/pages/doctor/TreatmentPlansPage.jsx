@@ -6,6 +6,7 @@ import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const STATUS_BADGES = {
   Planned: 'bg-slate-100 text-slate-800 border-slate-200',
@@ -176,7 +177,7 @@ export default function TreatmentPlansPage() {
       {/* TREATMENT PLANS TABLE */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-xs text-ink-soft">Loading treatment plan records...</div>
+          <TableSkeleton rows={5} cols={6} />
         ) : consultations.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <Activity size={36} className="mx-auto text-ink-soft/40" />

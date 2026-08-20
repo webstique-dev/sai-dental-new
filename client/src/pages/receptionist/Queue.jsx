@@ -11,6 +11,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validatePhone, validateAge } from '../../utils/validators.js';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -431,7 +432,7 @@ export default function Queue() {
           </div>
 
           {loadingActive ? (
-            <div className="p-8 text-center text-sm text-ink-soft">Loading active queue...</div>
+            <TableSkeleton rows={5} cols={6} />
           ) : queueEntries.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <ClipboardList size={36} className="mx-auto text-ink-soft/50" />
@@ -655,7 +656,7 @@ export default function Queue() {
           {/* COMPLETED QUEUE TABLE */}
           <div className="card overflow-hidden">
             {loadingCompleted ? (
-              <div className="p-12 text-center text-xs text-ink-soft">Loading completed queue log...</div>
+              <TableSkeleton rows={5} cols={6} />
             ) : filteredCompletedEntries.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <CheckCircle2 size={36} className="mx-auto text-ink-soft/40" />

@@ -6,6 +6,7 @@ import {
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { ReportSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 // CSV Helper utility function
 function downloadCSV(filename, headers, rows) {
@@ -242,7 +243,11 @@ export default function Reports() {
         </button>
       </div>
 
-      {/* TAB 1: CLINIC PERFORMANCE */}
+      {loading ? (
+        <ReportSkeleton />
+      ) : (
+        <>
+          {/* TAB 1: CLINIC PERFORMANCE */}
       {activeTab === 'performance' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
@@ -522,6 +527,8 @@ export default function Reports() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DatabaseBackup, Download, CheckCircle2, ShieldAlert, FileSpreadsheet, Clock, Server } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
 export default function Backup() {
   const { showSuccess, showError } = useNotification();
+  const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [lastBackupTime, setLastBackupTime] = useState(() => {
     return localStorage.getItem('dental_last_backup_time') || null;
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleDownloadBackup = async () => {
     setDownloading(true);
@@ -41,6 +49,32 @@ export default function Backup() {
       setDownloading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-4xl animate-pulse">
+        <div className="h-8 w-64 rounded bg-slate-200" />
+        <div className="card p-6 space-y-4 bg-surface border border-slate-200">
+          <div className="h-6 w-48 bg-slate-200 rounded" />
+          <div className="h-12 bg-slate-100 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="card p-5 space-y-3 bg-surface border border-slate-200">
+            <div className="h-5 w-36 bg-slate-200 rounded" />
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-4 bg-slate-100 rounded w-full" />
+              ))}
+            </div>
+          </div>
+          <div className="card p-5 space-y-3 bg-surface border border-slate-200">
+            <div className="h-5 w-36 bg-slate-200 rounded" />
+            <div className="h-28 bg-slate-100 rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">

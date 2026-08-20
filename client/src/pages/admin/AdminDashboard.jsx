@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, CalendarDays, Wallet, Stethoscope } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../../components/common/StatCard.jsx';
+import { ReceptionistDashboardSkeleton } from '../../components/common/TableSkeleton.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/axios.js';
 
@@ -34,28 +35,32 @@ export default function AdminDashboard() {
     fetchOverview();
   }, []);
 
+  if (loading) {
+    return <ReceptionistDashboardSkeleton />;
+  }
+
   const stats = [
     {
       label: "Today's Appointments",
-      value: loading ? '...' : String(overview.todaysAppointments ?? 0),
+      value: String(overview.todaysAppointments ?? 0),
       icon: CalendarDays,
       tone: 'brand',
     },
     {
       label: 'Active Patients',
-      value: loading ? '...' : String(overview.activePatients ?? 0),
+      value: String(overview.activePatients ?? 0),
       icon: Users,
       tone: 'info',
     },
     {
       label: 'Revenue This Month',
-      value: loading ? '...' : `₹${(overview.revenueThisMonth ?? 0).toLocaleString()}`,
+      value: `₹${(overview.revenueThisMonth ?? 0).toLocaleString()}`,
       icon: Wallet,
       tone: 'success',
     },
     {
       label: 'Doctors On Duty',
-      value: loading ? '...' : String(overview.doctorsOnDuty ?? 0),
+      value: String(overview.doctorsOnDuty ?? 0),
       icon: Stethoscope,
       tone: 'warning',
     },

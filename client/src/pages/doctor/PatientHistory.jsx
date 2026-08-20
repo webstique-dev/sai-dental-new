@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const ALL_FDI_TEETH = [
   18, 17, 16, 15, 14, 13, 12, 11,
@@ -298,7 +299,7 @@ export default function PatientHistory() {
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-xs text-ink-soft">Loading visit encounters...</div>
+          <TableSkeleton rows={6} cols={9} />
         ) : filteredVisits.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <History size={36} className="mx-auto text-ink-soft/40" />

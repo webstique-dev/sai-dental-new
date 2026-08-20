@@ -123,9 +123,21 @@ export default function ClinicSettings() {
 
   if (loading) {
     return (
-      <div className="card p-12 text-center text-xs text-ink-soft">
-        <RefreshCw size={24} className="mx-auto animate-spin text-brand mb-2" />
-        Loading clinic settings configuration...
+      <div className="space-y-6 max-w-5xl animate-pulse">
+        <div className="h-8 w-64 rounded bg-slate-200" />
+        <div className="card p-6 space-y-4 bg-surface border border-slate-200">
+          <div className="h-6 w-48 bg-slate-200 rounded" />
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="h-10 bg-slate-100 rounded" />
+            <div className="h-10 bg-slate-100 rounded" />
+            <div className="h-10 bg-slate-100 rounded" />
+            <div className="h-10 bg-slate-100 rounded" />
+          </div>
+        </div>
+        <div className="card p-6 space-y-4 bg-surface border border-slate-200">
+          <div className="h-6 w-48 bg-slate-200 rounded" />
+          <div className="h-40 bg-slate-100 rounded" />
+        </div>
       </div>
     );
   }

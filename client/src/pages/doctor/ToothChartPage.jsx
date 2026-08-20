@@ -6,6 +6,7 @@ import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function ToothChartPage() {
   const [patients, setPatients] = useState([]);
@@ -207,7 +208,7 @@ export default function ToothChartPage() {
       {/* TOOTH CHARTS TABLE */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-xs text-ink-soft">Loading tooth chart records...</div>
+          <TableSkeleton rows={5} cols={5} />
         ) : patients.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <Grid3x3 size={36} className="mx-auto text-ink-soft/40" />

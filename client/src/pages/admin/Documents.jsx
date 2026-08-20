@@ -63,7 +63,16 @@ export default function AdminDocuments() {
         </div>
       </div>
 
-      {selectedPatientId ? (
+      {loadingPatients ? (
+        <div className="card p-6 space-y-4 bg-surface animate-pulse">
+          <div className="h-6 w-48 bg-slate-200 rounded" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="h-28 bg-slate-100 rounded-xl" />
+            <div className="h-28 bg-slate-100 rounded-xl" />
+            <div className="h-28 bg-slate-100 rounded-xl" />
+          </div>
+        </div>
+      ) : selectedPatientId ? (
         <DocumentsPanel
           patientId={selectedPatientId}
           title="Clinical & Administrative Document Vault"

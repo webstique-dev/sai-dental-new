@@ -5,6 +5,7 @@ import {
 import api from '../../api/axios.js';
 import StateDiffViewer from '../../components/common/StateDiffViewer.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const ROLE_BADGES = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -163,7 +164,10 @@ export default function AuditLogs() {
 
       {/* AUDIT LOG TABLE */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {loading ? (
+          <TableSkeleton rows={5} cols={6} />
+        ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-bg font-semibold text-ink-soft">
               <tr>
@@ -176,13 +180,7 @@ export default function AuditLogs() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-ink-soft">
-                    Loading audit trail entries...
-                  </td>
-                </tr>
-              ) : logs.length === 0 ? (
+              {logs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-ink-soft space-y-1">
                     <ScrollText size={28} className="mx-auto text-ink-soft/40" />
@@ -193,56 +191,45 @@ export default function AuditLogs() {
               ) : (
                 logs.map((log) => {
                   const logId = log._id || log.id;
-                  const dateStr = log.timestamp
-                    ? new Date(log.timestamp).toLocaleString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                    })
-                    : 'N/A';
-
-                  const patientName = log.patient
-                    ? `${log.patient.firstName || ''} ${log.patient.lastName || ''}`.trim()
-                    : null;
+                  const userObj = log.user || {};
+                  const userName = userObj.name || 'System / Automated';
+                  const userRole = userObj.role || 'system';
 
                   return (
-                    <tr key={logId} className="hover:bg-bg/40">
+                    <tr key={logId} className="hover:bg-bg/40 transition-colors">
                       <td className="px-4 py-3 font-mono text-[11px] text-ink-soft whitespace-nowrap">
-                        {dateStr}
+                        {new Date(log.timestamp).toLocaleString()}
                       </td>
 
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="font-semibold text-ink">{log.user?.name || 'System / Guest'}</div>
-                        <span className={`badge capitalize text-[10px] mt-0.5 ${ROLE_BADGES[log.role] || ''}`}>
-                          {log.role || 'system'}
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-ink">{userName}</div>
+                        <span className={`badge text-[10px] ${ROLE_BADGES[userRole] || 'bg-bg text-ink-soft'}`}>
+                          {userRole}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 font-semibold text-brand">
+                      <td className="px-4 py-3 font-semibold text-brand text-xs">
                         {log.action}
                       </td>
 
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`badge border text-[10px] ${ENTITY_BADGES[log.entityType] || ENTITY_BADGES.Other}`}>
-                          {log.entityType}
+                      <td className="px-4 py-3">
+                        <span className={`badge border text-[10px] ${ENTITY_BADGES[log.targetEntity] || 'bg-bg text-ink-soft'}`}>
+                          {log.targetEntity}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
-                        {patientName ? (
+                      <td className="px-4 py-3 text-ink-soft">
+                        {log.patient ? (
                           <div>
-                            <span className="font-bold text-ink">{patientName}</span>
-                            {log.patient?.opNumber && (
-                              <span className="text-[10px] block font-mono text-ink-soft/70">
-                                OP #{log.patient.opNumber}
-                              </span>
+                            <span className="font-semibold text-ink text-xs block">
+                              {[log.patient.firstName, log.patient.lastName].filter(Boolean).join(' ') || 'Patient'}
+                            </span>
+                            {log.patient.opNumber && (
+                              <span className="text-[10px] font-mono text-brand font-bold">OP #{log.patient.opNumber}</span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-ink-soft/40">—</span>
+                          <span className="text-ink-soft/50 italic text-[11px]">N/A</span>
                         )}
                       </td>
 
@@ -256,6 +243,7 @@ export default function AuditLogs() {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* PAGINATION FOOTER */}
         {!loading && logs.length > 0 && (

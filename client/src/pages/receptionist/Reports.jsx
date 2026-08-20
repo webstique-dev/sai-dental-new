@@ -6,6 +6,7 @@ import {
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { ReportSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function ReceptionistReports() {
   const getTodayISO = () => new Date().toISOString().split('T')[0];
@@ -186,7 +187,7 @@ export default function ReceptionistReports() {
 
       {/* MAIN CONTENT BLOCK */}
       {loading ? (
-        <div className="card p-12 text-center text-xs text-ink-soft">Loading operational metrics...</div>
+        <ReportSkeleton />
       ) : (
         <div className="space-y-6">
           {/* MAIN BREAKDOWN SECTIONS */}

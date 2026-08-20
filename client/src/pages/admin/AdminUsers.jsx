@@ -5,6 +5,7 @@ import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validateEmail, validatePhone } from '../../utils/validators.js';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const ROLE_BADGE = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -317,10 +318,10 @@ export default function AdminUsers() {
         </form>
       )}
 
-      {/* Users Table */}
+      {/* User Accounts Table */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-sm text-ink-soft">Loading staff user accounts...</div>
+          <TableSkeleton rows={5} cols={6} />
         ) : users.length === 0 ? (
           <div className="p-8 text-center text-sm text-ink-soft">No staff users registered yet.</div>
         ) : (

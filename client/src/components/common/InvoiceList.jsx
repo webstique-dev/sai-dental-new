@@ -1,4 +1,5 @@
 import { Wallet, DollarSign, Eye, RefreshCcw } from 'lucide-react';
+import { TableSkeleton } from './TableSkeleton.jsx';
 
 const DEFAULT_STATUS_CLASSES = {
   Paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -18,7 +19,7 @@ export default function InvoiceList({
   statusBadgeClasses = DEFAULT_STATUS_CLASSES,
 }) {
   if (loading) {
-    return <div className="p-8 text-center text-sm text-ink-soft">Loading billing invoices...</div>;
+    return <TableSkeleton rows={5} cols={9} />;
   }
 
   if (!invoices || invoices.length === 0) {

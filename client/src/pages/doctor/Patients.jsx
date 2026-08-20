@@ -350,7 +350,21 @@ export default function DoctorPatients() {
         {/* MOBILE STACKED CARD VIEW */}
         <div className="block md:hidden divide-y divide-border">
           {loading ? (
-            <div className="p-6 text-center text-xs text-ink-soft animate-pulse">Loading patients directory...</div>
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="p-4 space-y-3 bg-surface animate-pulse">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-32 bg-slate-200 rounded" />
+                    <div className="h-3 w-20 bg-slate-200 rounded" />
+                  </div>
+                  <div className="h-7 w-16 bg-slate-200 rounded-lg" />
+                </div>
+                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg border border-border bg-bg/50">
+                  <div className="h-3 w-16 bg-slate-200 rounded" />
+                  <div className="h-3 w-20 bg-slate-200 rounded" />
+                </div>
+              </div>
+            ))
           ) : patients.length === 0 ? (
             <div className="p-8 text-center text-xs text-ink-soft space-y-2">
               <UserSquare2 size={28} className="mx-auto text-ink-soft/40" />

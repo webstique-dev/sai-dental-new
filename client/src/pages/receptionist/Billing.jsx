@@ -8,6 +8,7 @@ import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -407,7 +408,7 @@ export default function Billing() {
         {/* INVOICE & PENDING BILLS LIST TABLE */}
         <div className="card overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-xs text-ink-soft">Loading billing records...</div>
+            <TableSkeleton rows={5} cols={8} />
           ) : invoices.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <Wallet size={36} className="mx-auto text-ink-soft/50" />

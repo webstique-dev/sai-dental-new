@@ -6,6 +6,7 @@ import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function DiagnosisPage() {
   const [consultations, setConsultations] = useState([]);
@@ -169,7 +170,7 @@ export default function DiagnosisPage() {
       {/* DIAGNOSES TABLE */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-xs text-ink-soft">Loading diagnosis records...</div>
+          <TableSkeleton rows={5} cols={6} />
         ) : consultations.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <Stethoscope size={36} className="mx-auto text-ink-soft/40" />

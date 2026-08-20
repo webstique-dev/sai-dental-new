@@ -9,6 +9,7 @@ import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -777,7 +778,7 @@ export default function DoctorQueue() {
 
               <div className="card overflow-hidden">
                 {loadingToday ? (
-                  <div className="p-8 text-center text-sm text-ink-soft">Loading today's schedule...</div>
+                  <TableSkeleton rows={5} cols={7} />
                 ) : filteredTodayEntries.length === 0 ? (
                   <div className="p-12 text-center space-y-3">
                     <UserSquare2 size={36} className="mx-auto text-ink-soft/50" />
@@ -945,7 +946,7 @@ export default function DoctorQueue() {
 
               <div className="card overflow-hidden">
                 {loadingUpcoming ? (
-                  <div className="p-8 text-center text-sm text-ink-soft">Loading upcoming schedule...</div>
+                  <TableSkeleton rows={5} cols={7} />
                 ) : filteredUpcomingEntries.length === 0 ? (
                   <div className="p-12 text-center space-y-3 border border-dashed border-border rounded-xl">
                     <Calendar size={36} className="mx-auto text-ink-soft/40" />
@@ -1110,7 +1111,7 @@ export default function DoctorQueue() {
               {/* TABLE OF COMPLETED TODAY APPOINTMENTS */}
               <div className="card overflow-hidden">
                 {loadingHistory ? (
-                  <div className="p-8 text-center text-sm text-ink-soft">Loading completed appointments...</div>
+                  <TableSkeleton rows={5} cols={7} />
                 ) : filteredCompletedTodayItems.length === 0 ? (
                   <div className="p-12 text-center space-y-3">
                     <CheckCircle2 size={36} className="mx-auto text-emerald-500/60" />

@@ -8,6 +8,7 @@ import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Pending: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -357,7 +358,7 @@ export default function FollowUps() {
         {/* Follow-Up Records Table */}
         <div className="card overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-xs text-ink-soft">Loading follow-ups...</div>
+            <TableSkeleton rows={5} cols={7} />
           ) : followUps.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <CalendarDays size={36} className="mx-auto text-ink-soft/40" />

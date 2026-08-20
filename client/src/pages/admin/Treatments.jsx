@@ -5,6 +5,7 @@ import {
 import api from '../../api/axios.js';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function AdminTreatments() {
   const { showSuccess, showError } = useNotification();
@@ -193,7 +194,10 @@ export default function AdminTreatments() {
 
       {/* CATALOG TABLE */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {loading ? (
+          <TableSkeleton rows={5} cols={7} />
+        ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
               <tr>
@@ -290,6 +294,7 @@ export default function AdminTreatments() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* ADD / EDIT CATALOG MODAL */}

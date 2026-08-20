@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const DEFAULT_DAYS = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -157,7 +158,9 @@ export default function AdminDoctors() {
 
       {/* DOCTORS TABLE */}
       {loading ? (
-        <div className="card p-8 text-center text-sm text-ink-soft">Loading doctor roster & stats...</div>
+        <div className="card overflow-hidden">
+          <TableSkeleton rows={5} cols={6} />
+        </div>
       ) : doctors.length === 0 ? (
         <div className="card p-12 text-center space-y-3">
           <Stethoscope size={36} className="mx-auto text-ink-soft/40" />

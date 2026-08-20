@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, ClipboardList, UserPlus, Bell } from 'lucide-react';
 import StatCard from '../../components/common/StatCard.jsx';
+import { ReceptionistDashboardSkeleton } from '../../components/common/TableSkeleton.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/axios.js';
 
@@ -25,30 +26,32 @@ export default function ReceptionistDashboard() {
     fetchSummary();
   }, []);
 
-  const skeleton = <span className="inline-block h-7 w-12 rounded bg-border animate-pulse" />;
+  if (loading) {
+    return <ReceptionistDashboardSkeleton />;
+  }
 
   const stats = [
     {
       label: "Today's Appointments",
-      value: loading ? skeleton : summaryData?.todaysAppointments ?? 0,
+      value: summaryData?.todaysAppointments ?? 0,
       icon: CalendarDays,
       tone: 'brand',
     },
     {
       label: 'Patients Waiting',
-      value: loading ? skeleton : summaryData?.patientsWaiting ?? 0,
+      value: summaryData?.patientsWaiting ?? 0,
       icon: ClipboardList,
       tone: 'warning',
     },
     {
       label: 'New Registrations',
-      value: loading ? skeleton : summaryData?.newRegistrations ?? 0,
+      value: summaryData?.newRegistrations ?? 0,
       icon: UserPlus,
       tone: 'info',
     },
     {
       label: 'Follow-Ups Due',
-      value: loading ? skeleton : summaryData?.followUpsDue ?? 0,
+      value: summaryData?.followUpsDue ?? 0,
       icon: Bell,
       tone: 'danger',
     },

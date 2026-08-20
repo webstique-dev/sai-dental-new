@@ -72,9 +72,37 @@ export default function PatientProfileEMR() {
 
   if (loading) {
     return (
-      <div className="p-12 text-center text-xs text-ink-soft space-y-2">
-        <div className="h-8 w-8 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto" />
-        <p>Loading patient clinical profile & EMR...</p>
+      <div className="space-y-6 max-w-7xl animate-pulse">
+        {/* Banner Skeleton */}
+        <div className="card p-6 bg-surface border border-slate-200 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-slate-200" />
+              <div className="space-y-2">
+                <div className="h-6 w-48 bg-slate-200 rounded-lg" />
+                <div className="h-4 w-64 bg-slate-200/70 rounded-md" />
+              </div>
+            </div>
+            <div className="h-10 w-36 bg-slate-200 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Accordions Skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="card p-5 bg-surface border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-40 bg-slate-200 rounded" />
+                <div className="h-4 w-4 bg-slate-200 rounded" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="h-12 bg-slate-100 rounded-xl" />
+                <div className="h-12 bg-slate-100 rounded-xl" />
+                <div className="h-12 bg-slate-100 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

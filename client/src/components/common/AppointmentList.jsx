@@ -1,4 +1,5 @@
 import { Clock, Edit3, Trash2, CalendarDays, UserCheck, UserX } from 'lucide-react';
+import { TableSkeleton } from './TableSkeleton.jsx';
 
 const DEFAULT_STATUS_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -33,7 +34,7 @@ export default function AppointmentList({
   formatDateDisplay = defaultFormatDate,
 }) {
   if (loading) {
-    return <div className="p-8 text-center text-sm text-ink-soft">Loading appointments...</div>;
+    return <TableSkeleton rows={6} cols={7} />;
   }
 
   if (!appointments || appointments.length === 0) {

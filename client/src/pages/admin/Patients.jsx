@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
@@ -258,7 +259,10 @@ export default function AdminPatients() {
 
       {/* PATIENTS TABLE */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {loading ? (
+          <TableSkeleton rows={6} cols={8} />
+        ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-bg font-semibold text-ink-soft">
               <tr>
@@ -273,13 +277,7 @@ export default function AdminPatients() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-ink-soft">
-                    Loading patient directory...
-                  </td>
-                </tr>
-              ) : patients.length === 0 ? (
+              {patients.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-ink-soft">
                     No patients match your search query.
@@ -369,6 +367,7 @@ export default function AdminPatients() {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* PAGINATION */}
         {!loading && patients.length > 0 && (
