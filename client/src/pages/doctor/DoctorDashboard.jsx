@@ -6,6 +6,58 @@ import PatientDetailsEditModal from '../../components/common/PatientDetailsEditM
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/axios.js';
 
+function DoctorDashboardSkeleton() {
+  return (
+    <div className="space-y-6 max-w-7xl animate-pulse">
+      {/* Header Banner Skeleton */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-7 w-60 sm:w-72 rounded-xl bg-slate-200" />
+          <div className="h-3.5 w-72 sm:w-96 rounded-lg bg-slate-200/70" />
+        </div>
+        <div className="h-9 w-36 rounded-xl bg-slate-200 shrink-0 self-start sm:self-auto" />
+      </div>
+
+      {/* Stat Cards Skeleton Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="card p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="h-4 w-36 rounded-md bg-slate-200" />
+              <div className="h-10 w-10 rounded-xl bg-slate-100" />
+            </div>
+            <div className="h-8 w-20 rounded-lg bg-slate-200" />
+            <div className="h-3 w-44 rounded bg-slate-200/70" />
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Actions Card Skeleton */}
+      <div className="card p-5 space-y-4 bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="h-5 w-32 rounded-md bg-slate-200" />
+          <div className="h-4 w-36 rounded-md bg-slate-200/70" />
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="h-11 w-11 rounded-xl bg-slate-200/80 shrink-0" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-28 rounded bg-slate-200" />
+                <div className="h-4 w-16 rounded-md bg-slate-200/70" />
+              </div>
+              <div className="h-5 w-44 sm:w-56 rounded-md bg-slate-200" />
+            </div>
+          </div>
+
+          <div className="h-10 w-full sm:w-64 rounded-full bg-slate-200 shrink-0" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DoctorDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -16,8 +68,9 @@ export default function DoctorDashboard() {
   const [error, setError] = useState('');
   const [selectedPatientForEdit, setSelectedPatientForEdit] = useState(null);
 
-  const fetchDoctorSummary = async () => {
+  const fetchDoctorSummary = async (showSkeleton = false) => {
     try {
+      if (showSkeleton) setLoading(true);
       setError('');
       const res = await api.get('/consultations/doctor-summary');
       setSummary(res.data || null);
@@ -30,10 +83,10 @@ export default function DoctorDashboard() {
   };
 
   useEffect(() => {
-    fetchDoctorSummary();
+    fetchDoctorSummary(true);
     // 60-second background polling interval to keep queue counts fresh
     const interval = setInterval(() => {
-      fetchDoctorSummary();
+      fetchDoctorSummary(false);
     }, 60000);
 
     return () => clearInterval(interval);
@@ -44,6 +97,10 @@ export default function DoctorDashboard() {
     setSelectedPatientForEdit(summary.nextInQueue.patient);
   };
 
+  if (loading) {
+    return <DoctorDashboardSkeleton />;
+  }
+
   const nextPatient = summary?.nextInQueue;
   const nextPatientName = nextPatient?.patient
     ? `${nextPatient.patient.firstName || ''} ${nextPatient.patient.lastName || ''}`.trim()
@@ -52,14 +109,14 @@ export default function DoctorDashboard() {
   const stats = [
     {
       label: "Today's Appointments",
-      value: loading ? '...' : String(summary?.todaysAppointments ?? summary?.patientsInQueue ?? 0),
+      value: String(summary?.todaysAppointments ?? summary?.patientsInQueue ?? 0),
       sub: 'Scheduled & checked in today',
       icon: CalendarDays,
       onClick: () => navigate('/doctor/queue?tab=today'),
     },
     {
       label: 'Upcoming Appointments',
-      value: loading ? '...' : String(summary?.upcomingAppointments ?? 0),
+      value: String(summary?.upcomingAppointments ?? 0),
       sub: 'Future scheduled visits',
       icon: Clock,
       onClick: () => navigate('/doctor/queue?tab=upcoming'),
@@ -80,7 +137,7 @@ export default function DoctorDashboard() {
         </div>
 
         <button
-          onClick={fetchDoctorSummary}
+          onClick={() => fetchDoctorSummary(true)}
           className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Workspace

@@ -50,20 +50,18 @@ export default function App() {
     return () => cleanup && cleanup();
   }, []);
 
-  if (loading || initialLoading || initialError) {
-    return (
+  const isAppLoading = Boolean(loading || initialLoading);
+
+  return (
+    <>
       <DentalPreloader
         fullScreen
-        message="Loading your clinic dashboard"
-        subMessage="Fetching patient records"
+        isLoading={isAppLoading}
         error={initialError}
         onRetry={retryInitialLoad}
       />
-    );
-  }
 
-  return (
-    <Routes>
+      <Routes>
       <Route path="/login" element={user ? <Navigate to={ROLE_HOME[user.role]} replace /> : <Login />} />
       <Route path="/signup" element={user ? <Navigate to={ROLE_HOME[user.role]} replace /> : <Signup />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
@@ -125,5 +123,6 @@ export default function App() {
       <Route path="/" element={<Navigate to={user ? ROLE_HOME[user.role] : '/login'} replace />} />
       <Route path="*" element={<Navigate to={user ? ROLE_HOME[user.role] : '/login'} replace />} />
     </Routes>
+    </>
   );
 }
