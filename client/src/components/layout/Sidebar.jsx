@@ -3,6 +3,7 @@ import {
   LayoutGrid, Users, CalendarDays, ClipboardList, Wallet, Bell, FileBarChart,
   Stethoscope, UserSquare2, History, Activity, Grid3x3, FileHeart, Pill,
   ShieldCheck, Building2, Settings, ScrollText, DatabaseBackup, X,
+  ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 
 // Nav sets mirror PRD section 30 exactly, per role.
@@ -25,8 +26,6 @@ const NAV = {
     { to: '/reception/patients', label: 'Patients', icon: UserSquare2 },
     { to: '/reception/appointments', label: 'Appointments', icon: CalendarDays },
     { to: '/reception/queue', label: 'Check-In / Queue', icon: ClipboardList },
-    // { to: '/reception/billing', label: 'Billing & Payments', icon: Wallet },
-    // { to: '/reception/follow-ups', label: 'Follow-Ups', icon: Bell },
   ],
   doctor: [
     { to: '/doctor', label: 'Dashboard', icon: LayoutGrid, end: true },
@@ -44,7 +43,7 @@ const ROLE_META = {
   doctor: { label: 'Doctor', dot: 'bg-role-doctor', icon: Stethoscope },
 };
 
-export default function Sidebar({ role, open, onClose }) {
+export default function Sidebar({ role, open, onClose, isCollapsed = false, onToggleCollapse = () => {} }) {
   const items = NAV[role] || [];
   const meta = ROLE_META[role];
 
@@ -60,58 +59,73 @@ export default function Sidebar({ role, open, onClose }) {
       )}
 
       <aside
-        className={`fixed z-40 flex h-screen w-72 flex-col border-r border-border bg-surface
-          transition-transform duration-200 lg:sticky lg:top-0 lg:translate-x-0
-          ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed top-0 left-0 bottom-0 z-40 flex h-screen flex-col border-r border-border bg-surface transition-all duration-300 ${
+          open ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
+        } ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}`}
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-5">
-          <div className="flex items-center gap-2.5">
+        {/* Header */}
+        <div className={`flex items-center border-b border-border py-4 ${isCollapsed ? 'px-3 justify-center lg:justify-between' : 'px-5 justify-between'}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
             <img
-              src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png"
+              src={
+                isCollapsed
+                  ? 'https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental-fav-logo_uu55ug.png'
+                  : 'https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png'
+              }
               alt="Sai Dental Logo"
-              className="h-10 w-auto object-contain rounded-lg"
+              className={`object-contain rounded-lg transition-all duration-300 ${isCollapsed ? 'h-8 w-8' : 'h-10 w-auto'}`}
             />
-            {/* <div>
-              <p className="font-display text-[14px] font-bold leading-tight text-ink">Sai Dental Clinic</p>
-              <p className="text-[11px] font-medium text-ink-soft">Digital Platform</p>
-            </div> */}
           </div>
+
+          {/* Desktop collapse toggle button */}
+          <button
+            onClick={onToggleCollapse}
+            className="hidden lg:flex items-center justify-center rounded-xl p-1.5 text-ink-soft hover:bg-bg hover:text-ink transition-colors"
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+          </button>
+
+          {/* Mobile close button */}
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-bg lg:hidden" aria-label="Close menu">
             <X size={18} />
           </button>
         </div>
 
-        {/* <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-          <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
-          <span className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
-            {meta.label} workspace
-          </span>
-        </div> */}
-
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        {/* Navigation List */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 py-4">
           {items.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               onClick={onClose}
+              title={isCollapsed ? label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${isActive
-                  ? 'bg-brand-light text-brand-dark'
-                  : 'text-ink-soft hover:bg-bg hover:text-ink'
+                `flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
+                  isCollapsed ? 'lg:justify-center lg:px-2 px-3 gap-3' : 'px-3 gap-3'
+                } ${
+                  isActive
+                    ? 'bg-brand-light text-brand-dark font-bold'
+                    : 'text-ink-soft hover:bg-bg hover:text-ink'
                 }`
               }
             >
-              <Icon size={18} strokeWidth={2} />
-              {label}
+              <Icon size={19} strokeWidth={2} className="shrink-0" />
+              <span className={`truncate transition-opacity duration-200 ${isCollapsed ? 'lg:hidden' : 'block'}`}>
+                {label}
+              </span>
             </NavLink>
           ))}
 
           {role === 'doctor' && (
             <div className="pt-4 mt-4 border-t border-border space-y-1">
-              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-ink-soft/70 mb-2">
-                Consultation Tools
-              </p>
+              {!isCollapsed && (
+                <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-ink-soft/70 mb-2 transition-all">
+                  Consultation Tools
+                </p>
+              )}
               {[
                 { label: 'Clinical Examination', icon: FileHeart },
                 { label: 'Tooth Chart', icon: Grid3x3 },
@@ -121,11 +135,13 @@ export default function Sidebar({ role, open, onClose }) {
               ].map(({ label, icon: ToolIcon }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-ink-soft/60 bg-bg/30 cursor-default select-none opacity-80"
-                  title="Available during patient consultation"
+                  className={`flex items-center rounded-xl py-2 text-xs font-medium text-ink-soft/60 bg-bg/30 cursor-default select-none opacity-80 ${
+                    isCollapsed ? 'lg:justify-center lg:px-2 px-3 gap-3' : 'px-3 gap-3'
+                  }`}
+                  title={label}
                 >
-                  <ToolIcon size={16} strokeWidth={2} />
-                  <span>{label}</span>
+                  <ToolIcon size={17} strokeWidth={2} className="shrink-0" />
+                  <span className={`truncate ${isCollapsed ? 'lg:hidden' : 'block'}`}>{label}</span>
                 </div>
               ))}
             </div>
