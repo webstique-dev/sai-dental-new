@@ -3,6 +3,7 @@ const { logAction } = require('../middleware/auditLog');
 const { canDoctorAccessPatient } = require('../utils/patientAuth');
 const { validatePatientData } = require('../middleware/inputValidation');
 const { emitPatientUpdate } = require('../utils/socket');
+const { buildPatientSearchFilter } = require('../utils/patientSearchHelper');
 
 // GET /api/patients?search=&lastVisitFrom=&lastVisitTo=&doctorId=&sort=&sortBy=&sortOrder=&page=&limit=
 async function listPatients(req, res, next) {
@@ -13,8 +14,8 @@ async function listPatients(req, res, next) {
       lastVisitTo,
       doctorId,
       sort,
-      sortBy,
-      sortOrder,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
       page = 1,
       limit = 20,
     } = req.query;
@@ -38,15 +39,9 @@ async function listPatients(req, res, next) {
 
     // 1. Initial Match (Search by name, phone, OP number, exclude soft deleted)
     const matchStage = { isDeleted: { $ne: true } };
-    if (search && search.trim()) {
-      const q = search.trim();
-      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      matchStage.$or = [
-        { firstName: regex },
-        { lastName: regex },
-        { phone: regex },
-        { opNumber: regex },
-      ];
+    const searchFilter = buildPatientSearchFilter(search);
+    if (searchFilter) {
+      Object.assign(matchStage, searchFilter);
     }
     pipeline.push({ $match: matchStage });
 

@@ -347,7 +347,7 @@ export default function FollowUps() {
             <input
               type="text"
               className="input-field pl-9 py-1.5 text-xs"
-              placeholder="Search by Patient Name, Phone, OP#..."
+              placeholder="Search by Patient Name, Phone Number, or OP Number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

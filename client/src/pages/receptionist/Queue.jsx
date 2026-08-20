@@ -573,7 +573,7 @@ export default function Queue() {
                 <input
                   type="text"
                   className="input-field pl-10 py-2 text-xs"
-                  placeholder="Search by Patient Name or OP Number..."
+                  placeholder="Search by Patient Name, Phone Number, or OP Number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />

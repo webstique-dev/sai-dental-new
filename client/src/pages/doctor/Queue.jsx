@@ -333,27 +333,18 @@ export default function DoctorQueue() {
 
     return (
       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-        {/* WORKFLOW 1: SCHEDULED OR MISSED -> Check-In / Late Check-In, No Show, Cancel */}
-        {(displayStatus === 'Scheduled' || displayStatus === 'Missed') && (
+        {/* WORKFLOW 1: SCHEDULED -> Check-In, No Show, Cancel */}
+        {displayStatus === 'Scheduled' && (
           <>
             <button
               type="button"
               disabled={isSubmitting}
               onClick={() => handleCheckInPatient(itemId)}
-              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors shadow-sm ${displayStatus === 'Missed'
-                ? 'bg-amber-600 text-white hover:bg-amber-700'
-                : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                }`}
-              title={displayStatus === 'Missed' ? 'Late Arrival Check-In patient to queue' : 'Check in patient to queue'}
+              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
+              title="Check in patient to queue"
             >
               <UserCheck size={13} />
-              <span>
-                {isSubmitting
-                  ? 'Checking In...'
-                  : displayStatus === 'Missed'
-                    ? 'Late Check-In'
-                    : 'Check In'}
-              </span>
+              <span>{isSubmitting ? 'Checking In...' : 'Check In'}</span>
             </button>
 
             <button
@@ -1234,7 +1225,7 @@ export default function DoctorQueue() {
                     <input
                       type="text"
                       className="input-field pl-10 py-2 text-xs"
-                      placeholder="Search by Patient Name, OP Number, or Phone..."
+                      placeholder="Search by Patient Name, Phone Number, or OP Number..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />

@@ -133,7 +133,7 @@ export default function TreatmentPlansPage() {
             <input
               type="text"
               className="input-field pl-10 py-2 text-xs"
-              placeholder="Search by Patient Name or OP Number..."
+              placeholder="Search by Patient Name, Phone Number, or OP Number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

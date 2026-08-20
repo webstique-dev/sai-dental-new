@@ -67,9 +67,9 @@ export default function AppointmentList({
               ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim()
               : 'Unknown Patient';
             const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned';
-            const isCanCheckIn = (apt.status === 'Scheduled' || apt.status === 'Missed') && onCheckIn;
             const isScheduled = apt.status === 'Scheduled';
-            const isLockedStatus = ['Completed', 'Cancelled', 'No Show'].includes(apt.status);
+            const isCanCheckIn = isScheduled && onCheckIn;
+            const isLockedStatus = ['Completed', 'Cancelled', 'No Show', 'Missed'].includes(apt.status);
 
             const pType = apt.patient?.patientType || (apt.patient?.age !== undefined && apt.patient?.age !== null && Number(apt.patient.age) < 12 ? 'child' : 'adult');
 
@@ -123,18 +123,14 @@ export default function AppointmentList({
 
                 <td className="px-5 py-4 text-right whitespace-nowrap">
                   <div className="flex items-center justify-end gap-1.5">
-                    {/* 1. Check-In action for Scheduled or Missed (Late Arrival) appointments */}
+                    {/* 1. Check-In action for Scheduled appointments */}
                     {isCanCheckIn && (
                       <button
                         onClick={() => onCheckIn(apt)}
-                        title={apt.status === 'Missed' ? 'Late Arrival Check-In' : 'Check In Patient'}
-                        className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                          apt.status === 'Missed'
-                            ? 'border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100'
-                            : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                        }`}
+                        title="Check In Patient"
+                        className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
                       >
-                        <UserCheck size={13} /> {apt.status === 'Missed' ? 'Late Check-In' : 'Check-In'}
+                        <UserCheck size={13} /> Check-In
                       </button>
                     )}
 
@@ -149,8 +145,8 @@ export default function AppointmentList({
                       </button>
                     )}
 
-                    {/* 3. No Show action for Scheduled or Missed appointments */}
-                    {(isScheduled || apt.status === 'Missed') && onNoShow && (
+                    {/* 3. No Show action for Scheduled appointments */}
+                    {isScheduled && onNoShow && (
                       <button
                         onClick={() => onNoShow(apt)}
                         title="Mark No Show"

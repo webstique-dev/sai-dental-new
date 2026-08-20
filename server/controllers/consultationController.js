@@ -7,6 +7,7 @@ const { syncVisitStatus } = require('../utils/statusSync');
 const { getDayBounds } = require('./appointmentController');
 const { updateConsultationTotals } = require('../utils/consultationTotalsSync');
 const { emitConsultationUpdate, emitQueueUpdate } = require('../utils/socket');
+const { buildPatientSearchFilter } = require('../utils/patientSearchHelper');
 
 // Immutability Guard Helper: Rejects write actions on closed consultations with HTTP 403
 async function checkConsultationNotClosed(consultationId) {
@@ -47,15 +48,12 @@ async function listConsultations(req, res, next) {
       }
     }
 
-    if (search && search.trim()) {
+    const patientSearchFilter = buildPatientSearchFilter(search);
+    if (patientSearchFilter) {
       const Patient = require('../models/Patient');
       const matchingPatients = await Patient.find({
-        $or: [
-          { firstName: { $regex: search.trim(), $options: 'i' } },
-          { lastName: { $regex: search.trim(), $options: 'i' } },
-          { opNumber: { $regex: search.trim(), $options: 'i' } },
-          { phone: { $regex: search.trim(), $options: 'i' } },
-        ],
+        ...patientSearchFilter,
+        isDeleted: { $ne: true },
       }).select('_id');
       const patientIds = matchingPatients.map((p) => p._id);
       filter.patient = { $in: patientIds };

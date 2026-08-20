@@ -49,13 +49,19 @@ function parseAppointmentDateTime(dateVal, timeStr) {
 }
 
 /**
- * Checks all Scheduled appointments whose scheduled date+time has passed by more than gracePeriodMinutes (default 30),
+ * Checks all Scheduled appointments whose entire appointment date has passed without check-in,
  * and auto-flags both the appointment and any linked follow-up as 'Missed'.
+ *
+ * Rules:
+ * 1. An appointment remains Scheduled throughout its booked date, even if the scheduled time has passed.
+ * 2. Late check-in is allowed during the appointment date.
+ * 3. Once the entire appointment date has passed (starting midnight of the next day),
+ *    if the patient was not checked in, the appointment status changes to 'Missed'.
+ * 4. The appointment MUST remain on its originally booked date and time.
  */
-async function checkAndMarkMissedAppointments(gracePeriodMinutes = 30) {
+async function checkAndMarkMissedAppointments() {
   try {
     const now = new Date();
-    const cutoffTime = new Date(now.getTime() - gracePeriodMinutes * 60 * 1000);
 
     const candidateAppointments = await Appointment.find({
       status: 'Scheduled',
@@ -63,9 +69,40 @@ async function checkAndMarkMissedAppointments(gracePeriodMinutes = 30) {
     });
 
     for (const appt of candidateAppointments) {
-      const scheduledDateTime = parseAppointmentDateTime(appt.date, appt.time);
-      if (scheduledDateTime && scheduledDateTime < cutoffTime) {
+      if (!appt.date) continue;
+      const apptDate = new Date(appt.date);
+      if (isNaN(apptDate.getTime())) continue;
+
+      // End of local appointment day
+      const localEnd = new Date(
+        apptDate.getFullYear(),
+        apptDate.getMonth(),
+        apptDate.getDate(),
+        23,
+        59,
+        59,
+        999
+      );
+
+      // End of UTC appointment day
+      const utcEnd = new Date(
+        Date.UTC(
+          apptDate.getUTCFullYear(),
+          apptDate.getUTCMonth(),
+          apptDate.getUTCDate(),
+          23,
+          59,
+          59,
+          999
+        )
+      );
+
+      // Entire appointment date has passed if current time is past both local and UTC day ends
+      const dateEndCutoff = new Date(Math.max(localEnd.getTime(), utcEnd.getTime()));
+
+      if (now > dateEndCutoff) {
         appt.status = 'Missed';
+        // Note: appt.date and appt.time remain unchanged on their original booked date and time
         await appt.save();
 
         const linkedFollowUp = await FollowUp.findOne({

@@ -5,6 +5,7 @@ const Patient = require('../models/Patient');
 const User = require('../models/User');
 const Consultation = require('../models/Consultation');
 const { checkAndMarkMissedAppointments } = require('../utils/statusSync');
+const { buildPatientSearchFilter } = require('../utils/patientSearchHelper');
 
 // GET /api/follow-ups?status=&consultation=&patient=
 async function listFollowUps(req, res, next) {
@@ -25,16 +26,11 @@ async function listFollowUps(req, res, next) {
       filter.patient = patient;
     }
 
-    if (search && search.trim()) {
-      const q = search.trim();
-      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const patientSearchFilter = buildPatientSearchFilter(search);
+    if (patientSearchFilter) {
       const matchingPatients = await Patient.find({
-        $or: [
-          { firstName: regex },
-          { lastName: regex },
-          { phone: regex },
-          { opNumber: regex },
-        ],
+        ...patientSearchFilter,
+        isDeleted: { $ne: true },
       }).select('_id');
 
       filter.patient = { $in: matchingPatients.map((p) => p._id) };

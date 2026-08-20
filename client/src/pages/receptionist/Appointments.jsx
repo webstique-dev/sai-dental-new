@@ -83,6 +83,7 @@ export default function Appointments() {
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [primaryDoctor, setPrimaryDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -135,7 +136,13 @@ export default function Appointments() {
     async function fetchDoctors() {
       try {
         const res = await api.get('/users/doctors');
-        setDoctors(res.data?.doctors || []);
+        const docList = res.data?.doctors || [];
+        const primId = res.data?.primaryDoctorId;
+        const primDoc = docList.find((d) => (d._id || d.id)?.toString() === primId?.toString())
+                     || docList.find((d) => d.isPrimary)
+                     || docList[0];
+        setDoctors(docList);
+        setPrimaryDoctor(primDoc || null);
       } catch (err) {
         console.error('Failed to load doctors:', err);
       }
@@ -149,11 +156,11 @@ export default function Appointments() {
       const p = location.state.newPatient;
       setSelectedPatient(p);
       setPatientSearch(`${p.firstName || ''} ${p.lastName || ''}`.trim());
-      const firstDocId = doctors[0]?._id || doctors[0]?.id || '';
+      const primDocId = primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || '');
       const { dateStr, timeStr } = getInitialExactDateTime();
       setFormData({
         patient: p._id,
-        doctor: firstDocId,
+        doctor: primDocId,
         date: dateStr,
         time: timeStr,
         type: 'Appointment',
@@ -162,7 +169,7 @@ export default function Appointments() {
       setShowCreateModal(true);
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, doctors, navigate]);
+  }, [location.state, doctors, primaryDoctor, navigate]);
 
   // Fetch appointments based on filters
   const fetchAppointments = async () => {
@@ -217,11 +224,11 @@ export default function Appointments() {
   const openCreateModal = () => {
     setSelectedPatient(null);
     setPatientSearch('');
-    const firstDocId = doctors[0]?._id || doctors[0]?.id || '';
+    const primDocId = primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || '');
     const { dateStr, timeStr } = getInitialExactDateTime();
     setFormData({
       patient: '',
-      doctor: firstDocId,
+      doctor: primDocId,
       date: dateStr,
       time: timeStr,
       type: 'Appointment',
@@ -424,7 +431,7 @@ export default function Appointments() {
             <input
               type="text"
               className="input-field pl-9 py-2 text-xs"
-              placeholder="Search patient name, phone, OP#..."
+              placeholder="Search by Patient Name, Phone Number, or OP Number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -537,16 +544,16 @@ export default function Appointments() {
                 <div>
                   <label className="block text-xs font-semibold text-ink-soft mb-1">Assigned Doctor</label>
                   <select
-                    className="input-field"
-                    value={formData.doctor}
+                    className="input-field font-semibold bg-surface"
+                    value={formData.doctor || (primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || ''))}
                     onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
                   >
-                    <option value="">Select Doctor</option>
                     {doctors.map((d) => {
                       const docId = d._id || d.id;
+                      const isPrimaryDoc = primaryDoctor && (primaryDoctor._id || primaryDoctor.id)?.toString() === docId?.toString();
                       return (
                         <option key={docId} value={docId}>
-                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''} {isPrimaryDoc ? '• Primary Doctor' : ''}
                         </option>
                       );
                     })}

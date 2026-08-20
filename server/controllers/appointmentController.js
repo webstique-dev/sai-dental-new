@@ -3,6 +3,7 @@ const Patient = require('../models/Patient');
 const FollowUp = require('../models/FollowUp');
 const { syncVisitStatus, checkAndMarkMissedAppointments } = require('../utils/statusSync');
 const { emitAppointmentUpdate } = require('../utils/socket');
+const { buildPatientSearchFilter } = require('../utils/patientSearchHelper');
 
 function getDayBounds(dateInput) {
   let d;
@@ -70,16 +71,10 @@ async function listAppointments(req, res, next) {
     }
 
     // Filter by patient search term (name/phone/opNumber)
-    if (search && search.trim()) {
-      const q = search.trim();
-      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const patientSearchFilter = buildPatientSearchFilter(search);
+    if (patientSearchFilter) {
       const matchingPatients = await Patient.find({
-        $or: [
-          { firstName: regex },
-          { lastName: regex },
-          { phone: regex },
-          { opNumber: regex },
-        ],
+        ...patientSearchFilter,
         isDeleted: { $ne: true },
       }).select('_id');
 

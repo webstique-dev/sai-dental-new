@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Patient = require('../models/Patient');
 const { logAction } = require('../middleware/auditLog');
+const { buildPatientSearchFilter } = require('../utils/patientSearchHelper');
 
 // GET /api/invoices?patient=&doctor=&status=&search=&dateFrom=&dateTo=
 async function listInvoices(req, res, next) {
@@ -32,16 +33,14 @@ async function listInvoices(req, res, next) {
       }
     }
 
-    if (search && search.trim()) {
+    const patientSearchFilter = buildPatientSearchFilter(search);
+    if (patientSearchFilter) {
       const q = search.trim();
-      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
       const matchingPatients = await Patient.find({
-        $or: [
-          { firstName: regex },
-          { lastName: regex },
-          { phone: regex },
-          { opNumber: regex },
-        ],
+        ...patientSearchFilter,
+        isDeleted: { $ne: true },
       }).select('_id');
 
       const patientIds = matchingPatients.map((p) => p._id);

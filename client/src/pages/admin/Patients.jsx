@@ -223,7 +223,7 @@ export default function AdminPatients() {
             <input
               type="text"
               className="input-field pl-9 py-2 text-xs w-full"
-              placeholder="Search by Patient Name, OP Number, or Phone Number..."
+              placeholder="Search by Patient Name, Phone Number, or OP Number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

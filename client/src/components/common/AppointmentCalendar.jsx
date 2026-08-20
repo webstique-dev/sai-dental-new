@@ -93,7 +93,7 @@ export default function AppointmentCalendar({
                 ) : (
                   dayAppointments.map((apt) => {
                     const aptId = apt._id || apt.id;
-                    const isLockedStatus = ['Completed', 'Cancelled', 'No Show'].includes(apt.status);
+                    const isLockedStatus = ['Completed', 'Cancelled', 'No Show', 'Missed'].includes(apt.status);
                     const canEdit = allowEdit && !isLockedStatus;
 
                     return (
