@@ -35,11 +35,8 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Dynamic Medicine Rows State
-  const [medicines, setMedicines] = useState([
-    { medicine: 'Amoxicillin 500mg', dosage: '1 capsule', frequency: '1-0-1 (BD)', duration: '5 days', instructions: 'After meals with water' },
-    { medicine: 'Paracetamol 650mg', dosage: '1 tablet', frequency: '1-1-1 (TDS)', duration: '3 days', instructions: 'SOS / For pain' },
-  ]);
-  const [prescriptionNotes, setPrescriptionNotes] = useState('Take all prescribed medicines after food. Maintain warm saline rinses twice daily.');
+  const [medicines, setMedicines] = useState([]);
+  const [prescriptionNotes, setPrescriptionNotes] = useState('');
 
   const fetchData = async () => {
     if (!consultationId) return;
@@ -68,17 +65,38 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
     fetchData();
   }, [consultationId]);
 
+  const parseFrequencyPattern = (freqStr) => {
+    if (!freqStr || typeof freqStr !== 'string') return [0, 0, 0];
+    const parts = freqStr.split('-');
+    if (parts.length === 3) {
+      return [
+        parts[0] === '1' ? 1 : 0,
+        parts[1] === '1' ? 1 : 0,
+        parts[2] === '1' ? 1 : 0,
+      ];
+    }
+    return [0, 0, 0];
+  };
+
+  const handleToggleFreqSlot = (idx, slotIndex) => {
+    if (isReadOnly) return;
+    const current = parseFrequencyPattern(medicines[idx]?.frequency);
+    current[slotIndex] = current[slotIndex] === 1 ? 0 : 1;
+    const newFreqStr = `${current[0]}-${current[1]}-${current[2]}`;
+    handleRowChange(idx, 'frequency', newFreqStr);
+  };
+
   const handleAddRow = () => {
     if (isReadOnly) return;
-    setMedicines([
-      ...medicines,
-      { medicine: '', dosage: '', frequency: '', duration: '', instructions: '' },
+    setMedicines((prev) => [
+      ...prev,
+      { medicine: '', dosage: '', frequency: '0-0-0', duration: '', instructions: 'After food' },
     ]);
   };
 
   const handleRemoveRow = (index) => {
-    if (isReadOnly || medicines.length === 1) return;
-    setMedicines(medicines.filter((_, i) => i !== index));
+    if (isReadOnly) return;
+    setMedicines((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleRowChange = (index, field, value) => {
@@ -109,9 +127,8 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
       const res = await api.post('/prescriptions', payload);
       showSuccess('Prescription recorded successfully!');
 
-      setMedicines([
-        { medicine: '', dosage: '', frequency: '', duration: '', instructions: '' },
-      ]);
+      setMedicines([]);
+      setPrescriptionNotes('');
 
       fetchData();
       if (res.data?.prescription) {
@@ -199,72 +216,138 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
           </div>
 
           <form onSubmit={handleSavePrescription} className="space-y-4">
-            <div className="space-y-2 border border-border rounded-xl p-3 bg-bg/30 max-h-72 overflow-y-auto">
-              <div className="grid grid-cols-12 gap-2 text-xs font-bold text-ink-soft uppercase px-1 pb-1 border-b border-border/50">
-                <span className="col-span-4">Medicine Name *</span>
-                <span className="col-span-2">Dosage</span>
-                <span className="col-span-2">Frequency</span>
-                <span className="col-span-2">Duration</span>
-                <span className="col-span-2">Instructions</span>
+            <div className="border border-border rounded-xl bg-bg/30 overflow-hidden flex flex-col">
+              {/* Table Header (Fixed Top) */}
+              <div className="p-3 pb-2 border-b border-border/50 bg-bg/60">
+                <div className="grid grid-cols-12 gap-2 text-xs font-bold text-ink-soft uppercase px-1">
+                  <span className="col-span-3">Medicine Name *</span>
+                  <span className="col-span-2">Dosage</span>
+                  <span className="col-span-3 text-center">Frequency (1 - 0 - 1)</span>
+                  <span className="col-span-2">Duration</span>
+                  <span className="col-span-2">Instructions</span>
+                </div>
               </div>
 
-              {medicines.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
-                  <div className="col-span-4">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs"
-                      placeholder="Medicine Name (e.g. Amoxicillin)"
-                      value={item.medicine}
-                      onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
-                    />
+              {/* Scrollable Medicines Container with hidden scrollbar */}
+              <div
+                className="p-3 space-y-2.5 max-h-72 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {medicines.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-ink-soft italic">
+                    No medicines added yet. Click the <span className="font-bold text-brand">+ Add Medicine Row</span> button below to add medicine.
                   </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs"
-                      placeholder="Dosage (500 mg)"
-                      value={item.dosage}
-                      onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs"
-                      placeholder="Freq (Twice daily / 1-0-1)"
-                      value={item.frequency}
-                      onChange={(e) => handleRowChange(idx, 'frequency', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs"
-                      placeholder="Duration (5 days)"
-                      value={item.duration}
-                      onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center justify-between gap-1">
-                    <input
-                      type="text"
-                      className="input-field py-1.5 text-xs"
-                      placeholder="Instructions (After food)"
-                      value={item.instructions}
-                      onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      disabled={medicines.length === 1}
-                      onClick={() => handleRemoveRow(idx)}
-                      className="p-1 text-ink-soft hover:text-rose-600 disabled:opacity-30 shrink-0"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ) : (
+                  medicines.map((item, idx) => {
+                    const freqPattern = parseFrequencyPattern(item.frequency);
+                    return (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
+                        <div className="col-span-3">
+                          <input
+                            type="text"
+                            autoComplete="off"
+                            className="input-field py-1.5 text-xs"
+                            placeholder="Medicine Name (e.g. Amoxicillin)"
+                            value={item.medicine}
+                            onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <input
+                            type="text"
+                            autoComplete="off"
+                            className="input-field py-1.5 text-xs"
+                            placeholder="Dosage (500 mg)"
+                            value={item.dosage}
+                            onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-3 flex items-center justify-center">
+                          <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 py-1 text-xs font-bold shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFreqSlot(idx, 0)}
+                              title="Morning Slot (1 or 0)"
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
+                                freqPattern[0] === 1
+                                  ? 'bg-brand text-white shadow-xs'
+                                  : 'text-ink-soft hover:text-ink bg-bg'
+                              }`}
+                            >
+                              {freqPattern[0]}
+                            </button>
+                            <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFreqSlot(idx, 1)}
+                              title="Afternoon Slot (1 or 0)"
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
+                                freqPattern[1] === 1
+                                  ? 'bg-brand text-white shadow-xs'
+                                  : 'text-ink-soft hover:text-ink bg-bg'
+                              }`}
+                            >
+                              {freqPattern[1]}
+                            </button>
+                            <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFreqSlot(idx, 2)}
+                              title="Night Slot (1 or 0)"
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
+                                freqPattern[2] === 1
+                                  ? 'bg-brand text-white shadow-xs'
+                                  : 'text-ink-soft hover:text-ink bg-bg'
+                              }`}
+                            >
+                              {freqPattern[2]}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <input
+                            type="text"
+                            autoComplete="off"
+                            className="input-field py-1.5 text-xs"
+                            placeholder="Duration (5 days)"
+                            value={item.duration}
+                            onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-span-2 flex items-center justify-between gap-1 min-w-0">
+                          <select
+                            className="input-field py-1.5 text-xs font-semibold w-full min-w-0 truncate"
+                            value={item.instructions || 'After food'}
+                            onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
+                          >
+                            <option value="Before food">Before food</option>
+                            <option value="After food">After food</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRow(idx)}
+                            className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
+                            title="Remove row"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Fixed Bottom + Add Medicine Row Button */}
+              <div className="p-3 pt-2 bg-surface border-t border-border/50">
+                <button
+                  type="button"
+                  onClick={handleAddRow}
+                  className="w-full py-2.5 border-2 border-dashed border-brand/30 hover:border-brand hover:bg-brand-light/20 text-brand font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <Plus size={16} /> Add Medicine Row
+                </button>
+              </div>
             </div>
 
             <div>
@@ -314,10 +397,10 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
               const rxId = rx._id || rx.id;
               const dateStr = rx.createdAt
                 ? new Date(rx.createdAt).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
                 : 'N/A';
 
               return (

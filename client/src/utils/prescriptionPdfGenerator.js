@@ -25,8 +25,8 @@ export function generatePrescriptionHTML(params = {}) {
   const visitId = consultation?._id
     ? `VISIT-${String(consultation._id).slice(-6).toUpperCase()}`
     : (rx?.consultation
-        ? `VISIT-${String(rx.consultation._id || rx.consultation).slice(-6).toUpperCase()}`
-        : 'N/A');
+      ? `VISIT-${String(rx.consultation._id || rx.consultation).slice(-6).toUpperCase()}`
+      : 'N/A');
 
   const diagnosisList = Array.isArray(diagnoses) && diagnoses.length > 0
     ? diagnoses.map((d) => `${d?.diagnosis || ''}${d?.relatedTeeth?.length ? ` (Teeth: #${d.relatedTeeth.join(', #')})` : ''}`).filter(Boolean).join(', ')
@@ -308,10 +308,6 @@ export function generatePrescriptionHTML(params = {}) {
         <div class="header">
           <div class="clinic-brand">
             <img src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png" alt="Sai Dental Logo" style="height: 48px; width: auto; object-fit: contain; border-radius: 8px;" />
-            <div>
-              <h1 class="clinic-title">${safeClinicName}</h1>
-              <p class="clinic-subtitle">Center for Digital Dentistry & Super-Specialty Oral Care</p>
-            </div>
           </div>
           <div class="clinic-contact">
             <p style="margin: 0; font-weight: 700; color: #0f172a;">${safeAddress}</p>
