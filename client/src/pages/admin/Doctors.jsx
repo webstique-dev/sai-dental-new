@@ -175,7 +175,7 @@ export default function AdminDoctors() {
                 <tr>
                   <th className="px-5 py-3.5">Doctor</th>
                   <th className="px-5 py-3.5">Specialization</th>
-                  <th className="px-5 py-3.5">Fee</th>
+                  {/* <th className="px-5 py-3.5">Fee</th> */}
                   <th className="px-5 py-3.5">Status</th>
                   <th className="px-5 py-3.5">Performance Snapshot</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
@@ -220,11 +220,11 @@ export default function AdminDoctors() {
                       </td>
 
                       {/* Consultation Fee */}
-                      <td className="px-5 py-4 whitespace-nowrap">
+                      {/* <td className="px-5 py-4 whitespace-nowrap">
                         <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
                           ₹{prof.consultationFee ?? 500}
                         </span>
-                      </td>
+                      </td> */}
 
                       {/* Status */}
                       <td className="px-5 py-4 whitespace-nowrap">
@@ -321,7 +321,7 @@ export default function AdminDoctors() {
                       onChange={(e) => setProfileForm({ ...profileForm, qualification: e.target.value })}
                     />
                   </div>
-                  <div>
+                  {/* <div>
                     <label className="block font-semibold text-ink-soft mb-1">Consultation Fee (₹)</label>
                     <input
                       type="number"
@@ -330,7 +330,7 @@ export default function AdminDoctors() {
                       value={profileForm.consultationFee}
                       onChange={(e) => setProfileForm({ ...profileForm, consultationFee: e.target.value })}
                     />
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Working Hours Schedule Configuration */}
