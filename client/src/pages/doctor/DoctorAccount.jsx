@@ -285,7 +285,7 @@ export default function DoctorAccount() {
 
               <div className="border-t border-sky-200/80 pt-2 flex items-center justify-between text-[11px] text-slate-600">
                 <span>Phone: <strong className="font-mono">{formData.phone || '+91 98765 43210'}</strong></span>
-                <span>Fee: <strong className="font-mono text-emerald-700">₹{formData.consultationFee || 500}</strong></span>
+                {/* <span>Fee: <strong className="font-mono text-emerald-700">₹{formData.consultationFee || 500}</strong></span> */}
               </div>
             </div>
 
