@@ -178,7 +178,7 @@ export default function DoctorAccount() {
               </div>
 
               {/* Consultation Fee */}
-              <div>
+              {/* <div>
                 <label className="block text-xs font-semibold text-ink-soft mb-1.5 flex items-center gap-1">
                   <DollarSign size={14} className="text-brand" /> Default Consultation Fee (₹)
                 </label>
@@ -190,7 +190,7 @@ export default function DoctorAccount() {
                   value={formData.consultationFee}
                   onChange={(e) => setFormData({ ...formData, consultationFee: e.target.value })}
                 />
-              </div>
+              </div> */}
 
               {/* Specialization */}
               <div className="sm:col-span-2">
