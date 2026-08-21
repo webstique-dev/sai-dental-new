@@ -34,6 +34,7 @@ const NAV = {
     { to: '/doctor/prescriptions', label: 'Prescriptions', icon: Pill },
     { to: '/doctor/follow-ups', label: 'Follow-Ups', icon: Bell },
     { to: '/doctor/reports', label: 'Reports & Analytics', icon: FileBarChart },
+    { to: '/doctor/account', label: 'My Account', icon: UserSquare2 },
   ],
 };
 

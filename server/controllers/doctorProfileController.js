@@ -82,12 +82,21 @@ async function getDoctorProfileByUserId(req, res, next) {
 async function upsertDoctorProfile(req, res, next) {
   try {
     const { userId } = req.params;
-    const { specialization, qualification, workingHours, consultationFee } = req.body;
+    const { name, phone, specialization, qualification, workingHours, consultationFee } = req.body;
+
+    if (req.user.role === 'doctor' && req.user._id.toString() !== userId.toString()) {
+      return res.status(403).json({ message: 'You can only update your own doctor profile.' });
+    }
 
     const userDoc = await User.findById(userId);
     if (!userDoc || userDoc.role !== 'doctor') {
       return res.status(404).json({ message: 'Doctor user account not found.' });
     }
+
+    if (name !== undefined && name.trim()) userDoc.name = name.trim();
+    if (phone !== undefined) userDoc.phone = phone.trim();
+    if (specialization !== undefined) userDoc.specialization = specialization.trim();
+    await userDoc.save();
 
     let profile = await DoctorProfile.findOne({ user: userId });
 
@@ -107,12 +116,6 @@ async function upsertDoctorProfile(req, res, next) {
     }
 
     await profile.save();
-
-    // Also update User.specialization if updated
-    if (specialization !== undefined) {
-      userDoc.specialization = specialization.trim();
-      await userDoc.save();
-    }
 
     const populated = await DoctorProfile.findById(profile._id).populate('user', 'name email phone status role specialization');
 

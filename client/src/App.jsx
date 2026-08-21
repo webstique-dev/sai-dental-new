@@ -40,6 +40,7 @@ import ToothChartPage from './pages/doctor/ToothChartPage.jsx';
 import DiagnosisPage from './pages/doctor/DiagnosisPage.jsx';
 import TreatmentPlansPage from './pages/doctor/TreatmentPlansPage.jsx';
 import PrescriptionsPage from './pages/doctor/PrescriptionsPage.jsx';
+import DoctorAccount from './pages/doctor/DoctorAccount.jsx';
 import DentalPreloader from './components/common/DentalPreloader.jsx';
 
 export default function App() {
@@ -114,6 +115,7 @@ export default function App() {
           <Route path="/doctor/diagnosis" element={<DiagnosisPage />} />
           <Route path="/doctor/treatment-plans" element={<TreatmentPlansPage />} />
           <Route path="/doctor/prescriptions" element={<PrescriptionsPage />} />
+          <Route path="/doctor/account" element={<DoctorAccount />} />
           <Route path="/doctor/follow-ups" element={<FollowUps />} />
           <Route path="/doctor/reports" element={<Reports />} />
         </Route>

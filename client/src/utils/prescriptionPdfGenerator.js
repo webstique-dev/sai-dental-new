@@ -1,17 +1,21 @@
-/**
- * Utility to generate a professional A4 Medical Prescription HTML document
- * and open it in a dedicated window/preview for printing or saving as PDF.
- */
+import api from '../api/axios.js';
 
 export function generatePrescriptionHTML(params = {}) {
-  const { rx = {}, consultation = {}, clinicSettings = {}, diagnoses = [] } = params || {};
+  const { rx = {}, consultation = {}, clinicSettings = {}, doctor = null, diagnoses = [] } = params || {};
 
   const patient = consultation?.patient || rx?.patient || {};
-  const doctor = rx?.recordedBy || consultation?.doctor || {};
+  const docObj = doctor || rx?.recordedBy || consultation?.doctor || {};
 
   const patientName = [patient?.firstName, patient?.lastName].filter(Boolean).join(' ') || 'Patient';
-  const doctorName = doctor?.name ? `Dr. ${doctor.name}` : 'Doctor';
-  const doctorQual = doctor?.specialization || 'BDS, MDS - Dental Specialist & Oral Surgeon';
+  
+  let rawDocName = docObj?.name || 'Doctor';
+  if (rawDocName !== 'Doctor' && !rawDocName.startsWith('Dr.')) {
+    rawDocName = `Dr. ${rawDocName}`;
+  }
+  const doctorName = rawDocName;
+  const doctorQual = docObj?.qualification || docObj?.doctorProfile?.qualification || 'BDS, MDS';
+  const doctorSpec = docObj?.specialization || docObj?.doctorProfile?.specialization || 'Dental Specialist & Surgeon';
+
   const rxDate = new Date(rx?.createdAt || Date.now()).toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
@@ -33,18 +37,18 @@ export function generatePrescriptionHTML(params = {}) {
     : '';
 
   const safeClinicName = clinicSettings?.clinicName || 'Sai Dental Clinic';
-  const safeAddress = clinicSettings?.address || '123 Healthcare Ave, Medical District';
+  const safeAddress = clinicSettings?.address || '123 Healthcare Avenue, Medical District, City';
   const safePhone = clinicSettings?.phone || '+91 98765 43210';
   const safeEmail = clinicSettings?.email || 'contact@sai-dentalclinic.com';
 
   const medicinesRows = (rx?.medicines || []).map((m, idx) => `
     <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 700; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 12px; word-wrap: break-word;">${m.medicine || ''}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 11px;">${m.dosage || '—'}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: 700; color: #0d9488; font-size: 12px;">${m.frequency || '—'}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 11px;">${m.duration || '—'}</td>
-      <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; font-style: italic; font-size: 11px; word-wrap: break-word;">${m.instructions || '—'}</td>
+      <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-weight: 700; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
+      <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 12px; word-wrap: break-word;">${m.medicine || ''}</td>
+      <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 11px;">${m.dosage || '—'}</td>
+      <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: 700; color: #0d9488; font-size: 12px;">${m.frequency || '—'}</td>
+      <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 11px;">${m.duration || '—'}</td>
+      <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #475569; font-style: italic; font-size: 11px; word-wrap: break-word;">${m.instructions || '—'}</td>
     </tr>
   `).join('');
 
@@ -54,7 +58,7 @@ export function generatePrescriptionHTML(params = {}) {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title></title>
+      <title>${safeClinicName} - Medical Prescription</title>
       <style>
         @page {
           size: A4 portrait;
@@ -75,53 +79,26 @@ export function generatePrescriptionHTML(params = {}) {
           line-height: 1.5;
         }
         .prescription-wrapper {
-          max-width: 800px;
-          margin: 64px auto 32px auto;
+          max-width: 960px;
+          width: 95%;
+          margin: 52px auto 24px auto;
           background: #ffffff;
           border-radius: 16px;
           box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-          padding: 36px 40px;
+          padding: 24px 20px;
         }
         .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           border-bottom: 3px solid #0f172a;
-          padding-bottom: 16px;
-          margin-bottom: 16px;
+          padding-bottom: 14px;
+          margin-bottom: 14px;
         }
         .clinic-brand {
           display: flex;
           align-items: center;
           gap: 14px;
-        }
-        .clinic-logo-icon {
-          width: 46px;
-          height: 46px;
-          background: linear-gradient(135deg, #1E64EA 0%, #2090F0 50%, #14C9FE 100%);
-          color: #ffffff;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 24px;
-          font-weight: 900;
-        }
-        .clinic-title {
-          font-size: 20px;
-          font-weight: 900;
-          color: #0B1A2E;
-          text-transform: uppercase;
-          letter-spacing: -0.3px;
-          margin: 0;
-        }
-        .clinic-subtitle {
-          font-size: 11px;
-          font-weight: 700;
-          color: #1E64EA;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin: 2px 0 0 0;
         }
         .clinic-contact {
           text-align: right;
@@ -136,8 +113,8 @@ export function generatePrescriptionHTML(params = {}) {
           background: #f0f9ff;
           border: 1px solid #cbd5e1;
           border-radius: 12px;
-          padding: 12px 18px;
-          margin-bottom: 16px;
+          padding: 10px 14px;
+          margin-bottom: 14px;
         }
         .doctor-name {
           font-size: 14px;
@@ -154,8 +131,8 @@ export function generatePrescriptionHTML(params = {}) {
         .patient-card {
           border: 1px solid #cbd5e1;
           border-radius: 12px;
-          padding: 14px 18px;
-          margin-bottom: 16px;
+          padding: 12px 14px;
+          margin-bottom: 14px;
           background: #ffffff;
         }
         .patient-grid {
@@ -179,8 +156,8 @@ export function generatePrescriptionHTML(params = {}) {
           background: #fffbeb;
           border: 1px solid #fde68a;
           border-radius: 10px;
-          padding: 10px 14px;
-          margin-bottom: 16px;
+          padding: 8px 12px;
+          margin-bottom: 14px;
           font-size: 11px;
         }
         .rx-header {
@@ -189,8 +166,8 @@ export function generatePrescriptionHTML(params = {}) {
           gap: 8px;
           border-bottom: 2px solid #1E64EA;
           padding-bottom: 4px;
-          margin-bottom: 12px;
-          margin-top: 8px;
+          margin-bottom: 10px;
+          margin-top: 6px;
         }
         .rx-symbol {
           font-size: 32px;
@@ -202,7 +179,7 @@ export function generatePrescriptionHTML(params = {}) {
         .med-table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
           border: 1px solid #cbd5e1;
           border-radius: 10px;
           overflow: hidden;
@@ -212,7 +189,7 @@ export function generatePrescriptionHTML(params = {}) {
           font-weight: 700;
           color: #334155;
           text-align: left;
-          padding: 10px 12px;
+          padding: 8px 10px;
           font-size: 11px;
           text-transform: uppercase;
           border-bottom: 1px solid #cbd5e1;
@@ -221,8 +198,8 @@ export function generatePrescriptionHTML(params = {}) {
           background: #f8fafc;
           border: 1px solid #e2e8f0;
           border-radius: 10px;
-          padding: 12px 16px;
-          margin-bottom: 24px;
+          padding: 10px 14px;
+          margin-bottom: 20px;
           font-size: 11px;
         }
         .advice-title {
@@ -236,8 +213,8 @@ export function generatePrescriptionHTML(params = {}) {
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          margin-top: 40px;
-          padding-top: 16px;
+          margin-top: 30px;
+          padding-top: 14px;
           border-top: 1px solid #cbd5e1;
         }
         .signature-box {
@@ -277,8 +254,9 @@ export function generatePrescriptionHTML(params = {}) {
           .toolbar { display: none !important; }
           .prescription-wrapper {
             max-width: 100% !important;
+            width: 100% !important;
             margin: 0 !important;
-            padding: 12mm 16mm !important;
+            padding: 6mm 6mm !important;
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
@@ -304,25 +282,22 @@ export function generatePrescriptionHTML(params = {}) {
       </div>
 
       <div class="prescription-wrapper">
-        <!-- HEADER -->
         <div class="header">
           <div class="clinic-brand">
             <img src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png" alt="Sai Dental Logo" style="height: 48px; width: auto; object-fit: contain; border-radius: 8px;" />
           </div>
           <div class="clinic-contact">
-            <p style="margin: 0; font-weight: 700; color: #0B1A2E;">${safeAddress}</p>
-            <p style="margin: 2px 0 0 0;">Phone: <strong>${safePhone}</strong></p>
-            <p style="margin: 2px 0 0 0;">Email: ${safeEmail}</p>
-            <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Reg No: KDC-84920 / Lic: 2026-DNT</p>
+            <p style="margin: 0; font-weight: 700; color: #0B1A2E;">${safeClinicName}</p>
+            <p style="margin: 2px 0 0 0;">${safeAddress}</p>
+            <p style="margin: 2px 0 0 0;">Phone: <strong>${safePhone}</strong> | Email: ${safeEmail}</p>
           </div>
         </div>
 
-        <!-- DOCTOR BAR -->
         <div class="doctor-bar">
           <div>
             <h2 class="doctor-name">${doctorName}</h2>
             <p class="doctor-qual">${doctorQual}</p>
-            <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Dental Surgeon & Clinical Consultant</p>
+            <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">${doctorSpec}</p>
           </div>
           <div style="text-align: right;">
             <p style="margin: 0; font-size: 12px; font-weight: 700;">Date: <span style="font-family: monospace;">${rxDate}</span></p>
@@ -331,7 +306,6 @@ export function generatePrescriptionHTML(params = {}) {
           </div>
         </div>
 
-        <!-- PATIENT DETAILS CARD -->
         <div class="patient-card">
           <div class="patient-grid">
             <div>
@@ -361,7 +335,6 @@ export function generatePrescriptionHTML(params = {}) {
           ` : ''}
         </div>
 
-        <!-- DIAGNOSIS & CLINICAL NOTES -->
         ${diagnosisList ? `
           <div class="diagnosis-box">
             <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #92400e; margin-bottom: 3px;">Clinical Diagnosis & Findings:</div>
@@ -369,7 +342,6 @@ export function generatePrescriptionHTML(params = {}) {
           </div>
         ` : ''}
 
-        <!-- RX MEDICINES TABLE -->
         <div style="margin-bottom: 6px;">
           <div class="rx-header">
             <span class="rx-symbol">Rx</span>
@@ -393,7 +365,6 @@ export function generatePrescriptionHTML(params = {}) {
           </table>
         </div>
 
-        <!-- GENERAL ADVICE & PRECAUTIONS -->
         <div class="advice-box">
           <div class="advice-title">General Post-Treatment Instructions & Precautions:</div>
           <ul style="margin: 0; padding-left: 18px; color: #334155; line-height: 1.6;">
@@ -404,7 +375,6 @@ export function generatePrescriptionHTML(params = {}) {
           </ul>
         </div>
 
-        <!-- FOOTER & SIGNATURE -->
         <div class="footer-section">
           <div style="font-size: 10px; color: #64748b; line-height: 1.5;">
             <p style="margin: 0; font-weight: 700; color: #334155;">${safeClinicName} — Patient Care Services</p>
@@ -425,9 +395,51 @@ export function generatePrescriptionHTML(params = {}) {
   `;
 }
 
-export function openPrescriptionPDFWindow(params, autoPrint = false) {
-  const htmlContent = generatePrescriptionHTML(params);
-  const printWindow = window.open('', '_blank', 'width=900,height=950');
+export async function openPrescriptionPDFWindow(params = {}, autoPrint = false) {
+  let { rx = {}, consultation = {}, clinicSettings = {}, doctor = null, diagnoses = [] } = params || {};
+
+  // Fetch clinic settings dynamically if not passed
+  if (!clinicSettings || !clinicSettings.clinicName || clinicSettings.clinicName.includes('Digital Platform')) {
+    try {
+      const res = await api.get('/settings');
+      if (res.data?.settings) {
+        clinicSettings = { ...clinicSettings, ...res.data.settings };
+      }
+    } catch (err) {
+      console.warn('Clinic settings fetch warning:', err);
+    }
+  }
+
+  // Determine doctor object
+  let docObj = doctor || rx?.recordedBy || consultation?.doctor || {};
+  const docId = typeof docObj === 'string' ? docObj : (docObj?._id || docObj?.id);
+
+  // Fetch doctor profile if qualification/specialization missing
+  if (docId && (!docObj.qualification || !docObj.specialization)) {
+    try {
+      const docRes = await api.get(`/doctor-profiles/${docId}`);
+      if (docRes.data?.profile) {
+        const prof = docRes.data.profile;
+        docObj = {
+          ...docObj,
+          specialization: prof.specialization || docObj.specialization,
+          qualification: prof.qualification || docObj.qualification,
+        };
+      }
+    } catch (err) {
+      console.warn('Doctor profile fetch warning:', err);
+    }
+  }
+
+  const htmlContent = generatePrescriptionHTML({
+    rx,
+    consultation,
+    clinicSettings,
+    doctor: docObj,
+    diagnoses,
+  });
+
+  const printWindow = window.open('', '_blank', 'width=950,height=950');
   if (printWindow) {
     printWindow.document.open();
     printWindow.document.write(htmlContent);

@@ -5,10 +5,7 @@ const allowRoles = require('../middleware/roleCheck');
 
 const router = express.Router();
 
-// Strictly protected for Admin role per PRD
-router.use(protect, allowRoles('admin'));
-
-router.get('/', getSettings);
-router.patch('/', updateSettings);
+router.get('/', protect, allowRoles('admin', 'receptionist', 'doctor'), getSettings);
+router.patch('/', protect, allowRoles('admin'), updateSettings);
 
 module.exports = router;
