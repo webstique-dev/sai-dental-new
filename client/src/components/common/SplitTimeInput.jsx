@@ -147,15 +147,15 @@ export default function SplitTimeInput({
       )}
 
       <div
-        className={`relative flex items-center justify-between w-full rounded-xl border bg-white text-sm font-medium text-slate-800 transition-all duration-150 border-slate-200 hover:border-slate-300 focus-within:border-teal-600 focus-within:ring-2 focus-within:ring-teal-600/20 pl-9 pr-2.5 py-1.5 ${inputClassName}`}
+        className={`relative flex items-center justify-between w-full rounded-xl border bg-white text-sm font-medium text-slate-800 transition-all duration-150 border-slate-200 hover:border-slate-300 focus-within:border-[#1E64EA] focus-within:ring-2 focus-within:ring-[#1E64EA]/20 pl-9 pr-2 py-1.5 ${inputClassName}`}
       >
         {/* Left Clock Icon (identical placement to DatePicker's Calendar icon) */}
         <div className="absolute left-3 text-slate-400 flex items-center justify-center pointer-events-none">
-          <Clock className="w-4 h-4" />
+          <Clock className="w-4 h-4 text-[#1E64EA]" />
         </div>
 
         {/* Hour & Minute Inputs */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1">
           <input
             type="text"
             autoComplete="off"
@@ -164,11 +164,11 @@ export default function SplitTimeInput({
             value={timeState.hour}
             onChange={handleHourChange}
             onBlur={handleHourBlur}
-            className="w-7 text-center font-mono font-bold text-xs text-slate-800 bg-transparent focus:bg-teal-50 rounded outline-none py-0.5"
+            className="w-8 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none py-1 border border-slate-200/80 focus:border-[#1E64EA] transition-all"
             placeholder="09"
             aria-label="Hour"
           />
-          <span className="font-mono font-bold text-slate-400 text-xs select-none px-0.5">:</span>
+          <span className="font-mono font-extrabold text-slate-400 text-xs select-none px-0.5">:</span>
           <input
             type="text"
             autoComplete="off"
@@ -177,21 +177,21 @@ export default function SplitTimeInput({
             value={timeState.minute}
             onChange={handleMinuteChange}
             onBlur={handleMinuteBlur}
-            className="w-7 text-center font-mono font-bold text-xs text-slate-800 bg-transparent focus:bg-teal-50 rounded outline-none py-0.5"
+            className="w-8 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none py-1 border border-slate-200/80 focus:border-[#1E64EA] transition-all"
             placeholder="00"
             aria-label="Minute"
           />
         </div>
 
         {/* AM / PM Toggle Pair */}
-        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/70 ml-auto">
+        <div className="flex items-center bg-slate-100/80 p-0.5 rounded-lg border border-slate-200/70 ml-auto gap-0.5">
           <button
             type="button"
             onClick={() => handlePeriodToggle('AM')}
-            className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider transition-all ${
+            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all ${
               timeState.period === 'AM'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-gradient-to-r from-[#1E64EA] to-[#2090F0] text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
             }`}
           >
             AM
@@ -199,10 +199,10 @@ export default function SplitTimeInput({
           <button
             type="button"
             onClick={() => handlePeriodToggle('PM')}
-            className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider transition-all ${
+            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all ${
               timeState.period === 'PM'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-gradient-to-r from-[#1E64EA] to-[#2090F0] text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
             }`}
           >
             PM

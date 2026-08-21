@@ -52,7 +52,7 @@ export default function DentalPreloader({
           )}
         </div>
       ) : (
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex flex-col items-center justify-center">
           {/* Keyframe animation definitions for exact tooth-svgrepo structure */}
           <style>{`
             @keyframes saiToothDrawFill {
@@ -109,6 +109,24 @@ export default function DentalPreloader({
               }
             }
 
+            @keyframes saiTextFadeInShine {
+              0% {
+                opacity: 0.2;
+                transform: translateY(4px);
+                filter: drop-shadow(0 0 4px rgba(20, 201, 254, 0.2));
+              }
+              50% {
+                opacity: 1;
+                transform: translateY(0);
+                filter: drop-shadow(0 0 18px rgba(20, 201, 254, 0.85));
+              }
+              100% {
+                opacity: 0.85;
+                transform: translateY(0);
+                filter: drop-shadow(0 0 8px rgba(20, 201, 254, 0.4));
+              }
+            }
+
             .sai-tooth-draw-and-fill {
               animation: saiToothDrawFill 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             }
@@ -120,13 +138,17 @@ export default function DentalPreloader({
             .sai-logo-pulse {
               animation: saiLogoBreathingPulse 3.2s ease-in-out infinite;
             }
+
+            .sai-text-shine {
+              animation: saiTextFadeInShine 3.2s ease-in-out infinite;
+            }
           `}</style>
 
           {/* Centered Tooth Logo SVG using tooth-svgrepo-com structure */}
-          <div className="sai-logo-pulse">
+          <div className="sai-logo-pulse flex flex-col items-center">
             <svg
-              viewBox="0 0 512 512"
-              className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 overflow-visible"
+              viewBox="0 0 512 600"
+              className="w-36 h-44 sm:w-48 sm:h-56 md:w-60 md:h-72 overflow-visible"
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
@@ -171,6 +193,20 @@ export default function DentalPreloader({
                 fill="url(#saiDentalPlusGrad)"
                 className="sai-plus-shine-fade"
               />
+
+              {/* Text inside bottom of SVG */}
+              <text
+                x="256"
+                y="575"
+                textAnchor="middle"
+                fill="url(#saiDentalToothGrad)"
+                fontSize="38"
+                fontWeight="800"
+                letterSpacing="3"
+                className="sai-text-shine"
+              >
+                SAI DENTAL CLINIC
+              </text>
             </svg>
           </div>
         </div>

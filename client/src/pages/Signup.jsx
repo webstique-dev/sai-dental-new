@@ -104,11 +104,11 @@ export default function Signup() {
         {/* Right Column: Form Container */}
         <div className="flex flex-col justify-center px-4 py-8 sm:px-8 lg:px-12 w-full max-w-md mx-auto md:max-w-none">
           {/* Top Brand Logo */}
-          <div className="flex items-center justify-center gap-2.5 mb-3">
+          <div className="flex items-center justify-center gap-2.5 mb-4">
             <img
               src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png"
               alt="Sai Dental"
-              className="h-8 w-auto object-contain"
+              className="h-14 sm:h-16 md:h-20 w-auto object-contain transition-all"
             />
           </div>
 

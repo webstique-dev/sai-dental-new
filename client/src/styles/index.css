@@ -51,6 +51,11 @@
   width: 100%;
 }
 
+.react-datepicker-popper,
+.react-datepicker-popper-custom {
+  z-index: 99999 !important;
+}
+
 .custom-react-datepicker {
   font-family: inherit !important;
   border-radius: 0.75rem !important;

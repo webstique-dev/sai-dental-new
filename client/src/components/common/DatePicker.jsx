@@ -149,7 +149,7 @@ const CustomInputTrigger = forwardRef(
         {Icon && (
           <div
             onClick={disabled ? undefined : onClick}
-            className="absolute left-3 text-slate-400 cursor-pointer flex items-center justify-center hover:text-teal-600 transition-colors"
+            className="absolute left-3 text-[#1E64EA] cursor-pointer flex items-center justify-center hover:opacity-80 transition-opacity"
           >
             <Icon className="w-4 h-4" />
           </div>
@@ -178,7 +178,7 @@ const CustomInputTrigger = forwardRef(
             ${
               error
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20 text-red-900'
-                : 'border-slate-200 hover:border-slate-300 focus:border-teal-600 focus:ring-teal-600/20'
+                : 'border-slate-200 hover:border-slate-300 focus:border-[#1E64EA] focus:ring-[#1E64EA]/20'
             }
             ${inputClassName}
           `}
@@ -306,6 +306,8 @@ export const DatePicker = forwardRef(
           scrollableYearDropdown={scrollableYearDropdown}
           yearDropdownItemNumber={yearDropdownItemNumber}
           popperPlacement={popperPlacement}
+          popperProps={{ strategy: 'fixed', ...restProps.popperProps }}
+          popperClassName="react-datepicker-popper-custom"
           customInput={
             <CustomInputTrigger
               id={inputId}
