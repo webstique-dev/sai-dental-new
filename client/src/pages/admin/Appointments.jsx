@@ -8,6 +8,7 @@ import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx
 import DatePicker from '../../components/common/DatePicker.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -75,6 +76,14 @@ export default function AdminAppointments() {
     }, 300);
     return () => clearTimeout(timer);
   }, [search, dateFilter, doctorFilter, statusFilter]);
+
+  useSocketEvent('APPOINTMENT_UPDATED', () => {
+    fetchAppointments();
+  });
+
+  useSocketEvent('QUEUE_UPDATED', () => {
+    fetchAppointments();
+  });
 
   const confirmCancelAppointment = async () => {
     if (!cancellingAppointment) return;

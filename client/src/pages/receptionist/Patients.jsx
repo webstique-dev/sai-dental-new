@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, UserPlus, ChevronLeft, ChevronRight, Eye, UserSquare2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
-import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { TableSkeleton, PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function Patients() {
   const navigate = useNavigate();
@@ -80,7 +80,7 @@ export default function Patients() {
       {/* Patient List Table */}
       <div className="card overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={6} cols={7} />
+          <PatientDirectorySkeleton rows={6} />
         ) : patients.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <UserSquare2 size={36} className="mx-auto text-ink-soft/50" />

@@ -7,7 +7,7 @@ export function generatePrescriptionHTML(params = {}) {
   const docObj = doctor || rx?.recordedBy || consultation?.doctor || {};
 
   const patientName = [patient?.firstName, patient?.lastName].filter(Boolean).join(' ') || 'Patient';
-  
+
   let rawDocName = docObj?.name || 'Doctor';
   if (rawDocName !== 'Doctor' && !rawDocName.startsWith('Dr.')) {
     rawDocName = `Dr. ${rawDocName}`;
@@ -377,7 +377,7 @@ export function generatePrescriptionHTML(params = {}) {
 
         <div class="footer-section">
           <div style="font-size: 10px; color: #64748b; line-height: 1.5;">
-            <p style="margin: 0; font-weight: 700; color: #334155;">${safeClinicName} — Patient Care Services</p>
+            <p style="margin: 0; font-weight: 700; color: #334155;">${safeClinicName}</p>
             <p style="margin: 0;">Emergency Helpline: <strong>${safePhone}</strong> | Next Follow-Up: As advised</p>
             <p style="margin: 2px 0 0 0; font-style: italic;">This is a valid computerized medical prescription issued by a registered practitioner.</p>
           </div>

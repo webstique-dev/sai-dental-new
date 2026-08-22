@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, UserCheck, Plus, AlertTriangle, Stethoscope, Save, ArrowRight } from 'lucide-react';
 import api from '../../api/axios.js';
@@ -25,8 +26,8 @@ export default function PatientDetailsEditModal({
   isOpen,
   patient,
   appointmentId = null,
-  onClose = () => {},
-  onSuccess = () => {},
+  onClose = () => { },
+  onSuccess = () => { },
 }) {
   const navigate = useNavigate();
   const { showSuccess, showError } = useNotification();
@@ -238,8 +239,8 @@ export default function PatientDetailsEditModal({
     await handleStartConsultationDirectly(payload);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-3 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-3 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0">
       <div className="card w-full max-w-4xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-2xl border-brand/20">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface shrink-0">
@@ -272,7 +273,7 @@ export default function PatientDetailsEditModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleFormSubmit} autoComplete="off" className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+        <form onSubmit={handleFormSubmit} autoComplete="off" className="flex-1 overflow-y-auto scrollbar-none p-6 space-y-6 text-xs">
           {errorMessage && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
               <AlertTriangle size={16} className="shrink-0" />
@@ -381,11 +382,10 @@ export default function PatientDetailsEditModal({
                     role="radio"
                     aria-checked={formData.patientType === 'adult'}
                     onClick={() => setFormData({ ...formData, patientType: 'adult' })}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      formData.patientType === 'adult'
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'adult'
                         ? 'bg-brand text-white shadow-sm'
                         : 'text-ink-soft hover:text-ink'
-                    }`}
+                      }`}
                   >
                     Adult (Permanent 32 Teeth)
                   </button>
@@ -394,11 +394,10 @@ export default function PatientDetailsEditModal({
                     role="radio"
                     aria-checked={formData.patientType === 'child'}
                     onClick={() => setFormData({ ...formData, patientType: 'child' })}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      formData.patientType === 'child'
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'child'
                         ? 'bg-brand text-white shadow-sm'
                         : 'text-ink-soft hover:text-ink'
-                    }`}
+                      }`}
                   >
                     Child (Primary 20 Teeth)
                   </button>
@@ -443,9 +442,8 @@ export default function PatientDetailsEditModal({
                   return (
                     <label
                       key={item}
-                      className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-colors ${
-                        checked ? 'bg-brand-light/30 border-brand text-brand-dark font-semibold' : 'border-border bg-surface text-ink-soft'
-                      }`}
+                      className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-colors ${checked ? 'bg-brand-light/30 border-brand text-brand-dark font-semibold' : 'border-border bg-surface text-ink-soft'
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -545,9 +543,8 @@ export default function PatientDetailsEditModal({
                   return (
                     <label
                       key={habit}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border cursor-pointer transition-colors ${
-                        checked ? 'bg-amber-100 border-amber-300 text-amber-900 font-semibold' : 'border-border bg-surface text-ink-soft'
-                      }`}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border cursor-pointer transition-colors ${checked ? 'bg-amber-100 border-amber-300 text-amber-900 font-semibold' : 'border-border bg-surface text-ink-soft'
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -608,6 +605,7 @@ export default function PatientDetailsEditModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -7,6 +7,7 @@ import {
 import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import { PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function DoctorPatients() {
   const { user } = useAuth();
@@ -216,9 +217,12 @@ export default function DoctorPatients() {
       </div>
 
       {/* PATIENTS TABLE & RESPONSIVE CARDS */}
-      <div className="card overflow-hidden">
-        {/* DESKTOP / TABLET TABLE VIEW */}
-        <div className="hidden md:block overflow-x-auto">
+      {loading ? (
+        <PatientDirectorySkeleton rows={6} />
+      ) : (
+        <div className="card overflow-hidden">
+          {/* DESKTOP / TABLET TABLE VIEW */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="border-b border-border bg-bg/60 font-semibold text-ink-soft text-[11px] uppercase tracking-wider">
               <tr>
@@ -246,19 +250,7 @@ export default function DoctorPatients() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse">
-                    <td className="px-5 py-4"><div className="h-4 w-32 bg-bg rounded" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-20 bg-bg rounded" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-16 bg-bg rounded" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-24 bg-bg rounded" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-20 bg-bg rounded" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-28 bg-bg rounded" /></td>
-                    <td className="px-5 py-4 text-right"><div className="h-6 w-16 bg-bg rounded ml-auto" /></td>
-                  </tr>
-                ))
-              ) : patients.length === 0 ? (
+              {patients.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-12 text-center text-ink-soft space-y-2">
                     <UserSquare2 size={32} className="mx-auto text-ink-soft/40" />
@@ -349,23 +341,7 @@ export default function DoctorPatients() {
 
         {/* MOBILE STACKED CARD VIEW */}
         <div className="block md:hidden divide-y divide-border">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="p-4 space-y-3 bg-surface animate-pulse">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1.5">
-                    <div className="h-4 w-32 bg-slate-200 rounded" />
-                    <div className="h-3 w-20 bg-slate-200 rounded" />
-                  </div>
-                  <div className="h-7 w-16 bg-slate-200 rounded-lg" />
-                </div>
-                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg border border-border bg-bg/50">
-                  <div className="h-3 w-16 bg-slate-200 rounded" />
-                  <div className="h-3 w-20 bg-slate-200 rounded" />
-                </div>
-              </div>
-            ))
-          ) : patients.length === 0 ? (
+          {patients.length === 0 ? (
             <div className="p-8 text-center text-xs text-ink-soft space-y-2">
               <UserSquare2 size={28} className="mx-auto text-ink-soft/40" />
               <p className="font-semibold text-ink">No patients found</p>
@@ -443,6 +419,7 @@ export default function DoctorPatients() {
           </div>
         )}
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 }

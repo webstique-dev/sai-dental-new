@@ -3,6 +3,7 @@ import { User, Stethoscope, Award, Phone, Mail, DollarSign, Save, Sparkles, Chec
 import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { DoctorAccountSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function DoctorAccount() {
   const { user } = useAuth();
@@ -88,12 +89,7 @@ export default function DoctorAccount() {
   };
 
   if (loading) {
-    return (
-      <div className="p-8 text-center text-xs text-ink-soft flex flex-col items-center justify-center min-h-[400px]">
-        <div className="h-8 w-8 rounded-full border-2 border-brand border-t-transparent animate-spin mb-3"></div>
-        <p className="font-semibold text-ink">Loading account details...</p>
-      </div>
-    );
+    return <DoctorAccountSkeleton />;
   }
 
   const docDisplayName = formData.name.startsWith('Dr.') ? formData.name : `Dr. ${formData.name}`;

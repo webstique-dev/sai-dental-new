@@ -48,23 +48,130 @@ function parseAppointmentDateTime(dateVal, timeStr) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), hours, minutes, 0, 0);
 }
 
+function getDayBounds(dateInput = new Date()) {
+  const d = new Date(dateInput);
+  const localStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  const localEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  const utcStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+  const utcEnd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+
+  return {
+    minStart: new Date(Math.min(localStart.getTime(), utcStart.getTime())),
+    maxEnd: new Date(Math.max(localEnd.getTime(), utcEnd.getTime())),
+  };
+}
+
 /**
- * Checks all Scheduled appointments whose entire appointment date has passed without check-in,
- * and auto-flags both the appointment and any linked follow-up as 'Missed'.
+ * Automatically checks in Scheduled appointments when their exact scheduled date & time is reached.
+ * Generates a QueueEntry so the patient appears in the live doctor queue,
+ * and emits Socket.IO real-time events.
+ */
+async function autoCheckInScheduledAppointments() {
+  try {
+    const now = new Date();
+
+    const scheduledAppointments = await Appointment.find({
+      status: 'Scheduled',
+      isDeleted: { $ne: true },
+    })
+      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+      .populate('doctor', 'name email role specialization');
+
+    for (const appt of scheduledAppointments) {
+      if (!appt.date) continue;
+      const scheduledDateTime = parseAppointmentDateTime(appt.date, appt.time);
+      if (!scheduledDateTime) continue;
+
+      // End of local & UTC appointment day cutoff
+      const apptDate = new Date(appt.date);
+      const localEnd = new Date(
+        apptDate.getFullYear(),
+        apptDate.getMonth(),
+        apptDate.getDate(),
+        23,
+        59,
+        59,
+        999
+      );
+      const utcEnd = new Date(
+        Date.UTC(
+          apptDate.getUTCFullYear(),
+          apptDate.getUTCMonth(),
+          apptDate.getUTCDate(),
+          23,
+          59,
+          59,
+          999
+        )
+      );
+      const dateEndCutoff = new Date(Math.max(localEnd.getTime(), utcEnd.getTime()));
+
+      // If scheduled time has arrived AND the appointment date has not expired (end of day)
+      if (now >= scheduledDateTime && now <= dateEndCutoff) {
+        appt.status = 'Checked-In';
+        await appt.save();
+
+        // Ensure QueueEntry exists so it shows in live doctor queue
+        let qEntry = await QueueEntry.findOne({ appointment: appt._id });
+        if (!qEntry) {
+          const { minStart, maxEnd } = getDayBounds(now);
+          const queueDateStr = getFormattedDateString(now);
+          const lastEntry = await QueueEntry.findOne({ date: { $gte: minStart, $lte: maxEnd } }).sort({ token: -1 });
+          const nextToken = lastEntry && (lastEntry.token || lastEntry.queue_token) ? (lastEntry.token || lastEntry.queue_token) + 1 : 1;
+
+          qEntry = new QueueEntry({
+            token: nextToken,
+            queue_token: nextToken,
+            patient: appt.patient?._id || appt.patient,
+            doctor: appt.doctor?._id || appt.doctor,
+            appointment: appt._id,
+            type: appt.type || 'Appointment',
+            status: 'Checked-In',
+            checked_in_at: now,
+            checkInTime: now,
+            queue_date: queueDateStr,
+            date: now,
+          });
+          await qEntry.save();
+        }
+
+        await syncVisitStatus({ appointmentId: appt._id, status: 'Checked-In' });
+
+        // Lazy require socket module to avoid circular dependency
+        const { emitAppointmentUpdate, emitQueueUpdate } = require('./socket');
+        emitAppointmentUpdate(appt);
+        if (qEntry) {
+          const populatedQ = await QueueEntry.findById(qEntry._id)
+            .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+            .populate('doctor', 'name email role specialization');
+          emitQueueUpdate(populatedQ || qEntry);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error auto checking-in scheduled appointments:', err);
+  }
+}
+
+/**
+ * Automatically marks any Scheduled or Checked-In / In Consultation appointments and queue entries
+ * that have passed their appointment day without being completed as 'Missed'.
  *
  * Rules:
- * 1. An appointment remains Scheduled throughout its booked date, even if the scheduled time has passed.
- * 2. Late check-in is allowed during the appointment date.
- * 3. Once the entire appointment date has passed (starting midnight of the next day),
- *    if the patient was not checked in, the appointment status changes to 'Missed'.
- * 4. The appointment MUST remain on its originally booked date and time.
+ * 1. Scheduled appointments & Checked-In appointments remain active throughout their scheduled day.
+ * 2. If an appointment (Scheduled or Checked-In / In Consultation) remains incomplete once the entire appointment date
+ *    has passed (starting midnight of the next day), its status automatically becomes 'Missed'.
+ * 3. Appointments already Completed, Cancelled, or No Show are NOT modified.
+ * 4. All linked models (Appointment, QueueEntry, Consultation, FollowUp) are synchronized, and real-time Socket.IO events are emitted.
  */
 async function checkAndMarkMissedAppointments() {
   try {
     const now = new Date();
+    const { emitAppointmentUpdate, emitQueueUpdate } = require('./socket');
 
+    // 1. Candidate Appointments with status Scheduled, Checked-In, In Consultation, Waiting
     const candidateAppointments = await Appointment.find({
-      status: 'Scheduled',
+      status: { $in: ['Scheduled', 'Checked-In', 'In Consultation', 'Waiting'] },
       isDeleted: { $ne: true },
     });
 
@@ -73,7 +180,7 @@ async function checkAndMarkMissedAppointments() {
       const apptDate = new Date(appt.date);
       if (isNaN(apptDate.getTime())) continue;
 
-      // End of local appointment day
+      // End of local appointment day (23:59:59.999)
       const localEnd = new Date(
         apptDate.getFullYear(),
         apptDate.getMonth(),
@@ -84,7 +191,7 @@ async function checkAndMarkMissedAppointments() {
         999
       );
 
-      // End of UTC appointment day
+      // End of UTC appointment day (23:59:59.999)
       const utcEnd = new Date(
         Date.UTC(
           apptDate.getUTCFullYear(),
@@ -101,18 +208,66 @@ async function checkAndMarkMissedAppointments() {
       const dateEndCutoff = new Date(Math.max(localEnd.getTime(), utcEnd.getTime()));
 
       if (now > dateEndCutoff) {
-        appt.status = 'Missed';
-        // Note: appt.date and appt.time remain unchanged on their original booked date and time
-        await appt.save();
-
-        const linkedFollowUp = await FollowUp.findOne({
-          scheduledAppointment: appt._id,
+        // Double check whether a Completed consultation exists for this appointment
+        const completedConsult = await Consultation.findOne({
+          appointment: appt._id,
+          status: 'Completed',
         });
 
-        if (linkedFollowUp && ['Scheduled', 'Pending'].includes(linkedFollowUp.status)) {
-          linkedFollowUp.status = 'Missed';
-          await linkedFollowUp.save();
+        if (completedConsult) {
+          await syncVisitStatus({ appointmentId: appt._id, status: 'Completed' });
+          continue;
         }
+
+        // Set status to Missed across all models
+        await syncVisitStatus({ appointmentId: appt._id, status: 'Missed' });
+
+        const populatedAppt = await Appointment.findById(appt._id)
+          .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+          .populate('doctor', 'name email role specialization');
+        emitAppointmentUpdate(populatedAppt || appt);
+
+        const linkedQ = await QueueEntry.findOne({ appointment: appt._id });
+        if (linkedQ) {
+          const populatedQ = await QueueEntry.findById(linkedQ._id)
+            .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+            .populate('doctor', 'name email role specialization');
+          emitQueueUpdate(populatedQ || linkedQ);
+        }
+      }
+    }
+
+    // 2. Also process unlinked QueueEntries created on or before past days that remain incomplete
+    const candidateQueueEntries = await QueueEntry.find({
+      status: { $in: ['Waiting', 'Checked-In', 'In Consultation', 'With Doctor', 'In Progress'] },
+      appointment: { $exists: false },
+    });
+
+    for (const qEntry of candidateQueueEntries) {
+      const qDate = new Date(qEntry.date || qEntry.createdAt);
+      if (isNaN(qDate.getTime())) continue;
+
+      const localEnd = new Date(qDate.getFullYear(), qDate.getMonth(), qDate.getDate(), 23, 59, 59, 999);
+      const utcEnd = new Date(Date.UTC(qDate.getUTCFullYear(), qDate.getUTCMonth(), qDate.getUTCDate(), 23, 59, 59, 999));
+      const dateEndCutoff = new Date(Math.max(localEnd.getTime(), utcEnd.getTime()));
+
+      if (now > dateEndCutoff) {
+        const completedConsult = await Consultation.findOne({
+          queueEntry: qEntry._id,
+          status: 'Completed',
+        });
+
+        if (completedConsult) {
+          await syncVisitStatus({ queueEntryId: qEntry._id, status: 'Completed' });
+          continue;
+        }
+
+        await syncVisitStatus({ queueEntryId: qEntry._id, status: 'Missed' });
+
+        const populatedQ = await QueueEntry.findById(qEntry._id)
+          .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+          .populate('doctor', 'name email role specialization');
+        emitQueueUpdate(populatedQ || qEntry);
       }
     }
   } catch (err) {
@@ -193,12 +348,12 @@ async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, st
 
   // 4. Update Consultation status & timestamps
   if (cId) {
-    const consultStatus = stdStatus === 'Completed' ? 'Completed' : 'In Progress';
+    const consultStatus = ['Completed', 'Missed', 'Cancelled', 'No Show'].includes(stdStatus) ? stdStatus : 'In Progress';
     const consultUpdate = { status: consultStatus };
     if (stdStatus === 'In Consultation') {
       consultUpdate.startedAt = now;
       consultUpdate.consultation_started_at = now;
-    } else if (stdStatus === 'Completed') {
+    } else if (stdStatus === 'Completed' || stdStatus === 'Missed' || stdStatus === 'Cancelled') {
       consultUpdate.closedAt = now;
       consultUpdate.consultation_ended_at = now;
       consultUpdate.completed_at = now;
@@ -213,18 +368,11 @@ async function syncVisitStatus({ appointmentId, queueEntryId, consultationId, st
       const current = linkedFollowUp.status;
       let allowed = false;
 
-      // Strict state machine progression + Late Check-In support:
-      // Scheduled -> Checked-In / In Consultation / Cancelled / Missed
-      // Missed -> Checked-In / In Consultation / Cancelled (Late arrival check-in)
-      // Checked-In -> In Consultation / Completed / Cancelled
-      // In Consultation -> Completed / Cancelled
       if (current === 'Scheduled' && ['Checked-In', 'In Consultation', 'Cancelled', 'Missed', 'No Show'].includes(stdStatus)) {
         allowed = true;
       } else if (current === 'Missed' && ['Checked-In', 'In Consultation', 'Cancelled'].includes(stdStatus)) {
         allowed = true;
-      } else if (current === 'Checked-In' && ['In Consultation', 'Completed', 'Cancelled'].includes(stdStatus)) {
-        allowed = true;
-      } else if (current === 'In Consultation' && ['Completed', 'Cancelled'].includes(stdStatus)) {
+      } else if ((current === 'Checked-In' || current === 'In Consultation') && ['Completed', 'Cancelled', 'Missed', 'No Show'].includes(stdStatus)) {
         allowed = true;
       } else if (stdStatus === 'Completed' && (current === 'Checked-In' || current === 'In Consultation' || current === 'Scheduled' || current === 'Missed')) {
         allowed = true;
@@ -246,5 +394,6 @@ module.exports = {
   syncVisitStatus,
   getFormattedDateString,
   parseAppointmentDateTime,
+  autoCheckInScheduledAppointments,
   checkAndMarkMissedAppointments,
 };

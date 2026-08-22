@@ -213,7 +213,7 @@ export default function Queue() {
     setPatientSearch('');
     setPatientOptions([]);
     setSelectedPatient(null);
-    setNewPatientData({ firstName: '', lastName: '', phone: '', sex: '', age: '' });
+    setNewPatientData({ firstName: '', lastName: '', phone: '', sex: '', age: '', patientType: 'adult', address: '' });
     setSelectedDoctorId(doctors[0]?._id || doctors[0]?.id || '');
     setVisitReason('');
     setIssuedToken(null);
@@ -1025,6 +1025,47 @@ export default function Queue() {
                           <option value="Other">Other</option>
                         </select>
                       </div>
+                      <div>
+                        <label className="block text-ink-soft font-semibold mb-1">Age</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={120}
+                          className="input-field font-mono"
+                          placeholder="e.g. 28"
+                          value={newPatientData.age}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const numAge = val !== '' ? Number(val) : null;
+                            setNewPatientData({
+                              ...newPatientData,
+                              age: val,
+                              patientType: numAge !== null && numAge < 12 ? 'child' : (newPatientData.patientType || 'adult'),
+                            });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-ink-soft font-semibold mb-1">Patient Type (Dentition)</label>
+                        <select
+                          className="input-field font-semibold"
+                          value={newPatientData.patientType || 'adult'}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, patientType: e.target.value })}
+                        >
+                          <option value="adult">Adult (Permanent 32 Teeth)</option>
+                          <option value="child">Child (Primary 20 Teeth)</option>
+                        </select>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-ink-soft font-semibold mb-1">Address / Location</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="e.g. 123 Main St, City"
+                          value={newPatientData.address || ''}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, address: e.target.value })}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1093,13 +1134,22 @@ export default function Queue() {
                       </div>
 
                       <div>
+                        <span className="text-ink-soft block font-medium">Demographics</span>
+                        <span className="font-medium">
+                          {patientMode === 'search' && selectedPatient
+                            ? `${selectedPatient.age ? selectedPatient.age + 'y' : ''} ${selectedPatient.sex ? '/ ' + selectedPatient.sex : ''} (${(selectedPatient.patientType || (Number(selectedPatient.age) < 12 ? 'child' : 'adult')) === 'child' ? 'Child' : 'Adult'})`
+                            : `${newPatientData.age ? newPatientData.age + 'y' : ''} ${newPatientData.sex ? '/ ' + newPatientData.sex : ''} (${(newPatientData.patientType || 'adult') === 'child' ? 'Child' : 'Adult'})`}
+                        </span>
+                      </div>
+
+                      <div>
                         <span className="text-ink-soft block font-medium">Assigned Doctor</span>
                         <span className="font-semibold text-brand">
                           Dr. {doctors.find((d) => (d._id || d.id) === selectedDoctorId)?.name || 'Selected Doctor'}
                         </span>
                       </div>
 
-                      <div>
+                      <div className="col-span-2">
                         <span className="text-ink-soft block font-medium">Reason</span>
                         <span>{visitReason || 'Walk-in Consultation'}</span>
                       </div>

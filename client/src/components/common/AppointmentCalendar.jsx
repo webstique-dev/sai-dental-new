@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DEFAULT_STATUS_CLASSES = {
@@ -9,6 +10,16 @@ const DEFAULT_STATUS_CLASSES = {
   'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
 };
 
+function getLocalDateStr(dInput) {
+  if (!dInput) return '';
+  const d = new Date(dInput);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function AppointmentCalendar({
   calendarDate = new Date(),
   setCalendarDate = () => {},
@@ -17,6 +28,46 @@ export default function AppointmentCalendar({
   onEdit = () => {},
   statusBadgeClasses = DEFAULT_STATUS_CLASSES,
 }) {
+  // Deduplicate appointments by primary ID, linked appointment ID, or composite patient+date+time key
+  const uniqueAppointments = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+
+    (appointments || []).forEach((apt) => {
+      if (!apt) return;
+
+      const mainId = (apt._id || apt.id || apt.consultationId || '').toString();
+      const linkedAptId = (
+        apt.appointment?._id ||
+        apt.appointment?.id ||
+        apt.appointmentId ||
+        (typeof apt.appointment === 'string' ? apt.appointment : '')
+      ).toString();
+
+      const patientId = (apt.patient?._id || apt.patient?.id || (typeof apt.patient === 'string' ? apt.patient : '')).toString();
+      const dateVal = getLocalDateStr(apt.date);
+      const timeVal = (apt.time || '').toString().trim().toLowerCase();
+
+      const compositeKey = patientId && dateVal ? `${patientId}_${dateVal}_${timeVal}` : null;
+
+      const isDuplicate =
+        (mainId && seen.has(mainId)) ||
+        (linkedAptId && seen.has(linkedAptId)) ||
+        (compositeKey && seen.has(compositeKey));
+
+      if (!isDuplicate) {
+        if (mainId) seen.add(mainId);
+        if (linkedAptId) seen.add(linkedAptId);
+        if (compositeKey) seen.add(compositeKey);
+        result.push(apt);
+      }
+    });
+
+    return result;
+  }, [appointments]);
+
+  const todayStr = getLocalDateStr(new Date());
+
   return (
     <div className="card p-6 space-y-4">
       <div className="flex items-center justify-between border-b border-border pb-4">
@@ -58,14 +109,14 @@ export default function AppointmentCalendar({
           const startOfWeek = new Date(currentDay);
           startOfWeek.setDate(currentDay.getDate() - dayOfWeek + idx);
 
-          const dateStr = startOfWeek.toISOString().split('T')[0];
-          const dayAppointments = appointments.filter((a) => {
+          const dateStr = getLocalDateStr(startOfWeek);
+          const dayAppointments = uniqueAppointments.filter((a) => {
             if (!a.date) return false;
-            const aDateStr = new Date(a.date).toISOString().split('T')[0];
+            const aDateStr = getLocalDateStr(a.date);
             return aDateStr === dateStr;
           });
 
-          const isToday = dateStr === new Date().toISOString().split('T')[0];
+          const isToday = dateStr === todayStr;
 
           return (
             <div

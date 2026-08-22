@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Pill, Calendar, User, Clock, FileText, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import api from '../../api/axios.js';
 import { openPrescriptionPDFWindow } from '../../utils/prescriptionPdfGenerator.js';
+import { PrescriptionCardSkeleton } from './TableSkeleton.jsx';
 
 export default function PrescriptionHistoryPanel({ patientId, title = "Prescription History & Medication Records" }) {
   const [prescriptions, setPrescriptions] = useState([]);
@@ -50,7 +51,7 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
 
       {/* Content */}
       {loading ? (
-        <div className="p-8 text-center text-xs text-ink-soft">Loading prescription history...</div>
+        <PrescriptionCardSkeleton count={3} />
       ) : prescriptions.length === 0 ? (
         <div className="p-8 text-center space-y-2 border border-dashed border-border rounded-xl">
           <Pill size={32} className="mx-auto text-ink-soft/40" />

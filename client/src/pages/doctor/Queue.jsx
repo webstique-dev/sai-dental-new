@@ -7,6 +7,7 @@ import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
+import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
@@ -342,7 +343,7 @@ export default function DoctorQueue() {
 
     return (
       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-        {/* WORKFLOW 1: SCHEDULED -> Check-In, No Show, Cancel */}
+        {/* WORKFLOW 1: SCHEDULED -> Check-In, No Show */}
         {displayStatus === 'Scheduled' && (
           <>
             <button
@@ -366,21 +367,10 @@ export default function DoctorQueue() {
               <UserX size={13} />
               <span>No Show</span>
             </button>
-
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => setCancellingAppointment(item)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors"
-              title="Cancel appointment"
-            >
-              <XCircle size={13} />
-              <span>Cancel</span>
-            </button>
           </>
         )}
 
-        {/* WORKFLOW 2: CHECKED-IN -> Start Consultation, Cancel */}
+        {/* WORKFLOW 2: CHECKED-IN -> Start Consultation, No Show */}
         {displayStatus === 'Checked-In' && (
           <>
             <button
@@ -396,12 +386,12 @@ export default function DoctorQueue() {
             <button
               type="button"
               disabled={isSubmitting}
-              onClick={() => setCancellingAppointment(item)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors"
-              title="Cancel appointment"
+              onClick={() => setNoShowAppointment(item)}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors"
+              title="Mark patient as No Show"
             >
-              <XCircle size={13} />
-              <span>Cancel</span>
+              <UserX size={13} />
+              <span>No Show</span>
             </button>
           </>
         )}
@@ -484,6 +474,11 @@ export default function DoctorQueue() {
 
     return result;
   }, [upcomingAppointments, upcomingSearch, upcomingDoctorFilter, upcomingDateFrom, upcomingDateTo]);
+
+  // Scheduled Upcoming Count
+  const scheduledUpcomingCount = useMemo(() => {
+    return upcomingAppointments.filter((item) => item.status === 'Scheduled').length;
+  }, [upcomingAppointments]);
 
   // Filtered History Log Items (STRICTLY COMPLETED, MISSED, AND NO SHOW ONLY)
   const filteredHistoryItems = useMemo(() => {
@@ -708,9 +703,9 @@ export default function DoctorQueue() {
             >
               <Clock size={16} />
               <span>Upcoming Appointments</span>
-              {upcomingAppointments.length > 0 && (
+              {scheduledUpcomingCount > 0 && (
                 <span className="badge bg-blue-100 text-blue-800 font-mono text-[10px]">
-                  {upcomingAppointments.length}
+                  {scheduledUpcomingCount}
                 </span>
               )}
             </button>
@@ -814,7 +809,11 @@ export default function DoctorQueue() {
                           const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
 
                           return (
-                            <tr key={entryId} className="hover:bg-bg/60 transition-colors">
+                            <tr
+                              key={entryId}
+                              onClick={() => handleStartConsultation(entry)}
+                              className="hover:bg-bg/60 transition-colors cursor-pointer"
+                            >
                               <td className="px-5 py-4 whitespace-nowrap">
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-brand/10 text-brand font-mono text-sm font-bold border border-brand/20">
                                   {entry.token !== '—' ? `#${entry.token}` : '—'}
@@ -991,7 +990,11 @@ export default function DoctorQueue() {
                             : 'N/A';
 
                           return (
-                            <tr key={aptId} className="hover:bg-bg/60 transition-colors">
+                            <tr
+                              key={aptId}
+                              onClick={() => handleStartConsultation(apt)}
+                              className="hover:bg-bg/60 transition-colors cursor-pointer"
+                            >
                               <td className="px-5 py-4">
                                 <div className="font-bold text-ink">{patientName}</div>
                                 <div className="text-xs text-ink-soft flex items-center gap-1.5 flex-wrap mt-0.5">
@@ -1650,6 +1653,49 @@ export default function DoctorQueue() {
           setAppointmentForEdit(null);
         }}
         onSuccess={() => refreshAll()}
+      />
+
+      {/* CONFIRM MODAL: NO SHOW */}
+      <ConfirmModal
+        isOpen={Boolean(noShowAppointment)}
+        onClose={() => setNoShowAppointment(null)}
+        onConfirm={handleConfirmNoShow}
+        title="Confirm No Show"
+        message={
+          noShowAppointment ? (
+            <span>
+              Are you sure you want to mark the appointment for{' '}
+              <strong className="text-ink font-bold">
+                {[noShowAppointment.patient?.firstName, noShowAppointment.patient?.lastName].filter(Boolean).join(' ') || 'this patient'}
+              </strong>{' '}
+              as <strong className="text-amber-700 font-bold">No Show</strong>? Non-applicable actions will be disabled after updating.
+            </span>
+          ) : ''
+        }
+        confirmText="Mark as No Show"
+        cancelText="Keep Appointment"
+        variant="warning"
+      />
+
+      {/* CONFIRM MODAL: CANCEL */}
+      <ConfirmModal
+        isOpen={Boolean(cancellingAppointment)}
+        onClose={() => setCancellingAppointment(null)}
+        onConfirm={handleConfirmCancel}
+        title="Confirm Cancellation"
+        message={
+          cancellingAppointment ? (
+            <span>
+              Are you sure you want to cancel the appointment for{' '}
+              <strong className="text-ink font-bold">
+                {[cancellingAppointment.patient?.firstName, cancellingAppointment.patient?.lastName].filter(Boolean).join(' ') || 'this patient'}
+              </strong>?
+            </span>
+          ) : ''
+        }
+        confirmText="Cancel Appointment"
+        cancelText="Keep Appointment"
+        variant="danger"
       />
     </div>
   );

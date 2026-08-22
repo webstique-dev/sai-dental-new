@@ -48,6 +48,9 @@ async function listAppointments(req, res, next) {
     } else if (dateFilterPreset === 'upcoming') {
       const now = new Date();
       filter.date = { $gte: now };
+      if (!status) {
+        filter.status = 'Scheduled';
+      }
     } else if (date) {
       const { start, end } = getDayBounds(date);
       filter.date = { $gte: start, $lte: end };
@@ -167,6 +170,26 @@ async function updateAppointment(req, res, next) {
       }
     }
 
+    const existing = await Appointment.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+    if (!existing) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    if (status && status !== existing.status) {
+      if (existing.status === 'Completed') {
+        return res.status(400).json({ message: 'Cannot modify status of a Completed appointment.' });
+      }
+      if (existing.status === 'Cancelled' && status !== 'Scheduled') {
+        return res.status(400).json({ message: 'Cannot modify status of a Cancelled appointment.' });
+      }
+      if (existing.status === 'No Show' && status === 'Missed') {
+        return res.status(400).json({ message: 'Cannot change a No Show appointment to Missed.' });
+      }
+      if (existing.status === 'Scheduled' && status === 'Completed') {
+        return res.status(400).json({ message: 'Scheduled appointments cannot transition directly to Completed.' });
+      }
+    }
+
     const updated = await Appointment.findOneAndUpdate(
       { _id: req.params.id, isDeleted: { $ne: true } },
       req.body,
@@ -175,10 +198,6 @@ async function updateAppointment(req, res, next) {
       .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
-
-    if (!updated) {
-      return res.status(404).json({ message: 'Appointment not found' });
-    }
 
     // Sync status with related QueueEntry/Consultation/FollowUp if status updated
     if (status) {

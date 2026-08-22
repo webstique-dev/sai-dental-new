@@ -4,6 +4,7 @@ import { CalendarDays, ClipboardList, UserPlus, Bell } from 'lucide-react';
 import StatCard from '../../components/common/StatCard.jsx';
 import { ReceptionistDashboardSkeleton } from '../../components/common/TableSkeleton.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 import api from '../../api/axios.js';
 
 export default function ReceptionistDashboard() {
@@ -11,20 +12,29 @@ export default function ReceptionistDashboard() {
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchSummary() {
-      try {
-        setLoading(true);
-        const res = await api.get('/reports/reception-summary');
-        setSummaryData(res.data);
-      } catch (err) {
-        console.error('Failed to load reception summary:', err);
-      } finally {
-        setLoading(false);
-      }
+  const fetchSummary = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/reports/reception-summary');
+      setSummaryData(res.data);
+    } catch (err) {
+      console.error('Failed to load reception summary:', err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchSummary();
   }, []);
+
+  useSocketEvent('APPOINTMENT_UPDATED', () => {
+    fetchSummary();
+  });
+
+  useSocketEvent('QUEUE_UPDATED', () => {
+    fetchSummary();
+  });
 
   if (loading) {
     return <ReceptionistDashboardSkeleton />;

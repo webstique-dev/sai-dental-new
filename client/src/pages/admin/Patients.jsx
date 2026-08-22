@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
-import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { TableSkeleton, PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
@@ -260,7 +260,7 @@ export default function AdminPatients() {
       {/* PATIENTS TABLE */}
       <div className="card overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={6} cols={8} />
+          <PatientDirectorySkeleton rows={6} />
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">

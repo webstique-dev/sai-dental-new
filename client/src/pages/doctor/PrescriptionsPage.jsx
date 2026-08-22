@@ -5,7 +5,7 @@ import {
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistoryPanel.jsx';
-import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { TableSkeleton, PrescriptionDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function PrescriptionsPage() {
   const [consultations, setConsultations] = useState([]);
@@ -197,7 +197,7 @@ export default function PrescriptionsPage() {
       {/* UNIQUE PATIENT PRESCRIPTIONS TABLE */}
       <div className="card overflow-hidden">
         {loading ? (
-          <TableSkeleton rows={5} cols={5} />
+          <PrescriptionDirectorySkeleton rows={5} />
         ) : patientGroups.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <Pill size={36} className="mx-auto text-ink-soft/40" />

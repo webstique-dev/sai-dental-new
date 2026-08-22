@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle, AlertCircle, Info, Trash2, LogOut, Save, RefreshCw, XCircle, MinusCircle, X, Loader2
 } from 'lucide-react';
@@ -89,10 +90,10 @@ export default function ConfirmModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -143,6 +144,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import StatCard from '../../components/common/StatCard.jsx';
 import { ReceptionistDashboardSkeleton } from '../../components/common/TableSkeleton.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 import api from '../../api/axios.js';
 
 export default function AdminDashboard() {
@@ -18,22 +19,31 @@ export default function AdminDashboard() {
     doctorsOnDuty: 0,
   });
 
-  useEffect(() => {
-    async function fetchOverview() {
-      try {
-        setLoading(true);
-        const res = await api.get('/reports/admin-overview');
-        if (res.data) {
-          setOverview(res.data);
-        }
-      } catch (err) {
-        console.error('Failed to load admin overview stats:', err);
-      } finally {
-        setLoading(false);
+  const fetchOverview = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/reports/admin-overview');
+      if (res.data) {
+        setOverview(res.data);
       }
+    } catch (err) {
+      console.error('Failed to load admin overview stats:', err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchOverview();
   }, []);
+
+  useSocketEvent('APPOINTMENT_UPDATED', () => {
+    fetchOverview();
+  });
+
+  useSocketEvent('QUEUE_UPDATED', () => {
+    fetchOverview();
+  });
 
   if (loading) {
     return <ReceptionistDashboardSkeleton />;

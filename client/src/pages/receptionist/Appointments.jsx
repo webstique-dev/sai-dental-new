@@ -12,6 +12,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 
 // Helper to get today's date & exact current system time in 12-hour AM/PM format
 function getInitialExactDateTime() {
@@ -116,7 +117,7 @@ export default function Appointments() {
     time: '09:30',
     type: 'Walk-In',
     reason: '',
-    status: 'Checked-In',
+    action: 'Check-in',
   });
 
   // Edit Form state
@@ -168,9 +169,9 @@ export default function Appointments() {
         doctor: primDocId,
         date: dateStr,
         time: timeStr,
-        type: 'Appointment',
+        type: 'Walk-In',
         reason: '',
-        status: 'Checked-In',
+        action: 'Check-in',
       });
       setShowCreateModal(true);
       navigate(location.pathname, { replace: true, state: {} });
@@ -210,6 +211,15 @@ export default function Appointments() {
     return () => clearTimeout(timer);
   }, [search, dateFilterPreset, dateFilter, doctorFilter, statusFilter]);
 
+  // Real-Time Socket Event Listeners
+  useSocketEvent('APPOINTMENT_UPDATED', () => {
+    fetchAppointments();
+  });
+
+  useSocketEvent('QUEUE_UPDATED', () => {
+    fetchAppointments();
+  });
+
   // Live patient search inside create modal
   useEffect(() => {
     if (!patientSearch || patientSearch.trim().length < 2) {
@@ -237,9 +247,9 @@ export default function Appointments() {
       doctor: primDocId,
       date: dateStr,
       time: timeStr,
-      type: 'Appointment',
+      type: 'Walk-In',
       reason: '',
-      status: 'Checked-In',
+      action: 'Check-in',
     });
     setShowCreateModal(true);
   };
@@ -260,17 +270,38 @@ export default function Appointments() {
       return;
     }
 
+    const isSchedule = formData.action === 'Schedule';
+
+    if (isSchedule) {
+      if (!formData.date || !formData.date.trim()) {
+        const msg = 'Appointment Date is required for scheduled appointments.';
+        setErrorMessage(msg);
+        showError(msg);
+        return;
+      }
+      if (!formData.time || !formData.time.trim()) {
+        const msg = 'Appointment Time is required for scheduled appointments.';
+        setErrorMessage(msg);
+        showError(msg);
+        return;
+      }
+    }
+
     try {
+      const { dateStr, timeStr } = getInitialExactDateTime();
       const payload = {
-        ...formData,
-        doctor: docId,
         patient: selectedPatient._id,
-        status: formData.status || 'Checked-In',
+        doctor: docId,
+        type: formData.type || 'Walk-In',
+        reason: formData.reason || '',
+        status: isSchedule ? 'Scheduled' : 'Checked-In',
+        date: isSchedule ? formData.date : dateStr,
+        time: isSchedule ? formData.time : timeStr,
       };
       await api.post('/appointments', payload);
-      const successMsg = formData.status === 'Scheduled'
+      const successMsg = isSchedule
         ? 'Appointment booked as Scheduled!'
-        : 'Appointment checked in & sent directly to doctor queue as Checked-In!';
+        : 'Patient checked in successfully & added to doctor queue!';
       showSuccess(successMsg);
       setShowCreateModal(false);
       fetchAppointments();
@@ -544,9 +575,9 @@ export default function Appointments() {
       )}
       </div>
 
-      {/* CREATE APPOINTMENT MODAL (Status input removed completely) */}
+      {/* CREATE APPOINTMENT MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
           <div className="card w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
               <h3 className="font-display text-base sm:text-lg font-bold text-ink">Book New Appointment</h3>
@@ -555,7 +586,7 @@ export default function Appointments() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} autoComplete="off" className="flex flex-col flex-1 overflow-hidden">
+            <form onSubmit={handleCreateSubmit} autoComplete="off" className="flex flex-col flex-1 overflow-hidden min-h-0">
               <div className="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3.5">
                 {/* Patient Selector */}
                 <PatientSearchInput
@@ -564,9 +595,41 @@ export default function Appointments() {
                   required
                 />
 
+                {/* Selected Patient Basic Details Card */}
+                {selectedPatient && (
+                  <div className="p-3 rounded-xl bg-bg/50 border border-border text-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-ink">
+                      <span className="font-bold">
+                        {selectedPatient.firstName} {selectedPatient.lastName}
+                      </span>
+                      <span className="badge bg-brand/10 text-brand font-mono font-bold text-[10px]">
+                        OP #{selectedPatient.opNumber}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-ink-soft text-[11px] flex-wrap">
+                      {selectedPatient.age && <span>Age: <strong className="text-ink">{selectedPatient.age}y</strong></span>}
+                      {selectedPatient.sex && <span>Sex: <strong className="text-ink">{selectedPatient.sex}</strong></span>}
+                      <span>Type: <strong className="text-ink">{((selectedPatient.patientType || (Number(selectedPatient.age) < 12 ? 'child' : 'adult')) === 'child') ? 'Child' : 'Adult'}</strong></span>
+                      {selectedPatient.phone && <span>Phone: <strong className="text-ink">{selectedPatient.phone}</strong></span>}
+                    </div>
+                    {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap pt-1">
+                        <span className="text-[10px] text-ink-soft font-semibold">Medical:</span>
+                        {selectedPatient.medicalHistory.map((m, idx) => (
+                          <span key={idx} className="badge bg-rose-50 text-rose-700 border-rose-200 text-[10px]">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Doctor Selector */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">Assigned Doctor</label>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1">
+                    Assigned Doctor <span className="text-rose-600">*</span>
+                  </label>
                   <select
                     className="input-field font-semibold bg-surface"
                     value={formData.doctor || (primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || ''))}
@@ -584,43 +647,89 @@ export default function Appointments() {
                   </select>
                 </div>
 
-                {/* Status / Initial Action */}
+                {/* Status / Initial Action Radio Group */}
                 <div>
-                  <label className="block text-xs font-semibold text-ink-soft mb-1">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
                     Appointment Status / Action <span className="text-rose-600">*</span>
                   </label>
-                  <select
-                    className="input-field font-semibold"
-                    value={formData.status || 'Checked-In'}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  >
-                    <option value="Checked-In">Check-in</option>
-                    <option value="Scheduled">Scheduled</option>
-                  </select>
-                  <p className="text-[11px] text-ink-soft mt-1">
-                    {formData.status === 'Scheduled'
-                      ? 'Will appear under Scheduled appointments.'
-                      : 'Status will be set to Checked-In and sent directly to the doctor queue.'}
-                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <label
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        formData.action === 'Schedule'
+                          ? 'border-brand bg-brand/5 text-ink ring-1 ring-brand/30 shadow-xs'
+                          : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="appointmentAction"
+                        value="Schedule"
+                        checked={formData.action === 'Schedule'}
+                        onChange={() => {
+                          const { dateStr, timeStr } = getInitialExactDateTime();
+                          setFormData((prev) => ({
+                            ...prev,
+                            action: 'Schedule',
+                            date: prev.date || dateStr,
+                            time: prev.time || timeStr,
+                          }));
+                        }}
+                        className="w-4 h-4 text-brand focus:ring-brand accent-brand cursor-pointer shrink-0"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-bold text-ink">Schedule</span>
+                        <span className="text-[11px] text-ink-soft">Pick date & time for a future visit</span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        formData.action === 'Check-in'
+                          ? 'border-brand bg-brand/5 text-ink ring-1 ring-brand/30 shadow-xs'
+                          : 'border-border bg-surface text-ink-soft hover:bg-bg'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="appointmentAction"
+                        value="Check-in"
+                        checked={formData.action === 'Check-in'}
+                        onChange={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            action: 'Check-in',
+                          }));
+                        }}
+                        className="w-4 h-4 text-brand focus:ring-brand accent-brand cursor-pointer shrink-0"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs sm:text-sm font-bold text-ink">Check-in</span>
+                        <span className="text-[11px] text-ink-soft">Immediate visit — add to queue now</span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
-                {/* Date & Time */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <DatePicker
-                      label="Date"
-                      value={formData.date}
-                      onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
-                    />
+                {/* Date & Time (Only rendered when Schedule action is selected) */}
+                {formData.action === 'Schedule' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <DatePicker
+                        label="Appointment Date"
+                        isRequired={true}
+                        value={formData.date}
+                        onChange={(date, dateStr) => setFormData({ ...formData, date: dateStr })}
+                      />
+                    </div>
+                    <div>
+                      <SplitTimeInput
+                        label="Appointment Time *"
+                        value={formData.time}
+                        onChange={(time12) => setFormData({ ...formData, time: time12 })}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <SplitTimeInput
-                      label="Time"
-                      value={formData.time}
-                      onChange={(time12) => setFormData({ ...formData, time: time12 })}
-                    />
-                  </div>
-                </div>
+                )}
 
                 {/* Type */}
                 <div>
@@ -659,7 +768,7 @@ export default function Appointments() {
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary text-xs">
-                  Confirm Booking
+                  {formData.action === 'Schedule' ? 'Schedule Appointment' : 'Check In Patient'}
                 </button>
               </div>
             </form>
