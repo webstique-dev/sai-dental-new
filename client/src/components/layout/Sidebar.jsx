@@ -65,7 +65,7 @@ export default function Sidebar({ role, open, onClose, isCollapsed = false, onTo
         } ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}`}
       >
         {/* Header */}
-        <div className={`flex items-center border-b border-border py-4 ${isCollapsed ? 'px-3 justify-center lg:justify-between' : 'px-5 justify-between'}`}>
+        <div className={`flex items-center border-b border-border py-4 ${isCollapsed ? 'px-3 justify-center' : 'px-5 justify-between'}`}>
           <div className="flex items-center gap-2.5 min-w-0">
             <img
               src={
@@ -77,16 +77,6 @@ export default function Sidebar({ role, open, onClose, isCollapsed = false, onTo
               className={`object-contain rounded-lg transition-all duration-300 ${isCollapsed ? 'h-8 w-8' : 'h-10 w-auto'}`}
             />
           </div>
-
-          {/* Desktop collapse toggle button */}
-          <button
-            onClick={onToggleCollapse}
-            className="hidden lg:flex items-center justify-center rounded-xl p-1.5 text-ink-soft hover:bg-bg hover:text-ink transition-colors"
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {isCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
-          </button>
 
           {/* Mobile close button */}
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-bg lg:hidden" aria-label="Close menu">
@@ -148,6 +138,27 @@ export default function Sidebar({ role, open, onClose, isCollapsed = false, onTo
             </div>
           )}
         </nav>
+
+        {/* Desktop Collapse Toggle Button at Bottom */}
+        <div className="border-t border-border p-3">
+          <button
+            onClick={onToggleCollapse}
+            className={`hidden lg:flex items-center rounded-xl text-ink-soft hover:bg-bg hover:text-ink transition-all w-full ${
+              isCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5 gap-3'
+            }`}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen size={19} className="shrink-0" />
+            ) : (
+              <>
+                <PanelLeftClose size={19} className="shrink-0" />
+                <span className="text-sm font-medium truncate">Collapse sidebar</span>
+              </>
+            )}
+          </button>
+        </div>
       </aside>
     </>
   );
