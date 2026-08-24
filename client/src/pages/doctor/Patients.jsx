@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   UserSquare2, Search, Filter, Calendar, Eye, ArrowUpDown, ChevronLeft, ChevronRight,
-  RefreshCw, X, Stethoscope, Clock, Shield
+  RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -23,6 +23,13 @@ export default function DoctorPatients() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const limit = 15;
+
+  // Mobile Accordion expand state
+  const [expandedPatientId, setExpandedPatientId] = useState(null);
+  const toggleExpandPatient = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedPatientId((prev) => (prev === id ? null : id));
+  };
 
   // Data State
   const [patients, setPatients] = useState([]);
@@ -339,7 +346,7 @@ export default function DoctorPatients() {
           </table>
         </div>
 
-        {/* MOBILE STACKED CARD VIEW */}
+        {/* MOBILE RESPONSIVE ACCORDION CARDS VIEW (<768px down to 320px) */}
         <div className="block md:hidden divide-y divide-border">
           {patients.length === 0 ? (
             <div className="p-8 text-center text-xs text-ink-soft space-y-2">
@@ -350,39 +357,79 @@ export default function DoctorPatients() {
             patients.map((p) => {
               const pId = p._id || p.id;
               const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+              const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
               const lastVisitStr = p.lastVisitDate
-                ? new Date(p.lastVisitDate).toLocaleDateString()
+                ? new Date(p.lastVisitDate).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
                 : 'Never Seen';
+              const isExpanded = expandedPatientId === pId;
 
               return (
-                <div key={pId} className="p-4 space-y-3 bg-surface">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-bold text-ink text-sm">{pName}</h4>
-                      <span className="text-xs font-mono font-bold text-brand">OP: {p.opNumber || 'N/A'}</span>
+                <div key={pId} className="p-3.5 space-y-3 bg-surface hover:bg-bg/40 transition-colors">
+                  {/* Collapsed Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-bold text-ink text-sm truncate">{pName}</h4>
+                        <span className={`badge font-bold text-[10px] py-0.5 px-2 shrink-0 border ${
+                          isChild
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}>
+                          {isChild ? 'Child' : 'Adult'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                        {p.opNumber && <span className="font-bold text-brand">#{p.opNumber}</span>}
+                        <span className="text-ink font-sans font-medium">• {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''}</span>
+                      </div>
                     </div>
-                    <Link
-                      to={`/doctor/patients/${pId}`}
-                      className="btn-secondary text-xs py-1 px-3 inline-flex items-center gap-1 font-semibold"
+
+                    <button
+                      type="button"
+                      onClick={(e) => toggleExpandPatient(pId, e)}
+                      className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                      aria-label={isExpanded ? 'Collapse patient details' : 'Expand patient details'}
                     >
-                      <Eye size={13} /> View
-                    </Link>
+                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-bg p-2.5 rounded-lg border border-border">
-                    <div>
-                      <span className="text-ink-soft text-[10px] block">Age / Sex:</span>
-                      <span className="font-semibold text-ink">{p.age ? `${p.age}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}</span>
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                      <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                        <div>
+                          <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
+                          <span className="font-mono font-semibold text-ink">{p.phone || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
+                          <span className="font-medium text-ink">{p.age ? `${p.age}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="block text-[10px] font-semibold uppercase text-ink-soft">Last Visit</span>
+                          <span className="font-semibold text-ink">
+                            {lastVisitStr} {p.lastVisitDoctor?.name ? `(Dr. ${p.lastVisitDoctor.name})` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Primary Action Button */}
+                      <div className="pt-1 flex items-center justify-end">
+                        <Link
+                          to={`/doctor/patients/${pId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="btn-secondary text-xs py-1.5 px-3 w-full justify-center inline-flex items-center gap-1.5 font-semibold"
+                        >
+                          <Eye size={14} /> View Profile & EMR
+                        </Link>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-ink-soft text-[10px] block">Phone:</span>
-                      <span className="font-mono font-semibold text-ink">{p.phone || '—'}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-ink-soft text-[10px] block">Last Visit:</span>
-                      <span className="font-semibold text-ink">{lastVisitStr}</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
             })

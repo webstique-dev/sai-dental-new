@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { UserPlus, Power, Edit3, KeyRound, X, ShieldAlert } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { UserPlus, Power, Edit3, KeyRound, X, ShieldAlert, Search, Filter, ChevronDown, ChevronUp, Users } from 'lucide-react';
 import api from '../../api/axios.js';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
@@ -17,6 +17,12 @@ export default function AdminUsers() {
   const { showSuccess, showError } = useNotification();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Search & Filter State
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Add User Form State
   const [showForm, setShowForm] = useState(false);
@@ -232,21 +238,50 @@ export default function AdminUsers() {
     }
   }
 
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      const q = search.trim().toLowerCase();
+      const matchesSearch =
+        !q ||
+        u.name?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.phone?.includes(q);
+
+      const matchesRole = !roleFilter || u.role === roleFilter;
+      const isUserActive = u.status === 'active' || u.isActive === true;
+      const matchesStatus =
+        !statusFilter ||
+        (statusFilter === 'active' && isUserActive) ||
+        (statusFilter === 'inactive' && !isUserActive);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, search, roleFilter, statusFilter]);
+
+  const hasActiveFilters = Boolean(search || roleFilter || statusFilter);
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-bold text-ink">Users & Staff Accounts</h2>
-          <p className="mt-1 text-sm text-ink-soft">Manage staff credentials, role permissions, and active status.</p>
+    <div className="space-y-6 max-w-7xl w-full max-w-full overflow-x-hidden min-w-0">
+      {/* Header Banner */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-xl sm:text-2xl font-bold text-ink flex items-center gap-2 min-w-0 leading-tight">
+            <Users size={24} className="text-brand shrink-0" />
+            <span className="truncate sm:whitespace-normal">Users & Staff Accounts</span>
+          </h2>
+          <p className="text-xs sm:text-sm text-ink-soft mt-1 leading-relaxed break-words">
+            Manage staff credentials, role permissions, and active status across the clinic.
+          </p>
         </div>
-        <button onClick={() => setShowForm((v) => !v)} className="btn-primary">
+
+        <button onClick={() => setShowForm((v) => !v)} className="btn-primary text-xs shrink-0 self-start sm:self-auto">
           <UserPlus size={16} />
-          Add User
+          <span>Add User</span>
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="card p-5 space-y-4">
+        <form onSubmit={handleCreate} className="card p-4 sm:p-5 space-y-4">
           <h3 className="font-display text-[15px] font-semibold text-ink">Create New Staff User</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
@@ -318,86 +353,294 @@ export default function AdminUsers() {
         </form>
       )}
 
+      {/* Desktop Search & Filter Bar (≥768px) */}
+      <div className="hidden md:block card p-4 bg-surface border-border space-y-3">
+        <div className="flex flex-row items-center justify-between gap-3">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              className="input-field pl-9 py-2 text-xs w-full"
+              placeholder="Search staff by name, email, or phone number..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              className="input-field py-2 text-xs font-semibold w-auto min-w-[150px]"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+            >
+              <option value="">All Roles</option>
+              <option value="doctor">Doctor</option>
+              <option value="receptionist">Receptionist</option>
+              <option value="admin">Admin</option>
+            </select>
+
+            <select
+              className="input-field py-2 text-xs font-semibold w-auto min-w-[140px]"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            {hasActiveFilters && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setRoleFilter('');
+                  setStatusFilter('');
+                }}
+                className="btn-secondary py-2 px-3 text-xs text-rose-600 font-semibold flex items-center gap-1 shrink-0"
+              >
+                <X size={14} /> Reset
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+      <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileFilterOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+              <Filter size={14} />
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="font-bold text-ink">Filters & Search</span>
+              {hasActiveFilters && (
+                <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0">
+                  Active Filters
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+            <span>{isMobileFilterOpen ? 'Hide' : 'Filter'}</span>
+            {isMobileFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </button>
+
+        {isMobileFilterOpen && (
+          <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+            <div className="relative w-full">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+              <input
+                type="text"
+                className="input-field pl-9 py-1.5 text-xs w-full"
+                placeholder="Search staff accounts..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              <select
+                className="input-field py-1.5 text-xs font-semibold w-full"
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+              >
+                <option value="">All Roles</option>
+                <option value="doctor">Doctor</option>
+                <option value="receptionist">Receptionist</option>
+                <option value="admin">Admin</option>
+              </select>
+
+              <select
+                className="input-field py-1.5 text-xs font-semibold w-full"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setRoleFilter('');
+                  setStatusFilter('');
+                }}
+                className="btn-secondary w-full py-1.5 text-xs text-rose-600 font-semibold flex items-center justify-center gap-1"
+              >
+                <X size={13} /> Clear Filters
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* User Accounts Table */}
       <div className="card overflow-hidden">
         {loading ? (
           <TableSkeleton rows={5} cols={6} />
-        ) : users.length === 0 ? (
-          <div className="p-8 text-center text-sm text-ink-soft">No staff users registered yet.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
-                <tr>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {users.map((u) => {
-                  const userId = u.id || u._id;
-                  const isUserActive = u.status === 'active' || u.isActive === true;
-
-                  return (
-                    <tr key={userId} className="hover:bg-bg/40 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-ink">{u.name}</td>
-                      <td className="px-4 py-3 text-ink-soft font-mono">{u.email}</td>
-                      <td className="px-4 py-3 text-ink-soft">{u.phone || '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`badge ${ROLE_BADGE[u.role] || 'bg-bg text-ink-soft'}`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`badge font-bold border text-[11px] px-2 py-0.5 ${isUserActive ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
-                          {isUserActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(u)}
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-soft hover:text-ink hover:bg-bg p-1.5 rounded-lg transition-colors"
-                            title="Edit User Details & Role"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => openResetPassword(u)}
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-brand hover:bg-brand-light/30 p-1.5 rounded-lg transition-colors"
-                            title="Reset User Password"
-                          >
-                            <KeyRound size={14} />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleRequestToggleStatus(u)}
-                            className={`inline-flex items-center gap-1 text-[11px] font-semibold p-1.5 rounded-lg transition-colors border ${
-                              isUserActive
-                                ? 'text-rose-700 bg-rose-50/50 hover:bg-rose-100/70 border-rose-200'
-                                : 'text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200'
-                            }`}
-                            title={isUserActive ? 'Deactivate User Account' : 'Activate User Account'}
-                          >
-                            <Power size={14} />
-                            <span>{isUserActive ? 'Disable' : 'Activate'}</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        ) : filteredUsers.length === 0 ? (
+          <div className="p-8 text-center text-sm text-ink-soft">
+            {hasActiveFilters ? 'No staff users match your search criteria.' : 'No staff users registered yet.'}
           </div>
+        ) : (
+          <>
+            {/* Desktop Table View (≥768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">Name</th>
+                    <th className="px-5 py-3.5">Email</th>
+                    <th className="px-5 py-3.5">Phone</th>
+                    <th className="px-5 py-3.5">Role</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredUsers.map((u) => {
+                    const userId = u.id || u._id;
+                    const isUserActive = u.status === 'active' || u.isActive === true;
+
+                    return (
+                      <tr key={userId} className="hover:bg-bg/40 transition-colors">
+                        <td className="px-5 py-4 font-bold text-ink text-sm">{u.name}</td>
+                        <td className="px-5 py-4 text-ink-soft font-mono">{u.email}</td>
+                        <td className="px-5 py-4 text-ink-soft font-mono">{u.phone || '—'}</td>
+                        <td className="px-5 py-4">
+                          <span className={`badge uppercase font-bold text-[10px] ${ROLE_BADGE[u.role] || 'bg-bg text-ink-soft'}`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`badge font-bold border text-[11px] px-2 py-0.5 ${isUserActive ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                            {isUserActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(u)}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-soft hover:text-ink hover:bg-bg p-1.5 rounded-lg transition-colors border border-border"
+                              title="Edit User Details & Role"
+                            >
+                              <Edit3 size={14} /> Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => openResetPassword(u)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:bg-brand-light/30 p-1.5 rounded-lg transition-colors border border-brand/20"
+                              title="Reset User Password"
+                            >
+                              <KeyRound size={14} /> Password
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRequestToggleStatus(u)}
+                              className={`inline-flex items-center gap-1 text-[11px] font-semibold p-1.5 rounded-lg transition-colors border ${
+                                isUserActive
+                                  ? 'text-rose-700 bg-rose-50/50 hover:bg-rose-100/70 border-rose-200'
+                                  : 'text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200'
+                              }`}
+                              title={isUserActive ? 'Deactivate User Account' : 'Activate User Account'}
+                            >
+                              <Power size={14} />
+                              <span>{isUserActive ? 'Disable' : 'Activate'}</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View (<768px down to 320px) */}
+            <div className="block md:hidden divide-y divide-border">
+              {filteredUsers.map((u) => {
+                const userId = u.id || u._id;
+                const isUserActive = u.status === 'active' || u.isActive === true;
+
+                return (
+                  <div key={userId} className="p-4 space-y-3 hover:bg-bg/40 transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-ink text-sm truncate">{u.name}</span>
+                          <span className={`badge uppercase font-bold text-[10px] ${ROLE_BADGE[u.role] || 'bg-bg text-ink-soft'}`}>
+                            {u.role}
+                          </span>
+                        </div>
+                        <p className="text-xs text-ink-soft font-mono truncate">{u.email}</p>
+                      </div>
+
+                      <span className={`badge font-bold border text-[10px] px-2 py-0.5 shrink-0 ${isUserActive ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'}`}>
+                        {isUserActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-ink-soft pt-1 font-mono">
+                      <span>Phone: <span className="font-semibold text-ink">{u.phone || '—'}</span></span>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/70 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(u)}
+                        className="btn-secondary text-[11px] py-1 px-2.5 flex items-center gap-1"
+                      >
+                        <Edit3 size={13} /> Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openResetPassword(u)}
+                        className="btn-secondary text-[11px] py-1 px-2.5 text-brand flex items-center gap-1 font-semibold"
+                      >
+                        <KeyRound size={13} /> Password
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRequestToggleStatus(u)}
+                        className={`text-[11px] py-1 px-2.5 rounded-xl font-semibold flex items-center gap-1 border ${
+                          isUserActive
+                            ? 'text-rose-700 bg-rose-50/50 border-rose-200'
+                            : 'text-emerald-800 bg-emerald-50/50 border-emerald-200'
+                        }`}
+                      >
+                        <Power size={13} /> {isUserActive ? 'Disable' : 'Activate'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

@@ -1,4 +1,5 @@
-import { Wallet, DollarSign, Eye, RefreshCcw } from 'lucide-react';
+import { useState } from 'react';
+import { Wallet, DollarSign, Eye, RefreshCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { TableSkeleton } from './TableSkeleton.jsx';
 
 const DEFAULT_STATUS_CLASSES = {
@@ -18,6 +19,8 @@ export default function InvoiceList({
   onViewDetail = () => {},
   statusBadgeClasses = DEFAULT_STATUS_CLASSES,
 }) {
+  const [expandedInvId, setExpandedInvId] = useState(null);
+
   if (loading) {
     return <TableSkeleton rows={5} cols={9} />;
   }
@@ -33,113 +36,219 @@ export default function InvoiceList({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-xs">
-        <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
-          <tr>
-            <th className="px-4 py-3">OP #</th>
-            <th className="px-4 py-3">Patient</th>
-            <th className="px-4 py-3">Doctor</th>
-            <th className="px-4 py-3">Date</th>
-            <th className="px-4 py-3 text-right">Total (₹)</th>
-            <th className="px-4 py-3 text-right">Paid (₹)</th>
-            <th className="px-4 py-3 text-right">Balance (₹)</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {invoices.map((inv) => {
-            const invId = inv._id || inv.id;
-            const patientName = inv.patient
-              ? `${inv.patient.firstName || ''} ${inv.patient.lastName || ''}`.trim()
-              : 'Unknown Patient';
-            const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
-            const dateStr = inv.createdAt
-              ? new Date(inv.createdAt).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-              : 'N/A';
+    <>
+      {/* Desktop Table View (≥768px) */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
+            <tr>
+              <th className="px-5 py-3.5">OP #</th>
+              <th className="px-5 py-3.5">Patient</th>
+              <th className="px-5 py-3.5">Doctor</th>
+              <th className="px-5 py-3.5">Date</th>
+              <th className="px-5 py-3.5 text-right">Total (₹)</th>
+              <th className="px-5 py-3.5 text-right">Paid (₹)</th>
+              <th className="px-5 py-3.5 text-right">Balance (₹)</th>
+              <th className="px-5 py-3.5">Status</th>
+              <th className="px-5 py-3.5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {invoices.map((inv) => {
+              const invId = inv._id || inv.id;
+              const patientName = inv.patient
+                ? `${inv.patient.firstName || ''} ${inv.patient.lastName || ''}`.trim()
+                : 'Unknown Patient';
+              const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
+              const dateStr = inv.createdAt
+                ? new Date(inv.createdAt).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : 'N/A';
 
-            const canPay = allowPayment && inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && inv.balance > 0;
-            const canRefund = allowRefund && inv.paymentStatus !== 'Refunded' && (inv.amountPaid > 0 || inv.paymentStatus === 'Paid');
+              const canPay = allowPayment && inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && inv.balance > 0;
+              const canRefund = allowRefund && inv.paymentStatus !== 'Refunded' && (inv.amountPaid > 0 || inv.paymentStatus === 'Paid');
 
-            return (
-              <tr key={invId} className="hover:bg-bg/60 transition-colors">
-                <td className="px-4 py-3 font-mono font-bold text-brand whitespace-nowrap">
-                  {inv.opNumber || '—'}
-                </td>
+              return (
+                <tr key={invId} className="hover:bg-bg/60 transition-colors">
+                  <td className="px-5 py-4 font-mono font-bold text-brand whitespace-nowrap">
+                    {inv.opNumber || '—'}
+                  </td>
 
-                <td className="px-4 py-3 font-bold text-ink whitespace-nowrap">
-                  {patientName}
-                </td>
+                  <td className="px-5 py-4 font-bold text-ink whitespace-nowrap text-sm">
+                    {patientName}
+                  </td>
 
-                <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
-                  {docName}
-                </td>
+                  <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                    {docName}
+                  </td>
 
-                <td className="px-4 py-3 font-mono text-ink-soft whitespace-nowrap">
-                  {dateStr}
-                </td>
+                  <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                    {dateStr}
+                  </td>
 
-                <td className="px-4 py-3 text-right font-bold text-ink whitespace-nowrap">
-                  ₹{(inv.total || 0).toLocaleString()}
-                </td>
+                  <td className="px-5 py-4 text-right font-bold text-ink whitespace-nowrap text-sm">
+                    ₹{(inv.total || 0).toLocaleString()}
+                  </td>
 
-                <td className="px-4 py-3 text-right font-bold text-emerald-700 whitespace-nowrap">
-                  ₹{(inv.amountPaid || 0).toLocaleString()}
-                </td>
+                  <td className="px-5 py-4 text-right font-bold text-emerald-700 whitespace-nowrap text-sm">
+                    ₹{(inv.amountPaid || 0).toLocaleString()}
+                  </td>
 
-                <td className="px-4 py-3 text-right font-bold text-rose-700 whitespace-nowrap">
-                  ₹{(inv.balance || 0).toLocaleString()}
-                </td>
+                  <td className="px-5 py-4 text-right font-bold text-rose-700 whitespace-nowrap text-sm">
+                    ₹{(inv.balance || 0).toLocaleString()}
+                  </td>
 
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span
-                    className={`badge border text-[10px] ${
-                      statusBadgeClasses[inv.paymentStatus] || 'bg-slate-100 text-slate-800'
-                    }`}
-                  >
-                    {inv.paymentStatus}
-                  </span>
-                </td>
-
-                <td className="px-4 py-3 text-right whitespace-nowrap space-x-1">
-                  <button
-                    onClick={() => onViewDetail(inv)}
-                    title="View Invoice Details"
-                    className="inline-flex items-center gap-1 rounded-lg border border-border p-1.5 text-[11px] font-semibold text-ink-soft hover:bg-bg hover:text-ink"
-                  >
-                    <Eye size={13} /> View
-                  </button>
-
-                  {canPay && (
-                    <button
-                      onClick={() => onRecordPayment(inv)}
-                      title="Record Payment"
-                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 p-1.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <span
+                      className={`badge font-bold border text-[10px] ${
+                        statusBadgeClasses[inv.paymentStatus] || 'bg-slate-100 text-slate-800'
+                      }`}
                     >
-                      <DollarSign size={13} /> Pay
-                    </button>
-                  )}
+                      {inv.paymentStatus}
+                    </span>
+                  </td>
 
-                  {canRefund && (
+                  <td className="px-5 py-4 text-right whitespace-nowrap space-x-1.5">
                     <button
-                      onClick={() => onRefund(inv)}
-                      title="Issue Refund (Admin Only)"
-                      className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 p-1.5 text-[11px] font-semibold text-rose-800 hover:bg-rose-100"
+                      onClick={() => onViewDetail(inv)}
+                      title="View Invoice Details"
+                      className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1 text-[11px] font-semibold text-ink-soft hover:bg-bg hover:text-ink"
                     >
-                      <RefreshCcw size={13} /> Refund
+                      <Eye size={13} /> View
                     </button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+
+                    {canPay && (
+                      <button
+                        onClick={() => onRecordPayment(inv)}
+                        title="Record Payment"
+                        className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                      >
+                        <DollarSign size={13} /> Pay
+                      </button>
+                    )}
+
+                    {canRefund && (
+                      <button
+                        onClick={() => onRefund(inv)}
+                        title="Issue Refund (Admin Only)"
+                        className="inline-flex items-center gap-1 rounded-xl border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-100"
+                      >
+                        <RefreshCcw size={13} /> Refund
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Collapsible Cards View (<768px down to 320px) */}
+      <div className="block md:hidden divide-y divide-border">
+        {invoices.map((inv) => {
+          const invId = inv._id || inv.id;
+          const patientName = inv.patient
+            ? `${inv.patient.firstName || ''} ${inv.patient.lastName || ''}`.trim()
+            : 'Unknown Patient';
+          const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
+          const dateStr = inv.createdAt
+            ? new Date(inv.createdAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : 'N/A';
+
+          const canPay = allowPayment && inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && inv.balance > 0;
+          const canRefund = allowRefund && inv.paymentStatus !== 'Refunded' && (inv.amountPaid > 0 || inv.paymentStatus === 'Paid');
+          const isExpanded = expandedInvId === invId;
+
+          return (
+            <div key={invId} className="p-4 space-y-3 hover:bg-bg/40 transition-colors">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                    {inv.opNumber && (
+                      <span className="text-brand font-mono font-bold text-xs">#{inv.opNumber}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-ink-soft">{docName} • {dateStr}</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setExpandedInvId(isExpanded ? null : invId)}
+                  className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                >
+                  {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span
+                  className={`badge font-bold border text-[10px] ${
+                    statusBadgeClasses[inv.paymentStatus] || 'bg-slate-100 text-slate-800'
+                  }`}
+                >
+                  {inv.paymentStatus}
+                </span>
+                <span className="font-mono font-bold text-ink text-xs">₹{(inv.total || 0).toLocaleString()}</span>
+              </div>
+
+              {isExpanded && (
+                <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                  <div className="grid grid-cols-3 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border text-center text-[11px]">
+                    <div>
+                      <span className="block text-[10px] font-semibold uppercase text-ink-soft">Total</span>
+                      <span className="font-bold text-ink text-xs">₹{(inv.total || 0).toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-semibold uppercase text-ink-soft">Paid</span>
+                      <span className="font-bold text-emerald-700 text-xs">₹{(inv.amountPaid || 0).toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-semibold uppercase text-ink-soft">Balance</span>
+                      <span className="font-bold text-rose-700 text-xs">₹{(inv.balance || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => onViewDetail(inv)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink-soft hover:bg-bg hover:text-ink"
+                    >
+                      <Eye size={14} /> Details
+                    </button>
+
+                    {canPay && (
+                      <button
+                        onClick={() => onRecordPayment(inv)}
+                        className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                      >
+                        <DollarSign size={14} /> Pay
+                      </button>
+                    )}
+
+                    {canRefund && (
+                      <button
+                        onClick={() => onRefund(inv)}
+                        className="inline-flex items-center gap-1 rounded-xl border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100"
+                      >
+                        <RefreshCcw size={14} /> Refund
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }

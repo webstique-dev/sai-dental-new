@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Users, Search, Filter, Edit3, ArrowUpDown, ChevronLeft, ChevronRight,
-  ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye, History
+  ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye, History, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios.js';
@@ -21,6 +21,10 @@ export default function AdminPatients() {
 
   const [sortBy, setSortBy] = useState('registrationDate');
   const [sortOrder, setSortOrder] = useState('desc');
+
+  // Mobile Filter Accordion & Expanded Cards State
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [expandedPatientId, setExpandedPatientId] = useState(null);
 
   // Selected patient for Profile drawer/modal
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -193,34 +197,35 @@ export default function AdminPatients() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl w-full max-w-full overflow-x-hidden min-w-0">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <Users size={26} className="text-brand" /> Clinic-Wide Patient Directory
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-ink flex items-center gap-2 min-w-0 leading-tight">
+            <Users size={26} className="text-brand shrink-0" />
+            <span className="truncate sm:whitespace-normal">Clinic-Wide Patient Directory</span>
           </h1>
-          <p className="text-xs text-ink-soft mt-0.5">
+          <p className="text-xs sm:text-sm text-ink-soft mt-1 leading-relaxed break-words">
             Read-only oversight directory across all registered clinic patients with administrative record correction.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
           <Link
             to="/reception/patients"
             className="btn-secondary text-xs flex items-center gap-1.5"
             title="Jump to Receptionist Patient Registration Page"
           >
-            <ExternalLink size={14} /> Receptionist Registration Workflow
+            <ExternalLink size={14} /> <span className="hidden sm:inline">Receptionist Registration Workflow</span><span className="sm:hidden">Registration</span>
           </Link>
         </div>
       </div>
 
-      {/* SEARCH AND CONTROLS */}
-      <div className="card p-4 space-y-3 bg-surface">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Desktop Search & Controls (≥768px) */}
+      <div className="hidden md:block card p-4 bg-surface border-border space-y-3">
+        <div className="flex flex-row items-center justify-between gap-3">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-2.5 text-ink-soft" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input
               type="text"
               className="input-field pl-9 py-2 text-xs w-full"
@@ -228,9 +233,14 @@ export default function AdminPatients() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink">
+                <X size={14} />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-xs shrink-0">
             <span className="text-ink-soft font-semibold whitespace-nowrap">Sort By:</span>
             <button
               onClick={() => handleSortToggle('registrationDate')}
@@ -257,32 +267,197 @@ export default function AdminPatients() {
         </div>
       </div>
 
-      {/* PATIENTS TABLE */}
+      {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+      <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileFilterOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+              <Filter size={14} />
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="font-bold text-ink">Filters & Sort</span>
+              {search && (
+                <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0 truncate max-w-[120px]">
+                  "{search}"
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+            <span>{isMobileFilterOpen ? 'Hide' : 'Filter'}</span>
+            {isMobileFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </button>
+
+        {isMobileFilterOpen && (
+          <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+            <div className="relative w-full">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+              <input
+                type="text"
+                className="input-field pl-9 py-1.5 text-xs w-full"
+                placeholder="Search patient name, phone, OP#..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="block text-[11px] font-semibold text-ink-soft">Sort Directory By:</span>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  onClick={() => handleSortToggle('registrationDate')}
+                  className={`btn-secondary py-1.5 px-2 text-[11px] flex items-center justify-center gap-1 ${sortBy === 'registrationDate' ? 'border-brand text-brand font-bold' : ''}`}
+                >
+                  Reg Date <ArrowUpDown size={12} />
+                </button>
+                <button
+                  onClick={() => handleSortToggle('name')}
+                  className={`btn-secondary py-1.5 px-2 text-[11px] flex items-center justify-center gap-1 ${sortBy === 'name' ? 'border-brand text-brand font-bold' : ''}`}
+                >
+                  Name <ArrowUpDown size={12} />
+                </button>
+                <button
+                  onClick={() => handleSortToggle('opNumber')}
+                  className={`btn-secondary py-1.5 px-2 text-[11px] flex items-center justify-center gap-1 ${sortBy === 'opNumber' ? 'border-brand text-brand font-bold' : ''}`}
+                >
+                  OP # <ArrowUpDown size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* PATIENTS DIRECTORY */}
       <div className="card overflow-hidden">
         {loading ? (
           <PatientDirectorySkeleton rows={6} />
         ) : (
-          <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-border bg-bg font-semibold text-ink-soft">
-              <tr>
-                <th className="px-4 py-3">OP Number</th>
-                <th className="px-4 py-3">Patient Name</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Age / Sex</th>
-                <th className="px-4 py-3">Patient Type</th>
-                <th className="px-4 py-3">Registration Date</th>
-                <th className="px-4 py-3">Registered By</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
+          <>
+            {/* Desktop Table View (≥768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">OP Number</th>
+                    <th className="px-5 py-3.5">Patient Name</th>
+                    <th className="px-5 py-3.5">Phone</th>
+                    <th className="px-5 py-3.5">Age / Sex</th>
+                    <th className="px-5 py-3.5">Patient Type</th>
+                    <th className="px-5 py-3.5">Reg Date</th>
+                    <th className="px-5 py-3.5">Registered By</th>
+                    <th className="px-5 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {patients.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-8 text-center text-ink-soft">
+                        No patients match your search query.
+                      </td>
+                    </tr>
+                  ) : (
+                    patients.map((p) => {
+                      const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+                      const regDateStr = p.registrationDate || p.createdAt
+                        ? new Date(p.registrationDate || p.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                        : 'N/A';
+                      const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
+
+                      return (
+                        <tr
+                          key={p._id}
+                          onClick={() => setSelectedPatient(p)}
+                          className="hover:bg-bg/60 cursor-pointer transition-colors"
+                        >
+                          <td className="px-5 py-4 font-mono font-bold text-brand whitespace-nowrap">
+                            {p.opNumber ? `#${p.opNumber}` : '—'}
+                          </td>
+
+                          <td className="px-5 py-4 font-bold text-ink whitespace-nowrap">
+                            {pName}
+                          </td>
+
+                          <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                            {p.phone || '—'}
+                          </td>
+
+                          <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                            {p.age ? `${p.age} yrs` : '—'} / {p.sex || '—'}
+                          </td>
+
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className={`badge font-bold text-xs border px-2 py-0.5 ${
+                              isChild
+                                ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                : 'bg-blue-50 text-blue-800 border-blue-200'
+                            }`}>
+                              {isChild ? 'Child' : 'Adult'}
+                            </span>
+                          </td>
+
+                          <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                            {regDateStr}
+                          </td>
+
+                          <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                            {p.registeredBy?.name || 'Staff'}
+                          </td>
+
+                          <td className="px-5 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Link
+                                to={`/admin/patients/${p._id}`}
+                                className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold hover:bg-brand-light/30"
+                                title="View Patient EMR & Visit Timeline"
+                              >
+                                <History size={13} /> View EMR
+                              </Link>
+                              <button
+                                onClick={() => setSelectedPatient(p)}
+                                className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1"
+                                title="View Full Profile"
+                              >
+                                <Eye size={13} /> Profile
+                              </button>
+                              <button
+                                onClick={(e) => handleOpenEdit(e, p)}
+                                className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 border-amber-300 text-amber-800 hover:bg-amber-50"
+                                title="Edit Basic Details (Admin Only)"
+                              >
+                                <Edit3 size={13} /> Edit
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View (<768px down to 320px) */}
+            <div className="block md:hidden divide-y divide-border">
               {patients.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-ink-soft">
-                    No patients match your search query.
-                  </td>
-                </tr>
+                <div className="p-8 text-center text-xs text-ink-soft">
+                  No patients match your search query.
+                </div>
               ) : (
                 patients.map((p) => {
                   const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
@@ -294,113 +469,112 @@ export default function AdminPatients() {
                     })
                     : 'N/A';
                   const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
+                  const isExpanded = expandedPatientId === p._id;
 
                   return (
-                    <tr
-                      key={p._id}
-                      onClick={() => setSelectedPatient(p)}
-                      className="hover:bg-bg/60 cursor-pointer transition-colors"
-                    >
-                      <td className="px-4 py-3 font-mono font-bold text-brand whitespace-nowrap">
-                        {p.opNumber || '—'}
-                      </td>
-
-                      <td className="px-4 py-3 font-bold text-ink whitespace-nowrap">
-                        {pName}
-                      </td>
-
-                      <td className="px-4 py-3 font-mono text-ink-soft whitespace-nowrap">
-                        {p.phone || '—'}
-                      </td>
-
-                      <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
-                        {p.age ? `${p.age} yrs` : '—'} / {p.sex || '—'}
-                      </td>
-
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`badge font-semibold text-xs border px-2 py-0.5 ${
-                          isChild
-                            ? 'bg-purple-50 text-purple-800 border-purple-200'
-                            : 'bg-blue-50 text-blue-800 border-blue-200'
-                        }`}>
-                          {isChild ? 'Child' : 'Adult'}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
-                        {regDateStr}
-                      </td>
-
-                      <td className="px-4 py-3 text-ink-soft whitespace-nowrap">
-                        {p.registeredBy?.name || 'Staff'}
-                      </td>
-
-                      <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            to={`/doctor/patients/${p._id}`}
-                            className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold hover:bg-brand-light/30"
-                            title="View Patient EMR & Visit Timeline"
-                          >
-                            <History size={13} /> View EMR
-                          </Link>
-                          <button
-                            onClick={() => setSelectedPatient(p)}
-                            className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1"
-                            title="View Full Profile"
-                          >
-                            <Eye size={13} /> Profile
-                          </button>
-                          <button
-                            onClick={(e) => handleOpenEdit(e, p)}
-                            className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1 border-amber-300 text-amber-800 hover:bg-amber-50"
-                            title="Edit Basic Details (Admin Only)"
-                          >
-                            <Edit3 size={13} /> Edit
-                          </button>
+                    <div key={p._id} className="p-4 space-y-3 hover:bg-bg/40 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-ink text-sm truncate">{pName}</span>
+                            <span className={`badge font-bold text-[10px] border px-1.5 py-0.5 ${
+                              isChild
+                                ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                : 'bg-blue-50 text-blue-800 border-blue-200'
+                            }`}>
+                              {isChild ? 'Child' : 'Adult'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                            {p.opNumber && <span className="font-bold text-brand">#{p.opNumber}</span>}
+                            <span>• {p.phone || 'No Phone'}</span>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
+
+                        <button
+                          type="button"
+                          onClick={() => setExpandedPatientId(isExpanded ? null : p._id)}
+                          className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                        >
+                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </button>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                          <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                            <div>
+                              <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
+                              <span className="font-medium text-ink">{p.age ? `${p.age} yrs` : '—'} / {p.sex || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] font-semibold uppercase text-ink-soft">Registered On</span>
+                              <span className="font-medium text-ink">{regDateStr}</span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="block text-[10px] font-semibold uppercase text-ink-soft">Registered By</span>
+                              <span className="font-medium text-ink">{p.registeredBy?.name || 'Staff'}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-1.5 pt-1 flex-wrap">
+                            <Link
+                              to={`/admin/patients/${p._id}`}
+                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold"
+                            >
+                              <History size={13} /> View EMR
+                            </Link>
+                            <button
+                              onClick={() => setSelectedPatient(p)}
+                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1"
+                            >
+                              <Eye size={13} /> Profile
+                            </button>
+                            <button
+                              onClick={(e) => handleOpenEdit(e, p)}
+                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 border-amber-300 text-amber-800"
+                            >
+                              <Edit3 size={13} /> Edit
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })
               )}
-            </tbody>
-          </table>
-        </div>
-        )}
-
-        {/* PAGINATION */}
-        {!loading && patients.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-bg/40 text-xs">
-            <div className="text-ink-soft font-medium">
-              Showing Page <span className="font-bold text-ink">{page}</span> of{' '}
-              <span className="font-bold text-ink">{totalPages}</span> ({total} Total Patients)
             </div>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border bg-bg/40 text-xs">
+              <div className="text-ink-soft font-medium">
+                Showing Page <span className="font-bold text-ink">{page}</span> of{' '}
+                <span className="font-bold text-ink">{totalPages}</span> ({total} Total Patients)
+              </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => fetchPatients(page - 1)}
-                className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
-              >
-                <ChevronLeft size={14} /> Previous
-              </button>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => fetchPatients(page + 1)}
-                className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
-              >
-                Next <ChevronRight size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={page <= 1}
+                  onClick={() => fetchPatients(page - 1)}
+                  className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => fetchPatients(page + 1)}
+                  className="btn-secondary py-1 px-2.5 text-xs flex items-center gap-1 disabled:opacity-30"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
       {/* PATIENT PROFILE DRAWER/MODAL */}
       {selectedPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
-          <div className="card max-w-3xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden !mt-0">
+          <div className="card max-w-3xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
             <div className="flex items-start justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <div>
                 <span className="badge bg-brand/10 text-brand font-mono font-bold text-xs mb-1 inline-block">
@@ -428,7 +602,7 @@ export default function AdminPatients() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-5 text-xs min-h-0">
               {/* Profile Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs bg-bg p-4 rounded-lg border border-border">
                 <div>
@@ -532,7 +706,7 @@ export default function AdminPatients() {
               </div>
             </div>
 
-            <div className="flex justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+            <div className="flex justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0 !mt-0 !mb-0">
               <button
                 type="button"
                 onClick={() => setSelectedPatient(null)}
@@ -547,8 +721,8 @@ export default function AdminPatients() {
 
       {/* EDIT BASIC DETAILS MODAL (ADMIN ONLY) */}
       {editingPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
-          <div className="card max-w-xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden !mt-0">
+          <div className="card max-w-xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <Edit3 size={18} className="text-amber-600" /> Edit Patient Profile Details
@@ -558,8 +732,8 @@ export default function AdminPatients() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
+            <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 overflow-hidden min-h-0 !mt-0 !mb-0">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-3 text-xs">
                 {feedback.msg && (
                   <div
                     className={`p-3 rounded text-xs flex items-center gap-2 ${feedback.type === 'success'

@@ -38,7 +38,19 @@
   }
 
   .input-field {
-    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-soft focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20;
+    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-soft focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all;
+  }
+
+  select.input-field {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231E64EA' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem 1rem;
+    padding-right: 2.25rem;
+    cursor: pointer;
   }
 
   .badge {
@@ -114,14 +126,26 @@
   border-width: 2px 2px 0 0 !important;
 }
 
-/* Hide scrollbar utility class across browsers */
-.no-scrollbar::-webkit-scrollbar,
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-
+/* Hide scrollbars in all popup modals, drawers, dialogs, and utility classes across browsers */
+.fixed .overflow-y-auto,
+.fixed .overflow-x-auto,
+.fixed .overflow-auto,
+[role="dialog"] .overflow-y-auto,
+[role="dialog"] .overflow-auto,
 .no-scrollbar,
 .scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+.fixed .overflow-y-auto::-webkit-scrollbar,
+.fixed .overflow-x-auto::-webkit-scrollbar,
+.fixed .overflow-auto::-webkit-scrollbar,
+[role="dialog"] .overflow-y-auto::-webkit-scrollbar,
+[role="dialog"] .overflow-auto::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }

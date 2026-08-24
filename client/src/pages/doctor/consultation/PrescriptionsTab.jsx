@@ -217,8 +217,8 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
 
           <form onSubmit={handleSavePrescription} className="space-y-4">
             <div className="border border-border rounded-xl bg-bg/30 overflow-hidden flex flex-col">
-              {/* Table Header (Fixed Top) */}
-              <div className="p-3 pb-2 border-b border-border/50 bg-bg/60">
+              {/* Table Header (Desktop Only) */}
+              <div className="hidden md:block p-3 pb-2 border-b border-border/50 bg-bg/60">
                 <div className="grid grid-cols-12 gap-2 text-xs font-bold text-ink-soft uppercase px-1">
                   <span className="col-span-3">Medicine Name *</span>
                   <span className="col-span-2">Dosage</span>
@@ -228,9 +228,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 </div>
               </div>
 
-              {/* Scrollable Medicines Container with hidden scrollbar */}
+              {/* Scrollable Medicines Container */}
               <div
-                className="p-3 space-y-2.5 max-h-72 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+                className="p-3 space-y-3 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:hidden"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {medicines.length === 0 ? (
@@ -241,96 +241,214 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                   medicines.map((item, idx) => {
                     const freqPattern = parseFrequencyPattern(item.frequency);
                     return (
-                      <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
-                        <div className="col-span-3">
-                          <input
-                            type="text"
-                            autoComplete="off"
-                            className="input-field py-1.5 text-xs"
-                            placeholder="Medicine Name (e.g. Amoxicillin)"
-                            value={item.medicine}
-                            onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <input
-                            type="text"
-                            autoComplete="off"
-                            className="input-field py-1.5 text-xs"
-                            placeholder="Dosage (500 mg)"
-                            value={item.dosage}
-                            onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-3 flex items-center justify-center">
-                          <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 py-1 text-xs font-bold shadow-2xs">
+                      <div key={idx}>
+                        {/* Desktop Grid View (≥768px) */}
+                        <div className="hidden md:grid grid-cols-12 gap-2 items-center text-xs">
+                          <div className="col-span-3">
+                            <input
+                              type="text"
+                              autoComplete="off"
+                              className="input-field py-1.5 text-xs"
+                              placeholder="Medicine Name (e.g. Amoxicillin)"
+                              value={item.medicine}
+                              onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              type="text"
+                              autoComplete="off"
+                              className="input-field py-1.5 text-xs"
+                              placeholder="Dosage (500 mg)"
+                              value={item.dosage}
+                              onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-3 flex items-center justify-center">
+                            <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 py-1 text-xs font-bold shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFreqSlot(idx, 0)}
+                                title="Morning Slot (1 or 0)"
+                                className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
+                                  freqPattern[0] === 1
+                                    ? 'bg-brand text-white shadow-xs'
+                                    : 'text-ink-soft hover:text-ink bg-bg'
+                                }`}
+                              >
+                                {freqPattern[0]}
+                              </button>
+                              <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFreqSlot(idx, 1)}
+                                title="Afternoon Slot (1 or 0)"
+                                className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
+                                  freqPattern[1] === 1
+                                    ? 'bg-brand text-white shadow-xs'
+                                    : 'text-ink-soft hover:text-ink bg-bg'
+                                }`}
+                              >
+                                {freqPattern[1]}
+                              </button>
+                              <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFreqSlot(idx, 2)}
+                                title="Night Slot (1 or 0)"
+                                className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
+                                  freqPattern[2] === 1
+                                    ? 'bg-brand text-white shadow-xs'
+                                    : 'text-ink-soft hover:text-ink bg-bg'
+                                }`}
+                              >
+                                {freqPattern[2]}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              type="text"
+                              autoComplete="off"
+                              className="input-field py-1.5 text-xs"
+                              placeholder="Duration (5 days)"
+                              value={item.duration}
+                              onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2 flex items-center justify-between gap-1 min-w-0">
+                            <select
+                              className="input-field py-1.5 text-xs font-semibold w-full min-w-0 truncate"
+                              value={item.instructions || 'After food'}
+                              onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
+                            >
+                              <option value="Before food">Before food</option>
+                              <option value="After food">After food</option>
+                            </select>
                             <button
                               type="button"
-                              onClick={() => handleToggleFreqSlot(idx, 0)}
-                              title="Morning Slot (1 or 0)"
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
-                                freqPattern[0] === 1
-                                  ? 'bg-brand text-white shadow-xs'
-                                  : 'text-ink-soft hover:text-ink bg-bg'
-                              }`}
+                              onClick={() => handleRemoveRow(idx)}
+                              className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
+                              title="Remove row"
                             >
-                              {freqPattern[0]}
-                            </button>
-                            <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleFreqSlot(idx, 1)}
-                              title="Afternoon Slot (1 or 0)"
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
-                                freqPattern[1] === 1
-                                  ? 'bg-brand text-white shadow-xs'
-                                  : 'text-ink-soft hover:text-ink bg-bg'
-                              }`}
-                            >
-                              {freqPattern[1]}
-                            </button>
-                            <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleFreqSlot(idx, 2)}
-                              title="Night Slot (1 or 0)"
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
-                                freqPattern[2] === 1
-                                  ? 'bg-brand text-white shadow-xs'
-                                  : 'text-ink-soft hover:text-ink bg-bg'
-                              }`}
-                            >
-                              {freqPattern[2]}
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </div>
-                        <div className="col-span-2">
-                          <input
-                            type="text"
-                            autoComplete="off"
-                            className="input-field py-1.5 text-xs"
-                            placeholder="Duration (5 days)"
-                            value={item.duration}
-                            onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-2 flex items-center justify-between gap-1 min-w-0">
-                          <select
-                            className="input-field py-1.5 text-xs font-semibold w-full min-w-0 truncate"
-                            value={item.instructions || 'After food'}
-                            onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
-                          >
-                            <option value="Before food">Before food</option>
-                            <option value="After food">After food</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveRow(idx)}
-                            className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
-                            title="Remove row"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+
+                        {/* Mobile Stacked Card View (<768px down to 320px) */}
+                        <div className="block md:hidden p-3 bg-surface border border-border rounded-xl space-y-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold text-brand uppercase tracking-wider">
+                              Medicine #{idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRow(idx)}
+                              className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
+                              title="Remove row"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                Medicine Name *
+                              </label>
+                              <input
+                                type="text"
+                                autoComplete="off"
+                                className="input-field py-1.5 text-xs w-full"
+                                placeholder="Medicine Name (e.g. Amoxicillin)"
+                                value={item.medicine}
+                                onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                  Dosage
+                                </label>
+                                <input
+                                  type="text"
+                                  autoComplete="off"
+                                  className="input-field py-1.5 text-xs w-full"
+                                  placeholder="500 mg"
+                                  value={item.dosage}
+                                  onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                  Duration
+                                </label>
+                                <input
+                                  type="text"
+                                  autoComplete="off"
+                                  className="input-field py-1.5 text-xs w-full"
+                                  placeholder="5 days"
+                                  value={item.duration}
+                                  onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 items-end">
+                              <div>
+                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase text-center">
+                                  Frequency
+                                </label>
+                                <div className="inline-flex items-center justify-center w-full gap-1 rounded-xl border border-border bg-surface px-2 py-1 text-xs font-bold shadow-2xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleFreqSlot(idx, 0)}
+                                    className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                      freqPattern[0] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
+                                    }`}
+                                  >
+                                    {freqPattern[0]}
+                                  </button>
+                                  <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleFreqSlot(idx, 1)}
+                                    className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                      freqPattern[1] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
+                                    }`}
+                                  >
+                                    {freqPattern[1]}
+                                  </button>
+                                  <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleFreqSlot(idx, 2)}
+                                    className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                      freqPattern[2] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
+                                    }`}
+                                  >
+                                    {freqPattern[2]}
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                  Instructions
+                                </label>
+                                <select
+                                  className="input-field py-1.5 text-xs font-semibold w-full"
+                                  value={item.instructions || 'After food'}
+                                  onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
+                                >
+                                  <option value="Before food">Before food</option>
+                                  <option value="After food">After food</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );

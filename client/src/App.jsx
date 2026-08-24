@@ -73,6 +73,7 @@ export default function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/patients" element={<AdminPatients />} />
+          <Route path="/admin/patients/:patientId" element={<PatientProfileEMR />} />
           <Route path="/admin/appointments" element={<AdminAppointments />} />
           <Route path="/admin/doctors" element={<AdminDoctors />} />
           <Route path="/admin/billing" element={<AdminBilling />} />

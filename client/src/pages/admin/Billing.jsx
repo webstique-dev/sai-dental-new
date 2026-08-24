@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Wallet, Search, RefreshCcw, DollarSign, X,
-  CreditCard, ShieldAlert
+  CreditCard, ShieldAlert, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import InvoiceList from '../../components/common/InvoiceList.jsx';
@@ -22,6 +22,7 @@ export default function AdminBilling() {
   const [doctorFilter, setDoctorFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Modals & Actions
   const [refundingInvoice, setRefundingInvoice] = useState(null);
@@ -152,65 +153,193 @@ export default function AdminBilling() {
         />
       </div>
 
-      {/* Filter Bar */}
-      <div className="card p-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 bg-surface">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input
-            type="text"
-            className="input-field pl-9 py-2 text-xs"
-            placeholder="Search by Patient Name, Phone Number, or OP Number..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      {/* Desktop Filter Bar (≥768px) */}
+      <div className="hidden md:block card p-4 bg-surface border-border space-y-3">
+        <div className="grid grid-cols-5 gap-3 text-xs">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              className="input-field pl-9 py-2 text-xs w-full"
+              placeholder="Search patient, phone, OP#..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div>
+            <select
+              className="input-field py-2 text-xs font-semibold w-full"
+              value={doctorFilter}
+              onChange={(e) => setDoctorFilter(e.target.value)}
+            >
+              <option value="">All Doctors</option>
+              {doctors.map((d) => (
+                <option key={d._id || d.id} value={d._id || d.id}>
+                  Dr. {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              className="input-field py-2 text-xs font-semibold w-full"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="Paid">Paid</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Pending">Pending</option>
+              <option value="Refunded">Refunded</option>
+            </select>
+          </div>
+
+          <div>
+            <DatePicker
+              value={dateFrom}
+              onChange={(date, dateStr) => setDateFrom(dateStr)}
+              placeholder="From Date"
+              inputClassName="py-1 text-xs w-full"
+            />
+          </div>
+
+          <div>
+            <DatePicker
+              value={dateTo}
+              onChange={(date, dateStr) => setDateTo(dateStr)}
+              placeholder="To Date"
+              inputClassName="py-1 text-xs w-full"
+            />
+          </div>
         </div>
 
-        <div>
-          <select
-            className="input-field py-2 text-xs"
-            value={doctorFilter}
-            onChange={(e) => setDoctorFilter(e.target.value)}
-          >
-            <option value="">All Doctors</option>
-            {doctors.map((d) => (
-              <option key={d._id || d.id} value={d._id || d.id}>
-                Dr. {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {Boolean(search || doctorFilter || statusFilter || dateFrom || dateTo) && (
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={() => {
+                setSearch('');
+                setDoctorFilter('');
+                setStatusFilter('');
+                setDateFrom('');
+                setDateTo('');
+              }}
+              className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold"
+            >
+              <X size={13} /> Reset Filters
+            </button>
+          </div>
+        )}
+      </div>
 
-        <div>
-          <select
-            className="input-field py-2 text-xs"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            <option value="Paid">Paid</option>
-            <option value="Partially Paid">Partially Paid</option>
-            <option value="Pending">Pending</option>
-            <option value="Refunded">Refunded</option>
-          </select>
-        </div>
+      {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+      <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileFilterOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+              <Filter size={14} />
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="font-bold text-ink">Filters & Search</span>
+              {Boolean(search || doctorFilter || statusFilter || dateFrom || dateTo) && (
+                <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0">
+                  Active Filters
+                </span>
+              )}
+            </div>
+          </div>
 
-        <div>
-          <DatePicker
-            value={dateFrom}
-            onChange={(date, dateStr) => setDateFrom(dateStr)}
-            placeholder="From Date"
-            inputClassName="py-1 text-xs"
-          />
-        </div>
+          <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+            <span>{isMobileFilterOpen ? 'Hide' : 'Filter'}</span>
+            {isMobileFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </button>
 
-        <div>
-          <DatePicker
-            value={dateTo}
-            onChange={(date, dateStr) => setDateTo(dateStr)}
-            placeholder="To Date"
-            inputClassName="py-1 text-xs"
-          />
-        </div>
+        {isMobileFilterOpen && (
+          <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+            <div className="relative w-full">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+              <input
+                type="text"
+                className="input-field pl-9 py-1.5 text-xs w-full"
+                placeholder="Search invoices..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              <select
+                className="input-field py-1.5 text-xs font-semibold w-full"
+                value={doctorFilter}
+                onChange={(e) => setDoctorFilter(e.target.value)}
+              >
+                <option value="">All Doctors</option>
+                {doctors.map((d) => (
+                  <option key={d._id || d.id} value={d._id || d.id}>
+                    Dr. {d.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="input-field py-1.5 text-xs font-semibold w-full"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="Paid">Paid</option>
+                <option value="Partially Paid">Partially Paid</option>
+                <option value="Pending">Pending</option>
+                <option value="Refunded">Refunded</option>
+              </select>
+
+              <DatePicker
+                value={dateFrom}
+                onChange={(date, dateStr) => setDateFrom(dateStr)}
+                placeholder="From Date"
+                inputClassName="py-1.5 text-xs w-full"
+              />
+
+              <DatePicker
+                value={dateTo}
+                onChange={(date, dateStr) => setDateTo(dateStr)}
+                placeholder="To Date"
+                inputClassName="py-1.5 text-xs w-full"
+              />
+            </div>
+
+            {Boolean(search || doctorFilter || statusFilter || dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setDoctorFilter('');
+                  setStatusFilter('');
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="btn-secondary w-full py-1.5 text-xs text-rose-600 font-semibold flex items-center justify-center gap-1"
+              >
+                <X size={13} /> Clear Filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* INVOICE LIST TABLE */}

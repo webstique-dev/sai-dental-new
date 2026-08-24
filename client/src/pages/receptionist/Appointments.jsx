@@ -156,16 +156,22 @@ export default function Appointments() {
     fetchDoctors();
   }, []);
 
-  // Auto-open create modal if redirected from patient registration
+  // Auto-open create modal if redirected from patient registration or Quick Actions FAB
   useEffect(() => {
-    if (location.state?.autoOpenCreate && location.state?.newPatient) {
-      const p = location.state.newPatient;
-      setSelectedPatient(p);
-      setPatientSearch(`${p.firstName || ''} ${p.lastName || ''}`.trim());
+    if (location.state?.autoOpenCreate) {
+      if (location.state?.newPatient) {
+        const p = location.state.newPatient;
+        setSelectedPatient(p);
+        setPatientSearch(`${p.firstName || ''} ${p.lastName || ''}`.trim());
+      } else {
+        setSelectedPatient(null);
+        setPatientSearch('');
+      }
+
       const primDocId = primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || '');
       const { dateStr, timeStr } = getInitialExactDateTime();
       setFormData({
-        patient: p._id,
+        patient: location.state?.newPatient?._id || '',
         doctor: primDocId,
         date: dateStr,
         time: timeStr,
@@ -395,18 +401,18 @@ export default function Appointments() {
     <>
       <div className="space-y-6">
       {/* Top Header & Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-xl font-bold text-ink">Appointments Directory</h2>
-          <p className="text-sm text-ink-soft">Complete scheduling records and patient appointments</p>
+          <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Appointments Directory</h2>
+          <p className="text-xs sm:text-sm text-ink-soft">Complete scheduling records and patient appointments</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           {/* View Mode Toggle */}
           <div className="inline-flex rounded-xl border border-border bg-surface p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-colors ${
                 viewMode === 'list' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
               }`}
             >
@@ -414,7 +420,7 @@ export default function Appointments() {
             </button>
             <button
               onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-colors ${
                 viewMode === 'calendar' ? 'bg-brand text-white' : 'text-ink-soft hover:text-ink'
               }`}
             >
@@ -422,7 +428,7 @@ export default function Appointments() {
             </button>
           </div>
 
-          <button onClick={openCreateModal} className="btn-primary">
+          <button onClick={openCreateModal} className="btn-primary flex-1 sm:flex-none justify-center text-xs sm:text-sm">
             <Plus size={18} />
             <span>Book Appointment</span>
           </button>

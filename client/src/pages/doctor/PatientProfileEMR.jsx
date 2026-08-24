@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   UserSquare2, ArrowLeft, History, Stethoscope, Activity, Pill, Calendar, Plus, Clock,
   FileHeart, HeartPulse, ShieldAlert, Phone, MapPin, Briefcase, UserCheck, CheckCircle2,
@@ -13,7 +13,12 @@ import { useNotification } from '../../context/NotificationContext.jsx';
 export default function PatientProfileEMR() {
   const { patientId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showError, showSuccess } = useNotification();
+
+  const isAdminView = location.pathname.startsWith('/admin');
+  const backPath = isAdminView ? '/admin/patients' : '/doctor/patients';
+  const backLabel = isAdminView ? 'Back to Admin Patients' : 'Back to Patients Directory';
 
   const [patient, setPatient] = useState(null);
   const [emrData, setEmrData] = useState(null);
@@ -113,8 +118,8 @@ export default function PatientProfileEMR() {
         <UserSquare2 size={40} className="mx-auto text-ink-soft/40" />
         <h3 className="font-display text-base font-bold text-ink">Patient Record Not Found</h3>
         <p className="text-xs text-ink-soft">The requested patient record could not be found or has been deleted.</p>
-        <Link to="/doctor/patients" className="btn-primary py-2 px-4 text-xs font-bold inline-flex items-center gap-1.5 mx-auto">
-          <ArrowLeft size={16} /> Back to Patients Directory
+        <Link to={backPath} className="btn-primary py-2 px-4 text-xs font-bold inline-flex items-center gap-1.5 mx-auto">
+          <ArrowLeft size={16} /> {backLabel}
         </Link>
       </div>
     );
@@ -176,10 +181,10 @@ export default function PatientProfileEMR() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
-            to="/doctor/patients"
+            to={backPath}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline mb-1"
           >
-            <ArrowLeft size={16} /> Back to Patients Directory
+            <ArrowLeft size={16} /> {backLabel}
           </Link>
           <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2 flex-wrap">
             <UserSquare2 size={26} className="text-brand" /> {fullName}

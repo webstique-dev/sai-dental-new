@@ -240,370 +240,375 @@ export default function PatientDetailsEditModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-3 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0">
-      <div className="card w-full max-w-4xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-2xl border-brand/20">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0">
+      <div className="card w-full max-w-2xl sm:max-w-3xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl border border-border animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-surface shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-brand text-white flex items-center justify-center font-bold">
-              <Stethoscope size={20} />
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold shrink-0">
+              <Stethoscope size={18} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-display text-base font-bold text-ink">
-                  Patient Registration Details & Consultation Entry
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-display text-base sm:text-lg font-bold text-ink">
+                  Edit Patient Registration Details
                 </h3>
-                <span className="badge bg-brand-light/50 text-brand-dark font-mono text-xs font-bold">
+                <span className="badge bg-brand/10 text-brand font-mono text-[10px] font-bold">
                   OP #{patient.opNumber || 'N/A'}
                 </span>
               </div>
-              <p className="text-xs text-ink-soft">
-                Review and update patient info recorded during registration before starting consultation.
+              <p className="text-[11px] text-ink-soft truncate">
+                Review and update patient info recorded during registration
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             disabled={saving}
-            className="p-1.5 rounded-lg text-ink-soft hover:text-ink hover:bg-bg disabled:opacity-50"
+            className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors disabled:opacity-50"
+            aria-label="Close modal"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleFormSubmit} autoComplete="off" className="flex-1 overflow-y-auto scrollbar-none p-6 space-y-6 text-xs">
-          {errorMessage && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-              <AlertTriangle size={16} className="shrink-0" />
-              <span>{errorMessage}</span>
+        {/* Form Body & Footer */}
+        <form onSubmit={handleFormSubmit} autoComplete="off" className="flex flex-col flex-1 overflow-hidden min-h-0 !mt-0 !mb-0">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-4 text-xs">
+            {errorMessage && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Section 1: Basic Information */}
+            <div className="card p-4 bg-bg/30 space-y-4">
+              <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider text-brand border-b border-border pb-2">
+                1. Basic Personal Information
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">
+                    First Name <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field py-1.5 text-xs"
+                    placeholder="First name"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">
+                    Last Name <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field py-1.5 text-xs"
+                    placeholder="Last name"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">
+                    Phone Number <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    className="input-field py-1.5 text-xs"
+                    placeholder="10-digit mobile number"
+                    value={formData.phone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({ ...formData, phone: val });
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Age</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    className="input-field py-1.5 text-xs"
+                    placeholder="e.g. 35"
+                    value={formData.age}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Sex</label>
+                  <select
+                    className="input-field py-1.5 text-xs"
+                    value={formData.sex}
+                    onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
+                  >
+                    <option value="">Select Sex</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Date of Birth</label>
+                  <DatePicker
+                    placeholder="Select Date of Birth"
+                    value={formData.dateOfBirth}
+                    onChange={(d, dateStr) => setFormData({ ...formData, dateOfBirth: dateStr })}
+                    maxDate={new Date()}
+                    inputClassName="py-1.5 text-xs"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block font-semibold text-ink-soft mb-1">
+                    Patient Type (Dentition) <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="inline-flex rounded-xl border border-border bg-surface p-1 w-full" role="radiogroup" aria-label="Patient Type">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={formData.patientType === 'adult'}
+                      onClick={() => setFormData({ ...formData, patientType: 'adult' })}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'adult'
+                          ? 'bg-brand text-white shadow-sm'
+                          : 'text-ink-soft hover:text-ink'
+                        }`}
+                    >
+                      Adult (Permanent 32 Teeth)
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={formData.patientType === 'child'}
+                      onClick={() => setFormData({ ...formData, patientType: 'child' })}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'child'
+                          ? 'bg-brand text-white shadow-sm'
+                          : 'text-ink-soft hover:text-ink'
+                        }`}
+                    >
+                      Child (Primary 20 Teeth)
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Occupation</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5 text-xs"
+                    placeholder="e.g. Engineer, Business"
+                    value={formData.occupation}
+                    onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold text-ink-soft mb-1">Address</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5 text-xs"
+                    placeholder="Full residential address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+              </div>
             </div>
-          )}
 
-          {/* Section 1: Basic Information */}
-          <div className="card p-4 bg-bg/30 space-y-4">
-            <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider text-brand border-b border-border pb-2">
-              1. Basic Personal Information
-            </h4>
+            {/* Section 2: Medical History & Conditions */}
+            <div className="card p-4 bg-bg/30 space-y-4">
+              <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider text-brand border-b border-border pb-2">
+                2. Medical History & Systemic Conditions
+              </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">
-                  First Name <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="input-field py-1.5 text-xs"
-                  placeholder="First name"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                />
-              </div>
+              <div className="space-y-2">
+                <label className="block font-semibold text-ink-soft">Select Relevant Medical History</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {MEDICAL_HISTORY_OPTIONS.map((item) => {
+                    const checked = formData.medicalHistory.includes(item);
+                    return (
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-colors ${checked ? 'bg-brand-light/30 border-brand text-brand-dark font-semibold' : 'border-border bg-surface text-ink-soft'
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleMedicalHistoryToggle(item)}
+                          className="rounded text-brand focus:ring-brand"
+                        />
+                        <span>{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
 
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">
-                  Last Name <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="input-field py-1.5 text-xs"
-                  placeholder="Last name"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">
-                  Phone Number <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  type="tel"
-                  required
-                  maxLength={10}
-                  className="input-field py-1.5 text-xs"
-                  placeholder="10-digit mobile number"
-                  value={formData.phone}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    setFormData({ ...formData, phone: val });
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Age</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  className="input-field py-1.5 text-xs"
-                  placeholder="e.g. 35"
-                  value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Sex</label>
-                <select
-                  className="input-field py-1.5 text-xs"
-                  value={formData.sex}
-                  onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
-                >
-                  <option value="">Select Sex</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Date of Birth</label>
-                <DatePicker
-                  placeholder="Select Date of Birth"
-                  value={formData.dateOfBirth}
-                  onChange={(d, dateStr) => setFormData({ ...formData, dateOfBirth: dateStr })}
-                  maxDate={new Date()}
-                  inputClassName="py-1.5 text-xs"
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="block font-semibold text-ink-soft mb-1">
-                  Patient Type (Dentition) <span className="text-rose-600">*</span>
-                </label>
-                <div className="inline-flex rounded-xl border border-border bg-surface p-1 w-full" role="radiogroup" aria-label="Patient Type">
+                {/* Custom Medical Tag Input */}
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="text"
+                    className="input-field py-1 text-xs max-w-xs"
+                    placeholder="Add custom medical condition..."
+                    value={customMedicalInput}
+                    onChange={(e) => setCustomMedicalInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomMedicalHistory();
+                      }
+                    }}
+                  />
                   <button
                     type="button"
-                    role="radio"
-                    aria-checked={formData.patientType === 'adult'}
-                    onClick={() => setFormData({ ...formData, patientType: 'adult' })}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'adult'
-                        ? 'bg-brand text-white shadow-sm'
-                        : 'text-ink-soft hover:text-ink'
-                      }`}
+                    onClick={handleAddCustomMedicalHistory}
+                    className="btn-secondary py-1 px-3 text-xs"
                   >
-                    Adult (Permanent 32 Teeth)
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={formData.patientType === 'child'}
-                    onClick={() => setFormData({ ...formData, patientType: 'child' })}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'child'
-                        ? 'bg-brand text-white shadow-sm'
-                        : 'text-ink-soft hover:text-ink'
-                      }`}
-                  >
-                    Child (Primary 20 Teeth)
+                    <Plus size={14} /> Add
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-ink-soft mb-1">Occupation</label>
-                <input
-                  type="text"
-                  className="input-field py-1.5 text-xs"
-                  placeholder="e.g. Engineer, Business"
-                  value={formData.occupation}
-                  onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                <label className="block font-semibold text-ink-soft mb-1">Current Medications</label>
+                <textarea
+                  rows={2}
+                  className="input-field text-xs"
+                  placeholder="List any regular medicines currently being taken..."
+                  value={formData.currentMedications}
+                  onChange={(e) => setFormData({ ...formData, currentMedications: e.target.value })}
                 />
               </div>
+            </div>
 
-              <div className="sm:col-span-2">
-                <label className="block font-semibold text-ink-soft mb-1">Address</label>
-                <input
-                  type="text"
-                  className="input-field py-1.5 text-xs"
-                  placeholder="Full residential address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            {/* Section 3: Vitals & Personal Habits */}
+            <div className="card p-4 bg-bg/30 space-y-4">
+              <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider text-brand border-b border-border pb-2">
+                3. Patient Vitals & Personal Habits
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Blood Pressure (BP)</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5 text-xs"
+                    placeholder="e.g. 120/80 mmHg"
+                    value={formData.vitals?.bp || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        vitals: { ...(formData.vitals || {}), bp: e.target.value },
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1 font-mono">Random Blood Sugar (RBS)</label>
+                  <input
+                    type="text"
+                    className="input-field py-1.5 text-xs"
+                    placeholder="e.g. 110 mg/dL"
+                    value={formData.vitals?.rbs || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        vitals: { ...(formData.vitals || {}), rbs: e.target.value },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Habits Checkboxes */}
+              <div className="space-y-2 pt-2">
+                <label className="block font-semibold text-ink-soft">Personal Habits</label>
+                <div className="flex flex-wrap gap-2">
+                  {HABITS_OPTIONS.map((habit) => {
+                    const checked = formData.habits.includes(habit);
+                    return (
+                      <label
+                        key={habit}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border cursor-pointer transition-colors ${checked ? 'bg-amber-100 border-amber-300 text-amber-900 font-semibold' : 'border-border bg-surface text-ink-soft'
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleHabitToggle(habit)}
+                          className="rounded text-amber-600 focus:ring-amber-500"
+                        />
+                        <span>{habit}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-ink-soft mb-1">Previous Dental History</label>
+                <textarea
+                  rows={2}
+                  className="input-field text-xs"
+                  placeholder="Details of previous dental treatments or past extractions..."
+                  value={formData.dentalHistory}
+                  onChange={(e) => setFormData({ ...formData, dentalHistory: e.target.value })}
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 2: Medical History & Conditions */}
-          <div className="card p-4 bg-bg/30 space-y-4">
-            <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider text-brand border-b border-border pb-2">
-              2. Medical History & Systemic Conditions
-            </h4>
+          {/* Footer Actions */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-bg/50 shrink-0 !mt-0 !mb-0">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onClose}
+              className="btn-secondary text-xs font-semibold w-full sm:w-auto"
+            >
+              Cancel
+            </button>
 
-            <div className="space-y-2">
-              <label className="block font-semibold text-ink-soft">Select Relevant Medical History</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {MEDICAL_HISTORY_OPTIONS.map((item) => {
-                  const checked = formData.medicalHistory.includes(item);
-                  return (
-                    <label
-                      key={item}
-                      className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-colors ${checked ? 'bg-brand-light/30 border-brand text-brand-dark font-semibold' : 'border-border bg-surface text-ink-soft'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleMedicalHistoryToggle(item)}
-                        className="rounded text-brand focus:ring-brand"
-                      />
-                      <span>{item}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {/* Custom Medical Tag Input */}
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="text"
-                  className="input-field py-1 text-xs max-w-xs"
-                  placeholder="Add custom medical condition..."
-                  value={customMedicalInput}
-                  onChange={(e) => setCustomMedicalInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddCustomMedicalHistory();
-                    }
-                  }}
-                />
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              {appointmentId && (
                 <button
                   type="button"
-                  onClick={handleAddCustomMedicalHistory}
-                  className="btn-secondary py-1 px-3 text-xs"
+                  disabled={saving}
+                  onClick={() => handleStartConsultationDirectly(null)}
+                  className="btn-secondary text-xs font-semibold hover:border-brand hover:text-brand"
                 >
-                  <Plus size={14} /> Add
+                  Continue Without Updating
                 </button>
-              </div>
-            </div>
+              )}
 
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Current Medications</label>
-              <textarea
-                rows={2}
-                className="input-field text-xs"
-                placeholder="List any regular medicines currently being taken..."
-                value={formData.currentMedications}
-                onChange={(e) => setFormData({ ...formData, currentMedications: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Section 3: Vitals & Personal Habits */}
-          <div className="card p-4 bg-bg/30 space-y-4">
-            <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider text-brand border-b border-border pb-2">
-              3. Patient Vitals & Personal Habits
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Blood Pressure (BP)</label>
-                <input
-                  type="text"
-                  className="input-field py-1.5 text-xs"
-                  placeholder="e.g. 120/80 mmHg"
-                  value={formData.vitals?.bp || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vitals: { ...(formData.vitals || {}), bp: e.target.value },
-                    })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1 font-mono">Random Blood Sugar (RBS)</label>
-                <input
-                  type="text"
-                  className="input-field py-1.5 text-xs"
-                  placeholder="e.g. 110 mg/dL"
-                  value={formData.vitals?.rbs || ''}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      vitals: { ...(formData.vitals || {}), rbs: e.target.value },
-                    })
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Habits Checkboxes */}
-            <div className="space-y-2 pt-2">
-              <label className="block font-semibold text-ink-soft">Personal Habits</label>
-              <div className="flex flex-wrap gap-2">
-                {HABITS_OPTIONS.map((habit) => {
-                  const checked = formData.habits.includes(habit);
-                  return (
-                    <label
-                      key={habit}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border cursor-pointer transition-colors ${checked ? 'bg-amber-100 border-amber-300 text-amber-900 font-semibold' : 'border-border bg-surface text-ink-soft'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleHabitToggle(habit)}
-                        className="rounded text-amber-600 focus:ring-amber-500"
-                      />
-                      <span>{habit}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-ink-soft mb-1">Previous Dental History</label>
-              <textarea
-                rows={2}
-                className="input-field text-xs"
-                placeholder="Details of previous dental treatments or past extractions..."
-                value={formData.dentalHistory}
-                onChange={(e) => setFormData({ ...formData, dentalHistory: e.target.value })}
-              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <Save size={15} />
+                <span>{saving ? 'Saving...' : 'Save Patient Profile'}</span>
+              </button>
             </div>
           </div>
         </form>
-
-        {/* Footer Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border px-6 py-4 bg-surface shrink-0">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={onClose}
-            className="btn-secondary py-2 px-4 text-xs font-semibold w-full sm:w-auto"
-          >
-            Cancel
-          </button>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => handleStartConsultationDirectly(null)}
-              className="btn-secondary py-2 px-4 text-xs font-semibold hover:border-brand hover:text-brand"
-            >
-              Continue Without Updating
-            </button>
-
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleFormSubmit}
-              className="btn-primary py-2 px-5 text-xs font-bold flex items-center gap-2"
-            >
-              <Save size={16} />
-              <span>{saving ? 'Saving & Opening Consultation...' : 'Save & Start Consultation'}</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>,
     document.body

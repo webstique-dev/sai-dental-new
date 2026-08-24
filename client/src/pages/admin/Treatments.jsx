@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Activity, Plus, Search, Edit3, CheckCircle2, XCircle, X, Save,
+  Activity, Plus, Search, Edit3, CheckCircle2, XCircle, X, Save, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
@@ -12,10 +12,12 @@ export default function AdminTreatments() {
   const [treatments, setTreatments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters State
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [expandedTreatmentId, setExpandedTreatmentId] = useState(null);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -133,174 +135,347 @@ export default function AdminTreatments() {
     }
   };
 
+  const hasActiveFilters = Boolean(search || categoryFilter || activeFilter);
+
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl w-full max-w-full overflow-x-hidden min-w-0">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <Activity size={26} className="text-brand" /> Treatment & Procedure Catalog
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-ink flex items-center gap-2 min-w-0 leading-tight">
+            <Activity size={26} className="text-brand shrink-0" />
+            <span className="truncate sm:whitespace-normal">Treatment & Procedure Catalog</span>
           </h1>
-          <p className="text-xs text-ink-soft mt-0.5">
+          <p className="text-xs sm:text-sm text-ink-soft mt-1 leading-relaxed break-words">
             Manage standardized procedure codes, default cost estimates, and categories for doctor plans and billing line items.
           </p>
         </div>
 
-        <button onClick={handleOpenAdd} className="btn-primary py-2 px-4 text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto">
-          <Plus size={16} /> Add Catalog Item
+        <button onClick={handleOpenAdd} className="btn-primary py-2 px-4 text-xs font-bold flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+          <Plus size={16} /> <span>Add Catalog Item</span>
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="card p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-surface">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input
-            type="text"
-            className="input-field pl-9 py-2 text-xs"
-            placeholder="Search procedure name, code, category..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      {/* Desktop Filter Bar (≥768px) */}
+      <div className="hidden md:block card p-4 bg-surface border-border space-y-3">
+        <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              className="input-field pl-9 py-2 text-xs w-full"
+              placeholder="Search procedure name, code, category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div>
+            <select
+              className="input-field py-2 text-xs font-semibold w-full"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <select
+              className="input-field py-2 text-xs font-semibold w-full"
+              value={activeFilter}
+              onChange={(e) => setActiveFilter(e.target.value)}
+            >
+              <option value="">All Statuses</option>
+              <option value="true">Active Catalog Items</option>
+              <option value="false">Deactivated Items</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <select
-            className="input-field py-2 text-xs"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <select
-            className="input-field py-2 text-xs"
-            value={activeFilter}
-            onChange={(e) => setActiveFilter(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            <option value="true">Active Catalog Items</option>
-            <option value="false">Deactivated Items</option>
-          </select>
-        </div>
+        {hasActiveFilters && (
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={() => {
+                setSearch('');
+                setCategoryFilter('');
+                setActiveFilter('');
+              }}
+              className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold"
+            >
+              <X size={13} /> Reset Filters
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* CATALOG TABLE */}
+      {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+      <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileFilterOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+              <Filter size={14} />
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="font-bold text-ink">Filters & Search</span>
+              {hasActiveFilters && (
+                <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0">
+                  Active Filters
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+            <span>{isMobileFilterOpen ? 'Hide' : 'Filter'}</span>
+            {isMobileFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </button>
+
+        {isMobileFilterOpen && (
+          <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+            <div className="relative w-full">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+              <input
+                type="text"
+                className="input-field pl-9 py-1.5 text-xs w-full"
+                placeholder="Search procedures..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              <select
+                className="input-field py-1.5 text-xs font-semibold w-full"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="">All Categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="input-field py-1.5 text-xs font-semibold w-full"
+                value={activeFilter}
+                onChange={(e) => setActiveFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="true">Active Catalog Items</option>
+                <option value="false">Deactivated Items</option>
+              </select>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setCategoryFilter('');
+                  setActiveFilter('');
+                }}
+                className="btn-secondary w-full py-1.5 text-xs text-rose-600 font-semibold flex items-center justify-center gap-1"
+              >
+                <X size={13} /> Clear Filters
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* CATALOG TABLE & CARDS */}
       <div className="card overflow-hidden">
         {loading ? (
           <TableSkeleton rows={5} cols={7} />
+        ) : treatments.length === 0 ? (
+          <div className="p-12 text-center text-xs text-ink-soft">
+            No treatment catalog items found. Click "Add Catalog Item" to populate procedures.
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Treatment / Procedure</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3 text-right">Default Cost (₹)</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-ink-soft">
-                    Loading treatment catalog...
-                  </td>
-                </tr>
-              ) : treatments.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-ink-soft">
-                    No treatment catalog items found. Click "Add Catalog Item" to populate procedures.
-                  </td>
-                </tr>
-              ) : (
-                treatments.map((t) => {
-                  const tId = t._id || t.id;
-                  return (
-                    <tr key={tId} className={`hover:bg-bg/60 transition-colors ${!t.isActive ? 'opacity-60 bg-slate-50/50' : ''}`}>
-                      <td className="px-4 py-3 font-mono font-bold text-brand whitespace-nowrap">
-                        {t.code || '—'}
-                      </td>
+          <>
+            {/* Desktop Table View (≥768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3.5">Code</th>
+                    <th className="px-5 py-3.5">Treatment / Procedure</th>
+                    <th className="px-5 py-3.5">Category</th>
+                    <th className="px-5 py-3.5">Description</th>
+                    <th className="px-5 py-3.5 text-right">Default Cost (₹)</th>
+                    <th className="px-5 py-3.5 text-center">Status</th>
+                    <th className="px-5 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {treatments.map((t) => {
+                    const tId = t._id || t.id;
+                    return (
+                      <tr key={tId} className={`hover:bg-bg/60 transition-colors ${!t.isActive ? 'opacity-60 bg-slate-50/50' : ''}`}>
+                        <td className="px-5 py-4 font-mono font-bold text-brand whitespace-nowrap">
+                          {t.code || '—'}
+                        </td>
 
-                      <td className="px-4 py-3 font-bold text-ink whitespace-nowrap">
-                        {t.name}
-                      </td>
+                        <td className="px-5 py-4 font-bold text-ink whitespace-nowrap text-sm">
+                          {t.name}
+                        </td>
 
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="badge bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">
-                          {t.category || 'General'}
-                        </span>
-                      </td>
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <span className="badge bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                            {t.category || 'General'}
+                          </span>
+                        </td>
 
-                      <td className="px-4 py-3 text-ink-soft max-w-[240px] truncate">
-                        {t.description || '—'}
-                      </td>
+                        <td className="px-5 py-4 text-ink-soft max-w-[240px] truncate">
+                          {t.description || '—'}
+                        </td>
 
-                      <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
-                        ₹{(t.defaultCost || 0).toLocaleString()}
-                      </td>
+                        <td className="px-5 py-4 text-right font-mono font-bold text-emerald-700 whitespace-nowrap text-sm">
+                          ₹{(t.defaultCost || 0).toLocaleString()}
+                        </td>
 
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <span
-                          className={`badge text-[10px] ${t.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                            }`}
-                        >
-                          {t.isActive ? 'Active' : 'Deactivated'}
-                        </span>
-                      </td>
+                        <td className="px-5 py-4 text-center whitespace-nowrap">
+                          <span
+                            className={`badge font-bold border text-[10px] ${t.isActive ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}
+                          >
+                            {t.isActive ? 'Active' : 'Deactivated'}
+                          </span>
+                        </td>
 
-                      <td className="px-4 py-3 text-right whitespace-nowrap space-x-1.5">
-                        <button
-                          onClick={() => handleOpenEdit(t)}
-                          title="Edit Procedure"
-                          className="btn-secondary py-1 px-2 text-[11px] inline-flex items-center gap-1"
-                        >
-                          <Edit3 size={13} /> Edit
-                        </button>
+                        <td className="px-5 py-4 text-right whitespace-nowrap space-x-1.5">
+                          <button
+                            onClick={() => handleOpenEdit(t)}
+                            title="Edit Procedure"
+                            className="btn-secondary py-1 px-2.5 text-[11px] inline-flex items-center gap-1"
+                          >
+                            <Edit3 size={13} /> Edit
+                          </button>
 
-                        <button
-                          onClick={() => setPendingToggleTreatment(t)}
-                          title={t.isActive ? 'Deactivate Catalog Item' : 'Reactivate Catalog Item'}
-                          className={`py-1 px-2 text-[11px] font-semibold rounded-lg border transition-colors inline-flex items-center gap-1 ${t.isActive
-                            ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                            : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                            }`}
-                        >
-                          {t.isActive ? (
-                            <>
-                              <XCircle size={13} /> Deactivate
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 size={13} /> Reactivate
-                            </>
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                          <button
+                            onClick={() => setPendingToggleTreatment(t)}
+                            title={t.isActive ? 'Deactivate Catalog Item' : 'Reactivate Catalog Item'}
+                            className={`py-1 px-2.5 text-[11px] font-semibold rounded-xl border transition-colors inline-flex items-center gap-1 ${t.isActive
+                              ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                              : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                              }`}
+                          >
+                            {t.isActive ? <XCircle size={13} /> : <CheckCircle2 size={13} />}
+                            <span>{t.isActive ? 'Disable' : 'Activate'}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Collapsible Cards View (<768px down to 320px) */}
+            <div className="block md:hidden divide-y divide-border">
+              {treatments.map((t) => {
+                const tId = t._id || t.id;
+                const isExpanded = expandedTreatmentId === tId;
+
+                return (
+                  <div key={tId} className={`p-4 space-y-3 hover:bg-bg/40 transition-colors ${!t.isActive ? 'opacity-60 bg-slate-50/50' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-ink text-sm truncate">{t.name}</span>
+                          <span className="badge bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                            {t.category || 'General'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                          {t.code && <span className="font-bold text-brand">#{t.code}</span>}
+                          <span className="font-bold text-emerald-700">₹{(t.defaultCost || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTreatmentId(isExpanded ? null : tId)}
+                        className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                      >
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                        <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                          <div className="col-span-2">
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Description</span>
+                            <span className="font-medium text-ink">{t.description || 'No description provided.'}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Default Cost</span>
+                            <span className="font-mono font-bold text-emerald-700">₹{(t.defaultCost || 0).toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Status</span>
+                            <span className={`badge font-bold text-[10px] ${t.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
+                              {t.isActive ? 'Active' : 'Deactivated'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            onClick={() => handleOpenEdit(t)}
+                            className="btn-secondary py-1 px-3 text-[11px] flex items-center gap-1"
+                          >
+                            <Edit3 size={13} /> Edit
+                          </button>
+
+                          <button
+                            onClick={() => setPendingToggleTreatment(t)}
+                            className={`py-1 px-3 text-[11px] font-semibold rounded-xl border transition-colors flex items-center gap-1 ${t.isActive
+                              ? 'border-amber-300 bg-amber-50 text-amber-800'
+                              : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                              }`}
+                          >
+                            {t.isActive ? <XCircle size={13} /> : <CheckCircle2 size={13} />}
+                            <span>{t.isActive ? 'Disable' : 'Activate'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
       {/* ADD / EDIT CATALOG MODAL */}
       {(showAddModal || editingTreatment) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
-          <div className="card max-w-lg w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden !mt-0">
+          <div className="card max-w-lg w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                 <Activity size={18} className="text-brand" />
@@ -317,8 +492,8 @@ export default function AdminTreatments() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveTreatment} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 text-xs">
+            <form onSubmit={handleSaveTreatment} className="flex flex-col flex-1 overflow-hidden min-h-0 !mt-0 !mb-0">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-3 text-xs">
                 <div>
                   <label className="block font-semibold text-ink-soft mb-1">Treatment / Procedure Name</label>
                   <input

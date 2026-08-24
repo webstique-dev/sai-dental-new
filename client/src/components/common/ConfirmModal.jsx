@@ -97,7 +97,7 @@ export default function ConfirmModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="card w-full max-w-md max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in zoom-in-95 duration-150"
+        className="card w-full max-w-md max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in zoom-in-95 duration-150 !mt-0 !my-0"
       >
         {/* Fixed Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
@@ -119,7 +119,7 @@ export default function ConfirmModal({
         </div>
 
         {/* Scrollable Body - uses flex flex-col gap-2.5 for clean, margin-free top spacing */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 text-xs text-ink-soft flex flex-col gap-2.5 leading-relaxed">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-5 text-xs text-ink-soft flex flex-col gap-2.5 leading-relaxed">
           {typeof message === 'string' ? <p className="text-xs text-ink-soft">{message}</p> : message}
         </div>
 

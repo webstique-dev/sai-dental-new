@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Wallet, Plus, Search, Trash2, X, Clock, Calendar,
   FileText, DollarSign, CreditCard, ChevronRight, User, Stethoscope, Eye, Filter, RefreshCw,
-  Banknote, QrCode, Building2, Tag, AlertTriangle, CheckCircle2,
+  Banknote, QrCode, Building2, Tag, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
@@ -279,18 +279,25 @@ export default function Billing() {
     }
   };
 
+  const [expandedId, setExpandedId] = useState(null);
+
+  const toggleExpand = (id, e) => {
+    e.stopPropagation();
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
   const pendingBillsCount = invoices.filter((i) => i.paymentStatus === 'Pending' || i.paymentStatus === 'Partially Paid').length;
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header & Primary Action */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-              <Wallet size={22} className="text-brand" /> Billing & Payments
+            <h2 className="font-display text-lg sm:text-xl font-bold text-ink flex items-center gap-2">
+              <Wallet size={22} className="text-brand shrink-0" /> Billing & Payments
             </h2>
-            <p className="text-sm text-ink-soft">Process doctor-closed consultation bills, generate invoices, and record payments</p>
+            <p className="text-xs sm:text-sm text-ink-soft">Process doctor-closed consultation bills, generate invoices, and record payments</p>
           </div>
 
           <button
@@ -298,7 +305,7 @@ export default function Billing() {
               resetGenerateModal();
               setShowGenerateModal(true);
             }}
-            className="btn-primary shrink-0 text-xs"
+            className="btn-primary shrink-0 text-xs w-full sm:w-auto justify-center"
           >
             <Plus size={18} />
             <span>Generate Manual Invoice</span>
@@ -307,10 +314,10 @@ export default function Billing() {
 
         {/* Section / Tab Switcher */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-1 bg-surface border border-border p-1 rounded-2xl w-fit">
+          <div className="flex items-center gap-1 bg-surface border border-border p-1 rounded-2xl w-full sm:w-fit overflow-x-auto no-scrollbar">
             <button
               onClick={() => handleTabChange('pending')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 flex-1 sm:flex-initial whitespace-nowrap ${
                 activeTab === 'pending'
                   ? 'bg-rose-600 text-white shadow-sm'
                   : 'text-ink-soft hover:text-ink hover:bg-bg'
@@ -325,7 +332,7 @@ export default function Billing() {
 
             <button
               onClick={() => handleTabChange('all')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 flex-1 sm:flex-initial whitespace-nowrap ${
                 activeTab === 'all'
                   ? 'bg-brand text-white shadow-sm'
                   : 'text-ink-soft hover:text-ink hover:bg-bg'
@@ -338,16 +345,16 @@ export default function Billing() {
 
           <button
             onClick={fetchInvoices}
-            className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto"
+            className="btn-secondary text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh List
           </button>
         </div>
 
         {/* Filters Bar: Search, Doctor, Date Range, Status */}
-        <div className="card p-4 grid grid-cols-1 gap-3 sm:grid-cols-4 bg-surface text-xs">
+        <div className="card p-3.5 sm:p-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 bg-surface text-xs">
           {/* Patient Search */}
-          <div className="relative sm:col-span-1">
+          <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input
               type="text"
@@ -381,7 +388,7 @@ export default function Billing() {
               value={dateFrom}
               onChange={(d, str) => setDateFrom(str)}
             />
-            <span className="text-ink-soft font-semibold">to</span>
+            <span className="text-ink-soft font-semibold text-xs">to</span>
             <DatePicker
               label=""
               value={dateTo}
@@ -405,12 +412,12 @@ export default function Billing() {
           </div>
         </div>
 
-        {/* INVOICE & PENDING BILLS LIST TABLE */}
+        {/* INVOICE & PENDING BILLS CONTAINER */}
         <div className="card overflow-hidden">
           {loading ? (
             <TableSkeleton rows={5} cols={8} />
           ) : invoices.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
+            <div className="p-8 sm:p-12 text-center space-y-3">
               <Wallet size={36} className="mx-auto text-ink-soft/50" />
               <p className="font-display text-base font-semibold text-ink">
                 {activeTab === 'pending' ? 'No pending bills found' : 'No invoices found'}
@@ -422,115 +429,196 @@ export default function Billing() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
-                  <tr>
-                    <th className="px-5 py-3.5">Patient Details</th>
-                    <th className="px-5 py-3.5">OP Number</th>
-                    <th className="px-5 py-3.5">Attending Doctor</th>
-                    <th className="px-5 py-3.5">Visit Date</th>
-                    <th className="px-5 py-3.5">Procedures Summary</th>
-                    <th className="px-5 py-3.5">Amount Due</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {invoices.map((inv) => {
-                    const invId = inv._id || inv.id;
-                    const patient = inv.patient || {};
-                    const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
-                    const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
-                    const visitDateStr = inv.createdAt
-                      ? new Date(inv.createdAt).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : 'N/A';
-                    const procSummary = getProceduresSummary(inv);
-                    const amountDue = inv.balance ?? (inv.total - (inv.amountPaid || 0));
+            <>
+              {/* Desktop Table View (≥768px) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3.5">Patient Details</th>
+                      <th className="px-5 py-3.5">OP Number</th>
+                      <th className="px-5 py-3.5">Attending Doctor</th>
+                      <th className="px-5 py-3.5">Visit Date</th>
+                      <th className="px-5 py-3.5">Procedures Summary</th>
+                      <th className="px-5 py-3.5">Amount Due</th>
+                      <th className="px-5 py-3.5">Status</th>
+                      <th className="px-5 py-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {invoices.map((inv) => {
+                      const invId = inv._id || inv.id;
+                      const patient = inv.patient || {};
+                      const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                      const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
+                      const visitDateStr = inv.createdAt
+                        ? new Date(inv.createdAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : 'N/A';
+                      const procSummary = getProceduresSummary(inv);
+                      const amountDue = inv.balance ?? (inv.total - (inv.amountPaid || 0));
 
-                    return (
-                      <tr key={invId} className="hover:bg-bg/40 transition-colors">
-                        {/* Patient Details */}
-                        <td className="px-5 py-4">
-                          <div className="font-bold text-ink text-sm">{patientName}</div>
-                          {patient.phone && (
-                            <div className="text-[11px] text-ink-soft">{patient.phone}</div>
-                          )}
-                        </td>
-
-                        {/* OP Number */}
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <span className="font-mono font-bold text-brand text-xs">
-                            {inv.opNumber || patient.opNumber || '—'}
-                          </span>
-                        </td>
-
-                        {/* Doctor */}
-                        <td className="px-5 py-4 whitespace-nowrap font-medium text-ink">
-                          {docName}
-                        </td>
-
-                        {/* Visit Date */}
-                        <td className="px-5 py-4 whitespace-nowrap text-ink">
-                          <div className="font-semibold">{visitDateStr}</div>
-                          <div className="text-[10px] text-ink-soft font-mono">ID: {invId.slice(-6).toUpperCase()}</div>
-                        </td>
-
-                        {/* Procedures (Short Summary) */}
-                        <td className="px-5 py-4 max-w-xs font-medium text-ink">
-                          {procSummary}
-                        </td>
-
-                        {/* Amount Due */}
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <div className="font-mono font-bold text-rose-600 text-sm">
-                            ₹{amountDue?.toLocaleString() || 0}
-                          </div>
-                          {inv.amountPaid > 0 && (
-                            <div className="text-[10px] text-emerald-700 font-medium">
-                              Paid: ₹{inv.amountPaid.toLocaleString()}
+                      return (
+                        <tr key={invId} className="hover:bg-bg/40 transition-colors">
+                          <td className="px-5 py-4">
+                            <div className="font-bold text-ink text-sm">{patientName}</div>
+                            {patient.phone && (
+                              <div className="text-[11px] text-ink-soft">{patient.phone}</div>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="font-mono font-bold text-brand text-xs">
+                              {inv.opNumber || patient.opNumber || '—'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap font-medium text-ink">
+                            {docName}
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap text-ink">
+                            <div className="font-semibold">{visitDateStr}</div>
+                            <div className="text-[10px] text-ink-soft font-mono">ID: {invId.slice(-6).toUpperCase()}</div>
+                          </td>
+                          <td className="px-5 py-4 max-w-xs font-medium text-ink">
+                            {procSummary}
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <div className="font-mono font-bold text-rose-600 text-sm">
+                              ₹{amountDue?.toLocaleString() || 0}
                             </div>
-                          )}
-                        </td>
+                            {inv.amountPaid > 0 && (
+                              <div className="text-[10px] text-emerald-700 font-medium">
+                                Paid: ₹{inv.amountPaid.toLocaleString()}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className={`badge border ${STATUS_BADGE_CLASSES[inv.paymentStatus] || 'bg-slate-100 text-slate-800'}`}>
+                              {inv.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setSelectedInvoiceDetail(inv)}
+                                title="View Invoice Details"
+                                className="btn-secondary text-xs py-1.5 px-2.5"
+                              >
+                                <Eye size={14} /> View
+                              </button>
 
-                        {/* Status */}
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <span className={`badge border ${STATUS_BADGE_CLASSES[inv.paymentStatus] || 'bg-slate-100 text-slate-800'}`}>
-                            {inv.paymentStatus}
-                          </span>
-                        </td>
+                              {inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && (
+                                <button
+                                  onClick={() => openPaymentModal(inv)}
+                                  className="btn-primary text-xs py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 font-bold"
+                                >
+                                  <DollarSign size={14} /> Collect Payment
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-                        {/* Actions */}
-                        <td className="px-5 py-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
+              {/* Mobile Accordion Cards View (<768px down to 320px) */}
+              <div className="block md:hidden divide-y divide-border">
+                {invoices.map((inv) => {
+                  const invId = inv._id || inv.id;
+                  const patient = inv.patient || {};
+                  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
+                  const visitDateStr = inv.createdAt
+                    ? new Date(inv.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : 'N/A';
+                  const procSummary = getProceduresSummary(inv);
+                  const amountDue = inv.balance ?? (inv.total - (inv.amountPaid || 0));
+                  const isExpanded = expandedId === invId;
+
+                  return (
+                    <div key={invId} className="p-3.5 space-y-2.5 hover:bg-bg/40 transition-colors">
+                      {/* Collapsed Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                            <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[inv.paymentStatus] || 'bg-slate-100 text-slate-800'}`}>
+                              {inv.paymentStatus}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs flex-wrap font-mono">
+                            <span className="font-bold text-brand">{inv.opNumber || patient.opNumber || '—'}</span>
+                            <span className="text-rose-600 font-bold">Due: ₹{amountDue?.toLocaleString() || 0}</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => toggleExpand(invId, e)}
+                          className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                          aria-label={isExpanded ? 'Collapse invoice details' : 'Expand invoice details'}
+                        >
+                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </button>
+                      </div>
+
+                      {/* Expanded Content */}
+                      {isExpanded && (
+                        <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                          <div className="grid grid-cols-2 gap-2 text-ink-soft">
+                            <div>
+                              <span className="block text-[10px] font-semibold text-ink-soft uppercase">Attending Doctor</span>
+                              <span className="font-semibold text-ink">{docName}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] font-semibold text-ink-soft uppercase">Visit Date</span>
+                              <span className="font-medium text-ink">{visitDateStr}</span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="block text-[10px] font-semibold text-ink-soft uppercase">Procedures Summary</span>
+                              <span className="font-medium text-ink">{procSummary}</span>
+                            </div>
+                            {inv.amountPaid > 0 && (
+                              <div className="col-span-2 text-emerald-700 font-medium">
+                                Amount Paid so far: <strong>₹{inv.amountPaid.toLocaleString()}</strong>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="pt-1 flex flex-wrap items-center justify-end gap-2">
                             <button
                               onClick={() => setSelectedInvoiceDetail(inv)}
-                              title="View Invoice Details"
-                              className="btn-secondary text-xs py-1.5 px-2.5"
+                              className="btn-secondary py-1.5 px-3 text-xs flex-1 justify-center font-semibold"
                             >
-                              <Eye size={14} /> View
+                              <Eye size={14} /> View Details
                             </button>
 
                             {inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && (
                               <button
                                 onClick={() => openPaymentModal(inv)}
-                                className="btn-primary text-xs py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 font-bold"
+                                className="btn-primary py-1.5 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex-1 justify-center"
                               >
                                 <DollarSign size={14} /> Collect Payment
                               </button>
                             )}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List
+  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -72,6 +72,12 @@ export default function DoctorQueue() {
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState('desc');
 
+  // MOBILE ACCORDION FILTER TOGGLE STATES
+  const [isMobileTodayFilterOpen, setIsMobileTodayFilterOpen] = useState(false);
+  const [isMobileUpcomingFilterOpen, setIsMobileUpcomingFilterOpen] = useState(false);
+  const [isMobileCompletedTodayFilterOpen, setIsMobileCompletedTodayFilterOpen] = useState(false);
+  const [isMobileHistoryFilterOpen, setIsMobileHistoryFilterOpen] = useState(false);
+
   const handleResetUpcomingFilters = () => {
     setUpcomingSearch('');
     setUpcomingDateFrom('');
@@ -110,6 +116,29 @@ export default function DoctorQueue() {
   const [noShowAppointment, setNoShowAppointment] = useState(null);
   const [selectedPatientForEdit, setSelectedPatientForEdit] = useState(null);
   const [appointmentForEdit, setAppointmentForEdit] = useState(null);
+
+  // MOBILE ACCORDION EXPAND STATES
+  const [expandedTodayId, setExpandedTodayId] = useState(null);
+  const [expandedUpcomingId, setExpandedUpcomingId] = useState(null);
+  const [expandedCompletedTodayId, setExpandedCompletedTodayId] = useState(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
+
+  const toggleExpandToday = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedTodayId((prev) => (prev === id ? null : id));
+  };
+  const toggleExpandUpcoming = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedUpcomingId((prev) => (prev === id ? null : id));
+  };
+  const toggleExpandCompletedToday = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedCompletedTodayId((prev) => (prev === id ? null : id));
+  };
+  const toggleExpandHistory = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedHistoryId((prev) => (prev === id ? null : id));
+  };
 
   // 1. Fetch Today's Appointments & Queue
   const fetchDoctorToday = async () => {
@@ -616,19 +645,20 @@ export default function DoctorQueue() {
   const hasActiveHistoryFilters = Boolean(searchQuery || doctorFilter || statusFilter || dateFrom || dateTo);
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl w-full max-w-full overflow-x-hidden min-w-0">
       {/* Header Banner */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <CalendarDays size={22} className="text-brand" /> My Appointments
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-xl sm:text-2xl font-bold text-ink flex items-center gap-2 min-w-0 leading-tight">
+            <CalendarDays size={24} className="text-brand shrink-0" />
+            <span className="truncate sm:whitespace-normal">My Appointments</span>
           </h2>
-          <p className="text-sm text-ink-soft">
+          <p className="text-xs sm:text-sm text-ink-soft mt-1 leading-relaxed break-words">
             View appointments, check in patients, and manage your clinical schedule directly.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start sm:self-auto">
           {/* View Mode Toggle */}
           <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-sm">
             <button
@@ -649,7 +679,7 @@ export default function DoctorQueue() {
 
           <button
             onClick={refreshAll}
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
           >
             <RefreshCw size={14} className={loadingToday || loadingHistory ? 'animate-spin' : ''} />
             <span>Refresh</span>
@@ -672,77 +702,79 @@ export default function DoctorQueue() {
       ) : (
         <>
 
-          {/* TABS NAVIGATION */}
-          <div className="flex flex-wrap items-center border-b border-border gap-1 sm:gap-2">
-            {/* TAB 1: Today's Appointments */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('today')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${activeTab === 'today'
-                ? 'border-brand text-brand font-bold'
-                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                }`}
-            >
-              <CalendarDays size={16} />
-              <span>Today's Appointments</span>
-              {queueEntries.length > 0 && (
-                <span className="badge bg-brand-light/50 text-brand-dark font-mono text-[10px]">
-                  {queueEntries.length}
-                </span>
-              )}
-            </button>
+          {/* TABS NAVIGATION (Horizontally scrollable within container on mobile) */}
+          <div className="w-full max-w-full min-w-0 overflow-x-auto scrollbar-none no-scrollbar border-b border-border py-1">
+            <div className="flex items-center space-x-1 sm:space-x-2 text-xs font-bold whitespace-nowrap min-w-max">
+              {/* TAB 1: Today's Appointments */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('today')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'today'
+                  ? 'border-brand text-brand font-bold bg-brand-light/20 rounded-t-lg'
+                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                  }`}
+              >
+                <CalendarDays size={16} />
+                <span>Today's Appointments</span>
+                {queueEntries.length > 0 && (
+                  <span className="badge bg-brand-light/50 text-brand-dark font-mono text-[10px]">
+                    {queueEntries.length}
+                  </span>
+                )}
+              </button>
 
-            {/* TAB 2: Upcoming Appointments */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('upcoming')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${activeTab === 'upcoming'
-                ? 'border-brand text-brand font-bold'
-                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                }`}
-            >
-              <Clock size={16} />
-              <span>Upcoming Appointments</span>
-              {scheduledUpcomingCount > 0 && (
-                <span className="badge bg-blue-100 text-blue-800 font-mono text-[10px]">
-                  {scheduledUpcomingCount}
-                </span>
-              )}
-            </button>
+              {/* TAB 2: Upcoming Appointments */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('upcoming')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'upcoming'
+                  ? 'border-brand text-brand font-bold bg-brand-light/20 rounded-t-lg'
+                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                  }`}
+              >
+                <Clock size={16} />
+                <span>Upcoming Appointments</span>
+                {scheduledUpcomingCount > 0 && (
+                  <span className="badge bg-blue-100 text-blue-800 font-mono text-[10px]">
+                    {scheduledUpcomingCount}
+                  </span>
+                )}
+              </button>
 
-            {/* TAB 3: Completed Today */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('completed-today')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${activeTab === 'completed-today'
-                ? 'border-brand text-brand font-bold'
-                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                }`}
-            >
-              <CheckCircle2 size={16} className={activeTab === 'completed-today' ? 'text-brand' : 'text-emerald-600'} />
-              <span>Completed Today</span>
-              {filteredCompletedTodayItems.length > 0 && (
-                <span className="badge bg-emerald-100 text-emerald-800 font-mono text-[10px]">
-                  {filteredCompletedTodayItems.length}
-                </span>
-              )}
-            </button>
+              {/* TAB 3: Completed Today */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('completed-today')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'completed-today'
+                  ? 'border-brand text-brand font-bold bg-brand-light/20 rounded-t-lg'
+                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                  }`}
+              >
+                <CheckCircle2 size={16} className={activeTab === 'completed-today' ? 'text-brand' : 'text-emerald-600'} />
+                <span>Completed Today</span>
+                {filteredCompletedTodayItems.length > 0 && (
+                  <span className="badge bg-emerald-100 text-emerald-800 font-mono text-[10px]">
+                    {filteredCompletedTodayItems.length}
+                  </span>
+                )}
+              </button>
 
-            {/* TAB 4: All Appointments Log */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('history')}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${activeTab === 'history'
-                ? 'border-brand text-brand font-bold'
-                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                }`}
-            >
-              <Calendar size={16} />
-              <span>All Appointments Log</span>
-              <span className="badge bg-slate-100 text-slate-700 font-mono text-[10px]">
-                {filteredHistoryItems.length}
-              </span>
-            </button>
+              {/* TAB 4: All Appointments Log */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'history'
+                  ? 'border-brand text-brand font-bold bg-brand-light/20 rounded-t-lg'
+                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                  }`}
+              >
+                <Calendar size={16} />
+                <span>All Appointments Log</span>
+                <span className="badge bg-slate-100 text-slate-700 font-mono text-[10px]">
+                  {filteredHistoryItems.length}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* ========================================================================= */}
@@ -750,7 +782,8 @@ export default function DoctorQueue() {
           {/* ========================================================================= */}
           {activeTab === 'today' && (
             <div className="space-y-4">
-              <div className="card p-3.5 bg-surface border-border flex items-center justify-between">
+              {/* Desktop Filter Bar (≥768px) */}
+              <div className="hidden md:flex card p-3.5 bg-surface border-border flex-row items-center justify-between gap-2.5">
                 <div className="relative flex-1 max-w-md">
                   <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
                   <input
@@ -771,11 +804,62 @@ export default function DoctorQueue() {
                 </span>
               </div>
 
+              {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+              <div className="block md:hidden card p-3 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileTodayFilterOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                      <Filter size={14} />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="font-bold text-ink">Filters & Search</span>
+                      {todaySearch && (
+                        <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0 truncate max-w-[120px]">
+                          "{todaySearch}"
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+                    <span>{isMobileTodayFilterOpen ? 'Hide' : 'Filter'}</span>
+                    {isMobileTodayFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+
+                {isMobileTodayFilterOpen && (
+                  <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+                    <div className="relative w-full">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                      <input
+                        type="text"
+                        className="input-field pl-9 py-1.5 text-xs w-full"
+                        placeholder="Filter today's appointments..."
+                        value={todaySearch}
+                        onChange={(e) => setTodaySearch(e.target.value)}
+                      />
+                      {todaySearch && (
+                        <button onClick={() => setTodaySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-ink-soft font-medium">
+                      Showing {filteredTodayEntries.length} record(s) for today
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="card overflow-hidden">
                 {loadingToday ? (
                   <TableSkeleton rows={5} cols={7} />
                 ) : filteredTodayEntries.length === 0 ? (
-                  <div className="p-12 text-center space-y-3">
+                  <div className="p-8 sm:p-12 text-center space-y-3">
                     <UserSquare2 size={36} className="mx-auto text-ink-soft/50" />
                     <p className="font-display text-base font-semibold text-ink">No appointments found for today</p>
                     <p className="text-sm text-ink-soft">
@@ -783,91 +867,172 @@ export default function DoctorQueue() {
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                        <tr>
-                          <th className="px-5 py-3.5">Token</th>
-                          <th className="px-5 py-3.5">Patient Name</th>
-                          <th className="px-5 py-3.5">OP Number</th>
-                          <th className="px-5 py-3.5">Reason / Visit Type</th>
-                          <th className="px-5 py-3.5">Time / Check-In</th>
-                          <th className="px-5 py-3.5">Status</th>
-                          <th className="px-5 py-3.5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filteredTodayEntries.map((entry) => {
-                          const entryId = entry._id || entry.id;
-                          const patientName = entry.patient
-                            ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
-                            : 'Patient';
-                          const timeDisplay = entry.checkInTime
-                            ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : (entry.appointment?.time || 'Today');
+                  <>
+                    {/* Desktop Table View (≥768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3.5">Token</th>
+                            <th className="px-5 py-3.5">Patient Name</th>
+                            <th className="px-5 py-3.5">OP Number</th>
+                            <th className="px-5 py-3.5">Reason / Visit Type</th>
+                            <th className="px-5 py-3.5">Time / Check-In</th>
+                            <th className="px-5 py-3.5">Status</th>
+                            <th className="px-5 py-3.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {filteredTodayEntries.map((entry) => {
+                            const entryId = entry._id || entry.id;
+                            const patientName = entry.patient
+                              ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
+                              : 'Patient';
+                            const timeDisplay = entry.checkInTime
+                              ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : (entry.appointment?.time || 'Today');
 
-                          const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
+                            const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
 
-                          return (
-                            <tr
-                              key={entryId}
-                              onClick={() => handleStartConsultation(entry)}
-                              className="hover:bg-bg/60 transition-colors cursor-pointer"
-                            >
-                              <td className="px-5 py-4 whitespace-nowrap">
-                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-brand/10 text-brand font-mono text-sm font-bold border border-brand/20">
+                            return (
+                              <tr
+                                key={entryId}
+                                onClick={() => handleStartConsultation(entry)}
+                                className="hover:bg-bg/60 transition-colors cursor-pointer"
+                              >
+                                <td className="px-5 py-4 whitespace-nowrap">
+                                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-brand/10 text-brand font-mono text-sm font-bold border border-brand/20">
+                                    {entry.token !== '—' ? `#${entry.token}` : '—'}
+                                  </span>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <div className="font-bold text-ink flex items-center gap-1.5">
+                                    <span>{patientName}</span>
+                                    <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${
+                                      (entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12))
+                                        ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                        : 'bg-blue-50 text-blue-800 border-blue-200'
+                                    }`}>
+                                      {(entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12)) ? 'Child' : 'Adult'}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-ink-soft">
+                                    {entry.patient?.age ? `${entry.patient.age}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} {entry.patient?.phone ? `• ${entry.patient.phone}` : ''}
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4 font-mono font-bold text-brand text-xs">
+                                  {entry.patient?.opNumber ? `#${entry.patient.opNumber}` : '—'}
+                                </td>
+
+                                <td className="px-5 py-4 text-xs font-medium text-ink">
+                                  <span className="badge bg-orange-50 text-orange-800 border border-orange-200">
+                                    {entry.appointment?.reason || entry.reason || entry.type || 'Appointment'}
+                                  </span>
+                                </td>
+
+                                <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
+                                  <div className="flex items-center gap-1 font-medium text-ink">
+                                    <Clock size={13} className="text-brand" /> {timeDisplay}
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <span className={`badge border ${STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'}`}>
+                                    {displayStatus}
+                                  </span>
+                                </td>
+
+                                {/* STATUS-BASED ACTIONS */}
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                  {renderRowActions(entry)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Accordion Cards View (<768px down to 320px) */}
+                    <div className="block md:hidden divide-y divide-border">
+                      {filteredTodayEntries.map((entry) => {
+                        const entryId = entry._id || entry.id;
+                        const patientName = entry.patient
+                          ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
+                          : 'Patient';
+                        const timeDisplay = entry.checkInTime
+                          ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : (entry.appointment?.time || 'Today');
+
+                        const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
+                        const pType = entry.patient?.patientType || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12 ? 'child' : 'adult');
+                        const isExpanded = expandedTodayId === entryId;
+
+                        return (
+                          <div key={entryId} className="p-3.5 space-y-3 hover:bg-bg/40 transition-colors">
+                            {/* Collapsed Header */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand font-mono text-xs font-bold border border-brand/20 mt-0.5">
                                   {entry.token !== '—' ? `#${entry.token}` : '—'}
                                 </span>
-                              </td>
-
-                              <td className="px-5 py-4">
-                                <div className="font-bold text-ink flex items-center gap-1.5">
-                                  <span>{patientName}</span>
-                                  <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${
-                                    (entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12))
-                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                      : 'bg-blue-50 text-blue-800 border-blue-200'
-                                  }`}>
-                                    {(entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12)) ? 'Child' : 'Adult'}
-                                  </span>
+                                <div className="min-w-0 space-y-0.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                                    <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'}`}>
+                                      {displayStatus}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                                    {entry.patient?.opNumber && <span className="font-bold text-brand">#{entry.patient.opNumber}</span>}
+                                    {timeDisplay && <span className="flex items-center gap-1 text-ink font-sans font-medium"><Clock size={12} className="text-brand" /> {timeDisplay}</span>}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-ink-soft">
-                                  {entry.patient?.age ? `${entry.patient.age}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} {entry.patient?.phone ? `• ${entry.patient.phone}` : ''}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => toggleExpandToday(entryId, e)}
+                                className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                                aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+                              >
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </button>
+                            </div>
+
+                            {/* Expanded Content */}
+                            {isExpanded && (
+                              <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                                <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
+                                    <span className="font-medium text-ink">
+                                      {entry.patient?.age ? `${entry.patient.age}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} ({pType === 'child' ? 'Child' : 'Adult'})
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
+                                    <span className="font-mono font-medium text-ink">{entry.patient?.phone || '—'}</span>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason / Visit Type</span>
+                                    <span className="font-medium text-ink">{entry.appointment?.reason || entry.reason || entry.type || 'Appointment'}</span>
+                                  </div>
                                 </div>
-                              </td>
 
-                              <td className="px-5 py-4 font-mono font-bold text-brand text-xs">
-                                {entry.patient?.opNumber ? `#${entry.patient.opNumber}` : '—'}
-                              </td>
-
-                              <td className="px-5 py-4 text-xs font-medium text-ink">
-                                <span className="badge bg-orange-50 text-orange-800 border border-orange-200">
-                                  {entry.appointment?.reason || entry.reason || entry.type || 'Appointment'}
-                                </span>
-                              </td>
-
-                              <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
-                                <div className="flex items-center gap-1 font-medium text-ink">
-                                  <Clock size={13} className="text-brand" /> {timeDisplay}
+                                {/* Action Controls */}
+                                <div className="pt-1 flex items-center justify-end">
+                                  {renderRowActions(entry)}
                                 </div>
-                              </td>
-
-                              <td className="px-5 py-4">
-                                <span className={`badge border ${STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'}`}>
-                                  {displayStatus}
-                                </span>
-                              </td>
-
-                              {/* STATUS-BASED ACTIONS */}
-                              <td className="px-5 py-4 text-right whitespace-nowrap">
-                                {renderRowActions(entry)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -878,8 +1043,8 @@ export default function DoctorQueue() {
           {/* ========================================================================= */}
           {activeTab === 'upcoming' && (
             <div className="space-y-4">
-              {/* FILTER BAR FOR UPCOMING APPOINTMENTS */}
-              <div className="card p-4 bg-surface border-border space-y-3">
+              {/* Desktop Filter Bar (≥768px) */}
+              <div className="hidden md:block card p-4 bg-surface border-border space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="relative flex-1 min-w-[240px]">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
@@ -907,7 +1072,7 @@ export default function DoctorQueue() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="grid grid-cols-3 gap-3 text-xs">
                   <div>
                     <DatePicker
                       placeholder="From Date"
@@ -943,6 +1108,90 @@ export default function DoctorQueue() {
                 </div>
               </div>
 
+              {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+              <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileUpcomingFilterOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                      <Filter size={14} />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="font-bold text-ink">Filters & Search</span>
+                      {hasActiveUpcomingFilters && (
+                        <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0">
+                          Active Filters
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+                    <span>{isMobileUpcomingFilterOpen ? 'Hide' : 'Filter'}</span>
+                    {isMobileUpcomingFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+
+                {isMobileUpcomingFilterOpen && (
+                  <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+                    <div className="relative w-full">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                      <input
+                        type="text"
+                        className="input-field pl-9 py-1.5 text-xs w-full"
+                        placeholder="Search upcoming appointments..."
+                        value={upcomingSearch}
+                        onChange={(e) => setUpcomingSearch(e.target.value)}
+                      />
+                      {upcomingSearch && (
+                        <button onClick={() => setUpcomingSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <DatePicker
+                        placeholder="From Date"
+                        value={upcomingDateFrom}
+                        onChange={(d, dStr) => setUpcomingDateFrom(dStr)}
+                        inputClassName="py-1.5 text-xs w-full"
+                      />
+                      <DatePicker
+                        placeholder="To Date"
+                        value={upcomingDateTo}
+                        onChange={(d, dStr) => setUpcomingDateTo(dStr)}
+                        inputClassName="py-1.5 text-xs w-full"
+                      />
+                      <select
+                        className="input-field py-1.5 text-xs font-semibold w-full"
+                        value={upcomingDoctorFilter}
+                        onChange={(e) => setUpcomingDoctorFilter(e.target.value)}
+                      >
+                        <option value="">All Attending Doctors</option>
+                        {doctors.map((d) => (
+                          <option key={d._id || d.id} value={d._id || d.id}>
+                            Dr. {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {hasActiveUpcomingFilters && (
+                      <button
+                        onClick={handleResetUpcomingFilters}
+                        className="btn-secondary w-full py-1.5 text-xs text-rose-600 font-semibold flex items-center justify-center gap-1"
+                      >
+                        <X size={13} /> Clear Filters
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="card overflow-hidden">
                 {loadingUpcoming ? (
                   <TableSkeleton rows={5} cols={7} />
@@ -965,78 +1214,149 @@ export default function DoctorQueue() {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                        <tr>
-                          <th className="px-5 py-3.5">Patient Details</th>
-                          <th className="px-5 py-3.5">OP Number</th>
-                          <th className="px-5 py-3.5">Scheduled Date</th>
-                          <th className="px-5 py-3.5">Time</th>
-                          <th className="px-5 py-3.5">Reason / Type</th>
-                          <th className="px-5 py-3.5">Status</th>
-                          <th className="px-5 py-3.5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filteredUpcomingEntries.map((apt) => {
-                          const aptId = apt._id || apt.id;
-                          const patientName = apt.patient
-                            ? `${apt.patient.firstName} ${apt.patient.lastName}`.trim()
-                            : 'Patient';
-                          const pType = apt.patient?.patientType || (apt.patient?.age !== undefined && apt.patient?.age !== null && Number(apt.patient.age) < 12 ? 'child' : 'adult');
-                          const dateStr = apt.date
-                            ? new Date(apt.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-                            : 'N/A';
+                  <>
+                    {/* Desktop Table View (≥768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3.5">Patient Details</th>
+                            <th className="px-5 py-3.5">OP Number</th>
+                            <th className="px-5 py-3.5">Scheduled Date</th>
+                            <th className="px-5 py-3.5">Time</th>
+                            <th className="px-5 py-3.5">Reason / Type</th>
+                            <th className="px-5 py-3.5">Status</th>
+                            <th className="px-5 py-3.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {filteredUpcomingEntries.map((apt) => {
+                            const aptId = apt._id || apt.id;
+                            const patientName = apt.patient
+                              ? `${apt.patient.firstName} ${apt.patient.lastName}`.trim()
+                              : 'Patient';
+                            const pType = apt.patient?.patientType || (apt.patient?.age !== undefined && apt.patient?.age !== null && Number(apt.patient.age) < 12 ? 'child' : 'adult');
+                            const dateStr = apt.date
+                              ? new Date(apt.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+                              : 'N/A';
 
-                          return (
-                            <tr
-                              key={aptId}
-                              onClick={() => handleStartConsultation(apt)}
-                              className="hover:bg-bg/60 transition-colors cursor-pointer"
-                            >
-                              <td className="px-5 py-4">
-                                <div className="font-bold text-ink">{patientName}</div>
-                                <div className="text-xs text-ink-soft flex items-center gap-1.5 flex-wrap mt-0.5">
-                                  <span>
-                                    {apt.patient?.age ? `${apt.patient.age}y` : ''} {apt.patient?.sex ? `/ ${apt.patient.sex}` : ''}
+                            return (
+                              <tr
+                                key={aptId}
+                                onClick={() => handleStartConsultation(apt)}
+                                className="hover:bg-bg/60 transition-colors cursor-pointer"
+                              >
+                                <td className="px-5 py-4">
+                                  <div className="font-bold text-ink">{patientName}</div>
+                                  <div className="text-xs text-ink-soft flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    <span>
+                                      {apt.patient?.age ? `${apt.patient.age}y` : ''} {apt.patient?.sex ? `/ ${apt.patient.sex}` : ''}
+                                    </span>
+                                    <span className={`badge text-[9px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                      {pType === 'child' ? 'Child' : 'Adult'}
+                                    </span>
+                                    {apt.patient?.phone && <span>• {apt.patient.phone}</span>}
+                                  </div>
+                                </td>
+                                <td className="px-5 py-4 font-mono font-bold text-brand text-xs">
+                                  {apt.patient?.opNumber ? `#${apt.patient.opNumber}` : '—'}
+                                </td>
+                                <td className="px-5 py-4 text-xs font-semibold text-ink">
+                                  {dateStr}
+                                </td>
+                                <td className="px-5 py-4 text-xs font-mono text-ink">
+                                  {apt.time || 'Scheduled'}
+                                </td>
+                                <td className="px-5 py-4 text-xs font-medium text-ink">
+                                  <span className="badge bg-blue-50 text-blue-800 border border-blue-200">
+                                    {apt.reason || apt.type || 'Appointment'}
                                   </span>
-                                  <span className={`badge text-[9px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                                    {pType === 'child' ? 'Child' : 'Adult'}
+                                </td>
+                                <td className="px-5 py-4">
+                                  <span className={`badge border ${STATUS_BADGE_CLASSES[apt.status] || 'bg-blue-100 text-blue-800'}`}>
+                                    {apt.status}
                                   </span>
-                                  {apt.patient?.phone && <span>• {apt.patient.phone}</span>}
+                                </td>
+
+                                {/* STATUS-BASED ACTIONS */}
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                  {renderRowActions(apt)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Accordion Cards View (<768px down to 320px) */}
+                    <div className="block md:hidden divide-y divide-border">
+                      {filteredUpcomingEntries.map((apt) => {
+                        const aptId = apt._id || apt.id;
+                        const patientName = apt.patient
+                          ? `${apt.patient.firstName} ${apt.patient.lastName}`.trim()
+                          : 'Patient';
+                        const pType = apt.patient?.patientType || (apt.patient?.age !== undefined && apt.patient?.age !== null && Number(apt.patient.age) < 12 ? 'child' : 'adult');
+                        const dateStr = apt.date
+                          ? new Date(apt.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                          : 'N/A';
+                        const isExpanded = expandedUpcomingId === aptId;
+
+                        return (
+                          <div key={aptId} className="p-3.5 space-y-3 hover:bg-bg/40 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                                  <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[apt.status] || 'bg-blue-100 text-blue-800'}`}>
+                                    {apt.status}
+                                  </span>
                                 </div>
-                              </td>
-                              <td className="px-5 py-4 font-mono font-bold text-brand text-xs">
-                                {apt.patient?.opNumber ? `#${apt.patient.opNumber}` : '—'}
-                              </td>
-                              <td className="px-5 py-4 text-xs font-semibold text-ink">
-                                {dateStr}
-                              </td>
-                              <td className="px-5 py-4 text-xs font-mono text-ink">
-                                {apt.time || 'Scheduled'}
-                              </td>
-                              <td className="px-5 py-4 text-xs font-medium text-ink">
-                                <span className="badge bg-blue-50 text-blue-800 border border-blue-200">
-                                  {apt.reason || apt.type || 'Appointment'}
-                                </span>
-                              </td>
-                              <td className="px-5 py-4">
-                                <span className={`badge border ${STATUS_BADGE_CLASSES[apt.status] || 'bg-blue-100 text-blue-800'}`}>
-                                  {apt.status}
-                                </span>
-                              </td>
+                                <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                                  {apt.patient?.opNumber && <span className="font-bold text-brand">#{apt.patient.opNumber}</span>}
+                                  <span className="text-ink font-sans font-medium">• {dateStr} at {apt.time || 'Scheduled'}</span>
+                                </div>
+                              </div>
 
-                              {/* STATUS-BASED ACTIONS */}
-                              <td className="px-5 py-4 text-right whitespace-nowrap">
-                                {renderRowActions(apt)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              <button
+                                type="button"
+                                onClick={(e) => toggleExpandUpcoming(aptId, e)}
+                                className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                                aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+                              >
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </button>
+                            </div>
+
+                            {isExpanded && (
+                              <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                                <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
+                                    <span className="font-medium text-ink">
+                                      {apt.patient?.age ? `${apt.patient.age}y` : ''} {apt.patient?.sex ? `/ ${apt.patient.sex}` : ''} ({pType === 'child' ? 'Child' : 'Adult'})
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
+                                    <span className="font-mono font-medium text-ink">{apt.patient?.phone || '—'}</span>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason / Type</span>
+                                    <span className="font-medium text-ink">{apt.reason || apt.type || 'Appointment'}</span>
+                                  </div>
+                                </div>
+
+                                <div className="pt-1 flex items-center justify-end">
+                                  {renderRowActions(apt)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1047,9 +1367,9 @@ export default function DoctorQueue() {
           {/* ========================================================================= */}
           {activeTab === 'completed-today' && (
             <div className="space-y-4">
-              {/* SEARCH & FILTER BAR */}
-              <div className="card p-4 bg-surface border-border space-y-3 shadow-sm">
-                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              {/* Desktop Filter Bar (≥768px) */}
+              <div className="hidden md:block card p-4 bg-surface border-border space-y-3 shadow-sm">
+                <div className="flex flex-row items-center justify-between gap-3">
                   {/* Search Field */}
                   <div className="relative flex-1">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
@@ -1072,9 +1392,8 @@ export default function DoctorQueue() {
 
                   {/* Filter Controls */}
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Doctor Select Filter */}
                     <select
-                      className="input-field py-1.5 text-xs w-auto min-w-[170px]"
+                      className="input-field py-1.5 text-xs font-semibold w-full sm:w-auto"
                       value={completedTodayDoctorFilter}
                       onChange={(e) => setCompletedTodayDoctorFilter(e.target.value)}
                     >
@@ -1089,7 +1408,6 @@ export default function DoctorQueue() {
                       })}
                     </select>
 
-                    {/* Reset Filters Button */}
                     {hasActiveCompletedTodayFilters && (
                       <button
                         onClick={handleResetCompletedTodayFilters}
@@ -1111,6 +1429,79 @@ export default function DoctorQueue() {
                 </div>
               </div>
 
+              {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+              <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileCompletedTodayFilterOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                      <Filter size={14} />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="font-bold text-ink">Filters & Search</span>
+                      {hasActiveCompletedTodayFilters && (
+                        <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0">
+                          Active Filters
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+                    <span>{isMobileCompletedTodayFilterOpen ? 'Hide' : 'Filter'}</span>
+                    {isMobileCompletedTodayFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+
+                {isMobileCompletedTodayFilterOpen && (
+                  <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+                    <div className="relative w-full">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                      <input
+                        type="text"
+                        className="input-field pl-9 py-1.5 text-xs w-full"
+                        placeholder="Search completed today..."
+                        value={completedTodaySearch}
+                        onChange={(e) => setCompletedTodaySearch(e.target.value)}
+                      />
+                      {completedTodaySearch && (
+                        <button onClick={() => setCompletedTodaySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <select
+                      className="input-field py-1.5 text-xs font-semibold w-full"
+                      value={completedTodayDoctorFilter}
+                      onChange={(e) => setCompletedTodayDoctorFilter(e.target.value)}
+                    >
+                      <option value="">All Attending Doctors</option>
+                      {doctors.map((doc) => {
+                        const dId = doc._id || doc.id;
+                        return (
+                          <option key={dId} value={dId}>
+                            Dr. {doc.name}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {hasActiveCompletedTodayFilters && (
+                      <button
+                        onClick={handleResetCompletedTodayFilters}
+                        className="btn-secondary w-full py-1.5 text-xs text-rose-600 font-semibold flex items-center justify-center gap-1"
+                      >
+                        <X size={13} /> Clear Filters
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* TABLE OF COMPLETED TODAY APPOINTMENTS */}
               <div className="card overflow-hidden">
                 {loadingHistory ? (
@@ -1126,100 +1517,155 @@ export default function DoctorQueue() {
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                        <tr>
-                          <th className="px-5 py-3.5">Patient Details</th>
-                          <th className="px-5 py-3.5">OP Number</th>
-                          <th className="px-5 py-3.5">Attending Doctor</th>
-                          <th className="px-5 py-3.5">Visit / Reason</th>
-                          <th className="px-5 py-3.5">Timings</th>
-                          <th className="px-5 py-3.5">Status</th>
-                          {/* <th className="px-5 py-3.5 text-right">Actions</th> */}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filteredCompletedTodayItems.map((item) => {
-                          const patient = item.patient || {};
-                          const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
-                          const pType = patient.patientType || (patient.age !== undefined && Number(patient.age) < 12 ? 'child' : 'adult');
+                  <>
+                    {/* Desktop Table View (≥768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3.5">Patient Details</th>
+                            <th className="px-5 py-3.5">OP Number</th>
+                            <th className="px-5 py-3.5">Attending Doctor</th>
+                            <th className="px-5 py-3.5">Visit / Reason</th>
+                            <th className="px-5 py-3.5">Timings</th>
+                            <th className="px-5 py-3.5">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {filteredCompletedTodayItems.map((item) => {
+                            const patient = item.patient || {};
+                            const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                            const pType = patient.patientType || (patient.age !== undefined && Number(patient.age) < 12 ? 'child' : 'adult');
 
-                          const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : (item.appointment?.doctor?.name ? `Dr. ${item.appointment.doctor.name}` : 'Doctor');
-                          const pId = patient._id || patient.id;
+                            const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : (item.appointment?.doctor?.name ? `Dr. ${item.appointment.doctor.name}` : 'Doctor');
 
-                          const dateStr = item.date
-                            ? new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-                            : 'Today';
+                            const dateStr = item.date
+                              ? new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                              : 'Today';
 
-                          const checkInStr = item.checkInTime
-                            ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : '—';
+                            const checkInStr = item.checkInTime
+                              ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : '—';
 
-                          const startStr = item.startTime
-                            ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : '—';
+                            const startStr = item.startTime
+                              ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : '—';
 
-                          const endStr = item.endTime
-                            ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : 'Today';
+                            const endStr = item.endTime
+                              ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : 'Today';
 
-                          return (
-                            <tr key={item.id} className="hover:bg-bg/60 transition-colors text-xs">
-                              <td className="px-5 py-4">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-ink text-sm">{patientName}</span>
-                                  <span className={`badge text-[10px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                                    {pType === 'child' ? 'Child' : 'Adult'}
+                            return (
+                              <tr key={item.id} className="hover:bg-bg/60 transition-colors text-xs">
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-ink text-sm">{patientName}</span>
+                                    <span className={`badge text-[10px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                      {pType === 'child' ? 'Child' : 'Adult'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-ink-soft">
+                                    {patient.age ? `${patient.age}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''} {patient.phone ? `• ${patient.phone}` : ''}
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4 font-mono font-bold text-brand">
+                                  {patient.opNumber ? `#${patient.opNumber}` : '—'}
+                                </td>
+
+                                <td className="px-5 py-4 font-semibold text-ink">
+                                  {docName}
+                                </td>
+
+                                <td className="px-5 py-4 font-medium text-ink">
+                                  <div>{item.reason || 'General Visit'}</div>
+                                  <div className="text-[10px] text-ink-soft">{dateStr}</div>
+                                </td>
+
+                                <td className="px-5 py-4 text-ink-soft space-y-0.5 font-mono text-[11px]">
+                                  <div>Check-In: <span className="font-semibold text-ink">{checkInStr}</span></div>
+                                  <div>Start: <span className="font-semibold text-ink">{startStr}</span> • End: <span className="font-semibold text-emerald-700 font-bold">{endStr}</span></div>
+                                </td>
+
+                                <td className="px-5 py-4 whitespace-nowrap">
+                                  <span className="badge bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold">
+                                    Completed Today
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Accordion Cards View (<768px down to 320px) */}
+                    <div className="block md:hidden divide-y divide-border">
+                      {filteredCompletedTodayItems.map((item) => {
+                        const patient = item.patient || {};
+                        const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                        const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : (item.appointment?.doctor?.name ? `Dr. ${item.appointment.doctor.name}` : 'Doctor');
+                        const checkInStr = item.checkInTime
+                          ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '—';
+                        const startStr = item.startTime
+                          ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '—';
+                        const endStr = item.endTime
+                          ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : 'Today';
+                        const isExpanded = expandedCompletedTodayId === item.id;
+
+                        return (
+                          <div key={item.id} className="p-3.5 space-y-3 hover:bg-bg/40 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                                  <span className="badge bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[10px]">
+                                    Completed Today
                                   </span>
                                 </div>
-                                <div className="text-[11px] text-ink-soft">
-                                  {patient.age ? `${patient.age}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''} {patient.phone ? `• ${patient.phone}` : ''}
+                                <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                                  {patient.opNumber && <span className="font-bold text-brand">#{patient.opNumber}</span>}
+                                  <span className="text-ink font-sans font-semibold">• {docName}</span>
                                 </div>
-                              </td>
+                              </div>
 
-                              <td className="px-5 py-4 font-mono font-bold text-brand">
-                                {patient.opNumber ? `#${patient.opNumber}` : '—'}
-                              </td>
+                              <button
+                                type="button"
+                                onClick={(e) => toggleExpandCompletedToday(item.id, e)}
+                                className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                                aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+                              >
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </button>
+                            </div>
 
-                              <td className="px-5 py-4 font-semibold text-ink">
-                                {docName}
-                              </td>
-
-                              <td className="px-5 py-4 font-medium text-ink">
-                                <div>{item.reason || 'General Visit'}</div>
-                                <div className="text-[10px] text-ink-soft">{dateStr}</div>
-                              </td>
-
-                              <td className="px-5 py-4 text-ink-soft space-y-0.5 font-mono text-[11px]">
-                                <div>Check-In: <span className="font-semibold text-ink">{checkInStr}</span></div>
-                                <div>Start: <span className="font-semibold text-ink">{startStr}</span> • End: <span className="font-semibold text-emerald-700 font-bold">{endStr}</span></div>
-                              </td>
-
-                              <td className="px-5 py-4 whitespace-nowrap">
-                                <span className="badge bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold">
-                                  Completed Today
-                                </span>
-                              </td>
-
-                              {/* <td className="px-5 py-4 text-right whitespace-nowrap">
-                                {pId ? (
-                                  <button
-                                    onClick={() => navigate(`/doctor/patient-emr/${pId}`)}
-                                    className="btn-secondary text-xs py-1 px-2.5 inline-flex items-center gap-1 text-brand font-semibold hover:bg-brand-light/30"
-                                  >
-                                    <Eye size={13} /> View
-                                  </button>
-                                ) : (
-                                  <span className="text-ink-soft">—</span>
-                                )}
-                              </td> */}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                            {isExpanded && (
+                              <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                                <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Contact</span>
+                                    <span className="font-mono font-medium text-ink">{patient.phone || '—'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason</span>
+                                    <span className="font-medium text-ink">{item.reason || 'General Visit'}</span>
+                                  </div>
+                                  <div className="col-span-2 space-y-0.5 font-mono text-[11px]">
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft font-sans">Timings</span>
+                                    <div>Check-In: <span className="font-semibold text-ink">{checkInStr}</span></div>
+                                    <div>Start: <span className="font-semibold text-ink">{startStr}</span> • End: <span className="font-bold text-emerald-700">{endStr}</span></div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1230,8 +1676,9 @@ export default function DoctorQueue() {
           {/* ========================================================================= */}
           {activeTab === 'history' && (
             <div className="space-y-4">
-              <div className="card p-4 space-y-3 bg-surface border-border">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Desktop Filter Bar (≥768px) */}
+              <div className="hidden md:block card p-4 space-y-3 bg-surface border-border">
+                <div className="flex flex-row items-center justify-between gap-3">
                   <div className="relative flex-1">
                     <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
                     <input
@@ -1261,7 +1708,7 @@ export default function DoctorQueue() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div className="grid grid-cols-4 gap-3 text-xs">
                   <div>
                     <DatePicker
                       placeholder="From Date"
@@ -1310,6 +1757,100 @@ export default function DoctorQueue() {
                 </div>
               </div>
 
+              {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+              <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileHistoryFilterOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                      <Filter size={14} />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="font-bold text-ink">Filters & Search</span>
+                      {hasActiveHistoryFilters && (
+                        <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0">
+                          Active Filters
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+                    <span>{isMobileHistoryFilterOpen ? 'Hide' : 'Filter'}</span>
+                    {isMobileHistoryFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+
+                {isMobileHistoryFilterOpen && (
+                  <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+                    <div className="relative w-full">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                      <input
+                        type="text"
+                        className="input-field pl-9 py-1.5 text-xs w-full"
+                        placeholder="Search history by name, phone, OP#..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <DatePicker
+                        placeholder="From Date"
+                        value={dateFrom}
+                        onChange={(d, dStr) => setDateFrom(dStr)}
+                        inputClassName="py-1.5 text-xs w-full"
+                      />
+                      <DatePicker
+                        placeholder="To Date"
+                        value={dateTo}
+                        onChange={(d, dStr) => setDateTo(dStr)}
+                        inputClassName="py-1.5 text-xs w-full"
+                      />
+                      <select
+                        className="input-field py-1.5 text-xs font-semibold w-full"
+                        value={doctorFilter}
+                        onChange={(e) => setDoctorFilter(e.target.value)}
+                      >
+                        <option value="">All Attending Doctors</option>
+                        {doctors.map((d) => (
+                          <option key={d._id || d.id} value={d._id || d.id}>
+                            Dr. {d.name}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="input-field py-1.5 text-xs font-semibold w-full"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Missed">Missed</option>
+                        <option value="No Show">No Show</option>
+                      </select>
+                    </div>
+
+                    {hasActiveHistoryFilters && (
+                      <button
+                        onClick={handleResetHistoryFilters}
+                        className="btn-secondary w-full py-1.5 text-xs text-rose-600 font-semibold flex items-center justify-center gap-1"
+                      >
+                        <X size={13} /> Clear Filters
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="card overflow-hidden">
                 {loadingHistory ? (
                   <div className="p-12 text-center text-xs text-ink-soft">Loading appointment history log...</div>
@@ -1332,123 +1873,197 @@ export default function DoctorQueue() {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                        <tr>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('patient')}>
-                            Patient {renderSortIndicator('patient')}
-                          </th>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('opNumber')}>
-                            OP Number {renderSortIndicator('opNumber')}
-                          </th>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('date')}>
-                            Date {renderSortIndicator('date')}
-                          </th>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('checkInTime')}>
-                            Check-In {renderSortIndicator('checkInTime')}
-                          </th>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('startTime')}>
-                            Start Time {renderSortIndicator('startTime')}
-                          </th>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('endTime')}>
-                            End Time {renderSortIndicator('endTime')}
-                          </th>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('doctor')}>
-                            Attending Doctor {renderSortIndicator('doctor')}
-                          </th>
-                          <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('status')}>
-                            Status {renderSortIndicator('status')}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filteredHistoryItems.map((item) => {
-                          const p = item.patient || {};
-                          const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
-                          const pType = p.patientType || (p.age !== undefined && p.age !== null && Number(p.age) < 12 ? 'child' : 'adult');
+                  <>
+                    {/* Desktop Table View (≥768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('patient')}>
+                              Patient {renderSortIndicator('patient')}
+                            </th>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('opNumber')}>
+                              OP Number {renderSortIndicator('opNumber')}
+                            </th>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('date')}>
+                              Date {renderSortIndicator('date')}
+                            </th>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('checkInTime')}>
+                              Check-In {renderSortIndicator('checkInTime')}
+                            </th>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('startTime')}>
+                              Start Time {renderSortIndicator('startTime')}
+                            </th>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('endTime')}>
+                              End Time {renderSortIndicator('endTime')}
+                            </th>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('doctor')}>
+                              Attending Doctor {renderSortIndicator('doctor')}
+                            </th>
+                            <th className="px-5 py-3.5 cursor-pointer hover:text-ink transition-colors select-none" onClick={() => handleSort('status')}>
+                              Status {renderSortIndicator('status')}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {filteredHistoryItems.map((item) => {
+                            const p = item.patient || {};
+                            const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                            const pType = p.patientType || (p.age !== undefined && p.age !== null && Number(p.age) < 12 ? 'child' : 'adult');
 
-                          const docObj = item.doctor || item.appointment?.doctor;
-                          const docName = docObj?.name ? `Dr. ${docObj.name}` : 'Unassigned';
+                            const docObj = item.doctor || item.appointment?.doctor;
+                            const docName = docObj?.name ? `Dr. ${docObj.name}` : 'Unassigned';
 
-                          const dateStr = item.date
-                            ? new Date(item.date).toLocaleDateString(undefined, {
-                              month: 'short', day: 'numeric', year: 'numeric',
-                            })
-                            : 'N/A';
+                            const dateStr = item.date
+                              ? new Date(item.date).toLocaleDateString(undefined, {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                              })
+                              : 'N/A';
 
-                          const checkInTimeStr = item.checkInTime
-                            ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : '—';
+                            const checkInTimeStr = item.checkInTime
+                              ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : '—';
 
-                          const startTimeStr = item.startTime
-                            ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : '—';
+                            const startTimeStr = item.startTime
+                              ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : '—';
 
-                          const endTimeStr = item.endTime
-                            ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : (item.status === 'In Consultation' ? 'In Progress' : '—');
+                            const endTimeStr = item.endTime
+                              ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : (item.status === 'In Consultation' ? 'In Progress' : '—');
 
-                          return (
-                            <tr
-                              key={item.id}
-                              onClick={() => setSelectedVisitSummary(item)}
-                              className="hover:bg-bg/60 cursor-pointer transition-colors group"
-                            >
-                              <td className="px-5 py-4 font-bold text-ink">
-                                <div className="flex items-center gap-2">
-                                  <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
-                                    <User size={14} />
-                                  </div>
-                                  <div>
-                                    <span className="group-hover:text-brand transition-colors block">{patientName}</span>
-                                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                                      <span className="text-[10px] text-ink-soft font-normal">
-                                        {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''}
-                                      </span>
-                                      <span className={`badge text-[9px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                                        {pType === 'child' ? 'Child' : 'Adult'}
-                                      </span>
+                            return (
+                              <tr
+                                key={item.id}
+                                onClick={() => setSelectedVisitSummary(item)}
+                                className="hover:bg-bg/60 cursor-pointer transition-colors group"
+                              >
+                                <td className="px-5 py-4 font-bold text-ink">
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                                      <User size={14} />
+                                    </div>
+                                    <div>
+                                      <span className="group-hover:text-brand transition-colors block">{patientName}</span>
+                                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                        <span className="text-[10px] text-ink-soft font-normal">
+                                          {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''}
+                                        </span>
+                                        <span className={`badge text-[9px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                          {pType === 'child' ? 'Child' : 'Adult'}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
+                                </td>
+
+                                <td className="px-5 py-4 font-mono font-bold text-brand whitespace-nowrap">
+                                  {p.opNumber ? `#${p.opNumber}` : '—'}
+                                </td>
+
+                                <td className="px-5 py-4 text-ink font-semibold whitespace-nowrap">
+                                  {dateStr}
+                                </td>
+
+                                <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                                  {checkInTimeStr}
+                                </td>
+
+                                <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                                  {startTimeStr}
+                                </td>
+
+                                <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                                  {endTimeStr}
+                                </td>
+
+                                <td className="px-5 py-4 text-xs font-semibold text-ink whitespace-nowrap">
+                                  {docName}
+                                </td>
+
+                                <td className="px-5 py-4 whitespace-nowrap">
+                                  <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
+                                    {item.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Accordion Cards View (<768px down to 320px) */}
+                    <div className="block md:hidden divide-y divide-border">
+                      {filteredHistoryItems.map((item) => {
+                        const p = item.patient || {};
+                        const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                        const docObj = item.doctor || item.appointment?.doctor;
+                        const docName = docObj?.name ? `Dr. ${docObj.name}` : 'Unassigned';
+                        const dateStr = item.date
+                          ? new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                          : 'N/A';
+                        const isExpanded = expandedHistoryId === item.id;
+
+                        return (
+                          <div key={item.id} className="p-3.5 space-y-3 hover:bg-bg/40 transition-colors">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                                  <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
+                                    {item.status}
+                                  </span>
                                 </div>
-                              </td>
+                                <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                                  {p.opNumber && <span className="font-bold text-brand">#{p.opNumber}</span>}
+                                  <span className="text-ink font-sans font-medium">• {dateStr}</span>
+                                </div>
+                              </div>
 
-                              <td className="px-5 py-4 font-mono font-bold text-brand whitespace-nowrap">
-                                {p.opNumber ? `#${p.opNumber}` : '—'}
-                              </td>
+                              <button
+                                type="button"
+                                onClick={(e) => toggleExpandHistory(item.id, e)}
+                                className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                                aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+                              >
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </button>
+                            </div>
 
-                              <td className="px-5 py-4 text-ink font-semibold whitespace-nowrap">
-                                {dateStr}
-                              </td>
+                            {isExpanded && (
+                              <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                                <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Doctor</span>
+                                    <span className="font-semibold text-ink">{docName}</span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
+                                    <span className="font-mono font-medium text-ink">{p.phone || '—'}</span>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason</span>
+                                    <span className="font-medium text-ink">{item.reason || 'Consultation'}</span>
+                                  </div>
+                                </div>
 
-                              <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
-                                {checkInTimeStr}
-                              </td>
-
-                              <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
-                                {startTimeStr}
-                              </td>
-
-                              <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
-                                {endTimeStr}
-                              </td>
-
-                              <td className="px-5 py-4 text-xs font-semibold text-ink whitespace-nowrap">
-                                {docName}
-                              </td>
-
-                              <td className="px-5 py-4 whitespace-nowrap">
-                                <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
-                                  {item.status}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                                <div className="pt-1 flex items-center justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedVisitSummary(item)}
+                                    className="btn-secondary py-1.5 px-3 text-xs w-full justify-center font-semibold"
+                                  >
+                                    <Eye size={14} /> View Visit Summary
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

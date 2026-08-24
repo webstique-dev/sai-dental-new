@@ -247,26 +247,26 @@ export default function PatientRegistration() {
   };
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-4xl space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link
             to="/reception/patients"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface text-ink-soft transition-colors hover:bg-bg hover:text-ink"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-soft transition-colors hover:bg-bg hover:text-ink"
           >
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h2 className="font-display text-xl font-bold text-ink">Register & Book Appointment</h2>
-            <p className="text-sm text-ink-soft">Create a new Dental OP Record and schedule an appointment</p>
+            <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Register & Book Appointment</h2>
+            <p className="text-xs sm:text-sm text-ink-soft">Create a new Dental OP Record and schedule an appointment</p>
           </div>
         </div>
         <button
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="btn-primary shrink-0"
+          className="btn-primary shrink-0 w-full sm:w-auto justify-center text-xs sm:text-sm"
         >
           <UserPlus size={18} />
           <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
@@ -275,11 +275,11 @@ export default function PatientRegistration() {
 
       {/* Soft Duplicate Warning */}
       {similarPatients.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 sm:p-4 text-amber-900">
           <div className="flex items-start gap-2.5">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
             <div className="space-y-1 text-sm">
-              <p className="font-semibold">Soft Warning: Similar patient record found</p>
+              <p className="font-semibold text-xs sm:text-sm">Soft Warning: Similar patient record found</p>
               <ul className="list-disc pl-4 space-y-0.5 text-xs text-amber-800">
                 {similarPatients.map((p) => (
                   <li key={p._id}>
@@ -295,10 +295,10 @@ export default function PatientRegistration() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         {/* 1. Basic Details */}
-        <div className="card p-6 space-y-4">
-          <h3 className="font-display text-base font-bold text-ink border-b border-border pb-3">
+        <div className="card p-4 sm:p-6 space-y-4">
+          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
             Basic Details
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -408,7 +408,7 @@ export default function PatientRegistration() {
               <label className="block text-xs font-semibold text-ink-soft mb-1">
                 Patient Type (Dentition) <span className="text-rose-600">*</span>
               </label>
-              <div className="inline-flex rounded-xl border border-border bg-bg p-1 w-full" role="radiogroup" aria-label="Patient Type">
+              <div className="inline-flex flex-col sm:flex-row rounded-xl border border-border bg-bg p-1 w-full gap-1 sm:gap-0" role="radiogroup" aria-label="Patient Type">
                 <button
                   type="button"
                   role="radio"
@@ -417,7 +417,7 @@ export default function PatientRegistration() {
                     setUserManuallySetPatientType(true);
                     handleChange('patientType', 'adult');
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'adult'
+                  className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg transition-all text-center ${formData.patientType === 'adult'
                     ? 'bg-brand text-white shadow-sm'
                     : 'text-ink-soft hover:text-ink'
                     }`}
@@ -432,7 +432,7 @@ export default function PatientRegistration() {
                     setUserManuallySetPatientType(true);
                     handleChange('patientType', 'child');
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.patientType === 'child'
+                  className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg transition-all text-center ${formData.patientType === 'child'
                     ? 'bg-brand text-white shadow-sm'
                     : 'text-ink-soft hover:text-ink'
                     }`}
@@ -467,8 +467,8 @@ export default function PatientRegistration() {
         </div>
 
         {/* 2. Medical History */}
-        <div className="card p-6 space-y-4">
-          <h3 className="font-display text-base font-bold text-ink border-b border-border pb-3">
+        <div className="card p-4 sm:p-6 space-y-4">
+          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
             Medical History
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -484,7 +484,7 @@ export default function PatientRegistration() {
                 >
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand shrink-0"
                     checked={checked}
                     onChange={() => handleCheckboxToggle('medicalHistory', item)}
                   />
@@ -499,12 +499,12 @@ export default function PatientRegistration() {
             <label className="block text-xs font-semibold text-ink-soft">
               Add Custom Medical History / Condition
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input
                 type="text"
                 autoComplete="off"
                 className="input-field py-2 text-sm flex-1"
-                placeholder="Enter additional medical condition (e.g. Penicillin Allergy, Glaucoma)..."
+                placeholder="Enter additional medical condition..."
                 value={customMedicalInput}
                 onChange={(e) => setCustomMedicalInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -517,7 +517,7 @@ export default function PatientRegistration() {
               <button
                 type="button"
                 onClick={handleAddCustomMedicalHistory}
-                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
                 <Plus size={14} /> Add
               </button>
@@ -556,8 +556,8 @@ export default function PatientRegistration() {
         </div>
 
         {/* 3. Current Medications */}
-        <div className="card p-6 space-y-4">
-          <h3 className="font-display text-base font-bold text-ink border-b border-border pb-3">
+        <div className="card p-4 sm:p-6 space-y-4">
+          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
             Current Medications
           </h3>
           <div>
@@ -572,8 +572,8 @@ export default function PatientRegistration() {
         </div>
 
         {/* 4. Vitals */}
-        <div className="card p-6 space-y-4">
-          <h3 className="font-display text-base font-bold text-ink border-b border-border pb-3">
+        <div className="card p-4 sm:p-6 space-y-4">
+          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
             Vitals
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -617,7 +617,7 @@ export default function PatientRegistration() {
                   <button
                     type="button"
                     onClick={() => handleRemoveCustomVital(key)}
-                    className="p-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                    className="p-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors shrink-0"
                     title={`Remove ${key}`}
                   >
                     <X size={16} />
@@ -636,14 +636,14 @@ export default function PatientRegistration() {
               <input
                 type="text"
                 className="input-field py-2 text-sm sm:col-span-2"
-                placeholder="Vital Name (e.g. Pulse, SpO2)..."
+                placeholder="Vital Name (e.g. Pulse)..."
                 value={customVitalLabel}
                 onChange={(e) => setCustomVitalLabel(e.target.value)}
               />
               <input
                 type="text"
                 className="input-field py-2 text-sm sm:col-span-2"
-                placeholder="Value (e.g. 72 bpm, 98%)..."
+                placeholder="Value (e.g. 72 bpm)..."
                 value={customVitalValue}
                 onChange={(e) => setCustomVitalValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -665,8 +665,8 @@ export default function PatientRegistration() {
         </div>
 
         {/* 5. Habits */}
-        <div className="card p-6 space-y-4">
-          <h3 className="font-display text-base font-bold text-ink border-b border-border pb-3">
+        <div className="card p-4 sm:p-6 space-y-4">
+          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
             Habits
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -682,7 +682,7 @@ export default function PatientRegistration() {
                 >
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand shrink-0"
                     checked={checked}
                     onChange={() => handleCheckboxToggle('habits', habit)}
                   />
@@ -697,12 +697,12 @@ export default function PatientRegistration() {
             <label className="block text-xs font-semibold text-ink-soft">
               Add Custom Habit
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input
                 type="text"
                 autoComplete="off"
                 className="input-field py-2 text-sm flex-1"
-                placeholder="Enter additional habit (e.g. Vaping, Betel Nut, E-Cigarette)..."
+                placeholder="Enter additional habit (e.g. Vaping)..."
                 value={customHabitInput}
                 onChange={(e) => setCustomHabitInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -715,7 +715,7 @@ export default function PatientRegistration() {
               <button
                 type="button"
                 onClick={handleAddCustomHabit}
-                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
                 <Plus size={14} /> Add
               </button>
@@ -754,8 +754,8 @@ export default function PatientRegistration() {
         </div>
 
         {/* 6. Dental History */}
-        <div className="card p-6 space-y-4">
-          <h3 className="font-display text-base font-bold text-ink border-b border-border pb-3">
+        <div className="card p-4 sm:p-6 space-y-4">
+          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
             Dental History
           </h3>
           <div>
@@ -770,10 +770,10 @@ export default function PatientRegistration() {
         </div>
 
         {/* Submit Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 sm:gap-3 pt-2">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-secondary w-full sm:w-auto justify-center"
             onClick={() => navigate('/reception/patients')}
           >
             Cancel
@@ -781,7 +781,7 @@ export default function PatientRegistration() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary"
+            className="btn-primary w-full sm:w-auto justify-center text-xs sm:text-sm"
           >
             <UserPlus size={18} />
             <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
@@ -791,3 +791,4 @@ export default function PatientRegistration() {
     </div>
   );
 }
+

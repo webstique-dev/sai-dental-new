@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar.jsx';
 import Topbar from './Topbar.jsx';
+import ReceptionistQuickActions from './ReceptionistQuickActions.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function DashboardLayout({ title }) {
@@ -19,6 +20,8 @@ export default function DashboardLayout({ title }) {
     });
   };
 
+  const isReceptionist = user?.role === 'receptionist';
+
   return (
     <div className="flex min-h-screen bg-bg">
       <Sidebar
@@ -29,7 +32,7 @@ export default function DashboardLayout({ title }) {
         onToggleCollapse={toggleCollapse}
       />
       <div
-        className={`flex min-h-screen flex-1 flex-col transition-all duration-300 ${
+        className={`flex min-h-screen flex-1 flex-col min-w-0 max-w-full overflow-x-hidden transition-all duration-300 ${
           isCollapsed ? 'lg:pl-20' : 'lg:pl-64'
         }`}
       >
@@ -39,9 +42,10 @@ export default function DashboardLayout({ title }) {
           isCollapsed={isCollapsed}
           onToggleCollapse={toggleCollapse}
         />
-        <main className="flex-1 p-4 sm:p-6">
+        <main className="flex-1 p-3 sm:p-6 pb-20 md:pb-6 min-w-0 max-w-full overflow-x-hidden">
           <Outlet />
         </main>
+        {isReceptionist && <ReceptionistQuickActions isCollapsed={isCollapsed} />}
       </div>
     </div>
   );

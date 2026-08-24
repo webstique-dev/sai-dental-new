@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ClipboardList, UserPlus, Search, CheckCircle2, AlertTriangle, X,
   User, Stethoscope, ChevronRight, ChevronLeft, ArrowRight, ShieldCheck,
-  UserCheck, Loader2, RefreshCw, Clock, Calendar, Eye, FileText, Check, Filter
+  UserCheck, Loader2, RefreshCw, Clock, Calendar, Eye, FileText, Check, Filter, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
@@ -32,6 +33,8 @@ function getTodayString() {
 
 export default function Queue() {
   const { showSuccess, showError } = useNotification();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Active Tab: 'active' (default) | 'completed'
   const [activeTab, setActiveTab] = useState('active');
@@ -156,6 +159,15 @@ export default function Queue() {
     fetchDoctors();
     fetchTodayQueue();
   }, []);
+
+  // Auto-open Walk-In Modal if triggered from Quick Actions FAB
+  useEffect(() => {
+    if (location.state?.autoOpenWalkIn) {
+      resetWalkInModal();
+      setShowWalkInModal(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   // Real-Time Socket Event Listeners for Receptionist Queue Workspace
   useSocketEvent('QUEUE_UPDATED', () => {
@@ -335,6 +347,19 @@ export default function Queue() {
     return list;
   }, [completedEntries, searchQuery, typeFilter, statusFilter]);
 
+  const [expandedActiveId, setExpandedActiveId] = useState(null);
+  const [expandedCompletedId, setExpandedCompletedId] = useState(null);
+
+  const toggleExpandActive = (id, e) => {
+    e.stopPropagation();
+    setExpandedActiveId((prev) => (prev === id ? null : id));
+  };
+
+  const toggleExpandCompleted = (id, e) => {
+    e.stopPropagation();
+    setExpandedCompletedId((prev) => (prev === id ? null : id));
+  };
+
   const handleResetCompletedFilters = () => {
     setSearchQuery('');
     setDoctorFilter('');
@@ -347,115 +372,206 @@ export default function Queue() {
 
   return (
     <>
-      <div className="space-y-6 max-w-7xl">
-      {/* Header & Main Action */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <ClipboardList size={22} className="text-brand" /> Front Desk Check-In & Queue Management
-          </h2>
-          <p className="text-sm text-ink-soft">
-            {activeTab === 'active'
-              ? 'Real-time active queue flow and patient check-in management'
-              : "Review completed, cancelled, and no-show queue entries for today or prior dates"}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={handleRefresh}
-            className="btn-secondary text-xs flex items-center gap-1.5"
-          >
-            <RefreshCw size={14} className={loadingActive || loadingCompleted ? 'animate-spin' : ''} /> Refresh Queue
-          </button>
-
-          <button
-            onClick={() => {
-              resetWalkInModal();
-              setShowWalkInModal(true);
-            }}
-            className="btn-primary shrink-0"
-          >
-            <UserPlus size={18} />
-            <span>Walk-In Patient</span>
-          </button>
-        </div>
-      </div>
-
-      {/* TABS SEGMENT CONTROL */}
-      <div className="flex items-center border-b border-border space-x-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('active')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
-            activeTab === 'active'
-              ? 'border-brand text-brand'
-              : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-          }`}
-        >
-          <ClipboardList size={16} />
-          <span>Active Queue</span>
-          {queueEntries.length > 0 && (
-            <span className="badge bg-brand-light/50 text-brand-dark font-mono text-[10px]">
-              {queueEntries.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('completed')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
-            activeTab === 'completed'
-              ? 'border-brand text-brand'
-              : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-          }`}
-        >
-          <CheckCircle2 size={16} />
-          <span>Completed Today</span>
-          <span className="badge bg-slate-100 text-slate-700 font-mono text-[10px]">
-            {filteredCompletedEntries.length}
-          </span>
-        </button>
-      </div>
-
-      {/* TAB 1: ACTIVE QUEUE TABLE (DEFAULT VIEW UNCHANGED) */}
-      {activeTab === 'active' && (
-        <div className="card overflow-hidden">
-          <div className="border-b border-border bg-bg/40 px-5 py-3.5 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">
-              Active Queue Flow ({queueEntries.length} Patients Waiting / In Consultation)
-            </span>
-            <span className="text-xs text-brand font-semibold">
-              Auto-derived from today's checked-in patients
-            </span>
+      <div className="space-y-4 sm:space-y-6 max-w-7xl">
+        {/* Header & Main Action */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-lg sm:text-xl font-bold text-ink flex items-center gap-2">
+              {/* <ClipboardList size={22} className="text-brand shrink-0" />  */}
+              Front Desk Check-In & Queue Management
+            </h2>
+            <p className="text-xs sm:text-sm text-ink-soft">
+              {activeTab === 'active'
+                ? 'Real-time active queue flow and patient check-in management'
+                : "Review completed, cancelled, and no-show queue entries for today or prior dates"}
+            </p>
           </div>
 
-          {loadingActive ? (
-            <TableSkeleton rows={5} cols={6} />
-          ) : queueEntries.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
-              <ClipboardList size={36} className="mx-auto text-ink-soft/50" />
-              <p className="font-display text-base font-semibold text-ink">No active patients in queue today</p>
-              <p className="text-sm text-ink-soft">
-                Check in patients from Appointments or click "Walk-In Patient" to issue tokens.
-              </p>
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-wrap">
+            <button
+              onClick={handleRefresh}
+              className="btn-secondary text-xs flex items-center gap-1.5 flex-1 sm:flex-none justify-center"
+            >
+              <RefreshCw size={14} className={loadingActive || loadingCompleted ? 'animate-spin' : ''} /> Refresh Queue
+            </button>
+
+            <button
+              onClick={() => {
+                resetWalkInModal();
+                setShowWalkInModal(true);
+              }}
+              className="btn-primary shrink-0 flex-1 sm:flex-none justify-center text-xs sm:text-sm"
+            >
+              <UserPlus size={18} />
+              <span>Walk-In Patient</span>
+            </button>
+          </div>
+        </div>
+
+        {/* TABS SEGMENT CONTROL */}
+        <div className="flex items-center border-b border-border space-x-2 overflow-x-auto no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setActiveTab('active')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${activeTab === 'active'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+              }`}
+          >
+            <ClipboardList size={16} />
+            <span>Active Queue</span>
+            {queueEntries.length > 0 && (
+              <span className="badge bg-brand-light/50 text-brand-dark font-mono text-[10px]">
+                {queueEntries.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('completed')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${activeTab === 'completed'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+              }`}
+          >
+            <CheckCircle2 size={16} />
+            <span>Completed Today</span>
+            <span className="badge bg-slate-100 text-slate-700 font-mono text-[10px]">
+              {filteredCompletedEntries.length}
+            </span>
+          </button>
+        </div>
+
+        {/* TAB 1: ACTIVE QUEUE TABLE / CARDS */}
+        {activeTab === 'active' && (
+          <div className="card overflow-hidden">
+            <div className="border-b border-border bg-bg/40 px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">
+                Active Queue Flow ({queueEntries.length} Patients Waiting / In Consultation)
+              </span>
+              <span className="text-[11px] text-brand font-semibold">
+                Auto-derived from today's checked-in patients
+              </span>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-                  <tr>
-                    <th className="px-5 py-3.5">Queue Token</th>
-                    <th className="px-5 py-3.5">Patient</th>
-                    <th className="px-5 py-3.5">Doctor</th>
-                    <th className="px-5 py-3.5">Type</th>
-                    <th className="px-5 py-3.5">Checked-In Time</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
+
+            {loadingActive ? (
+              <TableSkeleton rows={5} cols={6} />
+            ) : queueEntries.length === 0 ? (
+              <div className="p-8 sm:p-12 text-center space-y-3">
+                <ClipboardList size={36} className="mx-auto text-ink-soft/50" />
+                <p className="font-display text-base font-semibold text-ink">No active patients in queue today</p>
+                <p className="text-sm text-ink-soft">
+                  Check in patients from Appointments or click "Walk-In Patient" to issue tokens.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table View (≥768px) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                      <tr>
+                        <th className="px-5 py-3.5">Queue Token</th>
+                        <th className="px-5 py-3.5">Patient</th>
+                        <th className="px-5 py-3.5">Doctor</th>
+                        <th className="px-5 py-3.5">Type</th>
+                        <th className="px-5 py-3.5">Checked-In Time</th>
+                        <th className="px-5 py-3.5">Status</th>
+                        <th className="px-5 py-3.5 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {queueEntries.map((entry) => {
+                        const patientName = entry.patient
+                          ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
+                          : 'Walk-in Patient';
+                        const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
+                        const timeStr = (entry.checked_in_at || entry.checkInTime)
+                          ? new Date(entry.checked_in_at || entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : entry.appointment?.time || '—';
+
+                        const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
+                        const tokenNum = entry.queue_token || entry.token || 1;
+
+                        return (
+                          <tr key={entry._id} className="hover:bg-bg/60 transition-colors">
+                            <td className="px-5 py-4 whitespace-nowrap">
+                              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white font-mono text-base font-bold shadow-sm">
+                                #{tokenNum}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="font-semibold text-ink flex items-center gap-1.5">
+                                <span>{patientName}</span>
+                                <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${(entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12))
+                                    ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                    : 'bg-blue-50 text-blue-800 border-blue-200'
+                                  }`}>
+                                  {(entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12)) ? 'Child' : 'Adult'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
+                                {entry.patient?.opNumber && (
+                                  <span className="font-mono text-brand font-bold">{entry.patient.opNumber}</span>
+                                )}
+                                {entry.patient?.phone && <span>{entry.patient.phone}</span>}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-ink font-medium text-xs">
+                              {docName}
+                            </td>
+                            <td className="px-5 py-4 text-xs">
+                              <span
+                                className={`badge ${entry.type === 'Walk-in'
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : 'bg-blue-50 text-blue-700'
+                                  }`}
+                              >
+                                {entry.type}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
+                              <div className="flex items-center gap-1 font-medium text-ink">
+                                <Clock size={13} className="text-brand" /> {timeStr}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span
+                                className={`badge border ${STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'
+                                  }`}
+                              >
+                                {displayStatus}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-2">
+                                {displayStatus === 'Checked-In' && (
+                                  <button
+                                    onClick={() => setPendingCancelQueueEntry(entry)}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
+                                    title="Cancel Check-in"
+                                  >
+                                    <X size={13} />
+                                    Cancel Check-In
+                                  </button>
+                                )}
+                                {displayStatus === 'In Consultation' && (
+                                  <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                                    Doctor Consulting
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Accordion Cards View (<768px down to 320px) */}
+                <div className="block md:hidden divide-y divide-border">
                   {queueEntries.map((entry) => {
                     const patientName = entry.patient
                       ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
@@ -467,235 +583,311 @@ export default function Queue() {
 
                     const displayStatus = entry.status === 'With Doctor' ? 'In Consultation' : entry.status;
                     const tokenNum = entry.queue_token || entry.token || 1;
+                    const isExpanded = expandedActiveId === entry._id;
 
                     return (
-                      <tr key={entry._id} className="hover:bg-bg/60 transition-colors">
-                        {/* Queue Token */}
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white font-mono text-base font-bold shadow-sm">
-                            #{tokenNum}
-                          </span>
-                        </td>
-
-                        {/* Patient */}
-                        <td className="px-5 py-4">
-                          <div className="font-semibold text-ink flex items-center gap-1.5">
-                            <span>{patientName}</span>
-                            <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${
-                              (entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12))
-                                ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                : 'bg-blue-50 text-blue-800 border-blue-200'
-                            }`}>
-                              {(entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12)) ? 'Child' : 'Adult'}
+                      <div key={entry._id} className="p-3.5 space-y-2.5 hover:bg-bg/40 transition-colors">
+                        {/* Collapsed Header */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-white font-mono text-sm font-bold shadow-xs mt-0.5">
+                              #{tokenNum}
                             </span>
+                            <div className="min-w-0 space-y-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                                <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'}`}>
+                                  {displayStatus}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                                {entry.patient?.opNumber && <span className="font-bold text-brand">{entry.patient.opNumber}</span>}
+                                {entry.patient?.phone && <span>• {entry.patient.phone}</span>}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-xs text-ink-soft flex items-center gap-2 mt-0.5">
-                            {entry.patient?.opNumber && (
-                              <span className="font-mono text-brand font-bold">{entry.patient.opNumber}</span>
-                            )}
-                            {entry.patient?.phone && <span>{entry.patient.phone}</span>}
-                          </div>
-                        </td>
 
-                        {/* Doctor */}
-                        <td className="px-5 py-4 text-ink font-medium text-xs">
-                          {docName}
-                        </td>
-
-                        {/* Type */}
-                        <td className="px-5 py-4 text-xs">
-                          <span
-                            className={`badge ${
-                              entry.type === 'Walk-in'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-blue-50 text-blue-700'
-                            }`}
+                          <button
+                            type="button"
+                            onClick={(e) => toggleExpandActive(entry._id, e)}
+                            className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                            aria-label={isExpanded ? 'Collapse queue entry' : 'Expand queue entry'}
                           >
-                            {entry.type}
-                          </span>
-                        </td>
+                            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </button>
+                        </div>
 
-                        {/* Time */}
-                        <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
-                          <div className="flex items-center gap-1 font-medium text-ink">
-                            <Clock size={13} className="text-brand" /> {timeStr}
+                        {/* Expanded Content */}
+                        {isExpanded && (
+                          <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                            <div className="grid grid-cols-2 gap-2 text-ink-soft">
+                              <div>
+                                <span className="block text-[10px] font-semibold text-ink-soft uppercase">Assigned Doctor</span>
+                                <span className="font-semibold text-ink">{docName}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] font-semibold text-ink-soft uppercase">Visit Type</span>
+                                <span className="font-medium text-ink">{entry.type}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="block text-[10px] font-semibold text-ink-soft uppercase">Checked-In Time</span>
+                                <span className="font-medium text-ink font-mono">{timeStr}</span>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="pt-1 flex items-center justify-end">
+                              {displayStatus === 'Checked-In' && (
+                                <button
+                                  onClick={() => setPendingCancelQueueEntry(entry)}
+                                  className="btn-secondary text-xs py-1.5 px-3 w-full text-rose-700 border-rose-200 hover:bg-rose-50 justify-center font-semibold"
+                                >
+                                  <X size={14} /> Cancel Check-In
+                                </button>
+                              )}
+                              {displayStatus === 'In Consultation' && (
+                                <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200 w-full text-center">
+                                  Doctor Consulting Now
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="px-5 py-4">
-                          <span
-                            className={`badge border ${
-                              STATUS_BADGE_CLASSES[displayStatus] || 'bg-slate-100 text-slate-800'
-                            }`}
-                          >
-                            {displayStatus}
-                          </span>
-                        </td>
-
-                        {/* Action */}
-                        <td className="px-5 py-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
-                            {displayStatus === 'Checked-In' && (
-                              <button
-                                onClick={() => setPendingCancelQueueEntry(entry)}
-                                className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
-                                title="Cancel Check-in"
-                              >
-                                <X size={13} />
-                                Cancel Check-In
-                              </button>
-                            )}
-                            {displayStatus === 'In Consultation' && (
-                              <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
-                                Doctor Consulting
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                        )}
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 2: COMPLETED TODAY QUEUE VIEW (NEW TAB) */}
-      {activeTab === 'completed' && (
-        <div className="space-y-4">
-          {/* SEARCH & FILTER CONTROLS BAR */}
-          <div className="card p-4 space-y-3 bg-surface border-border">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
-                <input
-                  type="text"
-                  className="input-field pl-10 py-2 text-xs"
-                  placeholder="Search by Patient Name, Phone Number, or OP Number..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              {hasActiveCompletedFilters && (
-                <button
-                  onClick={handleResetCompletedFilters}
-                  className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold shrink-0"
-                >
-                  <X size={13} /> Reset Filters
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div>
-                <DatePicker
-                  placeholder="Date (Default Today)"
-                  value={dateFilter}
-                  onChange={(d, dStr) => {
-                    setDateFilter(dStr);
-                    fetchCompletedQueue(dStr);
-                  }}
-                  inputClassName="py-1.5 text-xs font-semibold"
-                />
-              </div>
-
-              <div>
-                <select
-                  className="input-field py-1.5 text-xs font-semibold"
-                  value={doctorFilter}
-                  onChange={(e) => setDoctorFilter(e.target.value)}
-                >
-                  <option value="">All Attending Doctors</option>
-                  {doctors.map((d) => (
-                    <option key={d._id || d.id} value={d._id || d.id}>
-                      Dr. {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <select
-                  className="input-field py-1.5 text-xs font-semibold"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                >
-                  <option value="">All Visit Types</option>
-                  <option value="Walk-in">Walk-in</option>
-                  <option value="Appointment">Appointment</option>
-                </select>
-              </div>
-
-              <div>
-                <select
-                  className="input-field py-1.5 text-xs font-semibold"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Completed">Completed</option>
-                  <option value="No Show">No Show</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
-            </div>
+                </div>
+              </>
+            )}
           </div>
+        )}
 
-          {/* COMPLETED QUEUE TABLE */}
-          <div className="card overflow-hidden">
-            {loadingCompleted ? (
-              <TableSkeleton rows={5} cols={6} />
-            ) : filteredCompletedEntries.length === 0 ? (
-              <div className="p-12 text-center space-y-3">
-                <CheckCircle2 size={36} className="mx-auto text-ink-soft/40" />
-                <p className="font-display text-base font-semibold text-ink">No completed queue entries found</p>
-                <p className="text-xs text-ink-soft">
-                  {hasActiveCompletedFilters
-                    ? 'No entries match your selected date, doctor, type, or status filters.'
-                    : 'Completed, no-show, or cancelled queue entries for today will appear here.'}
-                </p>
+        {/* TAB 2: COMPLETED TODAY QUEUE VIEW */}
+        {activeTab === 'completed' && (
+          <div className="space-y-4">
+            {/* SEARCH & FILTER CONTROLS BAR */}
+            <div className="card p-3.5 sm:p-4 space-y-3 bg-surface border-border">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    type="text"
+                    className="input-field pl-10 py-2 text-xs"
+                    placeholder="Search by Patient Name, Phone Number, or OP Number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
                 {hasActiveCompletedFilters && (
                   <button
                     onClick={handleResetCompletedFilters}
-                    className="btn-secondary text-xs py-1.5 px-3 font-semibold mx-auto inline-flex items-center gap-1"
+                    className="text-xs text-rose-600 hover:underline flex items-center gap-1 font-semibold shrink-0"
                   >
-                    <RefreshCw size={13} /> Reset Filters
+                    <X size={13} /> Reset Filters
                   </button>
                 )}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
-                    <tr>
-                      <th className="px-5 py-3.5">Queue Token</th>
-                      <th className="px-5 py-3.5">Patient</th>
-                      <th className="px-5 py-3.5">Doctor</th>
-                      <th className="px-5 py-3.5">Type</th>
-                      <th className="px-5 py-3.5">Checked-In Time</th>
-                      <th className="px-5 py-3.5">Consultation Start</th>
-                      <th className="px-5 py-3.5">Consultation End</th>
-                      <th className="px-5 py-3.5">Status</th>
-                      <th className="px-5 py-3.5 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <DatePicker
+                    placeholder="Date (Default Today)"
+                    value={dateFilter}
+                    onChange={(d, dStr) => {
+                      setDateFilter(dStr);
+                      fetchCompletedQueue(dStr);
+                    }}
+                    inputClassName="py-1.5 text-xs font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <select
+                    className="input-field py-1.5 text-xs font-semibold"
+                    value={doctorFilter}
+                    onChange={(e) => setDoctorFilter(e.target.value)}
+                  >
+                    <option value="">All Attending Doctors</option>
+                    {doctors.map((d) => (
+                      <option key={d._id || d.id} value={d._id || d.id}>
+                        Dr. {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <select
+                    className="input-field py-1.5 text-xs font-semibold"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                  >
+                    <option value="">All Visit Types</option>
+                    <option value="Walk-in">Walk-in</option>
+                    <option value="Appointment">Appointment</option>
+                  </select>
+                </div>
+
+                <div>
+                  <select
+                    className="input-field py-1.5 text-xs font-semibold"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="Completed">Completed</option>
+                    <option value="No Show">No Show</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* COMPLETED QUEUE TABLE / CARDS */}
+            <div className="card overflow-hidden">
+              {loadingCompleted ? (
+                <TableSkeleton rows={5} cols={6} />
+              ) : filteredCompletedEntries.length === 0 ? (
+                <div className="p-8 sm:p-12 text-center space-y-3">
+                  <CheckCircle2 size={36} className="mx-auto text-ink-soft/40" />
+                  <p className="font-display text-base font-semibold text-ink">No completed queue entries found</p>
+                  <p className="text-xs text-ink-soft">
+                    {hasActiveCompletedFilters
+                      ? 'No entries match your selected date, doctor, type, or status filters.'
+                      : 'Completed, no-show, or cancelled queue entries for today will appear here.'}
+                  </p>
+                  {hasActiveCompletedFilters && (
+                    <button
+                      onClick={handleResetCompletedFilters}
+                      className="btn-secondary text-xs py-1.5 px-3 font-semibold mx-auto inline-flex items-center gap-1"
+                    >
+                      <RefreshCw size={13} /> Reset Filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Desktop Table View (≥768px) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
+                        <tr>
+                          <th className="px-5 py-3.5">Queue Token</th>
+                          <th className="px-5 py-3.5">Patient</th>
+                          <th className="px-5 py-3.5">Doctor</th>
+                          <th className="px-5 py-3.5">Type</th>
+                          <th className="px-5 py-3.5">Checked-In Time</th>
+                          <th className="px-5 py-3.5">Consultation Start</th>
+                          <th className="px-5 py-3.5">Consultation End</th>
+                          <th className="px-5 py-3.5">Status</th>
+                          <th className="px-5 py-3.5 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {filteredCompletedEntries.map((item) => {
+                          const p = item.patient || {};
+                          const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                          const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : 'Staff Doctor';
+
+                          const checkInTimeStr = item.checkInTime
+                            ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '—';
+
+                          const startTimeStr = item.startTime
+                            ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '—';
+
+                          const endTimeStr = item.endTime
+                            ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '—';
+
+                          return (
+                            <tr
+                              key={item.id}
+                              onClick={() => setSelectedVisitSummary(item)}
+                              className="hover:bg-bg/60 cursor-pointer transition-colors group"
+                            >
+                              <td className="px-5 py-4 whitespace-nowrap">
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-light/40 text-brand-dark font-mono text-xs font-bold border border-brand/20">
+                                  #{item.token}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="font-bold text-ink text-xs group-hover:text-brand transition-colors flex items-center gap-1.5">
+                                  <span>{patientName}</span>
+                                  <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${(p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12))
+                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                      : 'bg-blue-50 text-blue-800 border-blue-200'
+                                    }`}>
+                                    {(p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12)) ? 'Child' : 'Adult'}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-ink-soft font-mono">
+                                  {p.opNumber ? `#${p.opNumber}` : '—'} {p.phone ? `• ${p.phone}` : ''}
+                                </div>
+                              </td>
+                              <td className="px-5 py-4 font-semibold text-ink whitespace-nowrap">
+                                {docName}
+                              </td>
+                              <td className="px-5 py-4 text-xs whitespace-nowrap">
+                                <span
+                                  className={`badge ${item.type === 'Walk-in'
+                                      ? 'bg-orange-100 text-orange-800 border-orange-200'
+                                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                                    }`}
+                                >
+                                  {item.type}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                                {checkInTimeStr}
+                              </td>
+                              <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                                {startTimeStr}
+                              </td>
+                              <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
+                                {endTimeStr}
+                              </td>
+                              <td className="px-5 py-4 whitespace-nowrap">
+                                <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
+                                  {item.status}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4 text-right whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedVisitSummary(item);
+                                  }}
+                                  className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5"
+                                >
+                                  <Eye size={13} /> View Summary
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Accordion Cards View (<768px down to 320px) */}
+                  <div className="block md:hidden divide-y divide-border">
                     {filteredCompletedEntries.map((item) => {
                       const p = item.patient || {};
                       const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
                       const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : 'Staff Doctor';
+                      const isExpanded = expandedCompletedId === item.id;
 
                       const checkInTimeStr = item.checkInTime
                         ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -710,98 +902,81 @@ export default function Queue() {
                         : '—';
 
                       return (
-                        <tr
-                          key={item.id}
-                          onClick={() => setSelectedVisitSummary(item)}
-                          className="hover:bg-bg/60 cursor-pointer transition-colors group"
-                        >
-                          {/* Queue Token */}
-                          <td className="px-5 py-4 whitespace-nowrap">
-                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-light/40 text-brand-dark font-mono text-xs font-bold border border-brand/20">
-                              #{item.token}
-                            </span>
-                          </td>
-
-                          {/* Patient */}
-                          <td className="px-5 py-4">
-                            <div className="font-bold text-ink text-xs group-hover:text-brand transition-colors flex items-center gap-1.5">
-                              <span>{patientName}</span>
-                              <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${
-                                (p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12))
-                                  ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                  : 'bg-blue-50 text-blue-800 border-blue-200'
-                              }`}>
-                                {(p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12)) ? 'Child' : 'Adult'}
+                        <div key={item.id} className="p-3.5 space-y-2.5 hover:bg-bg/40 transition-colors">
+                          {/* Collapsed Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-light/40 text-brand-dark font-mono text-xs font-bold border border-brand/20 mt-0.5">
+                                #{item.token}
                               </span>
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                                  <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
+                                    {item.status}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                                  {p.opNumber && <span className="font-bold text-brand">{p.opNumber}</span>}
+                                  {p.phone && <span>• {p.phone}</span>}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-[11px] text-ink-soft font-mono">
-                              {p.opNumber ? `#${p.opNumber}` : '—'} {p.phone ? `• ${p.phone}` : ''}
-                            </div>
-                          </td>
 
-                          {/* Doctor */}
-                          <td className="px-5 py-4 font-semibold text-ink whitespace-nowrap">
-                            {docName}
-                          </td>
-
-                          {/* Type */}
-                          <td className="px-5 py-4 text-xs whitespace-nowrap">
-                            <span
-                              className={`badge ${
-                                item.type === 'Walk-in'
-                                  ? 'bg-orange-100 text-orange-800 border-orange-200'
-                                  : 'bg-blue-50 text-blue-700 border-blue-200'
-                              }`}
-                            >
-                              {item.type}
-                            </span>
-                          </td>
-
-                          {/* Checked-In Time */}
-                          <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
-                            {checkInTimeStr}
-                          </td>
-
-                          {/* Consultation Start */}
-                          <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
-                            {startTimeStr}
-                          </td>
-
-                          {/* Consultation End */}
-                          <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
-                            {endTimeStr}
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-5 py-4 whitespace-nowrap">
-                            <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
-                              {item.status}
-                            </span>
-                          </td>
-
-                          {/* Action */}
-                          <td className="px-5 py-4 text-right whitespace-nowrap">
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedVisitSummary(item);
-                              }}
-                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5"
+                              onClick={(e) => toggleExpandCompleted(item.id, e)}
+                              className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                              aria-label={isExpanded ? 'Collapse queue summary' : 'Expand queue summary'}
                             >
-                              <Eye size={13} /> View Summary
+                              {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                             </button>
-                          </td>
-                        </tr>
+                          </div>
+
+                          {/* Expanded Content */}
+                          {isExpanded && (
+                            <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                              <div className="grid grid-cols-2 gap-2 text-ink-soft">
+                                <div>
+                                  <span className="block text-[10px] font-semibold text-ink-soft uppercase">Attending Doctor</span>
+                                  <span className="font-semibold text-ink">{docName}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-[10px] font-semibold text-ink-soft uppercase">Visit Type</span>
+                                  <span className="font-medium text-ink">{item.type}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-[10px] font-semibold text-ink-soft uppercase">Check-In Time</span>
+                                  <span className="font-medium text-ink font-mono">{checkInTimeStr}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-[10px] font-semibold text-ink-soft uppercase">Consultation Duration</span>
+                                  <span className="font-medium text-ink font-mono">{startTimeStr} - {endTimeStr}</span>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="pt-1 flex items-center justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedVisitSummary(item)}
+                                  className="btn-secondary py-1.5 px-3 text-xs w-full justify-center font-semibold"
+                                >
+                                  <Eye size={14} /> View Full Visit Summary
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
       </div>
 
       {/* BRIEF VISIT SUMMARY MODAL (COMPLETED QUEUE) */}
@@ -952,18 +1127,16 @@ export default function Queue() {
                     <button
                       type="button"
                       onClick={() => setPatientMode('search')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                        patientMode === 'search' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
-                      }`}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${patientMode === 'search' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+                        }`}
                     >
                       Search Existing Patient
                     </button>
                     <button
                       type="button"
                       onClick={() => setPatientMode('new')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                        patientMode === 'new' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
-                      }`}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors ${patientMode === 'new' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+                        }`}
                     >
                       Register New Patient
                     </button>

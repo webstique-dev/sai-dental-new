@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  FileBarChart, TrendingUp, DollarSign, Stethoscope, UserCheck, Download, Calendar, Filter,
-  Users, UserPlus, RotateCcw, CheckCircle2, XCircle, AlertCircle, CreditCard, Wallet, Activity, RefreshCw
+  FileBarChart, TrendingUp, DollarSign, Stethoscope, UserCheck, Download, Calendar, CalendarDays, Filter,
+  Users, UserPlus, RotateCcw, CheckCircle2, XCircle, AlertCircle, CreditCard, Wallet, Activity, RefreshCw,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
@@ -32,22 +33,18 @@ function downloadCSV(filename, headers, rows) {
   document.body.removeChild(link);
 }
 
-export default function Reports() {
+export default function AdminReports() {
   const [activeTab, setActiveTab] = useState('performance');
-
-  // Shared Date Range Filter
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [isRangeFilterOpen, setIsRangeFilterOpen] = useState(false);
 
-  // Data states for 4 tabs
+  const [loading, setLoading] = useState(true);
   const [performanceData, setPerformanceData] = useState(null);
   const [financialData, setFinancialData] = useState(null);
   const [treatmentData, setTreatmentData] = useState(null);
   const [doctorData, setDoctorData] = useState(null);
 
-  const [loading, setLoading] = useState(false);
-
-  // Quick Date Range Preset Selector
   const applyPreset = (days) => {
     const end = new Date();
     const start = new Date();
@@ -141,42 +138,43 @@ export default function Reports() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <FileBarChart size={26} className="text-brand" /> Reports & Clinic Analytics
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-ink flex items-center gap-2 min-w-0 leading-tight">
+            <FileBarChart size={26} className="text-brand shrink-0" />
+            <span className="truncate sm:whitespace-normal">Reports & Clinic Analytics</span>
           </h1>
-          <p className="text-xs text-ink-soft mt-0.5">
+          <p className="text-xs text-ink-soft mt-1 leading-relaxed break-words">
             Operational summaries, financial metrics, procedure rankings, and doctor productivity.
           </p>
         </div>
       </div>
 
-      {/* Date Filter & Quick Presets Bar */}
-      <div className="card p-4 bg-surface space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-ink">
-            <Filter size={15} className="text-brand" /> Range Filter
+      {/* Desktop Range Filter Bar (≥768px) */}
+      <div className="hidden md:block card p-4 bg-surface space-y-3 w-full max-w-full overflow-hidden">
+        <div className="flex flex-row items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-ink">
+            <Filter size={15} className="text-brand shrink-0" /> Range Filter
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
             <span className="text-ink-soft text-[11px] font-medium mr-1">Quick Presets:</span>
-            <button onClick={() => applyPreset(7)} className="btn-secondary py-1 px-2 text-[11px]">Last 7 Days</button>
-            <button onClick={() => applyPreset(30)} className="btn-secondary py-1 px-2 text-[11px]">Last 30 Days</button>
-            <button onClick={() => applyPreset(90)} className="btn-secondary py-1 px-2 text-[11px]">Last 90 Days</button>
-            <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-ink-soft hover:text-brand underline text-[11px] ml-1">Clear</button>
+            <button type="button" onClick={() => applyPreset(7)} className="btn-secondary py-1 px-2.5 text-[11px] font-semibold">Last 7 Days</button>
+            <button type="button" onClick={() => applyPreset(30)} className="btn-secondary py-1 px-2.5 text-[11px] font-semibold">Last 30 Days</button>
+            <button type="button" onClick={() => applyPreset(90)} className="btn-secondary py-1 px-2.5 text-[11px] font-semibold">Last 90 Days</button>
+            <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-ink-soft hover:text-brand underline text-[11px] font-semibold ml-1">Clear</button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-3 gap-3 text-xs">
           <div>
             <DatePicker
               label="From Date"
               value={dateFrom}
               onChange={(date, dateStr) => setDateFrom(dateStr)}
-              inputClassName="py-1 text-xs"
+              inputClassName="py-1.5 text-xs w-full"
             />
           </div>
 
@@ -185,14 +183,15 @@ export default function Reports() {
               label="To Date"
               value={dateTo}
               onChange={(date, dateStr) => setDateTo(dateStr)}
-              inputClassName="py-1 text-xs"
+              inputClassName="py-1.5 text-xs w-full"
             />
           </div>
 
           <div className="flex items-end">
             <button
+              type="button"
               onClick={fetchReports}
-              className="btn-primary w-full py-1.5 text-xs flex items-center justify-center gap-1.5"
+              className="btn-primary w-full py-2 text-xs flex items-center justify-center gap-1.5 font-bold"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Apply Range Filter
             </button>
@@ -200,47 +199,129 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex border-b border-border space-x-4 text-sm font-medium">
+      {/* Mobile Collapsible Range Filter Accordion (<768px down to 320px) */}
+      <div className="block md:hidden card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+        {/* Accordion Toggle Header */}
         <button
-          onClick={() => setActiveTab('performance')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'performance'
-            ? 'border-brand text-brand font-bold'
-            : 'border-transparent text-ink-soft hover:text-ink'
-            }`}
+          type="button"
+          onClick={() => setIsRangeFilterOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
         >
-          <Activity size={16} /> Clinic Performance
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+              <Filter size={14} />
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="font-bold text-ink">Range Filter</span>
+              {(dateFrom || dateTo) && (
+                <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0 truncate max-w-[140px]">
+                  {dateFrom || 'Start'} → {dateTo || 'Today'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+            <span>{isRangeFilterOpen ? 'Hide' : 'Filter Date'}</span>
+            {isRangeFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
         </button>
 
-        <button
-          onClick={() => setActiveTab('financial')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'financial'
-            ? 'border-brand text-brand font-bold'
-            : 'border-transparent text-ink-soft hover:text-ink'
-            }`}
-        >
-          <DollarSign size={16} /> Financial Metrics
-        </button>
+        {/* Collapsible Body */}
+        {isRangeFilterOpen && (
+          <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+            {/* Quick Presets */}
+            <div className="space-y-1.5">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                Quick Presets
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => applyPreset(7)} className="btn-secondary py-1.5 px-2.5 text-xs font-semibold shrink-0">Last 7 Days</button>
+                <button type="button" onClick={() => applyPreset(30)} className="btn-secondary py-1.5 px-2.5 text-xs font-semibold shrink-0">Last 30 Days</button>
+                <button type="button" onClick={() => applyPreset(90)} className="btn-secondary py-1.5 px-2.5 text-xs font-semibold shrink-0">Last 90 Days</button>
+                <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-ink-soft hover:text-brand underline text-xs font-semibold ml-1 py-1 shrink-0">Clear</button>
+              </div>
+            </div>
 
-        <button
-          onClick={() => setActiveTab('treatment')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'treatment'
-            ? 'border-brand text-brand font-bold'
-            : 'border-transparent text-ink-soft hover:text-ink'
-            }`}
-        >
-          <Stethoscope size={16} /> Treatment Analytics
-        </button>
+            {/* From Date & To Date Inputs & Apply Button */}
+            <div className="space-y-3 pt-1">
+              <div>
+                <DatePicker
+                  label="From Date"
+                  value={dateFrom}
+                  onChange={(date, dateStr) => setDateFrom(dateStr)}
+                  inputClassName="py-1.5 text-xs w-full"
+                />
+              </div>
 
-        <button
-          onClick={() => setActiveTab('doctor')}
-          className={`pb-3 px-2 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'doctor'
-            ? 'border-brand text-brand font-bold'
-            : 'border-transparent text-ink-soft hover:text-ink'
-            }`}
-        >
-          <UserCheck size={16} /> Doctor Analytics
-        </button>
+              <div>
+                <DatePicker
+                  label="To Date"
+                  value={dateTo}
+                  onChange={(date, dateStr) => setDateTo(dateStr)}
+                  inputClassName="py-1.5 text-xs w-full"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={fetchReports}
+                className="btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 mt-1"
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Apply Range Filter
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Category Navigation Tabs (Horizontally scrollable from 768px down to 320px) */}
+      <div className="w-full max-w-full min-w-0 overflow-x-auto scrollbar-none no-scrollbar border-b border-border py-1">
+        <div className="flex items-center space-x-1.5 sm:space-x-3 text-xs sm:text-sm font-semibold whitespace-nowrap min-w-max">
+          <button
+            type="button"
+            onClick={() => setActiveTab('performance')}
+            className={`px-3 py-2.5 flex items-center gap-1.5 sm:gap-2 border-b-2 transition-all rounded-t-lg shrink-0 ${activeTab === 'performance'
+              ? 'border-brand text-brand font-bold bg-brand-light/30'
+              : 'border-transparent text-ink-soft hover:text-ink hover:bg-bg/60'
+              }`}
+          >
+            <Activity size={16} className={activeTab === 'performance' ? 'text-brand' : 'text-ink-soft'} /> Clinic Performance
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('financial')}
+            className={`px-3 py-2.5 flex items-center gap-1.5 sm:gap-2 border-b-2 transition-all rounded-t-lg shrink-0 ${activeTab === 'financial'
+              ? 'border-brand text-brand font-bold bg-brand-light/30'
+              : 'border-transparent text-ink-soft hover:text-ink hover:bg-bg/60'
+              }`}
+          >
+            <DollarSign size={16} className={activeTab === 'financial' ? 'text-brand' : 'text-ink-soft'} /> Financial Metrics
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('treatment')}
+            className={`px-3 py-2.5 flex items-center gap-1.5 sm:gap-2 border-b-2 transition-all rounded-t-lg shrink-0 ${activeTab === 'treatment'
+              ? 'border-brand text-brand font-bold bg-brand-light/30'
+              : 'border-transparent text-ink-soft hover:text-ink hover:bg-bg/60'
+              }`}
+          >
+            <Stethoscope size={16} className={activeTab === 'treatment' ? 'text-brand' : 'text-ink-soft'} /> Treatment Analytics
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('doctor')}
+            className={`px-3 py-2.5 flex items-center gap-1.5 sm:gap-2 border-b-2 transition-all rounded-t-lg shrink-0 ${activeTab === 'doctor'
+              ? 'border-brand text-brand font-bold bg-brand-light/30'
+              : 'border-transparent text-ink-soft hover:text-ink hover:bg-bg/60'
+              }`}
+          >
+            <UserCheck size={16} className={activeTab === 'doctor' ? 'text-brand' : 'text-ink-soft'} /> Doctor Analytics
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -249,15 +330,19 @@ export default function Reports() {
         <>
           {/* TAB 1: CLINIC PERFORMANCE */}
       {activeTab === 'performance' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-sm font-bold text-ink">Operational Summary</h2>
-            <button onClick={handleExportPerformance} className="btn-secondary text-xs flex items-center gap-1.5">
+        <div className="space-y-5 sm:space-y-6 w-full max-w-full overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-ink">Operational Summary</h2>
+              <p className="text-[11px] sm:text-xs text-ink-soft">Key operational metrics for patient intake and consultations.</p>
+            </div>
+            <button onClick={handleExportPerformance} className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto shrink-0 py-1.5 px-3">
               <Download size={14} /> Export CSV
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Stat Cards Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 w-full max-w-full">
             <StatCard
               title="Total Clinic Patients"
               value={performanceData?.totalPatients ?? '—'}
@@ -284,29 +369,40 @@ export default function Reports() {
             />
           </div>
 
-          <div className="card p-5 space-y-4">
-            <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Appointments Overview</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div className="bg-bg p-4 rounded-lg border border-border space-y-1">
-                <div className="text-ink-soft font-semibold">Total Appointments</div>
-                <div className="text-2xl font-bold text-ink">{performanceData?.appointments ?? 0}</div>
-                <div className="text-[11px] text-ink-soft">Scheduled in range</div>
+          {/* Appointments Overview Card */}
+          <div className="card p-4 sm:p-5 space-y-4 w-full max-w-full overflow-hidden rounded-2xl border border-border shadow-xs bg-surface">
+            <div className="flex items-center justify-between border-b border-border/70 pb-3">
+              <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2">
+                <CalendarDays size={16} className="text-brand shrink-0" /> Appointments Overview
+              </h3>
+              <span className="badge bg-bg text-ink-soft border border-border text-[10px] font-bold">
+                Period Summary
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs w-full max-w-full">
+              <div className="bg-bg/70 p-3.5 sm:p-4 rounded-xl border border-border space-y-1.5 w-full max-w-full overflow-hidden transition-all hover:border-border/80">
+                <div className="text-ink-soft font-semibold text-xs truncate">Total Appointments</div>
+                <div className="text-xl sm:text-2xl font-bold text-ink font-mono">{performanceData?.appointments ?? 0}</div>
+                <div className="text-[11px] text-ink-soft truncate">Scheduled in selected range</div>
               </div>
 
-              <div className="bg-rose-50/50 p-4 rounded-lg border border-rose-200/60 space-y-1">
-                <div className="text-rose-700 font-semibold flex items-center gap-1">
-                  <XCircle size={14} /> Cancelled Appointments
+              <div className="bg-rose-50/60 p-3.5 sm:p-4 rounded-xl border border-rose-200/80 space-y-1.5 w-full max-w-full overflow-hidden transition-all hover:border-rose-300">
+                <div className="text-rose-700 font-semibold text-xs flex items-center gap-1.5 min-w-0">
+                  <XCircle size={15} className="shrink-0 text-rose-600" />
+                  <span className="truncate">Cancelled Appointments</span>
                 </div>
-                <div className="text-2xl font-bold text-rose-800">{performanceData?.cancelledAppointments ?? 0}</div>
-                <div className="text-[11px] text-rose-600">Patient or staff cancellations</div>
+                <div className="text-xl sm:text-2xl font-bold text-rose-800 font-mono">{performanceData?.cancelledAppointments ?? 0}</div>
+                <div className="text-[11px] text-rose-600 truncate">Patient or staff cancellations</div>
               </div>
 
-              <div className="bg-amber-50/50 p-4 rounded-lg border border-amber-200/60 space-y-1">
-                <div className="text-amber-700 font-semibold flex items-center gap-1">
-                  <AlertCircle size={14} /> No-Show Appointments
+              <div className="bg-amber-50/60 p-3.5 sm:p-4 rounded-xl border border-amber-200/80 space-y-1.5 w-full max-w-full overflow-hidden transition-all hover:border-amber-300">
+                <div className="text-amber-700 font-semibold text-xs flex items-center gap-1.5 min-w-0">
+                  <AlertCircle size={15} className="shrink-0 text-amber-600" />
+                  <span className="truncate">No-Show Appointments</span>
                 </div>
-                <div className="text-2xl font-bold text-amber-800">{performanceData?.noShows ?? 0}</div>
-                <div className="text-[11px] text-amber-600">Missed without notice</div>
+                <div className="text-xl sm:text-2xl font-bold text-amber-800 font-mono">{performanceData?.noShows ?? 0}</div>
+                <div className="text-[11px] text-amber-600 truncate">Missed without prior notice</div>
               </div>
             </div>
           </div>
@@ -372,10 +468,12 @@ export default function Reports() {
               </div>
             </div>
 
-            {/* Daily Revenue Table */}
-            <div className="card p-5 space-y-3">
+            {/* Daily Revenue Log */}
+            <div className="card p-4 sm:p-5 space-y-3 w-full max-w-full overflow-hidden">
               <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Daily Revenue Log</h3>
-              <div className="max-h-60 overflow-y-auto border border-border rounded-lg">
+              
+              {/* Desktop Table View (≥768px) */}
+              <div className="hidden md:block max-h-60 overflow-y-auto border border-border rounded-lg">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-bg border-b border-border sticky top-0 font-semibold text-ink-soft">
                     <tr>
@@ -400,6 +498,23 @@ export default function Reports() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card List View (<768px down to 320px) */}
+              <div className="block md:hidden max-h-60 overflow-y-auto border border-border rounded-xl divide-y divide-border bg-bg/40">
+                {(!financialData?.dailyRevenue || financialData.dailyRevenue.length === 0) ? (
+                  <div className="p-4 text-center text-ink-soft text-xs">No revenue recorded in range.</div>
+                ) : (
+                  financialData.dailyRevenue.map((d) => (
+                    <div key={d.date} className="p-3 flex items-center justify-between gap-2 text-xs">
+                      <div>
+                        <span className="font-mono text-ink font-semibold block text-xs">{d.date}</span>
+                        <span className="text-[10px] text-ink-soft">{d.invoiceCount} {d.invoiceCount === 1 ? 'invoice' : 'invoices'}</span>
+                      </div>
+                      <span className="font-bold text-emerald-700 font-mono text-xs">₹{d.revenue.toLocaleString()}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -432,12 +547,14 @@ export default function Reports() {
             ))}
           </div>
 
-          {/* Ranked Treatments Table */}
+          {/* Ranked Treatments Table / Cards */}
           <div className="card overflow-hidden">
             <div className="px-4 py-3 border-b border-border font-bold text-xs text-ink uppercase tracking-wider">
               Procedure Rankings by Volume & Revenue
             </div>
-            <div className="overflow-x-auto">
+
+            {/* Desktop Table View (≥768px) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-bg border-b border-border font-semibold text-ink-soft">
                   <tr>
@@ -465,6 +582,34 @@ export default function Reports() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Accordion Cards View (<768px down to 320px) */}
+            <div className="block md:hidden divide-y divide-border">
+              {(!treatmentData?.rankedTreatments || treatmentData.rankedTreatments.length === 0) ? (
+                <div className="p-6 text-center text-ink-soft text-xs">No treatments recorded in date range.</div>
+              ) : (
+                treatmentData.rankedTreatments.map((t, idx) => (
+                  <div key={t.treatment} className="p-3.5 space-y-2 hover:bg-bg/40 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="h-6 w-6 rounded-lg bg-brand-light/40 text-brand-dark font-bold text-xs flex items-center justify-center shrink-0">
+                          #{idx + 1}
+                        </span>
+                        <span className="font-bold text-ink text-sm truncate">{t.treatment}</span>
+                      </div>
+                      <span className="badge bg-brand/10 text-brand font-bold text-xs shrink-0">
+                        {t.count} {t.count === 1 ? 'case' : 'cases'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-border/60">
+                      <span className="text-ink-soft font-medium">Est. Revenue:</span>
+                      <span className="font-bold text-emerald-700 font-mono">₹{(t.estimatedRevenue || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -474,13 +619,14 @@ export default function Reports() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-bold text-ink">Doctor Productivity & Case Analytics</h2>
-            <button onClick={handleExportDoctors} className="btn-secondary text-xs flex items-center gap-1.5">
+            <button type="button" onClick={handleExportDoctors} className="btn-secondary text-xs flex items-center gap-1.5">
               <Download size={14} /> Export CSV
             </button>
           </div>
 
           <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View (≥768px) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-bg border-b border-border font-semibold text-ink-soft">
                   <tr>
@@ -525,10 +671,50 @@ export default function Reports() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Accordion Cards View (<768px down to 320px) */}
+            <div className="block md:hidden divide-y divide-border">
+              {(!doctorData?.doctors || doctorData.doctors.length === 0) ? (
+                <div className="p-6 text-center text-ink-soft text-xs">No doctor activity found.</div>
+              ) : (
+                doctorData.doctors.map((doc) => (
+                  <div key={doc.doctorId} className="p-3.5 space-y-2.5 hover:bg-bg/40 transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-ink text-sm truncate">{doc.doctorName}</div>
+                        <div className="text-[11px] text-ink-soft truncate">{doc.email}</div>
+                      </div>
+                      <span className="badge bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold shrink-0">
+                        {doc.specialization || 'General Doctor'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-bg/50 p-2.5 rounded-xl border border-border">
+                      <div>
+                        <span className="block text-[10px] font-bold text-ink-soft uppercase">Patients</span>
+                        <span className="font-bold text-ink">{doc.patientsHandled}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-ink-soft uppercase">Consultations</span>
+                        <span className="font-bold text-brand">{doc.consultationsCount}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-ink-soft uppercase">Treatments</span>
+                        <span className="font-semibold text-indigo-700">{doc.treatmentsCount}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-ink-soft uppercase">Follow-Ups</span>
+                        <span className="font-semibold text-emerald-700">{doc.followUpsCount}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
-      </>
+        </>
       )}
     </div>
   );

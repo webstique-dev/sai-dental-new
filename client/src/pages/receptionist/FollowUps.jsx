@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
-  CalendarDays, Plus, Search, Calendar, Phone, CheckCircle2, UserCheck, X, Clock, AlertTriangle, User, List,
+  CalendarDays, Plus, Search, Calendar, Phone, CheckCircle2, UserCheck, X, Clock, AlertTriangle, User, List, ChevronDown, ChevronUp, Filter
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -45,6 +46,7 @@ export default function FollowUps() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -262,38 +264,53 @@ export default function FollowUps() {
     }
   };
 
+  const [expandedId, setExpandedId] = useState(null);
+
+  const toggleExpand = (id, e) => {
+    e.stopPropagation();
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
         {/* Header & Primary Action */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-display text-xl font-bold text-ink">Follow-Up Reminders</h2>
-            <p className="text-sm text-ink-soft">Directly schedule follow-up appointments and track patient visits</p>
+        <div className="flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between w-full max-w-full">
+          <div className="space-y-1 min-w-0">
+            <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Follow-Up Reminders</h2>
+            <p className="text-xs sm:text-sm text-ink-soft leading-relaxed break-words">
+              Directly schedule follow-up appointments and track patient visits
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full md:w-auto shrink-0">
             {/* View Mode Toggle */}
-            <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-sm">
+            <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-2xs justify-center shrink-0">
               <button
+                type="button"
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  viewMode === 'list' ? 'bg-brand text-white shadow-sm' : 'text-ink-soft hover:text-ink'
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === 'list' ? 'bg-brand text-white shadow-xs' : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 <List size={15} /> List View
               </button>
               <button
+                type="button"
                 onClick={() => setViewMode('calendar')}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  viewMode === 'calendar' ? 'bg-brand text-white shadow-sm' : 'text-ink-soft hover:text-ink'
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  viewMode === 'calendar' ? 'bg-brand text-white shadow-xs' : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 <CalendarDays size={15} /> Calendar View
               </button>
             </div>
 
-            <button onClick={() => setShowAddModal(true)} className="btn-primary shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary w-full sm:w-auto justify-center text-xs sm:text-sm py-2 px-3.5 shrink-0"
+            >
               <Plus size={18} />
               <span>Add Follow-Up Appointment</span>
             </button>
@@ -323,31 +340,34 @@ export default function FollowUps() {
         ) : (
           <>
 
-        {/* Tabs & Search Bar */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Desktop View Filters (≥768px) */}
+        <div className="hidden md:flex flex-row items-center justify-between gap-3 w-full max-w-full min-w-0">
           {/* Status Filter Tabs */}
-          <div className="flex items-center gap-1 bg-surface border border-border p-1 rounded-2xl overflow-x-auto">
-            {['All', 'Scheduled', 'Pending', 'Checked-In', 'Completed', 'Missed', 'Cancelled'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                  activeTab === tab
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'text-ink-soft hover:text-ink hover:bg-bg'
-                }`}
-              >
-                {tab === 'Pending' ? 'Pending Callbacks' : tab}
-              </button>
-            ))}
+          <div className="overflow-x-auto scrollbar-none no-scrollbar py-0.5 max-w-full">
+            <div className="inline-flex items-center gap-1 bg-surface border border-border p-1 rounded-2xl whitespace-nowrap min-w-max">
+              {['All', 'Scheduled', 'Pending', 'Checked-In', 'Completed', 'Missed', 'Cancelled'].map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${
+                    activeTab === tab
+                      ? 'bg-brand text-white shadow-xs'
+                      : 'text-ink-soft hover:text-ink hover:bg-bg'
+                  }`}
+                >
+                  {tab === 'Pending' ? 'Pending Callbacks' : tab}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Search Input */}
-          <div className="relative w-full sm:w-72">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+          <div className="relative w-72 min-w-0 shrink-0">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft shrink-0" />
             <input
               type="text"
-              className="input-field pl-9 py-1.5 text-xs"
+              className="input-field pl-9 py-1.5 text-xs w-full min-w-0 truncate"
               placeholder="Search by Patient Name, Phone Number, or OP Number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -355,12 +375,102 @@ export default function FollowUps() {
           </div>
         </div>
 
-        {/* Follow-Up Records Table */}
+        {/* Mobile Collapsible Filter Accordion (<768px) */}
+        <div className="block md:hidden card p-3 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+          {/* Accordion Header Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                <Filter size={14} />
+              </div>
+              <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <span className="font-bold text-ink">Filters & Search</span>
+                {(activeTab !== 'All' || search) && (
+                  <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold shrink-0">
+                    Active Filter: {activeTab === 'Pending' ? 'Pending Callbacks' : activeTab}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+              <span>{isFilterOpen ? 'Hide' : 'Filter & Search'}</span>
+              {isFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
+          </button>
+
+          {/* Collapsible Content */}
+          {isFilterOpen && (
+            <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150">
+              {/* Search Bar */}
+              <div className="relative w-full">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft shrink-0" />
+                <input
+                  type="text"
+                  className="input-field pl-9 py-2 text-xs w-full"
+                  placeholder="Search Patient Name, Phone, or OP..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Status Tabs Bar - Responsive & Adaptable Wrap Pills */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                    Status Filter
+                  </span>
+                  {activeTab !== 'All' && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('All')}
+                      className="text-[10px] font-bold text-brand hover:underline"
+                    >
+                      Reset to All
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {['All', 'Scheduled', 'Pending', 'Checked-In', 'Completed', 'Missed', 'Cancelled'].map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                        activeTab === tab
+                          ? 'bg-brand text-white shadow-xs font-bold'
+                          : 'bg-bg text-ink-soft hover:text-ink border border-border hover:bg-surface'
+                      }`}
+                    >
+                      {tab === 'Pending' ? 'Pending Callbacks' : tab}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Follow-Up Records Table / Cards */}
         <div className="card overflow-hidden">
           {loading ? (
             <TableSkeleton rows={5} cols={7} />
           ) : followUps.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
+            <div className="p-8 sm:p-12 text-center space-y-3">
               <CalendarDays size={36} className="mx-auto text-ink-soft/40" />
               <p className="font-display text-base font-semibold text-ink">No follow-ups found</p>
               <p className="text-xs text-ink-soft">
@@ -370,112 +480,207 @@ export default function FollowUps() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
-                  <tr>
-                    <th className="px-5 py-3.5">Follow-Up Date</th>
-                    <th className="px-5 py-3.5">Patient Details</th>
-                    <th className="px-5 py-3.5">Assigned Doctor</th>
-                    <th className="px-5 py-3.5">Reason / Procedure</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Scheduled Appt</th>
-                    <th className="px-5 py-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {followUps.map((item) => {
-                    const itemId = item._id || item.id;
-                    const patient = item.patient || {};
-                    const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
-                    const isPending = item.status === 'Pending';
-                    const docObj = item.doctor || item.scheduledAppointment?.doctor;
-                    const recDateStr = item.recommendedDate
-                      ? new Date(item.recommendedDate).toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : 'N/A';
+            <>
+              {/* Desktop Table View (≥768px) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3.5">Follow-Up Date</th>
+                      <th className="px-5 py-3.5">Patient Details</th>
+                      <th className="px-5 py-3.5">Assigned Doctor</th>
+                      <th className="px-5 py-3.5">Reason / Procedure</th>
+                      <th className="px-5 py-3.5">Status</th>
+                      <th className="px-5 py-3.5">Scheduled Appt</th>
+                      <th className="px-5 py-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {followUps.map((item) => {
+                      const itemId = item._id || item.id;
+                      const patient = item.patient || {};
+                      const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                      const isPending = item.status === 'Pending';
+                      const docObj = item.doctor || item.scheduledAppointment?.doctor;
+                      const recDateStr = item.recommendedDate
+                        ? new Date(item.recommendedDate).toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : 'N/A';
 
-                    return (
-                      <tr key={itemId} className="hover:bg-bg/40 transition-colors">
-                        <td className="px-5 py-4 whitespace-nowrap font-bold text-ink">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar size={14} className="text-brand shrink-0" />
-                            <span>{recDateStr}</span>
-                          </div>
-                        </td>
+                      return (
+                        <tr key={itemId} className="hover:bg-bg/40 transition-colors">
+                          <td className="px-5 py-4 whitespace-nowrap font-bold text-ink">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar size={14} className="text-brand shrink-0" />
+                              <span>{recDateStr}</span>
+                            </div>
+                          </td>
 
-                        <td className="px-5 py-4">
-                          <div className="font-semibold text-ink text-sm">{patientName}</div>
-                          <div className="flex items-center gap-2 text-ink-soft text-[11px] mt-0.5">
-                            {patient.opNumber && (
-                              <span className="font-mono font-bold text-brand">{patient.opNumber}</span>
-                            )}
-                            {patient.phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone size={11} /> {patient.phone}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          {docObj ? (
-                            <span className="font-medium text-ink">Dr. {docObj.name}</span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                              Unassigned
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 font-medium text-ink max-w-xs">
-                          {item.reason}
-                          {item.notes && <span className="block text-[11px] text-ink-soft italic font-normal">{item.notes}</span>}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <span className={`badge border ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
-                            {item.status}
-                          </span>
-                        </td>
-
-                        <td className="px-5 py-4 text-ink-soft">
-                          {item.scheduledAppointment ? (
-                            <div className="space-y-0.5">
-                              <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 block text-[11px] w-fit">
-                                {new Date(item.scheduledAppointment.date).toLocaleDateString()} @ {item.scheduledAppointment.time || '—'}
-                              </span>
-                              {item.scheduledAppointment.doctor && (
-                                <span className="text-[10px] block">
-                                  Dr. {item.scheduledAppointment.doctor.name}
+                          <td className="px-5 py-4">
+                            <div className="font-semibold text-ink text-sm">{patientName}</div>
+                            <div className="flex items-center gap-2 text-ink-soft text-[11px] mt-0.5">
+                              {patient.opNumber && (
+                                <span className="font-mono font-bold text-brand">{patient.opNumber}</span>
+                              )}
+                              {patient.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone size={11} /> {patient.phone}
                                 </span>
                               )}
                             </div>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
+                          </td>
 
-                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            {docObj ? (
+                              <span className="font-medium text-ink">Dr. {docObj.name}</span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                Unassigned
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 font-medium text-ink max-w-xs">
+                            {item.reason}
+                            {item.notes && <span className="block text-[11px] text-ink-soft italic font-normal">{item.notes}</span>}
+                          </td>
+
+                          <td className="px-5 py-4">
+                            <span className={`badge border ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
+                              {item.status}
+                            </span>
+                          </td>
+
+                          <td className="px-5 py-4 text-ink-soft">
+                            {item.scheduledAppointment ? (
+                              <div className="space-y-0.5">
+                                <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 block text-[11px] w-fit">
+                                  {new Date(item.scheduledAppointment.date).toLocaleDateString()} @ {item.scheduledAppointment.time || '—'}
+                                </span>
+                                {item.scheduledAppointment.doctor && (
+                                  <span className="text-[10px] block">
+                                    Dr. {item.scheduledAppointment.doctor.name}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4 text-right whitespace-nowrap">
+                            {isPending && (
+                              <button
+                                onClick={() => openScheduleModal(item)}
+                                className="btn-primary text-xs py-1.5 px-3 inline-flex items-center gap-1"
+                              >
+                                <UserCheck size={14} /> Schedule Appt
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Accordion Cards View (<768px down to 320px) */}
+              <div className="block md:hidden divide-y divide-border">
+                {followUps.map((item) => {
+                  const itemId = item._id || item.id;
+                  const patient = item.patient || {};
+                  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const isPending = item.status === 'Pending';
+                  const docObj = item.doctor || item.scheduledAppointment?.doctor;
+                  const isExpanded = expandedId === itemId;
+
+                  const recDateStr = item.recommendedDate
+                    ? new Date(item.recommendedDate).toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : 'N/A';
+
+                  return (
+                    <div key={itemId} className="p-3.5 space-y-2.5 hover:bg-bg/40 transition-colors w-full max-w-full overflow-hidden">
+                      {/* Collapsed Header */}
+                      <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="min-w-0 space-y-1 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-ink text-sm truncate max-w-[180px] sm:max-w-full">{patientName}</span>
+                            <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[item.status] || 'bg-slate-100 text-slate-800'}`}>
+                              {item.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs flex-wrap font-mono">
+                            <span className="font-bold text-brand">{recDateStr}</span>
+                            {patient.opNumber && <span className="text-ink-soft font-semibold">• #{patient.opNumber}</span>}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => toggleExpand(itemId, e)}
+                          className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                          aria-label={isExpanded ? 'Collapse follow-up details' : 'Expand follow-up details'}
+                        >
+                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </button>
+                      </div>
+
+                      {/* Expanded Content */}
+                      {isExpanded && (
+                        <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                          <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                            <div>
+                              <span className="block text-[10px] font-semibold text-ink-soft uppercase">Assigned Doctor</span>
+                              <span className="font-semibold text-ink">{docObj ? `Dr. ${docObj.name}` : 'Unassigned'}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] font-semibold text-ink-soft uppercase">Phone</span>
+                              <span className="font-medium text-ink font-mono">{patient.phone || '—'}</span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="block text-[10px] font-semibold text-ink-soft uppercase">Reason / Procedure</span>
+                              <span className="font-medium text-ink">{item.reason || '—'}</span>
+                              {item.notes && <span className="block text-[11px] text-ink-soft italic">{item.notes}</span>}
+                            </div>
+                            {item.scheduledAppointment && (
+                              <div className="col-span-2 text-emerald-800 font-medium bg-emerald-50 p-2 rounded-xl border border-emerald-200">
+                                Scheduled Visit: <strong>{new Date(item.scheduledAppointment.date).toLocaleDateString()} @ {item.scheduledAppointment.time || '—'}</strong>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions */}
                           {isPending && (
-                            <button
-                              onClick={() => openScheduleModal(item)}
-                              className="btn-primary text-xs py-1.5 px-3 inline-flex items-center gap-1"
-                            >
-                              <UserCheck size={14} /> Schedule Appt
-                            </button>
+                            <div className="pt-1 flex items-center justify-end">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openScheduleModal(item);
+                                }}
+                                className="btn-primary py-2 px-3.5 text-xs w-full justify-center font-bold flex items-center gap-1.5"
+                              >
+                                <UserCheck size={15} /> Schedule Appointment
+                              </button>
+                            </div>
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </>
@@ -483,8 +688,8 @@ export default function FollowUps() {
       </div>
 
       {/* ADD FOLLOW-UP MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+      {showAddModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden !mt-0">
           <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
@@ -591,12 +796,13 @@ export default function FollowUps() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* SCHEDULE APPOINTMENT MODAL (FOR PENDING ROWS) */}
-      {schedulingFollowUp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+      {schedulingFollowUp && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden !mt-0">
           <div className="card w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
@@ -686,7 +892,8 @@ export default function FollowUps() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

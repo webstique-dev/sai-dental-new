@@ -68,26 +68,26 @@ export default function ReceptionistDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="font-display text-xl font-bold text-ink">Good to see you, {user?.name ? user.name.split(' ')[0] : 'Receptionist'}</h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Good to see you, {user?.name ? user.name.split(' ')[0] : 'Receptionist'}</h2>
+        <p className="mt-1 text-xs sm:text-sm text-ink-soft">
           Front desk operations overview & summary.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
 
-      <div className="card p-5">
+      <div className="card p-4 sm:p-5">
         <h3 className="font-display text-sm font-bold text-ink">Quick actions</h3>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link to="/reception/patients/register" className="btn-primary">Register Patient</Link>
-          <Link to="/reception/appointments" className="btn-secondary">Book Appointment</Link>
-          <Link to="/reception/queue" className="btn-secondary">Check In Patient</Link>
+        <div className="mt-3 flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-2">
+          <Link to="/reception/patients/register" className="btn-primary justify-center text-xs sm:text-sm">Register Patient</Link>
+          <Link to="/reception/appointments" className="btn-secondary justify-center text-xs sm:text-sm">Book Appointment</Link>
+          <Link to="/reception/queue" className="btn-secondary justify-center text-xs sm:text-sm">Check In Patient</Link>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Pill, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Calendar, Printer, FileText, ChevronRight
+  Pill, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Calendar, Printer, FileText, ChevronRight, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -11,6 +11,13 @@ export default function PrescriptionsPage() {
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPatient, setSelectedPatient] = useState(null);
+
+  // Mobile Accordion expand state
+  const [expandedPatientId, setExpandedPatientId] = useState(null);
+  const toggleExpandPatient = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedPatientId((prev) => (prev === id ? null : id));
+  };
 
   // Filter controls
   const [search, setSearch] = useState('');
@@ -207,83 +214,164 @@ export default function PrescriptionsPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="px-5 py-3.5">Patient Name</th>
-                  <th className="px-5 py-3.5">OP Number</th>
-                  <th className="px-5 py-3.5">Age / Sex</th>
-                  <th className="px-5 py-3.5">Phone Number</th>
-                  <th className="px-5 py-3.5">Latest Visit Date</th>
-                  <th className="px-5 py-3.5">Prescriptions</th>
-                  <th className="px-5 py-3.5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {patientGroups.map((group) => {
-                  const p = group.patient;
-                  const pId = p._id || p.id;
-                  const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
-                  const latestDateStr = group.latestVisitDate
-                    ? new Date(group.latestVisitDate).toLocaleDateString(undefined, {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                      })
-                    : 'N/A';
+          <>
+            {/* Desktop Table View (≥768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="px-5 py-3.5">Patient Name</th>
+                    <th className="px-5 py-3.5">OP Number</th>
+                    <th className="px-5 py-3.5">Age / Sex</th>
+                    <th className="px-5 py-3.5">Phone Number</th>
+                    <th className="px-5 py-3.5">Latest Visit Date</th>
+                    <th className="px-5 py-3.5">Prescriptions</th>
+                    <th className="px-5 py-3.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {patientGroups.map((group) => {
+                    const p = group.patient;
+                    const pId = p._id || p.id;
+                    const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                    const latestDateStr = group.latestVisitDate
+                      ? new Date(group.latestVisitDate).toLocaleDateString(undefined, {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        })
+                      : 'N/A';
 
-                  return (
-                    <tr
-                      key={pId}
-                      onClick={() => setSelectedPatient(p)}
-                      className="hover:bg-bg/60 cursor-pointer transition-colors group"
-                    >
-                      <td className="px-5 py-4 font-bold text-ink">
-                        <div className="flex items-center gap-2">
-                          <UserSquare2 size={16} className="text-brand shrink-0" />
-                          <span className="group-hover:text-brand transition-colors">{patientName}</span>
+                    return (
+                      <tr
+                        key={pId}
+                        onClick={() => setSelectedPatient(p)}
+                        className="hover:bg-bg/60 cursor-pointer transition-colors group"
+                      >
+                        <td className="px-5 py-4 font-bold text-ink">
+                          <div className="flex items-center gap-2">
+                            <UserSquare2 size={16} className="text-brand shrink-0" />
+                            <span className="group-hover:text-brand transition-colors">{patientName}</span>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4 font-mono font-bold text-brand whitespace-nowrap">
+                          {p.opNumber ? `#${p.opNumber}` : '—'}
+                        </td>
+
+                        <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                          {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''} {!p.age && !p.sex ? '—' : ''}
+                        </td>
+
+                        <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                          {p.phone || '—'}
+                        </td>
+
+                        <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
+                          {latestDateStr}
+                        </td>
+
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <span className="badge bg-brand-light/50 text-brand-dark font-mono font-bold text-xs">
+                            {group.totalPrescriptionsCount} {group.totalPrescriptionsCount === 1 ? 'Prescription' : 'Prescriptions'}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPatient(p);
+                            }}
+                            className="btn-secondary py-1 px-3 text-xs font-semibold inline-flex items-center gap-1.5"
+                          >
+                            <Eye size={14} /> View History
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Accordion Cards View (<768px down to 320px) */}
+            <div className="block md:hidden divide-y divide-border">
+              {patientGroups.map((group) => {
+                const p = group.patient;
+                const pId = p._id || p.id;
+                const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                const latestDateStr = group.latestVisitDate
+                  ? new Date(group.latestVisitDate).toLocaleDateString(undefined, {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })
+                  : 'N/A';
+                const isExpanded = expandedPatientId === pId;
+
+                return (
+                  <div key={pId} className="p-3.5 space-y-3 bg-surface hover:bg-bg/40 transition-colors">
+                    {/* Collapsed Header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-bold text-ink text-sm truncate">{patientName}</h4>
+                          <span className="badge bg-brand-light/50 text-brand-dark font-mono font-bold text-[10px] py-0.5 px-2 shrink-0 border border-brand/20">
+                            {group.totalPrescriptionsCount} Rx
+                          </span>
                         </div>
-                      </td>
+                        <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                          {p.opNumber && <span className="font-bold text-brand">#{p.opNumber}</span>}
+                          <span className="text-ink font-sans font-medium">• {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''}</span>
+                        </div>
+                      </div>
 
-                      <td className="px-5 py-4 font-mono font-bold text-brand whitespace-nowrap">
-                        {p.opNumber ? `#${p.opNumber}` : '—'}
-                      </td>
+                      <button
+                        type="button"
+                        onClick={(e) => toggleExpandPatient(pId, e)}
+                        className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                        aria-label={isExpanded ? 'Collapse patient prescription details' : 'Expand patient prescription details'}
+                      >
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                    </div>
 
-                      <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
-                        {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''} {!p.age && !p.sex ? '—' : ''}
-                      </td>
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                      <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                        <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                          <div>
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
+                            <span className="font-mono font-semibold text-ink">{p.phone || '—'}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Prescriptions</span>
+                            <span className="font-semibold text-brand">{group.totalPrescriptionsCount} Total</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Latest Visit Date</span>
+                            <span className="font-semibold text-ink">{latestDateStr}</span>
+                          </div>
+                        </div>
 
-                      <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
-                        {p.phone || '—'}
-                      </td>
-
-                      <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
-                        {latestDateStr}
-                      </td>
-
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <span className="badge bg-brand-light/50 text-brand-dark font-mono font-bold text-xs">
-                          {group.totalPrescriptionsCount} {group.totalPrescriptionsCount === 1 ? 'Prescription' : 'Prescriptions'}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedPatient(p);
-                          }}
-                          className="btn-secondary py-1 px-3 text-xs font-semibold inline-flex items-center gap-1.5"
-                        >
-                          <Eye size={14} /> View History
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {/* Primary Action Button */}
+                        <div className="pt-1 flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPatient(p);
+                            }}
+                            className="btn-secondary text-xs py-1.5 px-3 w-full justify-center inline-flex items-center gap-1.5 font-semibold"
+                          >
+                            <Eye size={14} /> View Prescription History
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>

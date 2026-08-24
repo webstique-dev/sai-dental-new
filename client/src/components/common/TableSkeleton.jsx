@@ -2,46 +2,77 @@ import React from 'react';
 
 export function TableSkeleton({ rows = 5, cols = 5 }) {
   return (
-    <div className="overflow-x-auto animate-pulse">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
-          <tr>
-            {Array.from({ length: cols }).map((_, i) => (
-              <th key={i} className="px-5 py-3.5">
-                <div className="h-3.5 w-20 rounded bg-slate-200" />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {Array.from({ length: rows }).map((_, rIdx) => (
-            <tr key={rIdx}>
-              <td className="px-5 py-4 whitespace-nowrap">
-                <div className="h-4 w-28 rounded-md bg-slate-200" />
-                <div className="h-3 w-16 rounded bg-slate-200/70 mt-1.5" />
-              </td>
-              <td className="px-5 py-4">
-                <div className="h-4 w-36 rounded-md bg-slate-200" />
-                <div className="h-3 w-24 rounded bg-slate-200/70 mt-1.5" />
-              </td>
-              <td className="px-5 py-4">
-                <div className="h-4 w-24 rounded-md bg-slate-200" />
-              </td>
-              <td className="px-5 py-4">
-                <div className="h-6 w-20 rounded-full bg-slate-200" />
-              </td>
-              <td className="px-5 py-4">
-                <div className="h-6 w-20 rounded-full bg-slate-200" />
-              </td>
-              {cols >= 6 && (
-                <td className="px-5 py-4 text-right">
-                  <div className="h-8 w-24 rounded-xl bg-slate-200 ml-auto" />
-                </td>
-              )}
+    <div className="w-full space-y-4 animate-pulse">
+      {/* Desktop Table View Skeleton (hidden on mobile < md, visible md and up) */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-surface">
+        <table className="w-full text-left text-sm border-collapse">
+          <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+            <tr>
+              {Array.from({ length: cols }).map((_, i) => (
+                <th key={i} className="px-5 py-3.5">
+                  <div className="h-3.5 w-20 rounded bg-slate-200" />
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {Array.from({ length: rows }).map((_, rIdx) => (
+              <tr key={rIdx}>
+                <td className="px-5 py-4 whitespace-nowrap">
+                  <div className="h-4 w-28 rounded-md bg-slate-200" />
+                  <div className="h-3 w-16 rounded bg-slate-200/70 mt-1.5" />
+                </td>
+                <td className="px-5 py-4">
+                  <div className="h-4 w-36 rounded-md bg-slate-200" />
+                  <div className="h-3 w-24 rounded bg-slate-200/70 mt-1.5" />
+                </td>
+                <td className="px-5 py-4">
+                  <div className="h-4 w-24 rounded-md bg-slate-200" />
+                </td>
+                <td className="px-5 py-4">
+                  <div className="h-6 w-20 rounded-full bg-slate-200" />
+                </td>
+                <td className="px-5 py-4">
+                  <div className="h-6 w-20 rounded-full bg-slate-200" />
+                </td>
+                {cols >= 6 && (
+                  <td className="px-5 py-4 text-right">
+                    <div className="h-8 w-24 rounded-xl bg-slate-200 ml-auto" />
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Card View Skeleton (visible on mobile < md, hidden on md and up) */}
+      <div className="block md:hidden space-y-3">
+        {Array.from({ length: Math.min(rows, 4) }).map((_, idx) => (
+          <div key={idx} className="card p-3.5 bg-surface border border-border shadow-xs space-y-3 rounded-xl">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-8 w-8 rounded-xl bg-slate-200 shrink-0" />
+                <div className="space-y-1.5 min-w-0">
+                  <div className="h-4 w-32 bg-slate-200 rounded-md" />
+                  <div className="h-3 w-20 bg-slate-200/70 rounded-md" />
+                </div>
+              </div>
+              <div className="h-5 w-16 bg-slate-200 rounded-full shrink-0" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div className="h-3.5 w-24 bg-slate-200/70 rounded-md" />
+              <div className="h-3.5 w-20 bg-slate-200/70 rounded-md justify-self-end" />
+            </div>
+
+            <div className="pt-2 border-t border-border/60 flex items-center justify-between">
+              <div className="h-3.5 w-28 bg-slate-200/70 rounded-md" />
+              <div className="h-7 w-20 bg-slate-200 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

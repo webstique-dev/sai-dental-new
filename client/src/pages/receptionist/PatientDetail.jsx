@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, UserSquare2, Phone, Calendar, Hash, User, ShieldAlert,
@@ -287,26 +288,20 @@ export default function PatientDetail() {
     : null;
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-4 sm:space-y-6 max-w-5xl">
       {/* Top back navigation & Header Action */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Link
           to="/reception/patients"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-brand hover:underline"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-brand hover:underline"
         >
           <ArrowLeft size={16} /> Back to Patients Directory
         </Link>
 
-        <div className="flex items-center gap-2">
-          {/* <Link
-            to={`/doctor/patients/${patient._id}`}
-            className="btn-secondary text-xs flex items-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30"
-          >
-            <Activity size={15} /> View EMR & History
-          </Link> */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleOpenEdit}
-            className="btn-secondary text-xs flex items-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30"
+            className="btn-secondary text-xs flex items-center justify-center gap-1.5 border-brand/30 text-brand hover:bg-brand-light/30 w-full sm:w-auto"
           >
             <Edit3 size={15} /> Edit Patient Profile
           </button>
@@ -314,19 +309,18 @@ export default function PatientDetail() {
       </div>
 
       {/* Patient Header Card */}
-      <div className="card p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-light text-brand-dark font-bold text-xl">
-              <UserSquare2 size={28} />
+      <div className="card p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4 sm:pb-5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-brand-light text-brand-dark font-bold text-lg sm:text-xl shrink-0">
+              <UserSquare2 size={26} />
             </div>
-            <div>
-              <h2 className="font-display text-2xl font-bold text-ink">{fullName}</h2>
-              <div className="flex items-center gap-2 mt-1">
+            <div className="min-w-0">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-ink truncate">{fullName}</h2>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="badge bg-brand/10 text-brand font-mono text-xs font-bold">
                   {patient.opNumber || 'OP-000000'}
                 </span>
-                {/* <span className="text-xs text-ink-soft">ID: {patient._id}</span> */}
               </div>
             </div>
           </div>
@@ -342,44 +336,44 @@ export default function PatientDetail() {
         </div>
 
         {/* Basic Demographics & Contact Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs sm:text-sm">
           <div className="space-y-1">
-            <span className="flex items-center gap-1.5 text-xs text-ink-soft font-medium">
-              <User size={14} className="text-brand" /> Age / Sex
+            <span className="flex items-center gap-1 text-[11px] sm:text-xs text-ink-soft font-medium">
+              <User size={13} className="text-brand shrink-0" /> Age / Sex
             </span>
-            <p className="font-semibold text-ink">
+            <p className="font-semibold text-ink truncate">
               {patient.age !== undefined && patient.age !== null ? `${patient.age} yrs` : 'Not specified'} {patient.sex ? `/ ${patient.sex}` : ''}
             </p>
           </div>
 
           <div className="space-y-1">
-            <span className="flex items-center gap-1.5 text-xs text-ink-soft font-medium">
-              <Phone size={14} className="text-brand" /> Phone Number
+            <span className="flex items-center gap-1 text-[11px] sm:text-xs text-ink-soft font-medium">
+              <Phone size={13} className="text-brand shrink-0" /> Phone
             </span>
-            <p className="font-semibold text-ink">{patient.phone || 'Not specified'}</p>
+            <p className="font-semibold text-ink font-mono text-xs sm:text-sm truncate">{patient.phone || 'Not specified'}</p>
           </div>
 
           <div className="space-y-1">
-            <span className="flex items-center gap-1.5 text-xs text-ink-soft font-medium">
-              <Calendar size={14} className="text-brand" /> Date of Birth
+            <span className="flex items-center gap-1 text-[11px] sm:text-xs text-ink-soft font-medium">
+              <Calendar size={13} className="text-brand shrink-0" /> DOB
             </span>
-            <p className="font-semibold text-ink">{dobStr || 'Not specified'}</p>
+            <p className="font-semibold text-ink truncate">{dobStr || 'Not specified'}</p>
           </div>
 
           <div className="space-y-1">
-            <span className="flex items-center gap-1.5 text-xs text-ink-soft font-medium">
-              <UserSquare2 size={14} className="text-brand" /> Patient Type
+            <span className="flex items-center gap-1 text-[11px] sm:text-xs text-ink-soft font-medium">
+              <UserSquare2 size={13} className="text-brand shrink-0" /> Dentition
             </span>
-            <p className="font-semibold text-ink capitalize">
-              {patient.patientType === 'child' ? 'Child (Primary Dentition)' : 'Adult (Permanent Dentition)'}
+            <p className="font-semibold text-ink capitalize truncate">
+              {patient.patientType === 'child' ? 'Child (Primary)' : 'Adult (Permanent)'}
             </p>
           </div>
 
           <div className="space-y-1">
-            <span className="flex items-center gap-1.5 text-xs text-ink-soft font-medium">
-              <Hash size={14} className="text-brand" /> OP Number
+            <span className="flex items-center gap-1 text-[11px] sm:text-xs text-ink-soft font-medium">
+              <Hash size={13} className="text-brand shrink-0" /> OP Number
             </span>
-            <p className="font-semibold text-ink font-mono">{patient.opNumber || 'N/A'}</p>
+            <p className="font-semibold text-ink font-mono truncate">{patient.opNumber || 'N/A'}</p>
           </div>
         </div>
       </div>
@@ -505,23 +499,25 @@ export default function PatientDetail() {
 
 
       {/* EDIT PATIENT PROFILE MODAL */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-2 sm:p-4 overflow-hidden">
-          <div className="card max-w-2xl w-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
-              <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
+      {showEditModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0">
+          <div className="card w-full max-w-2xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl border border-border animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
+              <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
                 <Edit3 size={18} className="text-brand" /> Edit Patient Registration Details
               </h3>
               <button
+                type="button"
                 onClick={() => setShowEditModal(false)}
-                className="p-1 rounded text-ink-soft hover:text-ink hover:bg-bg"
+                className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors"
+                aria-label="Close modal"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSavePatient} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+            <form onSubmit={handleSavePatient} autoComplete="off" className="flex flex-col flex-1 overflow-hidden min-h-0 !mt-0 !mb-0">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-4 text-xs">
                 {editFeedback.msg && (
                   <div
                     className={`p-3 rounded-xl text-xs flex items-center gap-2 ${editFeedback.type === 'success'
@@ -911,25 +907,26 @@ export default function PatientDetail() {
               </div>
 
               {/* Modal Buttons */}
-              <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="btn-secondary py-1.5 px-3 text-xs"
+                  className="btn-secondary text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="btn-primary py-1.5 px-4 text-xs font-bold flex items-center gap-1.5"
+                  className="btn-primary text-xs font-bold flex items-center gap-1.5"
                 >
-                  <Save size={14} /> {saving ? 'Saving...' : 'Save Patient Profile'}
+                  <Save size={15} /> {saving ? 'Saving...' : 'Save Patient Profile'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

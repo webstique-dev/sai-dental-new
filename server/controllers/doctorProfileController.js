@@ -82,7 +82,7 @@ async function getDoctorProfileByUserId(req, res, next) {
 async function upsertDoctorProfile(req, res, next) {
   try {
     const { userId } = req.params;
-    const { name, phone, specialization, qualification, workingHours, consultationFee } = req.body;
+    const { name, phone, status, specialization, qualification, workingHours, consultationFee } = req.body;
 
     if (req.user.role === 'doctor' && req.user._id.toString() !== userId.toString()) {
       return res.status(403).json({ message: 'You can only update your own doctor profile.' });
@@ -95,6 +95,7 @@ async function upsertDoctorProfile(req, res, next) {
 
     if (name !== undefined && name.trim()) userDoc.name = name.trim();
     if (phone !== undefined) userDoc.phone = phone.trim();
+    if (status !== undefined && ['active', 'inactive', 'disabled'].includes(status)) userDoc.status = status;
     if (specialization !== undefined) userDoc.specialization = specialization.trim();
     await userDoc.save();
 

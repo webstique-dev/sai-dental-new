@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   History, Search, UserSquare2, Calendar, Stethoscope, Activity, Pill,
   FileHeart, Filter, FileText, RefreshCw, X, Eye, Clock, CheckCircle2,
-  Printer, ChevronRight, User
+  Printer, ChevronRight, User, ChevronDown, ChevronUp
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -46,6 +46,13 @@ export default function PatientHistory() {
 
   // Selected Visit for Read-Only "Visit Summary" Panel
   const [selectedVisit, setSelectedVisit] = useState(null);
+
+  // Mobile Accordion expand state
+  const [expandedVisitId, setExpandedVisitId] = useState(null);
+  const toggleExpandVisit = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedVisitId((prev) => (prev === id ? null : id));
+  };
 
   // Load doctors list for dropdown filter
   useEffect(() => {
@@ -311,135 +318,211 @@ export default function PatientHistory() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="px-4 py-3.5">Patient Name</th>
-                  <th className="px-4 py-3.5">OP Number</th>
-                  <th className="px-4 py-3.5">Visit Date</th>
-                  <th className="px-4 py-3.5">Check-In Time</th>
-                  <th className="px-4 py-3.5">Check-Out Time</th>
-                  <th className="px-4 py-3.5">Attending Doctor</th>
-                  <th className="px-4 py-3.5">Purpose / Reason</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredVisits.map((visit) => {
-                  const visitId = visit._id || visit.id;
-                  const patient = visit.patient || {};
-                  const doctor = visit.doctor || {};
-                  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
-                  const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
+          <>
+            {/* Desktop Table View (≥768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="px-4 py-3.5">Patient Name</th>
+                    <th className="px-4 py-3.5">OP Number</th>
+                    <th className="px-4 py-3.5">Visit Date</th>
+                    <th className="px-4 py-3.5">Check-In Time</th>
+                    <th className="px-4 py-3.5">Check-Out Time</th>
+                    <th className="px-4 py-3.5">Attending Doctor</th>
+                    <th className="px-4 py-3.5">Purpose / Reason</th>
+                    <th className="px-4 py-3.5">Status</th>
+                    <th className="px-4 py-3.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredVisits.map((visit) => {
+                    const visitId = visit._id || visit.id;
+                    const patient = visit.patient || {};
+                    const doctor = visit.doctor || {};
+                    const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                    const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
 
-                  const dateStr = visit.visitDate
-                    ? new Date(visit.visitDate).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                    : 'N/A';
+                    const dateStr = visit.visitDate
+                      ? new Date(visit.visitDate).toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                      : 'N/A';
 
-                  const checkInStr = visit.checkInTime
-                    ? new Date(visit.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : 'N/A';
+                    const checkInStr = visit.checkInTime
+                      ? new Date(visit.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : 'N/A';
 
-                  const checkOutStr = visit.checkOutTime
-                    ? new Date(visit.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : (visit.status === 'In Consultation' ? 'In Progress' : '—');
+                    const checkOutStr = visit.checkOutTime
+                      ? new Date(visit.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : (visit.status === 'In Consultation' ? 'In Progress' : '—');
 
-                  const statusDisplay = visit.status === 'In Progress' ? 'In Consultation' : (visit.status || 'Completed');
+                    const statusDisplay = visit.status === 'In Progress' ? 'In Consultation' : (visit.status || 'Completed');
 
-                  return (
-                    <tr
-                      key={visitId}
-                      onClick={() => setSelectedVisit(visit)}
-                      className="hover:bg-bg/60 cursor-pointer transition-colors group"
-                    >
-                      {/* Patient Name */}
-                      <td className="px-4 py-3.5 font-bold text-ink">
-                        <div className="flex items-center gap-2">
-                          <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
-                            <User size={14} />
+                    return (
+                      <tr
+                        key={visitId}
+                        onClick={() => setSelectedVisit(visit)}
+                        className="hover:bg-bg/60 cursor-pointer transition-colors group"
+                      >
+                        {/* Patient Name */}
+                        <td className="px-4 py-3.5 font-bold text-ink">
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                              <User size={14} />
+                            </div>
+                            <div>
+                              <span className="group-hover:text-brand transition-colors block">{patientName}</span>
+                              <span className="text-[10px] text-ink-soft font-normal">
+                                {patient.age ? `${patient.age}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* OP Number */}
+                        <td className="px-4 py-3.5 font-mono font-bold text-brand whitespace-nowrap">
+                          {patient.opNumber ? `#${patient.opNumber}` : '—'}
+                        </td>
+
+                        {/* Visit Date */}
+                        <td className="px-4 py-3.5 font-semibold text-ink whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={13} className="text-brand shrink-0" />
+                            <span>{dateStr}</span>
+                          </div>
+                        </td>
+
+                        {/* Check-In Time */}
+                        <td className="px-4 py-3.5 font-mono text-ink-soft whitespace-nowrap">
+                          <div className="flex items-center gap-1">
+                            <Clock size={12} className="text-emerald-600 shrink-0" />
+                            <span>{checkInStr}</span>
+                          </div>
+                        </td>
+
+                        {/* Check-Out Time */}
+                        <td className="px-4 py-3.5 font-mono text-ink-soft whitespace-nowrap">
+                          {checkOutStr}
+                        </td>
+
+                        {/* Attending Doctor */}
+                        <td className="px-4 py-3.5 font-semibold text-ink whitespace-nowrap">
+                          <div>
+                            <span>{doctorName}</span>
+                            {doctor.specialization && (
+                              <span className="block text-[10px] font-normal text-ink-soft">{doctor.specialization}</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Purpose / Reason for Visit */}
+                        <td className="px-4 py-3.5 text-ink font-medium max-w-xs truncate">
+                          {visit.reason || 'General Consult'}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[statusDisplay] || 'bg-slate-100 text-slate-800'}`}>
+                            {statusDisplay}
+                          </span>
+                        </td>
+
+                        {/* Action */}
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedVisit(visit);
+                            }}
+                            className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5"
+                          >
+                            <Eye size={13} /> View Summary
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Accordion Cards View (<768px down to 320px) */}
+            <div className="block md:hidden divide-y divide-border">
+              {filteredVisits.map((visit) => {
+                const visitId = visit._id || visit.id;
+                const patient = visit.patient || {};
+                const doctor = visit.doctor || {};
+                const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
+                const dateStr = visit.visitDate
+                  ? new Date(visit.visitDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                  : 'N/A';
+                const statusDisplay = visit.status === 'In Progress' ? 'In Consultation' : (visit.status || 'Completed');
+                const isExpanded = expandedVisitId === visitId;
+
+                return (
+                  <div key={visitId} className="p-3.5 space-y-3 hover:bg-bg/40 transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                          <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${STATUS_BADGE_CLASSES[statusDisplay] || 'bg-slate-100 text-slate-800'}`}>
+                            {statusDisplay}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                          {patient.opNumber && <span className="font-bold text-brand">#{patient.opNumber}</span>}
+                          <span className="text-ink font-sans font-medium">• {dateStr}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => toggleExpandVisit(visitId, e)}
+                        className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                        aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+                      >
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                        <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                          <div>
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Attending Doctor</span>
+                            <span className="font-semibold text-ink">{doctorName}</span>
                           </div>
                           <div>
-                            <span className="group-hover:text-brand transition-colors block">{patientName}</span>
-                            <span className="text-[10px] text-ink-soft font-normal">
-                              {patient.age ? `${patient.age}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''}
-                            </span>
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
+                            <span className="font-medium text-ink">{patient.age ? `${patient.age}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="block text-[10px] font-semibold uppercase text-ink-soft">Purpose / Reason</span>
+                            <span className="font-medium text-ink">{visit.reason || 'General Consult'}</span>
                           </div>
                         </div>
-                      </td>
 
-                      {/* OP Number */}
-                      <td className="px-4 py-3.5 font-mono font-bold text-brand whitespace-nowrap">
-                        {patient.opNumber ? `#${patient.opNumber}` : '—'}
-                      </td>
-
-                      {/* Visit Date */}
-                      <td className="px-4 py-3.5 font-semibold text-ink whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={13} className="text-brand shrink-0" />
-                          <span>{dateStr}</span>
+                        <div className="pt-1 flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedVisit(visit)}
+                            className="btn-secondary py-1.5 px-3 text-xs w-full justify-center font-semibold"
+                          >
+                            <Eye size={14} /> View Summary
+                          </button>
                         </div>
-                      </td>
-
-                      {/* Check-In Time */}
-                      <td className="px-4 py-3.5 font-mono text-ink-soft whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <Clock size={12} className="text-emerald-600 shrink-0" />
-                          <span>{checkInStr}</span>
-                        </div>
-                      </td>
-
-                      {/* Check-Out Time */}
-                      <td className="px-4 py-3.5 font-mono text-ink-soft whitespace-nowrap">
-                        {checkOutStr}
-                      </td>
-
-                      {/* Attending Doctor */}
-                      <td className="px-4 py-3.5 font-semibold text-ink whitespace-nowrap">
-                        <div>
-                          <span>{doctorName}</span>
-                          {doctor.specialization && (
-                            <span className="block text-[10px] font-normal text-ink-soft">{doctor.specialization}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Purpose / Reason for Visit */}
-                      <td className="px-4 py-3.5 text-ink font-medium max-w-xs truncate">
-                        {visit.reason || 'General Consult'}
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[statusDisplay] || 'bg-slate-100 text-slate-800'}`}>
-                          {statusDisplay}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedVisit(visit);
-                          }}
-                          className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5"
-                        >
-                          <Eye size={13} /> View Summary
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

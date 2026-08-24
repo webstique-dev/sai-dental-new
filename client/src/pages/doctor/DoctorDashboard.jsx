@@ -124,11 +124,11 @@ export default function DoctorDashboard() {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-ink">
             Welcome, Dr. {user?.name ? user.name.split(' ').pop() : 'Doctor'}
           </h1>
           <p className="text-xs text-ink-soft mt-0.5">
@@ -138,7 +138,7 @@ export default function DoctorDashboard() {
 
         <button
           onClick={() => fetchDoctorSummary(true)}
-          className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto"
+          className="btn-secondary text-xs flex items-center justify-center gap-1.5 self-start sm:self-auto"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Workspace
         </button>
@@ -151,14 +151,14 @@ export default function DoctorDashboard() {
       )}
 
       {/* STAT CARDS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
         {stats.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
 
       {/* QUICK ACTIONS CARD */}
-      <div className="card p-5 space-y-4 bg-surface border-brand/20">
+      <div className="card p-4 sm:p-5 space-y-4 bg-surface border-brand/20">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-sm font-bold text-ink">Quick Actions</h3>
           <Link to="/doctor/queue" className="text-xs text-brand font-semibold hover:underline flex items-center gap-1">
@@ -167,21 +167,21 @@ export default function DoctorDashboard() {
         </div>
 
         {nextPatient ? (
-          <div className="p-4 rounded-2xl bg-brand-light/30 border border-brand/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="h-11 w-11 rounded-xl bg-brand text-white font-mono font-bold text-lg flex items-center justify-center shadow-sm shrink-0">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-brand-light/30 border border-brand/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-brand text-white font-mono font-bold text-base sm:text-lg flex items-center justify-center shadow-sm shrink-0">
                 #{nextPatient.token || 1}
               </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider">Next Waiting Patient</span>
                   {nextPatient.patient?.opNumber && (
-                    <span className="font-mono text-[11px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-md">
+                    <span className="font-mono text-[10px] sm:text-[11px] font-bold text-brand bg-brand/10 px-1.5 sm:px-2 py-0.5 rounded-md">
                       #{nextPatient.patient.opNumber}
                     </span>
                   )}
                 </div>
-                <div className="font-display text-base font-bold text-ink flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <div className="font-display text-sm sm:text-base font-bold text-ink flex flex-wrap items-center gap-x-2 gap-y-0.5 truncate">
                   <span>{nextPatientName}</span>
                   <span className="text-xs text-ink-soft font-medium font-sans">
                     ({nextPatient.patient?.age ? `${nextPatient.patient.age} yrs` : 'Age N/A'}
@@ -194,18 +194,20 @@ export default function DoctorDashboard() {
             <button
               onClick={handleStartNextConsultation}
               disabled={starting}
-              className="btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2 shrink-0 shadow-sm"
+              className="btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2 shrink-0 shadow-sm w-full sm:w-auto"
             >
-              <Play size={15} className="fill-current" />
-              {starting
-                ? 'Starting Consultation...'
-                : `Start: ${nextPatientName} — Age ${nextPatient.patient?.age ? `${nextPatient.patient.age}y` : 'N/A'} — Token #${nextPatient.token}`}
+              <Play size={15} className="fill-current shrink-0" />
+              <span>
+                {starting
+                  ? 'Starting Consultation...'
+                  : `Start Consultation — ${nextPatientName} (Token #${nextPatient.token || 1})`}
+              </span>
             </button>
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-bg border border-border">
             <p className="text-xs text-ink-soft italic">No checked-in patients currently waiting in your queue.</p>
-            <Link to="/doctor/queue" className="btn-secondary text-xs py-2 px-3 inline-flex items-center gap-1.5 self-start sm:self-auto font-semibold">
+            <Link to="/doctor/queue" className="btn-secondary text-xs py-2 px-3 inline-flex items-center justify-center gap-1.5 self-start sm:self-auto font-semibold">
               <ClipboardList size={14} /> Open My Appointments
             </Link>
           </div>

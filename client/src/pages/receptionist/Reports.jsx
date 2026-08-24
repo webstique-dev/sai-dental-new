@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   FileBarChart, CalendarDays, Wallet, Clock, CheckCircle2, UserCheck, Bell,
-  CreditCard, DollarSign, Filter, RefreshCw, AlertCircle, Users, Phone, Globe,
+  CreditCard, DollarSign, Filter, RefreshCw, AlertCircle, Users, Phone, Globe, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
@@ -14,6 +14,7 @@ export default function ReceptionistReports() {
   const [dateFrom, setDateFrom] = useState(getTodayISO());
   const [dateTo, setDateTo] = useState(getTodayISO());
   const [activeQuickFilter, setActiveQuickFilter] = useState('today');
+  const [isRangeFilterOpen, setIsRangeFilterOpen] = useState(false);
 
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -74,50 +75,56 @@ export default function ReceptionistReports() {
   const onlinePct = totalIntake ? Math.round(((queueSummary.totalOnlineBookings || 0) / totalIntake) * 100) : 0;
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl w-full max-w-full overflow-x-hidden">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <FileBarChart size={26} className="text-brand" /> Reception & Front-Desk Operational Report
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full min-w-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-xl sm:text-2xl font-bold text-ink flex items-center gap-2 min-w-0 leading-tight">
+            <FileBarChart size={26} className="text-brand shrink-0" />
+            <span className="truncate sm:whitespace-normal">Reception & Front-Desk Operational Report</span>
           </h1>
-          <p className="text-xs text-ink-soft mt-0.5">
+          <p className="text-xs text-ink-soft mt-1 leading-relaxed break-words">
             Operational oversight for daily patient flow, front-desk payment collections, queue traffic, and follow-up compliance.
           </p>
         </div>
 
-        <button onClick={fetchReports} className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto">
+        <button type="button" onClick={fetchReports} className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto shrink-0 py-1.5 px-3">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Report Data
         </button>
       </div>
 
-      {/* Date Filter & Quick Range Selectors */}
-      <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface">
-        <div className="flex items-center gap-2">
-          <Filter size={16} className="text-ink-soft" />
-          <span className="text-xs font-bold text-ink">Date Filter:</span>
+      {/* Desktop Date Filter & Quick Range Selectors (≥768px) */}
+      <div className="hidden md:flex card p-4 flex-row items-center justify-between gap-4 bg-surface w-full max-w-full overflow-hidden">
+        <div className="flex flex-row items-center gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
+            <Filter size={16} className="text-ink-soft shrink-0" />
+            <span className="text-xs font-bold text-ink">Date Filter:</span>
+          </div>
 
           <div className="flex items-center gap-1 bg-bg p-1 rounded-xl border border-border">
             <button
+              type="button"
               onClick={() => handleQuickRange('today')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                activeQuickFilter === 'today' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+                activeQuickFilter === 'today' ? 'bg-surface text-ink shadow-xs' : 'text-ink-soft hover:text-ink'
               }`}
             >
               Today
             </button>
             <button
+              type="button"
               onClick={() => handleQuickRange('week')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                activeQuickFilter === 'week' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+                activeQuickFilter === 'week' ? 'bg-surface text-ink shadow-xs' : 'text-ink-soft hover:text-ink'
               }`}
             >
               This Week
             </button>
             <button
+              type="button"
               onClick={() => handleQuickRange('month')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                activeQuickFilter === 'month' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+                activeQuickFilter === 'month' ? 'bg-surface text-ink shadow-xs' : 'text-ink-soft hover:text-ink'
               }`}
             >
               This Month
@@ -125,7 +132,7 @@ export default function ReceptionistReports() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-row items-center gap-2 text-xs">
           <DatePicker
             label=""
             value={dateFrom}
@@ -144,6 +151,87 @@ export default function ReceptionistReports() {
             }}
           />
         </div>
+      </div>
+
+      {/* Mobile Collapsible Date Filter Accordion (<768px) */}
+      <div className="block md:hidden card p-3 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setIsRangeFilterOpen((prev) => !prev)}
+          className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-brand-light/30 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+              <Filter size={14} />
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="font-bold text-ink">Date Filter</span>
+              <span className="badge bg-brand text-white text-[10px] py-0.5 px-2 font-bold capitalize shrink-0">
+                {activeQuickFilter === 'custom' ? `${dateFrom} → ${dateTo}` : activeQuickFilter}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+            <span>{isRangeFilterOpen ? 'Hide' : 'Filter Date'}</span>
+            {isRangeFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </button>
+
+        {isRangeFilterOpen && (
+          <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleQuickRange('today')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+                  activeQuickFilter === 'today' ? 'bg-brand text-white border-brand' : 'bg-bg text-ink-soft border-border'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickRange('week')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+                  activeQuickFilter === 'week' ? 'bg-brand text-white border-brand' : 'bg-bg text-ink-soft border-border'
+                }`}
+              >
+                This Week
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickRange('month')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+                  activeQuickFilter === 'month' ? 'bg-brand text-white border-brand' : 'bg-bg text-ink-soft border-border'
+                }`}
+              >
+                This Month
+              </button>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <DatePicker
+                label="From Date"
+                value={dateFrom}
+                onChange={(d, str) => {
+                  setDateFrom(str);
+                  setActiveQuickFilter('custom');
+                }}
+                inputClassName="py-1.5 text-xs"
+              />
+              <DatePicker
+                label="To Date"
+                value={dateTo}
+                onChange={(d, str) => {
+                  setDateTo(str);
+                  setActiveQuickFilter('custom');
+                }}
+                inputClassName="py-1.5 text-xs"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* TOP STAT CARDS GRID */}
