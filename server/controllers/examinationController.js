@@ -69,7 +69,53 @@ async function upsertExamination(req, res, next) {
   }
 }
 
+// PUT /api/examinations/:id & PATCH /api/examinations/:id
+async function updateExaminationById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { extraoral, softTissue, gingivalFindings, periodontalDetails, overallNotes, chiefComplaints } = req.body;
+
+    let exam = await Examination.findById(id);
+    if (!exam) {
+      return res.status(404).json({ message: 'Examination record not found' });
+    }
+
+    if (extraoral !== undefined) exam.extraoral = Array.isArray(extraoral) ? extraoral : [];
+    if (softTissue !== undefined) exam.softTissue = Array.isArray(softTissue) ? softTissue : [];
+    if (gingivalFindings !== undefined) exam.gingivalFindings = Array.isArray(gingivalFindings) ? gingivalFindings : [];
+    if (periodontalDetails !== undefined) exam.periodontalDetails = String(periodontalDetails).trim();
+    if (overallNotes !== undefined) exam.overallNotes = String(overallNotes).trim();
+
+    exam.recordedBy = req.user ? req.user._id : exam.recordedBy;
+    await exam.save();
+
+    // If chiefComplaints or overallNotes were updated and consultation exists, update Consultation record too
+    if (exam.consultation) {
+      const Consultation = require('../models/Consultation');
+      const updateFields = {};
+      if (chiefComplaints !== undefined) updateFields.chiefComplaints = String(chiefComplaints).trim();
+      if (overallNotes !== undefined) updateFields.notes = String(overallNotes).trim();
+      if (Object.keys(updateFields).length > 0) {
+        await Consultation.findByIdAndUpdate(exam.consultation, updateFields);
+      }
+    }
+
+    const updated = await Examination.findById(id)
+      .populate('consultation')
+      .populate('patient', 'firstName lastName opNumber')
+      .populate('recordedBy', 'name email');
+
+    return res.json({
+      message: 'Examination updated successfully',
+      examination: updated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getExamination,
   upsertExamination,
+  updateExaminationById,
 };

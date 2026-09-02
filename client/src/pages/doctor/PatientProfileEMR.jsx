@@ -3,12 +3,14 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   UserSquare2, ArrowLeft, History, Stethoscope, Activity, Pill, Calendar, Plus, Clock,
   FileHeart, HeartPulse, ShieldAlert, Phone, MapPin, Briefcase, UserCheck, CheckCircle2,
-  ChevronDown, ChevronUp, Eye
+  ChevronDown, ChevronUp, Eye, Edit3
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import ToothChart from './consultation/ToothChart.jsx';
 import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistoryPanel.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
+import ExaminationEditModal from '../../components/common/ExaminationEditModal.jsx';
 
 export default function PatientProfileEMR() {
   const { patientId } = useParams();
@@ -24,14 +26,17 @@ export default function PatientProfileEMR() {
   const [emrData, setEmrData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [creatingConsultation, setCreatingConsultation] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedConsultationForExamEdit, setSelectedConsultationForExamEdit] = useState(null);
+  const [isExamModalOpen, setIsExamModalOpen] = useState(false);
 
-  // Accordion state: first 3 expanded by default, 4 & 5 collapsed by default
+  // Accordion state: all expanded by default for full visibility
   const [accordions, setAccordions] = useState({
     details: true,
     contact: true,
     vitals: true,
-    medical: false,
-    dental: false,
+    medical: true,
+    dental: true,
   });
 
   const toggleAccordion = (key) => {
@@ -56,6 +61,15 @@ export default function PatientProfileEMR() {
   useEffect(() => {
     fetchEMR();
   }, [patientId]);
+
+  const handlePatientUpdated = (updatedPatient) => {
+    if (!updatedPatient) return;
+    setPatient((prev) => ({
+      ...prev,
+      ...updatedPatient,
+    }));
+    fetchEMR();
+  };
 
   const handleStartConsultation = async () => {
     try {
@@ -200,11 +214,17 @@ export default function PatientProfileEMR() {
           </p>
         </div>
 
-        {/* TOP-RIGHT CORNER SINGLE VIEW ONLY BADGE */}
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold shadow-sm shrink-0 self-start sm:self-center">
-          <Eye size={15} className="text-blue-600 shrink-0" />
-          <span>View Only</span>
-        </div>
+        {/* TOP-RIGHT CORNER EDIT PATIENT DETAILS BUTTON */}
+        <button
+          type="button"
+          onClick={() => setIsEditModalOpen(true)}
+          className="btn-primary text-xs py-2 px-3.5 inline-flex items-center gap-2 font-bold shadow-sm shrink-0 self-start sm:self-center"
+          id="edit-patient-profile-btn"
+          title="Edit Patient Details"
+        >
+          <Edit3 size={15} />
+          <span>Edit Patient Details</span>
+        </button>
       </div>
 
       {/* TWO-COLUMN RESPONSIVE LAYOUT */}
@@ -213,16 +233,18 @@ export default function PatientProfileEMR() {
         <div className="lg:col-span-4 lg:order-2 space-y-3 lg:sticky lg:top-4 self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto scrollbar-none pr-0.5">
           {/* Card 1: Core Registration Profile & Demographics */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm">
-            <button
-              type="button"
-              onClick={() => toggleAccordion('details')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <UserSquare2 size={16} className="text-brand" /> Patient Details
-              </span>
-              {accordions.details ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('details')}
+                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
+              >
+                <span className="flex items-center gap-2">
+                  <UserSquare2 size={16} className="text-brand" /> Patient Details
+                </span>
+                {accordions.details ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </button>
+            </div>
 
             {accordions.details && (
               <div className="p-4 pt-0 space-y-4 text-xs border-t border-border/60">
@@ -258,16 +280,18 @@ export default function PatientProfileEMR() {
 
           {/* Card 2: Contact & Personal Information */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
-              onClick={() => toggleAccordion('contact')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <Phone size={15} className="text-brand" /> Contact Information
-              </span>
-              {accordions.contact ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('contact')}
+                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
+              >
+                <span className="flex items-center gap-2">
+                  <Phone size={15} className="text-brand" /> Contact Information
+                </span>
+                {accordions.contact ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </button>
+            </div>
 
             {accordions.contact && (
               <div className="p-4 pt-0 space-y-2.5 border-t border-border/60 pt-3">
@@ -300,16 +324,18 @@ export default function PatientProfileEMR() {
 
           {/* Card 3: Clinical Vitals */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
-              onClick={() => toggleAccordion('vitals')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <HeartPulse size={15} className="text-rose-600" /> Patient Vitals
-              </span>
-              {accordions.vitals ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('vitals')}
+                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
+              >
+                <span className="flex items-center gap-2">
+                  <HeartPulse size={15} className="text-rose-600" /> Patient Vitals
+                </span>
+                {accordions.vitals ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </button>
+            </div>
 
             {accordions.vitals && (
               <div className="p-4 pt-0 border-t border-border/60 pt-3">
@@ -340,16 +366,18 @@ export default function PatientProfileEMR() {
 
           {/* Card 4: Medical History & Allergies (Collapsed by default) */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
-              onClick={() => toggleAccordion('medical')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <ShieldAlert size={15} className="text-amber-600" /> Medical History & Allergies
-              </span>
-              {accordions.medical ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('medical')}
+                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
+              >
+                <span className="flex items-center gap-2">
+                  <ShieldAlert size={15} className="text-amber-600" /> Medical History & Allergies
+                </span>
+                {accordions.medical ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </button>
+            </div>
 
             {accordions.medical && (
               <div className="p-4 pt-0 space-y-3 border-t border-border/60 pt-3">
@@ -395,46 +423,76 @@ export default function PatientProfileEMR() {
             )}
           </div>
 
-          {/* Card 5: Past Dental History & Personal Habits (Collapsed by default) */}
+          {/* Card 5: Past Dental History & Personal Habits */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
-              onClick={() => toggleAccordion('dental')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <Stethoscope size={15} className="text-brand" /> Dental History & Habits
-              </span>
-              {accordions.dental ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
+              <button
+                type="button"
+                onClick={() => toggleAccordion('dental')}
+                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
+              >
+                <span className="flex items-center gap-2">
+                  <Stethoscope size={15} className="text-brand" /> Dental History & Habits
+                </span>
+                {accordions.dental ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </button>
+            </div>
 
             {accordions.dental && (
-              <div className="p-4 pt-0 space-y-3 border-t border-border/60 pt-3">
+              <div className="p-4 pt-0 space-y-3.5 border-t border-border/60 pt-3">
+                {/* 1. Previous Dental Procedures */}
                 <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Previous Dental Procedures</span>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1.5">
+                    Previous Dental Procedures
+                  </span>
                   {dentalHistoryList.length > 0 ? (
-                    <p className="text-ink font-medium leading-relaxed bg-bg/50 p-2 rounded-lg border border-border">
-                      {dentalHistoryList.join(', ')}
-                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {dentalHistoryList.map((item, idx) => (
+                        <span
+                          key={idx}
+                          className="badge bg-brand-light/60 text-brand-dark border border-brand/20 text-[11px] font-semibold py-1 px-2.5 break-words"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   ) : (
-                    <span className="text-ink-soft/70 italic">No past dental procedures on record</span>
+                    <span className="text-ink-soft/70 italic text-[11px]">No past dental procedures on record</span>
                   )}
                 </div>
 
+                {/* 2. Personal Habits */}
                 <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Personal Habits</span>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1.5">
+                    Personal Habits
+                  </span>
                   {habitsList.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {habitsList.map((hItem, i) => (
-                        <span key={i} className="badge bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-semibold">
+                        <span
+                          key={i}
+                          className="badge bg-slate-100 text-slate-800 border border-slate-200 text-[11px] font-semibold py-1 px-2.5"
+                        >
                           {hItem}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-ink-soft/70 italic">No personal habits reported</span>
+                    <span className="text-ink-soft/70 italic text-[11px]">No personal habits reported</span>
                   )}
                 </div>
+
+                {/* 3. Detailed Dental History & Narrative Notes (Placed at bottom to prevent truncation) */}
+                {typeof patient.dentalHistory === 'string' && patient.dentalHistory.trim() && (
+                  <div className="pt-1">
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">
+                      Detailed Dental Notes & History
+                    </span>
+                    <div className="p-3 rounded-xl bg-bg/60 border border-border text-xs text-ink font-medium leading-relaxed break-words whitespace-pre-wrap">
+                      {patient.dentalHistory}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -485,6 +543,18 @@ export default function PatientProfileEMR() {
                           </span>
                           <span className="text-xs font-semibold text-ink-soft">• {docName}</span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedConsultationForExamEdit(c);
+                            setIsExamModalOpen(true);
+                          }}
+                          className="btn-secondary py-1 px-2.5 text-xs font-semibold flex items-center gap-1.5 text-amber-700 hover:text-amber-800 hover:border-amber-300 shadow-sm"
+                          title="Edit Examination Record"
+                        >
+                          <Edit3 size={13} />
+                          <span>Edit Examination</span>
+                        </button>
                       </div>
 
                       {chiefComplaints && (
@@ -638,13 +708,34 @@ export default function PatientProfileEMR() {
               </div>
             </div>
 
-            <ToothChart patientId={patientId} patient={patient} isReadOnly={true} />
+            <ToothChart patientId={patientId} patient={patient} isReadOnly={false} />
           </div>
 
           {/* PATIENT PRESCRIPTION HISTORY SECTION */}
           <PrescriptionHistoryPanel patientId={patientId} title="Patient Prescription History & Past Medications" />
         </div>
       </div>
+
+      {/* EDIT PATIENT DETAILS MODAL */}
+      <PatientDetailsEditModal
+        isOpen={isEditModalOpen}
+        patient={patient}
+        appointmentId={null}
+        startConsultation={false}
+        onClose={() => setIsEditModalOpen(false)}
+        onSuccess={handlePatientUpdated}
+      />
+
+      {/* EDIT EXAMINATION MODAL */}
+      <ExaminationEditModal
+        isOpen={isExamModalOpen}
+        consultation={selectedConsultationForExamEdit}
+        onClose={() => {
+          setIsExamModalOpen(false);
+          setSelectedConsultationForExamEdit(null);
+        }}
+        onSuccess={() => fetchEMR()}
+      />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, UserCheck, Plus, AlertTriangle, Stethoscope, Save, ArrowRight } from 'lucide-react';
+import { X, UserCheck, Plus, AlertTriangle, Stethoscope, Save, ArrowRight, Edit3, Trash2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from './DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { validateName, validatePhone, validateAge } from '../../utils/validators.js';
+import { validateName, validatePhone, validateAge, validateDOB } from '../../utils/validators.js';
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -26,11 +26,16 @@ export default function PatientDetailsEditModal({
   isOpen,
   patient,
   appointmentId = null,
+  startConsultation = null,
+  title = null,
+  subtitle = null,
   onClose = () => { },
   onSuccess = () => { },
 }) {
   const navigate = useNavigate();
   const { showSuccess, showError } = useNotification();
+
+  const shouldStartConsultation = startConsultation !== null ? Boolean(startConsultation) : Boolean(appointmentId);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -55,6 +60,12 @@ export default function PatientDetailsEditModal({
   const [customHabitInput, setCustomHabitInput] = useState('');
   const [customVitalLabel, setCustomVitalLabel] = useState('');
   const [customVitalValue, setCustomVitalValue] = useState('');
+
+  // Editing states for custom tags
+  const [editingMedicalIndex, setEditingMedicalIndex] = useState(null);
+  const [editingMedicalValue, setEditingMedicalValue] = useState('');
+  const [editingHabitIndex, setEditingHabitIndex] = useState(null);
+  const [editingHabitValue, setEditingHabitValue] = useState('');
 
   useEffect(() => {
     if (patient) {
@@ -82,6 +93,46 @@ export default function PatientDetailsEditModal({
       setErrorMessage('');
     }
   }, [patient]);
+
+  // When opened, fetch full up-to-date patient profile in background
+  useEffect(() => {
+    if (!isOpen || !patient) return;
+    const pId = patient._id || patient.id;
+    if (!pId) return;
+
+    let isMounted = true;
+    api.get(`/patients/${pId}`).then((res) => {
+      if (isMounted && res.data?.patient) {
+        const fresh = res.data.patient;
+        const pAge = fresh.age !== undefined && fresh.age !== null ? Number(fresh.age) : null;
+        const initialType = fresh.patientType || (pAge !== null && pAge < 12 ? 'child' : 'adult');
+        setFormData({
+          firstName: fresh.firstName || '',
+          lastName: fresh.lastName || '',
+          age: fresh.age !== undefined && fresh.age !== null ? String(fresh.age) : '',
+          sex: fresh.sex || '',
+          patientType: initialType,
+          dateOfBirth: fresh.dateOfBirth
+            ? new Date(fresh.dateOfBirth).toISOString().split('T')[0]
+            : '',
+          occupation: fresh.occupation || '',
+          address: fresh.address || '',
+          phone: fresh.phone || '',
+          medicalHistory: Array.isArray(fresh.medicalHistory) ? [...fresh.medicalHistory] : [],
+          currentMedications: fresh.currentMedications || '',
+          vitals: fresh.vitals && typeof fresh.vitals === 'object' ? { bp: '', rbs: '', ...fresh.vitals } : { bp: '', rbs: '' },
+          habits: Array.isArray(fresh.habits) ? [...fresh.habits] : [],
+          dentalHistory: fresh.dentalHistory || '',
+        });
+      }
+    }).catch(() => {
+      // Fall back silently to patient prop
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, patient]);
 
   if (!isOpen || !patient) return null;
 
@@ -119,6 +170,32 @@ export default function PatientDetailsEditModal({
     setCustomMedicalInput('');
   };
 
+  const handleStartEditCustomMedical = (item) => {
+    setEditingMedicalIndex(item);
+    setEditingMedicalValue(item);
+  };
+
+  const handleSaveEditCustomMedical = (oldItem) => {
+    const trimmed = editingMedicalValue.trim();
+    if (!trimmed) {
+      handleRemoveCustomMedical(oldItem);
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        medicalHistory: prev.medicalHistory.map((m) => (m === oldItem ? trimmed : m)),
+      }));
+    }
+    setEditingMedicalIndex(null);
+    setEditingMedicalValue('');
+  };
+
+  const handleRemoveCustomMedical = (item) => {
+    setFormData((prev) => ({
+      ...prev,
+      medicalHistory: prev.medicalHistory.filter((m) => m !== item),
+    }));
+  };
+
   const handleAddCustomHabit = () => {
     const trimmed = customHabitInput.trim();
     if (!trimmed) return;
@@ -129,6 +206,32 @@ export default function PatientDetailsEditModal({
       }));
     }
     setCustomHabitInput('');
+  };
+
+  const handleStartEditCustomHabit = (item) => {
+    setEditingHabitIndex(item);
+    setEditingHabitValue(item);
+  };
+
+  const handleSaveEditCustomHabit = (oldItem) => {
+    const trimmed = editingHabitValue.trim();
+    if (!trimmed) {
+      handleRemoveCustomHabit(oldItem);
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        habits: prev.habits.map((h) => (h === oldItem ? trimmed : h)),
+      }));
+    }
+    setEditingHabitIndex(null);
+    setEditingHabitValue('');
+  };
+
+  const handleRemoveCustomHabit = (item) => {
+    setFormData((prev) => ({
+      ...prev,
+      habits: prev.habits.filter((h) => h !== item),
+    }));
   };
 
   const handleAddCustomVital = () => {
@@ -195,37 +298,45 @@ export default function PatientDetailsEditModal({
     e.preventDefault();
     setErrorMessage('');
 
-    const fnErr = validateName(formData.firstName, 'First Name');
+    const fnErr = validateName(formData.firstName, 'First Name', true);
     if (fnErr) {
       setErrorMessage(fnErr);
       return;
     }
 
-    const lnErr = validateName(formData.lastName, 'Last Name');
+    const lnErr = validateName(formData.lastName, 'Last Name', false);
     if (lnErr) {
       setErrorMessage(lnErr);
       return;
     }
 
-    const phoneErr = validatePhone(formData.phone);
+    const phoneErr = validatePhone(formData.phone, true);
     if (phoneErr) {
       setErrorMessage(phoneErr);
       return;
     }
 
-    const ageErr = validateAge(formData.age);
+    const ageErr = validateAge(formData.age, false);
     if (ageErr) {
       setErrorMessage(ageErr);
       return;
     }
 
+    if (formData.dateOfBirth) {
+      const dobErr = validateDOB(formData.dateOfBirth, false);
+      if (dobErr) {
+        setErrorMessage(dobErr);
+        return;
+      }
+    }
+
     const payload = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
-      age: formData.age ? Number(formData.age) : undefined,
+      age: formData.age !== '' && formData.age !== null && formData.age !== undefined ? Number(formData.age) : undefined,
       sex: formData.sex || '',
       patientType: formData.patientType || 'adult',
-      dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : undefined,
+      dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : null,
       occupation: formData.occupation.trim(),
       address: formData.address.trim(),
       phone: formData.phone.trim(),
@@ -236,7 +347,28 @@ export default function PatientDetailsEditModal({
       dentalHistory: formData.dentalHistory.trim(),
     };
 
-    await handleStartConsultationDirectly(payload);
+    if (shouldStartConsultation) {
+      await handleStartConsultationDirectly(payload);
+    } else {
+      setSaving(true);
+      setErrorMessage('');
+      try {
+        const res = await api.patch(`/patients/${patientId}`, payload);
+        const updated = res.data?.patient;
+        showSuccess('Patient details updated successfully!');
+        if (onSuccess) {
+          onSuccess(updated || { ...patient, ...payload });
+        }
+        onClose();
+      } catch (err) {
+        console.error('Error updating patient details:', err);
+        const msg = err.response?.data?.message || 'Failed to update patient details.';
+        setErrorMessage(msg);
+        showError(msg);
+      } finally {
+        setSaving(false);
+      }
+    }
   };
 
   return createPortal(
@@ -251,14 +383,14 @@ export default function PatientDetailsEditModal({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-display text-base sm:text-lg font-bold text-ink">
-                  Edit Patient Registration Details
+                  {title || (shouldStartConsultation ? 'Edit Patient Registration Details' : 'Edit Patient Details')}
                 </h3>
                 <span className="badge bg-brand/10 text-brand font-mono text-[10px] font-bold">
                   OP #{patient.opNumber || 'N/A'}
                 </span>
               </div>
               <p className="text-[11px] text-ink-soft truncate">
-                Review and update patient info recorded during registration
+                {subtitle || (shouldStartConsultation ? 'Review and update patient info recorded during registration' : 'Review and update patient demographics, medical history, vitals, and habits')}
               </p>
             </div>
           </div>
@@ -437,7 +569,7 @@ export default function PatientDetailsEditModal({
                 2. Medical History & Systemic Conditions
               </h4>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="block font-semibold text-ink-soft">Select Relevant Medical History</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {MEDICAL_HISTORY_OPTIONS.map((item) => {
@@ -460,12 +592,91 @@ export default function PatientDetailsEditModal({
                   })}
                 </div>
 
+                {/* Custom Added Medical Conditions Section */}
+                {formData.medicalHistory.filter((m) => !MEDICAL_HISTORY_OPTIONS.includes(m)).length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-border/60">
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">
+                      Custom Added Medical Conditions ({formData.medicalHistory.filter((m) => !MEDICAL_HISTORY_OPTIONS.includes(m)).length})
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.medicalHistory
+                        .filter((m) => !MEDICAL_HISTORY_OPTIONS.includes(m))
+                        .map((item) => {
+                          const isEditing = editingMedicalIndex === item;
+
+                          if (isEditing) {
+                            return (
+                              <div key={item} className="inline-flex items-center gap-1.5 p-1 rounded-xl border border-brand bg-surface shadow-xs">
+                                <input
+                                  type="text"
+                                  className="input-field py-0.5 px-2 text-xs font-semibold max-w-[170px]"
+                                  autoFocus
+                                  value={editingMedicalValue}
+                                  onChange={(e) => setEditingMedicalValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleSaveEditCustomMedical(item);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingMedicalIndex(null);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditCustomMedical(item)}
+                                  className="p-1 rounded-lg bg-brand text-white hover:bg-brand-dark text-xs font-bold"
+                                  title="Save Edit"
+                                >
+                                  <Save size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingMedicalIndex(null)}
+                                  className="p-1 rounded-lg hover:bg-bg text-ink-soft text-xs"
+                                  title="Cancel"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={item}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand/40 bg-brand-light/40 text-brand-dark font-bold text-xs shadow-2xs animate-in fade-in"
+                            >
+                              <span>{item}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditCustomMedical(item)}
+                                className="text-amber-700 hover:text-amber-800 p-0.5 rounded hover:bg-amber-100/50 transition-colors ml-0.5"
+                                title="Edit condition"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCustomMedical(item)}
+                                className="text-rose-600 hover:text-rose-700 p-0.5 rounded hover:bg-rose-100/50 transition-colors"
+                                title="Remove condition"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Custom Medical Tag Input */}
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex items-center gap-2 pt-1">
                   <input
                     type="text"
-                    className="input-field py-1 text-xs max-w-xs"
-                    placeholder="Add custom medical condition..."
+                    className="input-field py-1.5 text-xs max-w-sm"
+                    placeholder="Type custom condition (e.g. GERD, Penicillin Allergy)..."
                     value={customMedicalInput}
                     onChange={(e) => setCustomMedicalInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -478,9 +689,10 @@ export default function PatientDetailsEditModal({
                   <button
                     type="button"
                     onClick={handleAddCustomMedicalHistory}
-                    className="btn-secondary py-1 px-3 text-xs"
+                    disabled={!customMedicalInput.trim()}
+                    className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5 disabled:opacity-40"
                   >
-                    <Plus size={14} /> Add
+                    <Plus size={14} /> Add Condition
                   </button>
                 </div>
               </div>
@@ -538,7 +750,7 @@ export default function PatientDetailsEditModal({
               </div>
 
               {/* Habits Checkboxes */}
-              <div className="space-y-2 pt-2">
+              <div className="space-y-3 pt-2">
                 <label className="block font-semibold text-ink-soft">Personal Habits</label>
                 <div className="flex flex-wrap gap-2">
                   {HABITS_OPTIONS.map((habit) => {
@@ -559,6 +771,110 @@ export default function PatientDetailsEditModal({
                       </label>
                     );
                   })}
+                </div>
+
+                {/* Custom Added Habits */}
+                {formData.habits.filter((h) => !HABITS_OPTIONS.includes(h)).length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-border/60">
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">
+                      Custom Added Habits ({formData.habits.filter((h) => !HABITS_OPTIONS.includes(h)).length})
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.habits
+                        .filter((h) => !HABITS_OPTIONS.includes(h))
+                        .map((item) => {
+                          const isEditing = editingHabitIndex === item;
+
+                          if (isEditing) {
+                            return (
+                              <div key={item} className="inline-flex items-center gap-1.5 p-1 rounded-xl border border-amber-400 bg-surface shadow-xs">
+                                <input
+                                  type="text"
+                                  className="input-field py-0.5 px-2 text-xs font-semibold max-w-[160px]"
+                                  autoFocus
+                                  value={editingHabitValue}
+                                  onChange={(e) => setEditingHabitValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleSaveEditCustomHabit(item);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingHabitIndex(null);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditCustomHabit(item)}
+                                  className="p-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700 text-xs font-bold"
+                                  title="Save Edit"
+                                >
+                                  <Save size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingHabitIndex(null)}
+                                  className="p-1 rounded-lg hover:bg-bg text-ink-soft text-xs"
+                                  title="Cancel"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={item}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 font-bold text-xs shadow-2xs animate-in fade-in"
+                            >
+                              <span>{item}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditCustomHabit(item)}
+                                className="text-amber-700 hover:text-amber-800 p-0.5 rounded hover:bg-amber-100 transition-colors ml-0.5"
+                                title="Edit habit"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCustomHabit(item)}
+                                className="text-rose-600 hover:text-rose-700 p-0.5 rounded hover:bg-rose-100 transition-colors"
+                                title="Remove habit"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Habit Tag Input */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    className="input-field py-1.5 text-xs max-w-sm"
+                    placeholder="Type custom habit (e.g. Betel nut, Vaping)..."
+                    value={customHabitInput}
+                    onChange={(e) => setCustomHabitInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomHabit();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomHabit}
+                    disabled={!customHabitInput.trim()}
+                    className="btn-secondary py-1.5 px-3 text-xs font-bold flex items-center gap-1.5 disabled:opacity-40"
+                  >
+                    <Plus size={14} /> Add Habit
+                  </button>
                 </div>
               </div>
 
@@ -587,7 +903,7 @@ export default function PatientDetailsEditModal({
             </button>
 
             <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-              {appointmentId && (
+              {shouldStartConsultation && appointmentId && (
                 <button
                   type="button"
                   disabled={saving}
@@ -604,7 +920,7 @@ export default function PatientDetailsEditModal({
                 className="btn-primary text-xs font-bold flex items-center justify-center gap-1.5"
               >
                 <Save size={15} />
-                <span>{saving ? 'Saving...' : 'Save Patient Profile'}</span>
+                <span>{saving ? 'Saving...' : (shouldStartConsultation ? 'Save Patient Profile' : 'Save Patient Details')}</span>
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 const express = require('express');
-const { getExamination, upsertExamination } = require('../controllers/examinationController');
+const { getExamination, upsertExamination, updateExaminationById } = require('../controllers/examinationController');
 const protect = require('../middleware/auth');
 const allowRoles = require('../middleware/roleCheck');
 
@@ -10,5 +10,7 @@ router.use(protect, allowRoles('doctor', 'admin'));
 
 router.get('/', getExamination);
 router.post('/', upsertExamination);
+router.put('/:id', updateExaminationById);
+router.patch('/:id', updateExaminationById);
 
 module.exports = router;

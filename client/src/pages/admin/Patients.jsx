@@ -206,7 +206,7 @@ export default function AdminPatients() {
             <span className="truncate sm:whitespace-normal">Clinic-Wide Patient Directory</span>
           </h1>
           <p className="text-xs sm:text-sm text-ink-soft mt-1 leading-relaxed break-words">
-            Read-only oversight directory across all registered clinic patients with administrative record correction.
+            Comprehensive patient directory across all registered clinic patients with full record editing and management.
           </p>
         </div>
 

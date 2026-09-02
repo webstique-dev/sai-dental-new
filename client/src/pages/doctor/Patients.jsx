@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   UserSquare2, Search, Filter, Calendar, Eye, ArrowUpDown, ChevronLeft, ChevronRight,
-  RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp
+  RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
+import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 
 export default function DoctorPatients() {
   const { user } = useAuth();
@@ -37,6 +38,7 @@ export default function DoctorPatients() {
   const [totalPages, setTotalPages] = useState(1);
   const [doctorsList, setDoctorsList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPatientForEdit, setSelectedPatientForEdit] = useState(null);
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -86,6 +88,24 @@ export default function DoctorPatients() {
   useEffect(() => {
     fetchPatients();
   }, [debouncedSearch, lastVisitFrom, lastVisitTo, doctorId, sort, sortOrder, page]);
+
+  const handlePatientUpdated = (updatedPatient) => {
+    if (!updatedPatient) return;
+    const updatedId = updatedPatient._id || updatedPatient.id;
+    setPatients((prev) =>
+      prev.map((p) => {
+        const pId = p._id || p.id;
+        if (pId === updatedId) {
+          return {
+            ...p,
+            ...updatedPatient,
+          };
+        }
+        return p;
+      })
+    );
+    fetchPatients();
+  };
 
   const handleSortToggle = (field) => {
     if (sort === field) {
@@ -331,12 +351,23 @@ export default function DoctorPatients() {
 
                       {/* Action */}
                       <td className="px-5 py-4 whitespace-nowrap text-right">
-                        <Link
-                          to={`/doctor/patients/${pId}`}
-                          className="btn-secondary text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-semibold"
-                        >
-                          <Eye size={14} /> View
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPatientForEdit(p)}
+                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold text-ink hover:text-brand hover:border-brand transition-colors"
+                            title="Edit Patient Details"
+                          >
+                            <Edit3 size={13} className="text-amber-600" /> Edit
+                          </button>
+                          <Link
+                            to={`/doctor/patients/${pId}`}
+                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold"
+                            title="View Patient EMR"
+                          >
+                            <Eye size={13} /> View
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -418,12 +449,22 @@ export default function DoctorPatients() {
                         </div>
                       </div>
 
-                      {/* Primary Action Button */}
-                      <div className="pt-1 flex items-center justify-end">
+                      {/* Primary Action Buttons */}
+                      <div className="pt-1 flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPatientForEdit(p);
+                          }}
+                          className="btn-secondary text-xs py-1.5 px-3 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold text-ink hover:text-brand"
+                        >
+                          <Edit3 size={14} className="text-amber-600" /> Edit
+                        </button>
                         <Link
                           to={`/doctor/patients/${pId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="btn-secondary text-xs py-1.5 px-3 w-full justify-center inline-flex items-center gap-1.5 font-semibold"
+                          className="btn-secondary text-xs py-1.5 px-3 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold"
                         >
                           <Eye size={14} /> View Profile & EMR
                         </Link>
@@ -467,6 +508,16 @@ export default function DoctorPatients() {
         )}
       </div>
     )}
+
+      {/* EDIT PATIENT MODAL */}
+      <PatientDetailsEditModal
+        isOpen={Boolean(selectedPatientForEdit)}
+        patient={selectedPatientForEdit}
+        appointmentId={null}
+        startConsultation={false}
+        onClose={() => setSelectedPatientForEdit(null)}
+        onSuccess={handlePatientUpdated}
+      />
   </div>
 );
 }

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  CheckCircle2, AlertTriangle, Save, History, Layers, Info, Check, RefreshCw, X, Shield, Loader2, ChevronDown, Plus,
+  CheckCircle2, AlertTriangle, Save, History, Layers, Info, Check, RefreshCw, X, Shield, Loader2, ChevronDown, Plus, Edit3, Trash2
 } from 'lucide-react';
 import api from '../../../api/axios.js';
+import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 
 // Permanent (Adult) Teeth Quadrants (32 teeth)
 const QUAD_UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -343,6 +344,82 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
   const [formTreatment, setFormTreatment] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [conditionOptions, setConditionOptions] = useState(INITIAL_CONDITION_OPTIONS);
+
+  // Editing historical log entry
+  const [editingHistoryEntry, setEditingHistoryEntry] = useState(null); // { toothNumber, historyId, condition, treatment, notes, date }
+  const [savingHistory, setSavingHistory] = useState(false);
+
+  const handleStartEditHistory = (toothNumber, historyItem) => {
+    setEditingHistoryEntry({
+      toothNumber,
+      historyId: historyItem._id,
+      condition: historyItem.condition || 'Healthy',
+      treatment: historyItem.treatment || '',
+      notes: historyItem.notes || '',
+      date: historyItem.date ? new Date(historyItem.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const handleSaveHistoryEntry = async (e) => {
+    e.preventDefault();
+    if (!editingHistoryEntry) return;
+
+    setSavingHistory(true);
+    setErrorMessage('');
+    try {
+      const { toothNumber, historyId, condition, treatment, notes, date } = editingHistoryEntry;
+      await api.put(`/tooth-chart/${patientId}/${toothNumber}/history/${historyId}`, {
+        condition,
+        treatment,
+        notes,
+        date,
+      });
+      setSuccessMessage(`Updated history log for Tooth #${toothNumber}!`);
+      setEditingHistoryEntry(null);
+      await fetchToothChart();
+      setTimeout(() => setSuccessMessage(''), 3500);
+    } catch (err) {
+      console.error('Failed to update tooth history entry:', err);
+      setErrorMessage(err.response?.data?.message || 'Failed to update tooth history entry.');
+    } finally {
+      setSavingHistory(false);
+    }
+  };
+
+  // Deletion confirmation for historical entry
+  const [historyItemToDelete, setHistoryItemToDelete] = useState(null);
+  const [isConfirmHistoryDeleteOpen, setIsConfirmHistoryDeleteOpen] = useState(false);
+  const [isDeletingHistory, setIsDeletingHistory] = useState(false);
+
+  const handleRequestDeleteHistory = (toothNumber, historyItem) => {
+    setHistoryItemToDelete({
+      toothNumber,
+      historyId: historyItem._id,
+      condition: historyItem.condition || 'Healthy',
+      treatment: historyItem.treatment || '',
+    });
+    setIsConfirmHistoryDeleteOpen(true);
+  };
+
+  const handleConfirmDeleteHistory = async () => {
+    if (!historyItemToDelete) return;
+    const { toothNumber, historyId } = historyItemToDelete;
+
+    try {
+      setIsDeletingHistory(true);
+      await api.delete(`/tooth-chart/${patientId}/${toothNumber}/history/${historyId}`);
+      setSuccessMessage(`Deleted history entry for Tooth #${toothNumber}`);
+      setIsConfirmHistoryDeleteOpen(false);
+      setHistoryItemToDelete(null);
+      await fetchToothChart();
+      setTimeout(() => setSuccessMessage(''), 3500);
+    } catch (err) {
+      console.error('Failed to delete tooth history entry:', err);
+      setErrorMessage(err.response?.data?.message || 'Failed to delete tooth history entry.');
+    } finally {
+      setIsDeletingHistory(false);
+    }
+  };
 
   const isNewCustomCondition = (cond) => {
     if (!cond || !cond.trim()) return false;
@@ -885,30 +962,115 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
                 <div className="divide-y divide-border border rounded-xl overflow-hidden bg-bg/30">
                   {[...selectedToothSingle.history]
                     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                    .map((h, idx) => (
-                      <div key={h._id || idx} className="p-3 text-xs space-y-1">
-                        <div className="flex items-center justify-between font-semibold">
-                          <span className={`badge border ${CONDITION_CODES[h.condition]?.color || 'bg-slate-100 text-slate-800'}`}>
-                            {h.condition}
-                          </span>
-                          <span className="text-[11px] text-ink-soft font-mono">
-                            {h.date ? new Date(h.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                          </span>
+                    .map((h, idx) => {
+                      const isEditingThis = editingHistoryEntry && editingHistoryEntry.historyId === h._id;
+                      const tNum = selectedTeeth[0];
+
+                      if (isEditingThis) {
+                        return (
+                          <form key={h._id || idx} onSubmit={handleSaveHistoryEntry} className="p-3 bg-surface border border-brand/50 rounded-lg space-y-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-brand text-[11px] uppercase">Edit History Entry (Tooth #{tNum})</span>
+                              <button type="button" onClick={() => setEditingHistoryEntry(null)} className="text-ink-soft hover:text-ink"><X size={14} /></button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Condition</label>
+                                <select
+                                  className="input-field py-1 text-xs"
+                                  value={editingHistoryEntry.condition}
+                                  onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, condition: e.target.value })}
+                                >
+                                  {conditionOptions.map((c) => (
+                                    <option key={c} value={c}>{c}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Date</label>
+                                <input
+                                  type="date"
+                                  className="input-field py-1 text-xs"
+                                  value={editingHistoryEntry.date}
+                                  onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, date: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Treatment Done</label>
+                              <input
+                                type="text"
+                                className="input-field py-1 text-xs"
+                                placeholder="e.g. Composite Restoration"
+                                value={editingHistoryEntry.treatment}
+                                onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, treatment: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Clinical Notes</label>
+                              <input
+                                type="text"
+                                className="input-field py-1 text-xs"
+                                placeholder="Notes..."
+                                value={editingHistoryEntry.notes}
+                                onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, notes: e.target.value })}
+                              />
+                            </div>
+                            <div className="flex items-center justify-end gap-1.5 pt-1">
+                              <button type="button" onClick={() => setEditingHistoryEntry(null)} className="btn-secondary py-1 px-2 text-xs">Cancel</button>
+                              <button type="submit" disabled={savingHistory} className="btn-primary py-1 px-3 text-xs font-bold">{savingHistory ? 'Saving...' : 'Save'}</button>
+                            </div>
+                          </form>
+                        );
+                      }
+
+                      return (
+                        <div key={h._id || idx} className="p-3 text-xs space-y-1 hover:bg-bg/40 transition-colors">
+                          <div className="flex items-center justify-between font-semibold">
+                            <span className={`badge border ${CONDITION_CODES[h.condition]?.color || 'bg-slate-100 text-slate-800'}`}>
+                              {h.condition}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-ink-soft font-mono">
+                                {h.date ? new Date(h.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                              </span>
+                              {!isReadOnly && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditHistory(tNum, h)}
+                                    className="p-1 rounded text-amber-700 hover:bg-amber-50"
+                                    title="Edit Entry"
+                                  >
+                                    <Edit3 size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRequestDeleteHistory(tNum, h)}
+                                    className="p-1 rounded text-rose-600 hover:bg-rose-50"
+                                    title="Delete Entry"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {h.treatment && (
+                            <p className="font-bold text-ink text-xs">{h.treatment}</p>
+                          )}
+
+                          {h.notes && (
+                            <p className="text-ink-soft text-[11px] italic">{h.notes}</p>
+                          )}
+
+                          <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
+                            Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                          </div>
                         </div>
-
-                        {h.treatment && (
-                          <p className="font-bold text-ink text-xs">{h.treatment}</p>
-                        )}
-
-                        {h.notes && (
-                          <p className="text-ink-soft text-[11px] italic">{h.notes}</p>
-                        )}
-
-                        <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                          Recorded by: Dr. {h.doctor?.name || 'Doctor'}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               ) : (
                 <div className="p-8 text-center text-xs text-ink-soft space-y-1">
@@ -950,30 +1112,114 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
 
                         {history.length > 0 ? (
                           <div className="divide-y divide-border border border-border/60 rounded-lg overflow-hidden bg-surface">
-                            {history.map((h, idx) => (
-                              <div key={h._id || idx} className="p-3 text-xs space-y-1">
-                                <div className="flex items-center justify-between font-semibold">
-                                  <span className={`badge border ${CONDITION_CODES[h.condition]?.color || 'bg-slate-100 text-slate-800'}`}>
-                                    {h.condition}
-                                  </span>
-                                  <span className="text-[11px] text-ink-soft font-mono">
-                                    {h.date ? new Date(h.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                                  </span>
+                            {history.map((h, idx) => {
+                              const isEditingThis = editingHistoryEntry && editingHistoryEntry.historyId === h._id;
+
+                              if (isEditingThis) {
+                                return (
+                                  <form key={h._id || idx} onSubmit={handleSaveHistoryEntry} className="p-3 bg-surface border border-brand/50 rounded-lg space-y-2 text-xs">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-brand text-[11px] uppercase">Edit History Entry (Tooth #{tNum})</span>
+                                      <button type="button" onClick={() => setEditingHistoryEntry(null)} className="text-ink-soft hover:text-ink"><X size={14} /></button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Condition</label>
+                                        <select
+                                          className="input-field py-1 text-xs"
+                                          value={editingHistoryEntry.condition}
+                                          onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, condition: e.target.value })}
+                                        >
+                                          {conditionOptions.map((c) => (
+                                            <option key={c} value={c}>{c}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Date</label>
+                                        <input
+                                          type="date"
+                                          className="input-field py-1 text-xs"
+                                          value={editingHistoryEntry.date}
+                                          onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, date: e.target.value })}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Treatment Done</label>
+                                      <input
+                                        type="text"
+                                        className="input-field py-1 text-xs"
+                                        placeholder="e.g. Composite Restoration"
+                                        value={editingHistoryEntry.treatment}
+                                        onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, treatment: e.target.value })}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-ink-soft mb-0.5">Clinical Notes</label>
+                                      <input
+                                        type="text"
+                                        className="input-field py-1 text-xs"
+                                        placeholder="Notes..."
+                                        value={editingHistoryEntry.notes}
+                                        onChange={(e) => setEditingHistoryEntry({ ...editingHistoryEntry, notes: e.target.value })}
+                                      />
+                                    </div>
+                                    <div className="flex items-center justify-end gap-1.5 pt-1">
+                                      <button type="button" onClick={() => setEditingHistoryEntry(null)} className="btn-secondary py-1 px-2 text-xs">Cancel</button>
+                                      <button type="submit" disabled={savingHistory} className="btn-primary py-1 px-3 text-xs font-bold">{savingHistory ? 'Saving...' : 'Save'}</button>
+                                    </div>
+                                  </form>
+                                );
+                              }
+
+                              return (
+                                <div key={h._id || idx} className="p-3 text-xs space-y-1 hover:bg-bg/40 transition-colors">
+                                  <div className="flex items-center justify-between font-semibold">
+                                    <span className={`badge border ${CONDITION_CODES[h.condition]?.color || 'bg-slate-100 text-slate-800'}`}>
+                                      {h.condition}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] text-ink-soft font-mono">
+                                        {h.date ? new Date(h.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                                      </span>
+                                      {!isReadOnly && (
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartEditHistory(tNum, h)}
+                                            className="p-1 rounded text-amber-700 hover:bg-amber-50"
+                                            title="Edit Entry"
+                                          >
+                                            <Edit3 size={12} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRequestDeleteHistory(tNum, h)}
+                                            className="p-1 rounded text-rose-600 hover:bg-rose-50"
+                                            title="Delete Entry"
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {h.treatment && (
+                                    <p className="font-bold text-ink text-xs">{h.treatment}</p>
+                                  )}
+
+                                  {h.notes && (
+                                    <p className="text-ink-soft text-[11px] italic">{h.notes}</p>
+                                  )}
+
+                                  <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
+                                    Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                                  </div>
                                 </div>
-
-                                {h.treatment && (
-                                  <p className="font-bold text-ink text-xs">{h.treatment}</p>
-                                )}
-
-                                {h.notes && (
-                                  <p className="text-ink-soft text-[11px] italic">{h.notes}</p>
-                                )}
-
-                                <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                                  Recorded by: Dr. {h.doctor?.name || 'Doctor'}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ) : (
                           <p className="text-xs text-ink-soft italic pt-1">
@@ -989,6 +1235,25 @@ export default function ToothChart({ patientId, consultationId, isReadOnly = fal
           )}
         </div>
       </div>
+      {/* DELETE CONFIRMATION POPUP FOR TOOTH HISTORY */}
+      <ConfirmModal
+        isOpen={isConfirmHistoryDeleteOpen}
+        title="Delete Tooth Treatment Entry"
+        message={
+          historyItemToDelete
+            ? `Are you sure you want to delete this historical ${historyItemToDelete.condition} log entry for Tooth #${historyItemToDelete.toothNumber}? The tooth's current condition will automatically revert to its latest remaining history.`
+            : 'Are you sure you want to delete this historical tooth entry?'
+        }
+        confirmText="Delete History Entry"
+        cancelText="Cancel"
+        variant="delete"
+        loading={isDeletingHistory}
+        onClose={() => {
+          setIsConfirmHistoryDeleteOpen(false);
+          setHistoryItemToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteHistory}
+      />
     </div>
   );
 }

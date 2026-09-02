@@ -194,9 +194,89 @@ async function bulkUpdateTeeth(req, res, next) {
   }
 }
 
+// PUT /api/tooth-chart/:patientId/:toothNumber/history/:historyId & PATCH
+async function updateToothHistoryEntry(req, res, next) {
+  try {
+    const { patientId, toothNumber, historyId } = req.params;
+    const { condition, treatment, notes, date } = req.body;
+
+    const record = await ToothRecord.findOne({
+      patient: patientId,
+      toothNumber: Number(toothNumber),
+    });
+
+    if (!record) {
+      return res.status(404).json({ message: 'Tooth record not found' });
+    }
+
+    const item = record.history.id(historyId);
+    if (!item) {
+      return res.status(404).json({ message: 'Tooth history log entry not found' });
+    }
+
+    if (condition !== undefined) item.condition = String(condition).trim() || 'Healthy';
+    if (treatment !== undefined) item.treatment = String(treatment).trim();
+    if (notes !== undefined) item.notes = String(notes).trim();
+    if (date !== undefined) item.date = new Date(date);
+    if (req.user) item.doctor = req.user._id;
+
+    // Sort history by date descending to find latest
+    const sorted = [...record.history].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    if (sorted.length > 0) {
+      record.currentCondition = sorted[0].condition || 'Healthy';
+    }
+
+    await record.save();
+
+    const populated = await ToothRecord.findById(record._id).populate('history.doctor', 'name email');
+
+    return res.json({
+      message: `Tooth #${toothNumber} history entry updated successfully`,
+      record: populated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/tooth-chart/:patientId/:toothNumber/history/:historyId
+async function deleteToothHistoryEntry(req, res, next) {
+  try {
+    const { patientId, toothNumber, historyId } = req.params;
+
+    const record = await ToothRecord.findOne({
+      patient: patientId,
+      toothNumber: Number(toothNumber),
+    });
+
+    if (!record) {
+      return res.status(404).json({ message: 'Tooth record not found' });
+    }
+
+    record.history.pull({ _id: historyId });
+
+    // Update current condition from newest remaining history entry
+    const sorted = [...record.history].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    record.currentCondition = sorted.length > 0 ? (sorted[0].condition || 'Healthy') : 'Healthy';
+
+    await record.save();
+
+    const populated = await ToothRecord.findById(record._id).populate('history.doctor', 'name email');
+
+    return res.json({
+      message: `Tooth #${toothNumber} history entry deleted successfully`,
+      record: populated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getPatientToothChart,
   updateToothRecord,
   bulkUpdateTeeth,
   applyToothUpdate,
+  updateToothHistoryEntry,
+  deleteToothHistoryEntry,
 };
