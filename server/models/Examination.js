@@ -32,6 +32,11 @@ const examinationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
     },
+    chiefComplaints: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     extraoral: [extraoralItemSchema],
     softTissue: [softTissueItemSchema],
     gingivalFindings: [

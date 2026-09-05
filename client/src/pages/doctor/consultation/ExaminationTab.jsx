@@ -31,6 +31,8 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Chief complaints state
+  const [chiefComplaints, setChiefComplaints] = useState('');
   // Extraoral state: array of { finding, notes }
   const [extraoral, setExtraoral] = useState([]);
   // Soft tissue state: array of { area, notes }
@@ -51,11 +53,14 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
         const res = await api.get(`/examinations?consultation=${consultationId}`);
         const exam = res.data?.examination;
         if (exam) {
+          setChiefComplaints(exam.chiefComplaints || consultation?.chiefComplaints || consultation?.reason || '');
           setExtraoral(exam.extraoral || []);
           setSoftTissue(exam.softTissue || []);
           setGingivalFindings(exam.gingivalFindings || []);
           setPeriodontalDetails(exam.periodontalDetails || '');
           setOverallNotes(exam.overallNotes || '');
+        } else {
+          setChiefComplaints(consultation?.chiefComplaints || consultation?.reason || '');
         }
       } catch (err) {
         console.error('Failed to load examination:', err);
@@ -64,7 +69,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
       }
     }
     fetchExamination();
-  }, [consultationId]);
+  }, [consultationId, consultation]);
 
   // Extraoral handlers
   const isExtraoralSelected = (finding) => extraoral.some((e) => e.finding === finding);
@@ -119,6 +124,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
       const payload = {
         consultation: consultationId,
         patient: patientId,
+        chiefComplaints: chiefComplaints.trim(),
         extraoral,
         softTissue,
         gingivalFindings,
@@ -149,7 +155,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
               <FileHeart size={18} className="text-brand" /> Clinical Examination Findings
             </h3>
             <p className="text-xs text-ink-soft mt-0.5">
-              Record extraoral, intraoral soft tissue, and periodontal findings below.
+              Record chief complaints, extraoral, intraoral soft tissue, and periodontal findings below.
             </p>
           </div>
 
@@ -163,6 +169,26 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
           </button>
         </div>
       )}
+
+      {/* CHIEF COMPLAINTS SECTION */}
+      <div className="card p-5 space-y-3">
+        <div className="border-b border-border pb-2">
+          <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wider text-brand">
+            Chief Complaints
+          </h3>
+          <p className="text-xs text-ink-soft">
+            Patient&apos;s primary reasons for visit, reported symptoms, or concerns.
+          </p>
+        </div>
+        <textarea
+          rows={2}
+          disabled={isReadOnly}
+          className="input-field text-xs"
+          placeholder="Enter patient's chief complaints..."
+          value={chiefComplaints}
+          onChange={(e) => setChiefComplaints(e.target.value)}
+        />
+      </div>
 
       {/* 1. EXTRAORAL EXAMINATION */}
       <div className="card p-5 space-y-4">

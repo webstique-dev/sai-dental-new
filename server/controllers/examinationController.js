@@ -23,7 +23,7 @@ async function getExamination(req, res, next) {
 // POST /api/examinations (Upsert single examination document per consultation)
 async function upsertExamination(req, res, next) {
   try {
-    const { consultation, patient, extraoral, softTissue, gingivalFindings, periodontalDetails, overallNotes } = req.body;
+    const { consultation, patient, extraoral, softTissue, gingivalFindings, periodontalDetails, overallNotes, chiefComplaints } = req.body;
 
     if (!consultation) {
       return res.status(400).json({ message: 'consultation is required.' });
@@ -42,6 +42,7 @@ async function upsertExamination(req, res, next) {
     const payload = {
       consultation,
       patient: targetPatient || undefined,
+      chiefComplaints: chiefComplaints !== undefined ? String(chiefComplaints).trim() : '',
       extraoral: Array.isArray(extraoral) ? extraoral : [],
       softTissue: Array.isArray(softTissue) ? softTissue : [],
       gingivalFindings: Array.isArray(gingivalFindings) ? gingivalFindings : [],
@@ -59,6 +60,17 @@ async function upsertExamination(req, res, next) {
       .populate('consultation')
       .populate('patient', 'firstName lastName opNumber')
       .populate('recordedBy', 'name email');
+
+    // Also update Consultation record if chiefComplaints or overallNotes provided
+    if (consultation) {
+      const Consultation = require('../models/Consultation');
+      const updateFields = {};
+      if (chiefComplaints !== undefined) updateFields.chiefComplaints = String(chiefComplaints).trim();
+      if (overallNotes !== undefined) updateFields.clinicalNotes = String(overallNotes).trim();
+      if (Object.keys(updateFields).length > 0) {
+        await Consultation.findByIdAndUpdate(consultation, updateFields);
+      }
+    }
 
     return res.json({
       message: 'Examination saved successfully',
@@ -80,6 +92,7 @@ async function updateExaminationById(req, res, next) {
       return res.status(404).json({ message: 'Examination record not found' });
     }
 
+    if (chiefComplaints !== undefined) exam.chiefComplaints = String(chiefComplaints).trim();
     if (extraoral !== undefined) exam.extraoral = Array.isArray(extraoral) ? extraoral : [];
     if (softTissue !== undefined) exam.softTissue = Array.isArray(softTissue) ? softTissue : [];
     if (gingivalFindings !== undefined) exam.gingivalFindings = Array.isArray(gingivalFindings) ? gingivalFindings : [];
@@ -94,7 +107,7 @@ async function updateExaminationById(req, res, next) {
       const Consultation = require('../models/Consultation');
       const updateFields = {};
       if (chiefComplaints !== undefined) updateFields.chiefComplaints = String(chiefComplaints).trim();
-      if (overallNotes !== undefined) updateFields.notes = String(overallNotes).trim();
+      if (overallNotes !== undefined) updateFields.clinicalNotes = String(overallNotes).trim();
       if (Object.keys(updateFields).length > 0) {
         await Consultation.findByIdAndUpdate(exam.consultation, updateFields);
       }

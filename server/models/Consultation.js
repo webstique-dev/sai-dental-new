@@ -54,6 +54,11 @@ const consultationSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    chiefComplaints: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     totalEstimatedCharges: {
       type: Number,
       default: 0,

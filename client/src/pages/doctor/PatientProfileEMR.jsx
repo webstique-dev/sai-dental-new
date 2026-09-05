@@ -514,24 +514,29 @@ export default function PatientProfileEMR() {
             {emrData?.consultations && emrData.consultations.length > 0 ? (
               <div className="space-y-4">
                 {emrData.consultations.map((c) => {
-                  const cId = c._id || c.id;
-                  const consultDateStr = c.visitDate || c.startedAt || c.createdAt
-                    ? new Date(c.visitDate || c.startedAt || c.createdAt).toLocaleDateString(undefined, {
+                  const cId = c._id || c.id || c.consultationId;
+                  const rawDate = c.visitDate || c.date || c.startedAt || c.createdAt || c.examination?.recordedAt || c.examination?.createdAt;
+                  const consultDateStr = rawDate
+                    ? new Date(rawDate).toLocaleDateString(undefined, {
                       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
                     })
                     : 'N/A';
-                  const docName = c.doctor?.name ? `Dr. ${c.doctor.name}` : 'Doctor';
+                  const docName = c.doctor?.name
+                    ? `Dr. ${c.doctor.name}`
+                    : c.examination?.recordedBy?.name
+                    ? `Dr. ${c.examination.recordedBy.name}`
+                    : 'Doctor';
 
                   const exam = c.examination || {};
-                  const extraoralList = exam.extraoral || [];
-                  const softTissueList = exam.softTissue || [];
-                  const gingivalList = exam.gingivalFindings || [];
+                  const extraoralList = Array.isArray(exam.extraoral) ? exam.extraoral : [];
+                  const softTissueList = Array.isArray(exam.softTissue) ? exam.softTissue : [];
+                  const gingivalList = Array.isArray(exam.gingivalFindings) ? exam.gingivalFindings : [];
                   const periodontalNotes = exam.periodontalDetails || '';
                   const overallNotesStr = exam.overallNotes || c.clinicalNotes || c.notes || '';
 
                   const chiefComplaints = exam.chiefComplaints || c.chiefComplaints || c.reason || '';
-                  const diagnosesList = c.diagnoses || [];
-                  const treatmentsList = c.treatmentPlans || [];
+                  const diagnosesList = Array.isArray(c.diagnoses) ? c.diagnoses : [];
+                  const treatmentsList = Array.isArray(c.treatmentPlans) ? c.treatmentPlans : [];
 
                   return (
                     <div key={cId} className="card p-5 bg-surface border-border space-y-4 shadow-sm">
@@ -546,7 +551,14 @@ export default function PatientProfileEMR() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSelectedConsultationForExamEdit(c);
+                            setSelectedConsultationForExamEdit({
+                              ...c,
+                              chiefComplaints: chiefComplaints,
+                              examination: {
+                                ...exam,
+                                chiefComplaints: chiefComplaints,
+                              },
+                            });
                             setIsExamModalOpen(true);
                           }}
                           className="btn-secondary py-1 px-2.5 text-xs font-semibold flex items-center gap-1.5 text-amber-700 hover:text-amber-800 hover:border-amber-300 shadow-sm"
@@ -557,20 +569,23 @@ export default function PatientProfileEMR() {
                         </button>
                       </div>
 
-                      {chiefComplaints && (
-                        <div className="p-3 rounded-xl bg-bg/50 border border-border space-y-1 text-xs">
-                          <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Chief Complaints</span>
-                          <p className="font-semibold text-ink leading-relaxed">{chiefComplaints}</p>
-                        </div>
-                      )}
-
-                      {/* 4 SAVED EXAMINATION SECTIONS */}
+                      {/* SAVED EXAMINATION SECTIONS */}
                       <div className="border border-border rounded-xl p-4 bg-bg/30 space-y-3">
                         <div className="flex items-center justify-between border-b border-border/80 pb-2">
                           <h4 className="font-display text-xs font-bold text-ink flex items-center gap-1.5">
                             <Stethoscope size={14} className="text-brand" /> Clinical Examination Details
                           </h4>
                         </div>
+
+                        {/* Chief Complaints inside Examination Details */}
+                        {chiefComplaints ? (
+                          <div className="p-3 rounded-lg bg-surface border border-border/80 space-y-1 text-xs shadow-2xs">
+                            <span className="text-[10px] font-bold text-brand uppercase tracking-wider block">
+                              Chief Complaints
+                            </span>
+                            <p className="font-semibold text-ink text-xs leading-relaxed">{chiefComplaints}</p>
+                          </div>
+                        ) : null}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                           {/* 1. Extraoral Examination */}

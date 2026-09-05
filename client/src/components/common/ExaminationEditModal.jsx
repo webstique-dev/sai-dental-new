@@ -103,9 +103,10 @@ export default function ExaminationEditModal({
     setErrorMessage('');
 
     try {
+      const targetPatientId = consultation.patient?._id || consultation.patient?.id || consultation.patient || consultation.patientId;
       const payload = {
         consultation: consultationId,
-        patient: consultation.patient?._id || consultation.patient,
+        patient: targetPatientId || undefined,
         chiefComplaints: formData.chiefComplaints.trim(),
         extraoral: formData.extraoral,
         softTissue: formData.softTissue,
