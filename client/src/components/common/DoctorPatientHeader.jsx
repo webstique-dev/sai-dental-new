@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   UserSquare2, Stethoscope, ChevronRight, Activity, AlertCircle, Phone, Heart, ClipboardList,
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 
 export default function DoctorPatientHeader({ title, description, icon: Icon, onPatientChange }) {
@@ -118,9 +119,10 @@ export default function DoctorPatientHeader({ title, description, icon: Icon, on
             <optgroup label="👥 All Patients Directory">
               {patients.map((p) => {
                 const pId = p._id || p.id;
+                const pPhone = [p.primaryPhone || p.phone, p.secondaryPhone].filter(Boolean).join(' / ');
                 return (
                   <option key={`p-${pId}`} value={pId}>
-                    {p.firstName} {p.lastName} (OP: {p.opNumber || 'N/A'}) {p.phone ? `• ${p.phone}` : ''}
+                    {p.firstName} {p.lastName} (OP: {p.opNumber || 'N/A'}) {pPhone ? `• ${pPhone}` : ''}
                   </option>
                 );
               })}
@@ -152,9 +154,14 @@ export default function DoctorPatientHeader({ title, description, icon: Icon, on
                   )}
                 </div>
                 <p className="text-xs text-ink-soft mt-0.5">
-                  Age: <strong className="text-ink">{selectedPatient.age !== undefined ? `${selectedPatient.age}y` : 'N/A'}</strong> • Sex:{' '}
+                  Age: <strong className="text-ink">{selectedPatient.age !== undefined && selectedPatient.age !== null && selectedPatient.age !== '' ? `${formatAge(selectedPatient.age)}y` : 'N/A'}</strong> • Sex:{' '}
                   <strong className="text-ink">{selectedPatient.sex || 'N/A'}</strong> • Phone:{' '}
-                  <strong className="text-ink">{selectedPatient.phone || 'N/A'}</strong>
+                  <strong className="text-ink font-mono">{selectedPatient.primaryPhone || selectedPatient.phone || 'N/A'}</strong>
+                  {selectedPatient.secondaryPhone && (
+                    <span className="ml-1 text-ink-soft">
+                      (Alt: <strong className="text-ink font-mono">{selectedPatient.secondaryPhone}</strong>)
+                    </span>
+                  )}
                 </p>
               </div>
             </div>

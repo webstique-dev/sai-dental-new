@@ -15,14 +15,20 @@ function validatePatientData(data, isUpdate = false) {
     }
   }
 
-  if (!isUpdate || data.phone !== undefined) {
-    if (!data.phone || !data.phone.toString().trim()) {
-      errors.push('Phone number is required.');
-    } else {
-      const cleanPhone = data.phone.toString().trim().replace(/\D/g, '');
-      if (cleanPhone.length !== 10) {
-        errors.push('Phone number must be exactly 10 digits.');
-      }
+  // Primary Phone (optional, but if provided must be exactly 10 digits)
+  const pPhone = data.primaryPhone !== undefined ? data.primaryPhone : data.phone;
+  if (pPhone !== undefined && pPhone !== null && pPhone.toString().trim() !== '') {
+    const cleanPhone = pPhone.toString().trim().replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      errors.push('Primary phone number must be exactly 10 digits.');
+    }
+  }
+
+  // Secondary Phone (optional, but if provided must be exactly 10 digits)
+  if (data.secondaryPhone !== undefined && data.secondaryPhone !== null && data.secondaryPhone.toString().trim() !== '') {
+    const cleanSecPhone = data.secondaryPhone.toString().trim().replace(/\D/g, '');
+    if (cleanSecPhone.length !== 10) {
+      errors.push('Secondary phone number must be exactly 10 digits.');
     }
   }
 
@@ -40,8 +46,8 @@ function validatePatientData(data, isUpdate = false) {
 
   if (data.age !== undefined && data.age !== null && data.age !== '') {
     const num = Number(data.age);
-    if (isNaN(num) || !Number.isInteger(num) || num < 0 || num > 120) {
-      errors.push('Age must be a valid whole number between 0 and 120.');
+    if (isNaN(num) || num < 0 || num > 130) {
+      errors.push('Age must be a valid number between 0 and 130.');
     }
   }
 

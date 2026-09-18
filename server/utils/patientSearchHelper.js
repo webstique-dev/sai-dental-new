@@ -20,6 +20,8 @@ function buildPatientSearchFilter(searchQuery) {
     $or: [
       { firstName: regex },
       { lastName: regex },
+      { primaryPhone: regex },
+      { secondaryPhone: regex },
       { phone: regex },
       { opNumber: regex },
       {

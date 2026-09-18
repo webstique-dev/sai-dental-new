@@ -61,7 +61,7 @@ async function listConsultations(req, res, next) {
 
     const rawConsultations = await Consultation.find(filter)
       .sort({ startedAt: -1, createdAt: -1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
       .populate('doctor', 'name email specialization role')
       .populate('queueEntry')
       .populate('appointment');
@@ -169,7 +169,7 @@ async function getDoctorTodayQueue(req, res, next) {
 
     const queueEntries = await QueueEntry.find(filter)
       .sort({ token: 1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
 
@@ -264,7 +264,7 @@ async function startConsultation(req, res, next) {
     });
 
     const populated = await Consultation.findById(consultation._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
       .populate('doctor', 'name email role specialization')
       .populate('queueEntry')
       .populate('appointment');
@@ -284,7 +284,7 @@ async function startConsultation(req, res, next) {
 async function getConsultationById(req, res, next) {
   try {
     const consultation = await Consultation.findById(req.params.id)
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
       .populate('doctor', 'name email role specialization')
       .populate('queueEntry')
       .populate('appointment');
@@ -391,7 +391,7 @@ async function closeConsultation(req, res, next) {
       }
 
       savedFollowUp = await FollowUp.findById(savedFollowUp._id)
-        .populate('patient', 'firstName lastName opNumber phone age sex')
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
         .populate({
           path: 'scheduledAppointment',
           populate: { path: 'doctor', select: 'name specialization' },
@@ -622,7 +622,7 @@ async function getDoctorSummary(req, res, next) {
     // 6. nextInQueue: single next patient in this doctor's queue (lowest token number with status Checked-In today)
     const nextQueueEntry = await QueueEntry.findOne(queueFilter)
       .sort({ token: 1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex');
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex');
 
     let nextInQueue = null;
     if (nextQueueEntry) {
@@ -640,7 +640,9 @@ async function getDoctorSummary(req, res, next) {
               opNumber: nextQueueEntry.patient.opNumber,
               age: nextQueueEntry.patient.age,
               sex: nextQueueEntry.patient.sex,
-              phone: nextQueueEntry.patient.phone,
+              primaryPhone: nextQueueEntry.patient.primaryPhone || nextQueueEntry.patient.phone || '',
+              secondaryPhone: nextQueueEntry.patient.secondaryPhone || '',
+              phone: nextQueueEntry.patient.primaryPhone || nextQueueEntry.patient.phone || '',
             }
           : null,
       };
@@ -672,7 +674,7 @@ async function findOrCreateConsultation(req, res, next) {
       patient: patientId,
       status: 'In Progress',
     })
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
       .populate('doctor', 'name email role specialization');
 
     if (!consultation) {
@@ -680,7 +682,7 @@ async function findOrCreateConsultation(req, res, next) {
         patient: patientId,
       })
         .sort({ createdAt: -1 })
-        .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
         .populate('doctor', 'name email role specialization');
     }
 
@@ -701,7 +703,7 @@ async function findOrCreateConsultation(req, res, next) {
       await consultation.save();
 
       consultation = await Consultation.findById(consultation._id)
-        .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
         .populate('doctor', 'name email role specialization');
     }
 

@@ -34,7 +34,8 @@ export default function PatientRegistration() {
     dateOfBirth: '',
     occupation: '',
     address: '',
-    phone: '',
+    primaryPhone: '',
+    secondaryPhone: '',
     medicalHistory: [],
     currentMedications: '',
     vitals: { bp: '', rbs: '' },
@@ -100,7 +101,7 @@ export default function PatientRegistration() {
 
   // Live duplicate check on name or phone change (debounced)
   useEffect(() => {
-    const query = [formData.firstName, formData.lastName, formData.phone]
+    const query = [formData.firstName, formData.lastName, formData.primaryPhone, formData.secondaryPhone]
       .filter(Boolean)
       .join(' ')
       .trim();
@@ -121,7 +122,7 @@ export default function PatientRegistration() {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [formData.firstName, formData.lastName, formData.phone]);
+  }, [formData.firstName, formData.lastName, formData.primaryPhone, formData.secondaryPhone]);
 
   // Auto-detect Patient Type (Adult vs Child) based on age/DOB unless manually overridden
   useEffect(() => {
@@ -129,7 +130,7 @@ export default function PatientRegistration() {
 
     let calcAge = null;
     if (formData.age) {
-      calcAge = parseInt(formData.age, 10);
+      calcAge = parseFloat(formData.age);
     } else if (formData.dateOfBirth) {
       const birth = new Date(formData.dateOfBirth);
       const now = new Date();
@@ -159,8 +160,31 @@ export default function PatientRegistration() {
   const handleVitalsChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
-      vitals: { ...prev.vitals, [field]: value },
+      vitals: {
+        ...(prev.vitals || {}),
+        [field]: value,
+      },
     }));
+  };
+
+  const handleMedicalHistoryToggle = (item) => {
+    setFormData((prev) => {
+      const exists = prev.medicalHistory.includes(item);
+      const updated = exists
+        ? prev.medicalHistory.filter((m) => m !== item)
+        : [...prev.medicalHistory, item];
+      return { ...prev, medicalHistory: updated };
+    });
+  };
+
+  const handleHabitToggle = (item) => {
+    setFormData((prev) => {
+      const exists = prev.habits.includes(item);
+      const updated = exists
+        ? prev.habits.filter((h) => h !== item)
+        : [...prev.habits, item];
+      return { ...prev, habits: updated };
+    });
   };
 
   const handleCheckboxToggle = (field, item) => {
@@ -174,7 +198,7 @@ export default function PatientRegistration() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
 
     const newErrors = {};
 
@@ -186,8 +210,15 @@ export default function PatientRegistration() {
       if (lastNameErr) newErrors.lastName = lastNameErr;
     }
 
-    const phoneErr = validatePhone(formData.phone, true);
-    if (phoneErr) newErrors.phone = phoneErr;
+    if (formData.primaryPhone) {
+      const pPhoneErr = validatePhone(formData.primaryPhone, 'Primary Phone', false);
+      if (pPhoneErr) newErrors.primaryPhone = pPhoneErr;
+    }
+
+    if (formData.secondaryPhone) {
+      const sPhoneErr = validatePhone(formData.secondaryPhone, 'Secondary Phone', false);
+      if (sPhoneErr) newErrors.secondaryPhone = sPhoneErr;
+    }
 
     if (formData.dateOfBirth) {
       const dobErr = validateDOB(formData.dateOfBirth, false);
@@ -220,10 +251,11 @@ export default function PatientRegistration() {
         ...formData,
         firstName: formData.firstName ? formData.firstName.trim() : '',
         lastName: formData.lastName ? formData.lastName.trim() : '',
-        phone: formData.phone ? formData.phone.trim() : '',
+        primaryPhone: formData.primaryPhone ? formData.primaryPhone.trim() : '',
+        secondaryPhone: formData.secondaryPhone ? formData.secondaryPhone.trim() : '',
         occupation: formData.occupation ? formData.occupation.trim() : '',
         address: formData.address ? formData.address.trim() : '',
-        age: formData.age ? parseInt(formData.age, 10) : undefined,
+        age: formData.age !== '' && formData.age !== undefined && !isNaN(formData.age) ? parseFloat(formData.age) : undefined,
         dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : undefined,
       };
 
@@ -273,22 +305,25 @@ export default function PatientRegistration() {
         </button>
       </div>
 
-      {/* Soft Duplicate Warning */}
+      {/* Soft Duplicate / Family Member Notice */}
       {similarPatients.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 sm:p-4 text-amber-900">
           <div className="flex items-start gap-2.5">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
             <div className="space-y-1 text-sm">
-              <p className="font-semibold text-xs sm:text-sm">Soft Warning: Similar patient record found</p>
+              <p className="font-semibold text-xs sm:text-sm">Notice: Similar patient record found</p>
               <ul className="list-disc pl-4 space-y-0.5 text-xs text-amber-800">
-                {similarPatients.map((p) => (
-                  <li key={p._id}>
-                    <span className="font-medium">{p.firstName} {p.lastName}</span> ({p.opNumber || 'No OP#'}) — {p.phone || 'No phone'}
-                  </li>
-                ))}
+                {similarPatients.map((p) => {
+                  const pPhones = [p.primaryPhone || p.phone, p.secondaryPhone].filter(Boolean).join(' / ') || 'No phone';
+                  return (
+                    <li key={p._id}>
+                      <span className="font-medium">{p.firstName} {p.lastName}</span> ({p.opNumber || 'No OP#'}) — {pPhones}
+                    </li>
+                  );
+                })}
               </ul>
               <p className="text-xs text-amber-700 pt-1">
-                You can still proceed with submitting this new registration.
+                A patient with matching details already exists — this may be a family member. Continue to create a new record, or select their existing record if this is actually the same person.
               </p>
             </div>
           </div>
@@ -340,21 +375,41 @@ export default function PatientRegistration() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">
-                Phone Number <span className="text-rose-600">*</span>
+                Primary Phone
               </label>
               <input
                 type="tel"
                 autoComplete="off"
                 maxLength={10}
-                className={`input-field font-mono ${errors.phone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                className={`input-field font-mono ${errors.primaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                   }`}
                 placeholder="e.g. 9876543210"
-                value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                value={formData.primaryPhone}
+                onChange={(e) => handleChange('primaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
               />
-              {errors.phone && (
+              {errors.primaryPhone && (
                 <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> {errors.phone}
+                  <AlertTriangle size={12} /> {errors.primaryPhone}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-ink-soft mb-1">
+                Secondary Phone <span className="text-ink-soft font-normal">(optional)</span>
+              </label>
+              <input
+                type="tel"
+                autoComplete="off"
+                maxLength={10}
+                className={`input-field font-mono ${errors.secondaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                  }`}
+                placeholder="e.g. 9123456789"
+                value={formData.secondaryPhone}
+                onChange={(e) => handleChange('secondaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+              />
+              {errors.secondaryPhone && (
+                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {errors.secondaryPhone}
                 </p>
               )}
             </div>
@@ -374,17 +429,19 @@ export default function PatientRegistration() {
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">Age</label>
               <input
-                type="text"
+                type="number"
+                step="0.5"
+                min="0"
+                max="130"
                 autoComplete="off"
-                maxLength={3}
                 className={`input-field font-mono ${errors.age ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                   }`}
-                placeholder="e.g. 35"
+                placeholder="e.g. 4.5 or 30"
                 value={formData.age}
                 onChange={(e) => {
-                  const cleaned = e.target.value.replace(/\D/g, '').slice(0, 3);
-                  if (!cleaned || parseInt(cleaned, 10) <= 120) {
-                    handleChange('age', cleaned);
+                  const val = e.target.value;
+                  if (val === '' || (!isNaN(val) && Number(val) >= 0 && Number(val) <= 130)) {
+                    handleChange('age', val);
                   }
                 }}
               />

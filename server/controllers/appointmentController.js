@@ -73,7 +73,7 @@ async function listAppointments(req, res, next) {
     }
 
     const appointments = await Appointment.find(filter)
-      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .sort({ date: 1, time: 1 });
 
@@ -141,7 +141,7 @@ async function createAppointment(req, res, next) {
     }
 
     const appointment = await Appointment.findById(newAppointment._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 
@@ -195,7 +195,7 @@ async function updateAppointment(req, res, next) {
       req.body,
       { new: true, runValidators: true }
     )
-      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 
@@ -240,7 +240,7 @@ async function cancelAppointment(req, res, next) {
       },
       { new: true }
     )
-      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 

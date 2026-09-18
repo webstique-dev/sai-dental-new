@@ -465,8 +465,10 @@ export default function Billing() {
                         <tr key={invId} className="hover:bg-bg/40 transition-colors">
                           <td className="px-5 py-4">
                             <div className="font-bold text-ink text-sm">{patientName}</div>
-                            {patient.phone && (
-                              <div className="text-[11px] text-ink-soft">{patient.phone}</div>
+                            {(patient.primaryPhone || patient.phone) && (
+                              <div className="text-[11px] text-ink-soft">
+                                {patient.primaryPhone || patient.phone}{patient.secondaryPhone ? ` / ${patient.secondaryPhone}` : ''}
+                              </div>
                             )}
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap">

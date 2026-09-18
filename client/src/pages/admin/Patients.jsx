@@ -3,6 +3,7 @@ import {
   Users, Search, Filter, Edit3, ArrowUpDown, ChevronLeft, ChevronRight,
   ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye, History, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
@@ -85,7 +86,8 @@ export default function AdminPatients() {
     setEditForm({
       firstName: patient.firstName || '',
       lastName: patient.lastName || '',
-      phone: patient.phone || '',
+      primaryPhone: patient.primaryPhone || patient.phone || '',
+      secondaryPhone: patient.secondaryPhone || '',
       age: patient.age !== undefined && patient.age !== null ? String(patient.age) : '',
       sex: patient.sex || 'Male',
       dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : '',
@@ -123,11 +125,20 @@ export default function AdminPatients() {
       }
     }
 
-    if (editForm.phone) {
-      const phoneErr = validatePhone(editForm.phone, false);
+    if (editForm.primaryPhone) {
+      const phoneErr = validatePhone(editForm.primaryPhone, 'Primary Phone', false);
       if (phoneErr) {
         setFeedback({ type: 'error', msg: phoneErr });
         showError(phoneErr);
+        return;
+      }
+    }
+
+    if (editForm.secondaryPhone) {
+      const secPhoneErr = validatePhone(editForm.secondaryPhone, 'Secondary Phone', false);
+      if (secPhoneErr) {
+        setFeedback({ type: 'error', msg: secPhoneErr });
+        showError(secPhoneErr);
         return;
       }
     }
@@ -157,8 +168,9 @@ export default function AdminPatients() {
       const payload = {
         firstName: editForm.firstName.trim(),
         lastName: editForm.lastName.trim(),
-        phone: editForm.phone.trim(),
-        age: editForm.age ? Number(editForm.age) : undefined,
+        primaryPhone: editForm.primaryPhone.trim(),
+        secondaryPhone: editForm.secondaryPhone.trim(),
+        age: editForm.age !== '' && editForm.age !== null && editForm.age !== undefined && !isNaN(editForm.age) ? parseFloat(editForm.age) : undefined,
         sex: editForm.sex,
         dateOfBirth: editForm.dateOfBirth ? editForm.dateOfBirth : null,
         occupation: editForm.occupation.trim(),
@@ -394,11 +406,16 @@ export default function AdminPatients() {
                           </td>
 
                           <td className="px-5 py-4 font-mono text-ink-soft whitespace-nowrap">
-                            {p.phone || '—'}
+                            <span className="font-semibold text-ink">{p.primaryPhone || p.phone || '—'}</span>
+                            {p.secondaryPhone && (
+                              <span className="block text-[11px] text-ink-soft font-normal">
+                                Alt: {p.secondaryPhone}
+                              </span>
+                            )}
                           </td>
 
                           <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
-                            {p.age ? `${p.age} yrs` : '—'} / {p.sex || '—'}
+                            {p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age, 'yrs')}` : '—'} / {p.sex || '—'}
                           </td>
 
                           <td className="px-5 py-4 whitespace-nowrap">
@@ -487,7 +504,10 @@ export default function AdminPatients() {
                           </div>
                           <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
                             {p.opNumber && <span className="font-bold text-brand">#{p.opNumber}</span>}
-                            <span>• {p.phone || 'No Phone'}</span>
+                            <span>
+                              • {p.primaryPhone || p.phone || 'No Phone'}
+                              {p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}
+                            </span>
                           </div>
                         </div>
 
@@ -505,7 +525,7 @@ export default function AdminPatients() {
                           <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
                             <div>
                               <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
-                              <span className="font-medium text-ink">{p.age ? `${p.age} yrs` : '—'} / {p.sex || '—'}</span>
+                              <span className="font-medium text-ink">{p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age, 'yrs')}` : '—'} / {p.sex || '—'}</span>
                             </div>
                             <div>
                               <span className="block text-[10px] font-semibold uppercase text-ink-soft">Registered On</span>
@@ -606,13 +626,18 @@ export default function AdminPatients() {
               {/* Profile Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs bg-bg p-4 rounded-lg border border-border">
                 <div>
-                  <div className="text-ink-soft font-semibold">Phone Number</div>
-                  <div className="font-bold text-ink">{selectedPatient.phone || 'Not specified'}</div>
+                  <div className="text-ink-soft font-semibold">Contact Numbers</div>
+                  <div className="font-bold text-ink font-mono">
+                    {selectedPatient.primaryPhone || selectedPatient.phone || 'Not specified'}
+                  </div>
+                  {selectedPatient.secondaryPhone && (
+                    <div className="text-[11px] text-ink-soft font-mono">Alt: {selectedPatient.secondaryPhone}</div>
+                  )}
                 </div>
                 <div>
                   <div className="text-ink-soft font-semibold">Age / Sex</div>
                   <div className="font-bold text-ink">
-                    {selectedPatient.age !== undefined && selectedPatient.age !== null ? `${selectedPatient.age} yrs` : '—'} / {selectedPatient.sex || '—'}
+                    {selectedPatient.age !== undefined && selectedPatient.age !== null && selectedPatient.age !== '' ? `${formatAge(selectedPatient.age, 'yrs')}` : '—'} / {selectedPatient.sex || '—'}
                   </div>
                 </div>
                 <div>
@@ -768,28 +793,41 @@ export default function AdminPatients() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block font-semibold text-ink-soft mb-1">Phone</label>
+                    <label className="block font-semibold text-ink-soft mb-1">Primary Phone</label>
                     <input
                       type="tel"
                       maxLength={10}
                       className="input-field py-1.5 font-mono"
-                      value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                      value={editForm.primaryPhone}
+                      onChange={(e) => setEditForm({ ...editForm, primaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Secondary Phone</label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      className="input-field py-1.5 font-mono"
+                      value={editForm.secondaryPhone}
+                      onChange={(e) => setEditForm({ ...editForm, secondaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     />
                   </div>
                   <div>
                     <label className="block font-semibold text-ink-soft mb-1">Age</label>
                     <input
-                      type="text"
-                      maxLength={3}
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="130"
                       className="input-field py-1.5 font-mono"
+                      placeholder="e.g. 4.5 or 30"
                       value={editForm.age}
                       onChange={(e) => {
-                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 3);
-                        if (!cleaned || parseInt(cleaned, 10) <= 120) {
-                          setEditForm({ ...editForm, age: cleaned });
+                        const val = e.target.value;
+                        if (val === '' || (!isNaN(val) && Number(val) >= 0 && Number(val) <= 130)) {
+                          setEditForm({ ...editForm, age: val });
                         }
                       }}
                     />

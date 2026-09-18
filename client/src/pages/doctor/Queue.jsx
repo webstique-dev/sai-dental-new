@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
@@ -459,9 +460,9 @@ export default function DoctorQueue() {
     return queueEntries.filter((item) => {
       const p = item.patient || {};
       const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
-      const op = (p.opNumber || '').toLowerCase();
-      const phone = (p.phone || '').toLowerCase();
-      return fullName.includes(q) || op.includes(q) || phone.includes(q);
+      const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
+      const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+      return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q);
     });
   }, [queueEntries, todaySearch]);
 
@@ -475,10 +476,10 @@ export default function DoctorQueue() {
       result = result.filter((item) => {
         const p = item.patient || {};
         const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
-        const op = (p.opNumber || '').toLowerCase();
-        const phone = (p.phone || '').toLowerCase();
+        const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
+        const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
         const reason = (item.reason || '').toLowerCase();
-        return fullName.includes(q) || op.includes(q) || phone.includes(q) || reason.includes(q);
+        return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q) || reason.includes(q);
       });
     }
 
@@ -519,9 +520,9 @@ export default function DoctorQueue() {
       result = result.filter((item) => {
         const p = item.patient || {};
         const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
-        const op = (p.opNumber || '').toLowerCase();
-        const phone = (p.phone || '').toLowerCase();
-        return fullName.includes(q) || op.includes(q) || phone.includes(q);
+        const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
+        const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+        return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q);
       });
     }
 
@@ -610,11 +611,11 @@ export default function DoctorQueue() {
         const pName = item.patient
           ? `${item.patient.firstName} ${item.patient.lastName}`.toLowerCase()
           : '';
-        const op = (item.patient?.opNumber || '').toLowerCase();
-        const phone = (item.patient?.phone || '').toLowerCase();
+        const primaryPhone = (item.patient?.primaryPhone || item.patient?.phone || '').toLowerCase();
+        const secondaryPhone = (item.patient?.secondaryPhone || '').toLowerCase();
         const reason = (item.reason || '').toLowerCase();
         const notes = (item.notes || '').toLowerCase();
-        return pName.includes(q) || op.includes(q) || phone.includes(q) || reason.includes(q) || notes.includes(q);
+        return pName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q) || reason.includes(q) || notes.includes(q);
       });
     }
 
@@ -918,7 +919,7 @@ export default function DoctorQueue() {
                                     </span>
                                   </div>
                                   <div className="text-xs text-ink-soft">
-                                    {entry.patient?.age ? `${entry.patient.age}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} {entry.patient?.phone ? `• ${entry.patient.phone}` : ''}
+                                    {entry.patient?.age !== undefined && entry.patient?.age !== null && entry.patient?.age !== '' ? `${formatAge(entry.patient.age)}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} {(entry.patient?.primaryPhone || entry.patient?.phone) ? `• ${entry.patient.primaryPhone || entry.patient.phone}${entry.patient.secondaryPhone ? ` / ${entry.patient.secondaryPhone}` : ''}` : ''}
                                   </div>
                                 </td>
 
@@ -1009,12 +1010,12 @@ export default function DoctorQueue() {
                                   <div>
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
                                     <span className="font-medium text-ink">
-                                      {entry.patient?.age ? `${entry.patient.age}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} ({pType === 'child' ? 'Child' : 'Adult'})
+                                      {entry.patient?.age !== undefined && entry.patient?.age !== null && entry.patient?.age !== '' ? `${formatAge(entry.patient.age)}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} ({pType === 'child' ? 'Child' : 'Adult'})
                                     </span>
                                   </div>
                                   <div>
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
-                                    <span className="font-mono font-medium text-ink">{entry.patient?.phone || '—'}</span>
+                                    <span className="font-mono font-medium text-ink">{entry.patient?.primaryPhone || entry.patient?.phone || '—'}{entry.patient?.secondaryPhone ? ` / ${entry.patient.secondaryPhone}` : ''}</span>
                                   </div>
                                   <div className="col-span-2">
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason / Visit Type</span>
@@ -1250,12 +1251,12 @@ export default function DoctorQueue() {
                                   <div className="font-bold text-ink">{patientName}</div>
                                   <div className="text-xs text-ink-soft flex items-center gap-1.5 flex-wrap mt-0.5">
                                     <span>
-                                      {apt.patient?.age ? `${apt.patient.age}y` : ''} {apt.patient?.sex ? `/ ${apt.patient.sex}` : ''}
+                                      {apt.patient?.age !== undefined && apt.patient?.age !== null && apt.patient?.age !== '' ? `${formatAge(apt.patient.age)}y` : ''} {apt.patient?.sex ? `/ ${apt.patient.sex}` : ''}
                                     </span>
                                     <span className={`badge text-[9px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                                       {pType === 'child' ? 'Child' : 'Adult'}
                                     </span>
-                                    {apt.patient?.phone && <span>• {apt.patient.phone}</span>}
+                                    {(apt.patient?.primaryPhone || apt.patient?.phone) && <span>• {apt.patient.primaryPhone || apt.patient.phone}{apt.patient.secondaryPhone ? ` / ${apt.patient.secondaryPhone}` : ''}</span>}
                                   </div>
                                 </td>
                                 <td className="px-5 py-4 font-mono font-bold text-brand text-xs">
@@ -1334,12 +1335,12 @@ export default function DoctorQueue() {
                                   <div>
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
                                     <span className="font-medium text-ink">
-                                      {apt.patient?.age ? `${apt.patient.age}y` : ''} {apt.patient?.sex ? `/ ${apt.patient.sex}` : ''} ({pType === 'child' ? 'Child' : 'Adult'})
+                                      {apt.patient?.age !== undefined && apt.patient?.age !== null && apt.patient?.age !== '' ? `${formatAge(apt.patient.age)}y` : ''} {apt.patient?.sex ? `/ ${apt.patient.sex}` : ''} ({pType === 'child' ? 'Child' : 'Adult'})
                                     </span>
                                   </div>
                                   <div>
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
-                                    <span className="font-mono font-medium text-ink">{apt.patient?.phone || '—'}</span>
+                                    <span className="font-mono font-medium text-ink">{apt.patient?.primaryPhone || apt.patient?.phone || '—'}{apt.patient?.secondaryPhone ? ` / ${apt.patient.secondaryPhone}` : ''}</span>
                                   </div>
                                   <div className="col-span-2">
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason / Type</span>
@@ -1565,7 +1566,7 @@ export default function DoctorQueue() {
                                     </span>
                                   </div>
                                   <div className="text-[11px] text-ink-soft">
-                                    {patient.age ? `${patient.age}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''} {patient.phone ? `• ${patient.phone}` : ''}
+                                    {patient.age !== undefined && patient.age !== null && patient.age !== '' ? `${formatAge(patient.age)}y` : ''} {patient.sex ? `/ ${patient.sex}` : ''} {(patient.primaryPhone || patient.phone) ? `• ${patient.primaryPhone || patient.phone}${patient.secondaryPhone ? ` / ${patient.secondaryPhone}` : ''}` : ''}
                                   </div>
                                 </td>
 
@@ -1647,7 +1648,7 @@ export default function DoctorQueue() {
                                 <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
                                   <div>
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Contact</span>
-                                    <span className="font-mono font-medium text-ink">{patient.phone || '—'}</span>
+                                    <span className="font-mono font-medium text-ink">{patient.primaryPhone || patient.phone || '—'}{patient.secondaryPhone ? ` / ${patient.secondaryPhone}` : ''}</span>
                                   </div>
                                   <div>
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason</span>
@@ -2040,7 +2041,7 @@ export default function DoctorQueue() {
                                   </div>
                                   <div>
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
-                                    <span className="font-mono font-medium text-ink">{p.phone || '—'}</span>
+                                    <span className="font-mono font-medium text-ink">{p.primaryPhone || p.phone || '—'}{p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}</span>
                                   </div>
                                   <div className="col-span-2">
                                     <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason</span>

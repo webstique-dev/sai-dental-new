@@ -4,6 +4,7 @@ import {
   UserSquare2, Search, Filter, Calendar, Eye, ArrowUpDown, ChevronLeft, ChevronRight,
   RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -314,12 +315,17 @@ export default function DoctorPatients() {
 
                       {/* Age / Sex */}
                       <td className="px-5 py-4 whitespace-nowrap text-ink-soft font-medium">
-                        {p.age !== undefined && p.age !== null ? `${p.age} yrs` : '—'} / {p.sex || '—'}
+                        {p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age, 'yrs')}` : '—'} / {p.sex || '—'}
                       </td>
 
                       {/* Phone */}
                       <td className="px-5 py-4 whitespace-nowrap font-mono text-ink-soft">
-                        {p.phone || '—'}
+                        <span className="font-semibold text-ink">{p.primaryPhone || p.phone || '—'}</span>
+                        {p.secondaryPhone && (
+                          <span className="block text-[11px] text-ink-soft font-normal">
+                            Alt: {p.secondaryPhone}
+                          </span>
+                        )}
                       </td>
 
                       {/* Patient Type */}
@@ -415,7 +421,7 @@ export default function DoctorPatients() {
                       </div>
                       <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
                         {p.opNumber && <span className="font-bold text-brand">#{p.opNumber}</span>}
-                        <span className="text-ink font-sans font-medium">• {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''}</span>
+                        <span className="text-ink font-sans font-medium">• {p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age)}y` : ''} {p.sex ? `/ ${p.sex}` : ''}</span>
                       </div>
                     </div>
 
@@ -435,11 +441,14 @@ export default function DoctorPatients() {
                       <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
                         <div>
                           <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
-                          <span className="font-mono font-semibold text-ink">{p.phone || '—'}</span>
+                          <span className="font-mono font-semibold text-ink">
+                            {p.primaryPhone || p.phone || '—'}
+                            {p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}
+                          </span>
                         </div>
                         <div>
                           <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
-                          <span className="font-medium text-ink">{p.age ? `${p.age}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}</span>
+                          <span className="font-medium text-ink">{p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age)}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}</span>
                         </div>
                         <div className="col-span-2">
                           <span className="block text-[10px] font-semibold uppercase text-ink-soft">Last Visit</span>

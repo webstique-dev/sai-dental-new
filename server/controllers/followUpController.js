@@ -50,7 +50,7 @@ async function listFollowUps(req, res, next) {
 
     const followUps = await FollowUp.find(filter)
       .sort({ recommendedDate: 1, createdAt: -1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name specialization')
       .populate({
         path: 'scheduledAppointment',
@@ -119,7 +119,7 @@ async function createFollowUp(req, res, next) {
     await followUp.save();
 
     const populated = await FollowUp.findById(followUp._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name specialization')
       .populate({
         path: 'scheduledAppointment',
@@ -175,7 +175,7 @@ async function scheduleFollowUp(req, res, next) {
     await followUp.save();
 
     const updatedFollowUp = await FollowUp.findById(followUp._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name specialization')
       .populate({
         path: 'scheduledAppointment',

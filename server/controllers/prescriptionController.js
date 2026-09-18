@@ -12,7 +12,7 @@ async function listPrescriptions(req, res, next) {
 
     const prescriptions = await Prescription.find(filter)
       .sort({ createdAt: -1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth address vitals medicalHistory currentMedications')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
       .populate('recordedBy', 'name email role specialization');
 
     return res.json({ prescriptions });
@@ -66,7 +66,7 @@ async function createPrescription(req, res, next) {
     await newPrescription.save();
 
     const populated = await Prescription.findById(newPrescription._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth address vitals medicalHistory currentMedications')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
       .populate('recordedBy', 'name email role specialization');
 
     return res.status(201).json({
@@ -109,7 +109,7 @@ async function updatePrescription(req, res, next) {
     await rx.save();
 
     const populated = await Prescription.findById(rx._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth address vitals medicalHistory currentMedications')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
       .populate('recordedBy', 'name email role specialization');
 
     return res.json({

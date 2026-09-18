@@ -1,11 +1,15 @@
-export function validatePhone(phone, required = true) {
+export function validatePhone(phone, fieldLabel = 'Phone number', required = false) {
+  if (typeof fieldLabel === 'boolean') {
+    required = fieldLabel;
+    fieldLabel = 'Phone number';
+  }
   if (!phone || !phone.toString().trim()) {
-    if (required) return 'Phone number is required.';
+    if (required) return `${fieldLabel} is required.`;
     return null;
   }
   const cleanPhone = phone.toString().trim().replace(/\D/g, '');
   if (cleanPhone.length !== 10) {
-    return 'Phone number must be exactly 10 digits.';
+    return `${fieldLabel} must be exactly 10 digits.`;
   }
   return null;
 }
@@ -61,11 +65,11 @@ export function validateAge(age, required = false) {
     return null;
   }
   const num = Number(age);
-  if (isNaN(num) || !Number.isInteger(num)) {
-    return 'Age must be a valid whole number.';
+  if (isNaN(num)) {
+    return 'Age must be a valid number.';
   }
-  if (num < 0 || num > 120) {
-    return 'Age must be between 0 and 120 years.';
+  if (num < 0 || num > 130) {
+    return 'Age must be between 0 and 130 years.';
   }
   return null;
 }

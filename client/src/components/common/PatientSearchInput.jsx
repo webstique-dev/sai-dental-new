@@ -121,7 +121,9 @@ export default function PatientSearchInput({
                 </span>
               </div>
               <p className="text-[11px] text-ink-soft truncate">
-                {selectedPatient.phone || 'No phone'} {selectedPatient.sex ? `• ${selectedPatient.sex}` : ''}
+                {selectedPatient.primaryPhone || selectedPatient.phone || 'No phone'}
+                {selectedPatient.secondaryPhone ? ` / ${selectedPatient.secondaryPhone}` : ''}
+                {selectedPatient.sex ? ` • ${selectedPatient.sex}` : ''}
               </p>
             </div>
           </div>
@@ -218,7 +220,7 @@ export default function PatientSearchInput({
                           </div>
                           <div className="flex items-center gap-2 text-[11px] text-ink-soft mt-0.5">
                             <span className="flex items-center gap-1 font-mono">
-                              <Phone size={11} /> {p.phone || 'No phone'}
+                              <Phone size={11} /> {p.primaryPhone || p.phone || 'No phone'}{p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}
                             </span>
                             {p.age ? <span>• {p.age}y</span> : null}
                             {p.sex ? <span>• {p.sex}</span> : null}

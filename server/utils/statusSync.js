@@ -74,7 +74,7 @@ async function autoCheckInScheduledAppointments() {
       status: 'Scheduled',
       isDeleted: { $ne: true },
     })
-      .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
       .populate('doctor', 'name email role specialization');
 
     for (const appt of scheduledAppointments) {
@@ -142,7 +142,7 @@ async function autoCheckInScheduledAppointments() {
         emitAppointmentUpdate(appt);
         if (qEntry) {
           const populatedQ = await QueueEntry.findById(qEntry._id)
-            .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+            .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
             .populate('doctor', 'name email role specialization');
           emitQueueUpdate(populatedQ || qEntry);
         }
@@ -223,14 +223,14 @@ async function checkAndMarkMissedAppointments() {
         await syncVisitStatus({ appointmentId: appt._id, status: 'Missed' });
 
         const populatedAppt = await Appointment.findById(appt._id)
-          .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+          .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
           .populate('doctor', 'name email role specialization');
         emitAppointmentUpdate(populatedAppt || appt);
 
         const linkedQ = await QueueEntry.findOne({ appointment: appt._id });
         if (linkedQ) {
           const populatedQ = await QueueEntry.findById(linkedQ._id)
-            .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+            .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
             .populate('doctor', 'name email role specialization');
           emitQueueUpdate(populatedQ || linkedQ);
         }
@@ -265,7 +265,7 @@ async function checkAndMarkMissedAppointments() {
         await syncVisitStatus({ queueEntryId: qEntry._id, status: 'Missed' });
 
         const populatedQ = await QueueEntry.findById(qEntry._id)
-          .populate('patient', 'firstName lastName opNumber phone age sex patientType dateOfBirth')
+          .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
           .populate('doctor', 'name email role specialization');
         emitQueueUpdate(populatedQ || qEntry);
       }

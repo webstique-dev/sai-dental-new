@@ -49,7 +49,7 @@ async function listInvoices(req, res, next) {
 
     const invoices = await Invoice.find(filter)
       .sort({ createdAt: -1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('consultation')
       .populate('createdBy', 'name email')
@@ -100,7 +100,7 @@ async function createInvoice(req, res, next) {
     });
 
     const populated = await Invoice.findById(newInvoice._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email');
 
@@ -156,7 +156,7 @@ async function recordPayment(req, res, next) {
     });
 
     const updated = await Invoice.findById(invoice._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('consultation')
       .populate('createdBy', 'name email')
@@ -210,7 +210,7 @@ async function refundInvoice(req, res, next) {
     });
 
     const updated = await Invoice.findById(invoice._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('createdBy', 'name email')
       .populate('payments.recordedBy', 'name email');

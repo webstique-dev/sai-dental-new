@@ -12,6 +12,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validatePhone, validateAge } from '../../utils/validators.js';
+import { formatAge } from '../../utils/formatters.js';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 const STATUS_BADGE_CLASSES = {
@@ -71,9 +72,12 @@ export default function Queue() {
   const [newPatientData, setNewPatientData] = useState({
     firstName: '',
     lastName: '',
-    phone: '',
+    primaryPhone: '',
+    secondaryPhone: '',
     sex: '',
     age: '',
+    patientType: 'adult',
+    address: '',
   });
 
   // Step 2 State: Doctor & Reason
@@ -225,7 +229,7 @@ export default function Queue() {
     setPatientSearch('');
     setPatientOptions([]);
     setSelectedPatient(null);
-    setNewPatientData({ firstName: '', lastName: '', phone: '', sex: '', age: '', patientType: 'adult', address: '' });
+    setNewPatientData({ firstName: '', lastName: '', primaryPhone: '', secondaryPhone: '', sex: '', age: '', patientType: 'adult', address: '' });
     setSelectedDoctorId(doctors[0]?._id || doctors[0]?.id || '');
     setVisitReason('');
     setIssuedToken(null);
@@ -252,10 +256,19 @@ export default function Queue() {
             return;
           }
         }
-        const phoneErr = validatePhone(newPatientData.phone, true);
-        if (phoneErr) {
-          showError(phoneErr);
-          return;
+        if (newPatientData.primaryPhone) {
+          const phoneErr = validatePhone(newPatientData.primaryPhone, 'Primary Phone', false);
+          if (phoneErr) {
+            showError(phoneErr);
+            return;
+          }
+        }
+        if (newPatientData.secondaryPhone) {
+          const secPhoneErr = validatePhone(newPatientData.secondaryPhone, 'Secondary Phone', false);
+          if (secPhoneErr) {
+            showError(secPhoneErr);
+            return;
+          }
         }
         if (newPatientData.age !== '' && newPatientData.age !== undefined && newPatientData.age !== null) {
           const ageErr = validateAge(newPatientData.age, false);
@@ -334,9 +347,9 @@ export default function Queue() {
       list = list.filter((item) => {
         const p = item.patient || {};
         const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
-        const op = (p.opNumber || '').toLowerCase();
-        const phone = (p.phone || '').toLowerCase();
-        return fullName.includes(q) || op.includes(q) || phone.includes(q);
+        const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
+        const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+        return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q);
       });
     }
 
@@ -515,7 +528,9 @@ export default function Queue() {
                                 {entry.patient?.opNumber && (
                                   <span className="font-mono text-brand font-bold">{entry.patient.opNumber}</span>
                                 )}
-                                {entry.patient?.phone && <span>{entry.patient.phone}</span>}
+                                {(entry.patient?.primaryPhone || entry.patient?.phone) && (
+                                  <span>{entry.patient.primaryPhone || entry.patient.phone}{entry.patient.secondaryPhone ? ` / ${entry.patient.secondaryPhone}` : ''}</span>
+                                )}
                               </div>
                             </td>
                             <td className="px-5 py-4 text-ink font-medium text-xs">
@@ -602,7 +617,7 @@ export default function Queue() {
                               </div>
                               <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
                                 {entry.patient?.opNumber && <span className="font-bold text-brand">{entry.patient.opNumber}</span>}
-                                {entry.patient?.phone && <span>• {entry.patient.phone}</span>}
+                                {(entry.patient?.primaryPhone || entry.patient?.phone) && <span>• {entry.patient.primaryPhone || entry.patient.phone}{entry.patient.secondaryPhone ? ` / ${entry.patient.secondaryPhone}` : ''}</span>}
                               </div>
                             </div>
                           </div>
@@ -832,7 +847,7 @@ export default function Queue() {
                                   </span>
                                 </div>
                                 <div className="text-[11px] text-ink-soft font-mono">
-                                  {p.opNumber ? `#${p.opNumber}` : '—'} {p.phone ? `• ${p.phone}` : ''}
+                                  {p.opNumber ? `#${p.opNumber}` : '—'} {(p.primaryPhone || p.phone) ? `• ${p.primaryPhone || p.phone}${p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}` : ''}
                                 </div>
                               </td>
                               <td className="px-5 py-4 font-semibold text-ink whitespace-nowrap">
@@ -918,7 +933,7 @@ export default function Queue() {
                                 </div>
                                 <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
                                   {p.opNumber && <span className="font-bold text-brand">{p.opNumber}</span>}
-                                  {p.phone && <span>• {p.phone}</span>}
+                                  {(p.primaryPhone || p.phone) && <span>• {p.primaryPhone || p.phone}{p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}</span>}
                                 </div>
                               </div>
                             </div>
@@ -1026,7 +1041,7 @@ export default function Queue() {
                 </div>
                 <div className="text-xs text-ink-soft">
                   OP Number: <strong className="font-mono text-brand font-bold">#{selectedVisitSummary.patient?.opNumber || 'N/A'}</strong>
-                  {selectedVisitSummary.patient?.phone ? ` • Phone: ${selectedVisitSummary.patient.phone}` : ''}
+                  {(selectedVisitSummary.patient?.primaryPhone || selectedVisitSummary.patient?.phone) ? ` • Phone: ${selectedVisitSummary.patient?.primaryPhone || selectedVisitSummary.patient?.phone}${selectedVisitSummary.patient?.secondaryPhone ? ` / ${selectedVisitSummary.patient.secondaryPhone}` : ''}` : ''}
                 </div>
               </div>
 
@@ -1175,14 +1190,25 @@ export default function Queue() {
                         />
                       </div>
                       <div>
-                        <label className="block text-ink-soft font-semibold mb-1">Phone Number</label>
+                        <label className="block text-ink-soft font-semibold mb-1">Primary Phone</label>
                         <input
                           type="tel"
                           maxLength={10}
                           className="input-field font-mono"
                           placeholder="e.g. 9876543210"
-                          value={newPatientData.phone}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                          value={newPatientData.primaryPhone}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, primaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-ink-soft font-semibold mb-1">Secondary Phone <span className="text-[10px] text-ink-muted font-normal">(Optional)</span></label>
+                        <input
+                          type="tel"
+                          maxLength={10}
+                          className="input-field font-mono"
+                          placeholder="e.g. 9123456780"
+                          value={newPatientData.secondaryPhone}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, secondaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                         />
                       </div>
                       <div>
@@ -1202,14 +1228,15 @@ export default function Queue() {
                         <label className="block text-ink-soft font-semibold mb-1">Age</label>
                         <input
                           type="number"
+                          step="0.5"
                           min={0}
-                          max={120}
+                          max={130}
                           className="input-field font-mono"
-                          placeholder="e.g. 28"
+                          placeholder="e.g. 4.5 or 28"
                           value={newPatientData.age}
                           onChange={(e) => {
                             const val = e.target.value;
-                            const numAge = val !== '' ? Number(val) : null;
+                            const numAge = val !== '' && !isNaN(val) ? parseFloat(val) : null;
                             setNewPatientData({
                               ...newPatientData,
                               age: val,
@@ -1301,8 +1328,8 @@ export default function Queue() {
                         <span className="text-ink-soft block font-medium">Phone / OP#</span>
                         <span>
                           {patientMode === 'search' && selectedPatient
-                            ? `${selectedPatient.opNumber} | ${selectedPatient.phone || 'N/A'}`
-                            : newPatientData.phone || 'New Patient'}
+                            ? `${selectedPatient.opNumber} | ${selectedPatient.primaryPhone || selectedPatient.phone || 'N/A'}${selectedPatient.secondaryPhone ? ` / ${selectedPatient.secondaryPhone}` : ''}`
+                            : (newPatientData.primaryPhone || newPatientData.secondaryPhone || 'New Patient')}
                         </span>
                       </div>
 
@@ -1310,8 +1337,8 @@ export default function Queue() {
                         <span className="text-ink-soft block font-medium">Demographics</span>
                         <span className="font-medium">
                           {patientMode === 'search' && selectedPatient
-                            ? `${selectedPatient.age ? selectedPatient.age + 'y' : ''} ${selectedPatient.sex ? '/ ' + selectedPatient.sex : ''} (${(selectedPatient.patientType || (Number(selectedPatient.age) < 12 ? 'child' : 'adult')) === 'child' ? 'Child' : 'Adult'})`
-                            : `${newPatientData.age ? newPatientData.age + 'y' : ''} ${newPatientData.sex ? '/ ' + newPatientData.sex : ''} (${(newPatientData.patientType || 'adult') === 'child' ? 'Child' : 'Adult'})`}
+                            ? `${selectedPatient.age !== undefined && selectedPatient.age !== null && selectedPatient.age !== '' ? formatAge(selectedPatient.age) + 'y' : ''} ${selectedPatient.sex ? '/ ' + selectedPatient.sex : ''} (${(selectedPatient.patientType || (Number(selectedPatient.age) < 12 ? 'child' : 'adult')) === 'child' ? 'Child' : 'Adult'})`
+                            : `${newPatientData.age !== '' && newPatientData.age !== undefined && newPatientData.age !== null ? formatAge(newPatientData.age) + 'y' : ''} ${newPatientData.sex ? '/ ' + newPatientData.sex : ''} (${(newPatientData.patientType || 'adult') === 'child' ? 'Child' : 'Adult'})`}
                         </span>
                       </div>
 

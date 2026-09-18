@@ -526,9 +526,9 @@ export default function FollowUps() {
                               {patient.opNumber && (
                                 <span className="font-mono font-bold text-brand">{patient.opNumber}</span>
                               )}
-                              {patient.phone && (
+                              {(patient.primaryPhone || patient.phone) && (
                                 <span className="flex items-center gap-1">
-                                  <Phone size={11} /> {patient.phone}
+                                  <Phone size={11} /> {patient.primaryPhone || patient.phone}{patient.secondaryPhone ? ` / ${patient.secondaryPhone}` : ''}
                                 </span>
                               )}
                             </div>
@@ -645,7 +645,7 @@ export default function FollowUps() {
                             </div>
                             <div>
                               <span className="block text-[10px] font-semibold text-ink-soft uppercase">Phone</span>
-                              <span className="font-medium text-ink font-mono">{patient.phone || '—'}</span>
+                              <span className="font-medium text-ink font-mono">{patient.primaryPhone || patient.phone || '—'}{patient.secondaryPhone ? ` / ${patient.secondaryPhone}` : ''}</span>
                             </div>
                             <div className="col-span-2">
                               <span className="block text-[10px] font-semibold text-ink-soft uppercase">Reason / Procedure</span>

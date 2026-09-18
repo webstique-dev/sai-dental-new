@@ -52,7 +52,7 @@ async function listAuditLogs(req, res, next) {
       .skip(skip)
       .limit(limitNum)
       .populate('user', 'name email role')
-      .populate('patient', 'firstName lastName opNumber phone');
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone');
 
     return res.json({
       logs,

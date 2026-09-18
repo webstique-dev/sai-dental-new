@@ -38,7 +38,7 @@ async function listDocuments(req, res, next) {
 
     const documents = await Document.find(filter)
       .sort({ createdAt: -1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('uploadedBy', 'name email role specialization')
       .populate('relatedConsultation');
 
@@ -94,7 +94,7 @@ async function createDocument(req, res, next) {
     await doc.save();
 
     const populated = await Document.findById(doc._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('uploadedBy', 'name email role specialization')
       .populate('relatedConsultation');
 

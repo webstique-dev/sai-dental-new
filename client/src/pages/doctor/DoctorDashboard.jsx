@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CalendarDays, Clock, ClipboardList, Play, ArrowRight, RefreshCw } from 'lucide-react';
+import {
+  Users, Calendar, CalendarDays, Clock, CheckCircle2, AlertCircle, ArrowRight, Play, RefreshCw, Stethoscope, Sparkles, UserSquare2, ClipboardList
+} from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -184,7 +187,7 @@ export default function DoctorDashboard() {
                 <div className="font-display text-sm sm:text-base font-bold text-ink flex flex-wrap items-center gap-x-2 gap-y-0.5 truncate">
                   <span>{nextPatientName}</span>
                   <span className="text-xs text-ink-soft font-medium font-sans">
-                    ({nextPatient.patient?.age ? `${nextPatient.patient.age} yrs` : 'Age N/A'}
+                    ({nextPatient.patient?.age !== undefined && nextPatient.patient?.age !== null && nextPatient.patient?.age !== '' ? `${formatAge(nextPatient.patient.age, 'yrs')}` : 'Age N/A'}
                     {nextPatient.patient?.sex ? ` • ${nextPatient.patient.sex}` : ''})
                   </span>
                 </div>

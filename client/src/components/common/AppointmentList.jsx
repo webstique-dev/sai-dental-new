@@ -102,7 +102,7 @@ export default function AppointmentList({
                       <span className={`badge text-[10px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                         {pType === 'child' ? 'Child' : 'Adult'}
                       </span>
-                      {apt.patient?.phone && <span>{apt.patient.phone}</span>}
+                      {(apt.patient?.primaryPhone || apt.patient?.phone) && <span>{apt.patient.primaryPhone || apt.patient.phone}{apt.patient.secondaryPhone ? ` / ${apt.patient.secondaryPhone}` : ''}</span>}
                     </div>
                   </td>
 
@@ -214,7 +214,7 @@ export default function AppointmentList({
                   </div>
                   <div className="flex items-center gap-2 text-xs font-mono flex-wrap">
                     {apt.patient?.opNumber && <span className="font-bold text-brand">{apt.patient.opNumber}</span>}
-                    {apt.patient?.phone && <span className="text-ink-soft">• {apt.patient.phone}</span>}
+                    {(apt.patient?.primaryPhone || apt.patient?.phone) && <span className="text-ink-soft">• {apt.patient.primaryPhone || apt.patient.phone}{apt.patient.secondaryPhone ? ` / ${apt.patient.secondaryPhone}` : ''}</span>}
                   </div>
                 </div>
 

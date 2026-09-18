@@ -35,6 +35,12 @@ const patientSchema = new mongoose.Schema(
     },
     age: {
       type: Number,
+      min: [0, 'Age cannot be negative'],
+      max: [130, 'Age cannot exceed 130'],
+      set: (v) => {
+        if (v === null || v === undefined || v === '' || isNaN(v)) return undefined;
+        return Math.round(Number(v) * 10) / 10;
+      },
     },
     sex: {
       type: String,
@@ -59,7 +65,12 @@ const patientSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    phone: {
+    primaryPhone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    secondaryPhone: {
       type: String,
       trim: true,
       default: '',
@@ -152,11 +163,12 @@ patientSchema.pre('save', async function (next) {
   next();
 });
 
-// Text index for search on firstName, lastName, phone, opNumber
+// Text index for search on firstName, lastName, primaryPhone, secondaryPhone, opNumber
 patientSchema.index({
   firstName: 'text',
   lastName: 'text',
-  phone: 'text',
+  primaryPhone: 'text',
+  secondaryPhone: 'text',
   opNumber: 'text',
 });
 

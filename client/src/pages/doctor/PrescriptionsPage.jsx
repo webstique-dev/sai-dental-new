@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Pill, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Calendar, Printer, FileText, ChevronRight, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistoryPanel.jsx';
@@ -124,7 +125,7 @@ export default function PrescriptionsPage() {
                 </span>
               </div>
               <p className="text-xs text-ink-soft mt-0.5">
-                {p.age ? `Age: ${p.age} yrs` : ''} {p.sex ? `• Sex: ${p.sex}` : ''} {p.phone ? `• Contact: ${p.phone}` : ''}
+                {p.age !== undefined && p.age !== null && p.age !== '' ? `Age: ${formatAge(p.age, 'yrs')}` : ''} {p.sex ? `• Sex: ${p.sex}` : ''} {(p.primaryPhone || p.phone) ? `• Contact: ${p.primaryPhone || p.phone}${p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}` : ''}
               </p>
             </div>
           </div>
@@ -258,11 +259,12 @@ export default function PrescriptionsPage() {
                         </td>
 
                         <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
-                          {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''} {!p.age && !p.sex ? '—' : ''}
+                          {p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age)}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}
                         </td>
 
                         <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
-                          {p.phone || '—'}
+                          {p.primaryPhone || p.phone || '—'}
+                          {p.secondaryPhone ? <div className="text-[10px] text-ink-muted">Alt: {p.secondaryPhone}</div> : null}
                         </td>
 
                         <td className="px-5 py-4 text-ink-soft whitespace-nowrap">
@@ -320,7 +322,7 @@ export default function PrescriptionsPage() {
                         </div>
                         <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
                           {p.opNumber && <span className="font-bold text-brand">#{p.opNumber}</span>}
-                          <span className="text-ink font-sans font-medium">• {p.age ? `${p.age}y` : ''} {p.sex ? `/ ${p.sex}` : ''}</span>
+                          <span className="text-ink font-sans font-medium">• {p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age)}y` : ''} {p.sex ? `/ ${p.sex}` : ''}</span>
                         </div>
                       </div>
 
@@ -340,7 +342,7 @@ export default function PrescriptionsPage() {
                         <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
                           <div>
                             <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
-                            <span className="font-mono font-semibold text-ink">{p.phone || '—'}</span>
+                            <span className="font-mono font-semibold text-ink">{p.primaryPhone || p.phone || '—'}{p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}</span>
                           </div>
                           <div>
                             <span className="block text-[10px] font-semibold uppercase text-ink-soft">Prescriptions</span>

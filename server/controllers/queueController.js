@@ -48,7 +48,7 @@ async function getTodayQueue(req, res, next) {
 
     const queueEntries = await QueueEntry.find(filter)
       .sort({ token: 1 })
-      .populate('patient', 'firstName lastName opNumber phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
 
@@ -98,27 +98,25 @@ async function createWalkIn(req, res, next) {
 
     if (!targetPatientId) {
       const pData = patientData || {};
-      const cleanPhone = (pData.phone || '').toString().trim().replace(/\D/g, '');
+      const rawPrimary = pData.primaryPhone !== undefined ? pData.primaryPhone : pData.phone;
+      const cleanPrimary = (rawPrimary || '').toString().trim().replace(/\D/g, '');
+      const cleanSecondary = (pData.secondaryPhone || '').toString().trim().replace(/\D/g, '');
 
-      if (!cleanPhone || cleanPhone.length !== 10) {
-        return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+      if (cleanPrimary && cleanPrimary.length !== 10) {
+        return res.status(400).json({ message: 'Primary phone number must be exactly 10 digits.' });
       }
 
-      const existingPatient = await Patient.findOne({
-        phone: cleanPhone,
-        isDeleted: { $ne: true },
-      });
-
-      if (existingPatient) {
-        return res.status(409).json({ message: 'This phone number is already registered.' });
+      if (cleanSecondary && cleanSecondary.length !== 10) {
+        return res.status(400).json({ message: 'Secondary phone number must be exactly 10 digits.' });
       }
 
       const newPatient = new Patient({
         firstName: pData.firstName || '',
         lastName: pData.lastName || '',
-        age: pData.age ? parseInt(pData.age, 10) : undefined,
+        age: pData.age !== undefined && pData.age !== '' && !isNaN(pData.age) ? parseFloat(pData.age) : undefined,
         sex: pData.sex || '',
-        phone: cleanPhone,
+        primaryPhone: cleanPrimary,
+        secondaryPhone: cleanSecondary,
         address: pData.address || '',
         occupation: pData.occupation || '',
         medicalHistory: pData.medicalHistory || [],
@@ -173,7 +171,7 @@ async function createWalkIn(req, res, next) {
     });
 
     const populated = await QueueEntry.findById(queueEntry._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
 
@@ -236,7 +234,7 @@ async function checkInAppointment(req, res, next) {
       });
 
       const populated = await QueueEntry.findById(existingQueue._id)
-        .populate('patient', 'firstName lastName opNumber phone age sex')
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
         .populate('doctor', 'name email role specialization')
         .populate('appointment', 'time reason status type');
 
@@ -264,7 +262,7 @@ async function checkInAppointment(req, res, next) {
     });
 
     const populated = await QueueEntry.findById(queueEntry._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
 
@@ -317,7 +315,7 @@ async function updateQueueStatus(req, res, next) {
     });
 
     const populated = await QueueEntry.findById(queueEntry._id)
-      .populate('patient', 'firstName lastName opNumber phone age sex')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('appointment', 'time reason status type');
 

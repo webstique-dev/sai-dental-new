@@ -6,6 +6,7 @@ import {
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
   Check, Lock, X, LogOut, ChevronDown, ChevronUp, HeartPulse, ShieldAlert, MapPin, Briefcase
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
@@ -363,7 +364,7 @@ export default function Consultation() {
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
                     <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Age / Sex</span>
-                    <span className="font-semibold text-ink">{patient.age !== undefined ? `${patient.age} yrs` : 'N/A'} / {patient.sex || 'N/A'}</span>
+                    <span className="font-semibold text-ink">{patient.age !== undefined && patient.age !== null && patient.age !== '' ? `${formatAge(patient.age, 'yrs')}` : 'N/A'} / {patient.sex || 'N/A'}</span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
@@ -391,9 +392,16 @@ export default function Consultation() {
             {accordions.contact && (
               <div className="p-4 pt-0 space-y-2.5 border-t border-border/60 pt-3">
                 <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Phone Number</span>
-                  <span className="font-mono font-semibold text-ink text-xs">{patient.phone || 'N/A'}</span>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Primary Phone</span>
+                  <span className="font-mono font-semibold text-ink text-xs">{patient.primaryPhone || patient.phone || 'N/A'}</span>
                 </div>
+
+                {patient.secondaryPhone && (
+                  <div>
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Secondary Phone</span>
+                    <span className="font-mono font-semibold text-ink text-xs">{patient.secondaryPhone}</span>
+                  </div>
+                )}
 
                 <div>
                   <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Occupation</span>

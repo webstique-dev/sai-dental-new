@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Grid3x3, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Plus, Calendar, Activity
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
@@ -120,8 +121,8 @@ export default function ToothChartPage() {
             <div>
               <h2 className="font-display text-base font-bold text-ink">{patientName}</h2>
               <p className="text-xs text-ink-soft mt-0.5">
-                Age: <strong>{selectedPatient.age !== undefined ? `${selectedPatient.age}y` : 'N/A'}</strong> • Sex:{' '}
-                <strong>{selectedPatient.sex || 'N/A'}</strong> • Phone: <strong>{selectedPatient.phone || 'N/A'}</strong>
+                Age: <strong>{selectedPatient.age !== undefined && selectedPatient.age !== null && selectedPatient.age !== '' ? `${formatAge(selectedPatient.age)}y` : 'N/A'}</strong> • Sex:{' '}
+                <strong>{selectedPatient.sex || 'N/A'}</strong> • Phone: <strong>{selectedPatient.primaryPhone || selectedPatient.phone || 'N/A'}{selectedPatient.secondaryPhone ? ` / ${selectedPatient.secondaryPhone}` : ''}</strong>
               </p>
             </div>
           </div>

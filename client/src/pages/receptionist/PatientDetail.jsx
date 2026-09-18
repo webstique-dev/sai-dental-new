@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, UserSquare2, Phone, Calendar, Hash, User, ShieldAlert,
-  Edit3, Briefcase, MapPin, Activity, Heart, Pill, Stethoscope, CheckCircle2, X, Save, Plus
+  Calendar, Clock, User, Phone, MapPin, Briefcase, Plus, FileText,
+  DollarSign, CheckCircle2, ChevronRight, Edit3, X, AlertTriangle, Save,
+  ArrowLeft, Heart, HeartPulse, Activity, ShieldAlert, FileHeart, RefreshCw,
+  UserSquare2, Hash, Pill, Stethoscope
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
@@ -126,7 +129,8 @@ export default function PatientDetail() {
     setEditForm({
       firstName: patient.firstName || '',
       lastName: patient.lastName || '',
-      phone: patient.phone || '',
+      primaryPhone: patient.primaryPhone || patient.phone || '',
+      secondaryPhone: patient.secondaryPhone || '',
       age: patient.age !== undefined && patient.age !== null ? String(patient.age) : '',
       sex: patient.sex || '',
       dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : '',
@@ -187,11 +191,20 @@ export default function PatientDetail() {
       }
     }
 
-    if (editForm.phone) {
-      const phoneErr = validatePhone(editForm.phone, false);
+    if (editForm.primaryPhone) {
+      const phoneErr = validatePhone(editForm.primaryPhone, 'Primary Phone', false);
       if (phoneErr) {
         setEditFeedback({ type: 'error', msg: phoneErr });
         showError(phoneErr);
+        return;
+      }
+    }
+
+    if (editForm.secondaryPhone) {
+      const secPhoneErr = validatePhone(editForm.secondaryPhone, 'Secondary Phone', false);
+      if (secPhoneErr) {
+        setEditFeedback({ type: 'error', msg: secPhoneErr });
+        showError(secPhoneErr);
         return;
       }
     }
@@ -222,10 +235,11 @@ export default function PatientDetail() {
         ...editForm,
         firstName: editForm.firstName ? editForm.firstName.trim() : '',
         lastName: editForm.lastName ? editForm.lastName.trim() : '',
-        phone: editForm.phone ? editForm.phone.trim() : '',
+        primaryPhone: editForm.primaryPhone ? editForm.primaryPhone.trim() : '',
+        secondaryPhone: editForm.secondaryPhone ? editForm.secondaryPhone.trim() : '',
         occupation: editForm.occupation ? editForm.occupation.trim() : '',
         address: editForm.address ? editForm.address.trim() : '',
-        age: editForm.age ? parseInt(editForm.age, 10) : undefined,
+        age: editForm.age !== '' && editForm.age !== undefined && !isNaN(editForm.age) ? parseFloat(editForm.age) : undefined,
         dateOfBirth: editForm.dateOfBirth ? editForm.dateOfBirth : null,
       };
 
@@ -342,7 +356,7 @@ export default function PatientDetail() {
               <User size={13} className="text-brand shrink-0" /> Age / Sex
             </span>
             <p className="font-semibold text-ink truncate">
-              {patient.age !== undefined && patient.age !== null ? `${patient.age} yrs` : 'Not specified'} {patient.sex ? `/ ${patient.sex}` : ''}
+              {patient.age !== undefined && patient.age !== null && patient.age !== '' ? `${formatAge(patient.age, 'yrs')}` : 'Not specified'} {patient.sex ? `/ ${patient.sex}` : ''}
             </p>
           </div>
 
@@ -350,7 +364,12 @@ export default function PatientDetail() {
             <span className="flex items-center gap-1 text-[11px] sm:text-xs text-ink-soft font-medium">
               <Phone size={13} className="text-brand shrink-0" /> Phone
             </span>
-            <p className="font-semibold text-ink font-mono text-xs sm:text-sm truncate">{patient.phone || 'Not specified'}</p>
+            <p className="font-semibold text-ink font-mono text-xs sm:text-sm truncate">
+              {patient.primaryPhone || patient.phone || 'Not specified'}
+              {patient.secondaryPhone && (
+                <span className="block text-[11px] text-ink-soft font-normal">Alt: {patient.secondaryPhone}</span>
+              )}
+            </p>
           </div>
 
           <div className="space-y-1">
@@ -553,13 +572,23 @@ export default function PatientDetail() {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-ink-soft mb-1">Phone Number</label>
+                      <label className="block font-semibold text-ink-soft mb-1">Primary Phone</label>
                       <input
                         type="tel"
                         maxLength={10}
                         className="input-field py-1.5 font-mono"
-                        value={editForm.phone}
-                        onChange={(e) => handleEditChange('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        value={editForm.primaryPhone}
+                        onChange={(e) => handleEditChange('primaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-ink-soft mb-1">Secondary Phone</label>
+                      <input
+                        type="tel"
+                        maxLength={10}
+                        className="input-field py-1.5 font-mono"
+                        value={editForm.secondaryPhone}
+                        onChange={(e) => handleEditChange('secondaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                       />
                     </div>
                     <div>
@@ -578,14 +607,17 @@ export default function PatientDetail() {
                     <div>
                       <label className="block font-semibold text-ink-soft mb-1">Age</label>
                       <input
-                        type="text"
-                        maxLength={3}
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="130"
                         className="input-field py-1.5 font-mono"
+                        placeholder="e.g. 4.5 or 30"
                         value={editForm.age}
                         onChange={(e) => {
-                          const cleaned = e.target.value.replace(/\D/g, '').slice(0, 3);
-                          if (!cleaned || parseInt(cleaned, 10) <= 120) {
-                            handleEditChange('age', cleaned);
+                          const val = e.target.value;
+                          if (val === '' || (!isNaN(val) && Number(val) >= 0 && Number(val) <= 130)) {
+                            handleEditChange('age', val);
                           }
                         }}
                       />

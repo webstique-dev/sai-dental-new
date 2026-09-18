@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, UserPlus, ChevronLeft, ChevronRight, Eye, UserSquare2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, UserPlus, ChevronLeft, ChevronRight, Eye, UserSquare2, Phone, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
@@ -132,10 +133,15 @@ export default function Patients() {
                           {fullName}
                         </td>
                         <td className="px-5 py-4 text-ink-soft font-mono">
-                          {p.phone || '—'}
+                          <span className="font-semibold text-ink">{p.primaryPhone || p.phone || '—'}</span>
+                          {p.secondaryPhone && (
+                            <span className="block text-[11px] text-ink-soft font-normal">
+                              Alt: {p.secondaryPhone}
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-4 text-ink-soft">
-                          {p.age ? `${p.age}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}
+                          {p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age)}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}
                         </td>
                         <td className="px-5 py-4">
                           <span className={`badge font-semibold text-xs border px-2 py-0.5 ${
@@ -198,7 +204,10 @@ export default function Patients() {
                         </div>
                         <div className="flex items-center gap-2 text-xs flex-wrap font-mono">
                           <span className="font-bold text-brand">{p.opNumber || '—'}</span>
-                          <span className="text-ink-soft">• {p.phone || 'No phone'}</span>
+                          <span className="text-ink-soft">
+                            • {p.primaryPhone || p.phone || 'No phone'}
+                            {p.secondaryPhone ? ` / ${p.secondaryPhone}` : ''}
+                          </span>
                         </div>
                       </div>
 
@@ -218,7 +227,7 @@ export default function Patients() {
                         <div className="grid grid-cols-2 gap-2 text-ink-soft">
                           <div>
                             <span className="block text-[10px] font-semibold text-ink-soft uppercase">Age / Sex</span>
-                            <span className="font-medium text-ink">{p.age ? `${p.age}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}</span>
+                            <span className="font-medium text-ink">{p.age !== undefined && p.age !== null && p.age !== '' ? `${formatAge(p.age)}y` : '—'} {p.sex ? `/ ${p.sex}` : ''}</span>
                           </div>
                           <div>
                             <span className="block text-[10px] font-semibold text-ink-soft uppercase">Registration Date</span>

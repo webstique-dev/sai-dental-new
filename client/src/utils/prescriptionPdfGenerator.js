@@ -1,4 +1,5 @@
 import api from '../api/axios.js';
+import { formatAge } from './formatters.js';
 
 export function generatePrescriptionHTML(params = {}) {
   const { rx = {}, consultation = {}, clinicSettings = {}, doctor = null, diagnoses = [] } = params || {};
@@ -318,11 +319,11 @@ export function generatePrescriptionHTML(params = {}) {
             </div>
             <div>
               <div class="patient-label">Age / Gender</div>
-              <div class="patient-value">${patient.age !== undefined && patient.age !== null ? `${patient.age} Yrs` : 'N/A'} ${patient.sex ? `/ ${patient.sex}` : ''}</div>
+              <div class="patient-value">${patient.age !== undefined && patient.age !== null ? `${formatAge(patient.age, 'Yrs')}` : 'N/A'} ${patient.sex ? `/ ${patient.sex}` : ''}</div>
             </div>
             <div>
               <div class="patient-label">Phone Number</div>
-              <div class="patient-value" style="font-family: monospace;">${patient.phone || 'N/A'}</div>
+              <div class="patient-value" style="font-family: monospace;">${[patient.primaryPhone || patient.phone, patient.secondaryPhone].filter(Boolean).join(' / ') || 'N/A'}</div>
             </div>
           </div>
 

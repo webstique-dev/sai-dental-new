@@ -46,7 +46,8 @@ export default function PatientDetailsEditModal({
     dateOfBirth: '',
     occupation: '',
     address: '',
-    phone: '',
+    primaryPhone: '',
+    secondaryPhone: '',
     medicalHistory: [],
     currentMedications: '',
     vitals: { bp: '', rbs: '' },
@@ -83,7 +84,8 @@ export default function PatientDetailsEditModal({
           : '',
         occupation: patient.occupation || '',
         address: patient.address || '',
-        phone: patient.phone || '',
+        primaryPhone: patient.primaryPhone || patient.phone || '',
+        secondaryPhone: patient.secondaryPhone || '',
         medicalHistory: Array.isArray(patient.medicalHistory) ? [...patient.medicalHistory] : [],
         currentMedications: patient.currentMedications || '',
         vitals: patient.vitals && typeof patient.vitals === 'object' ? { bp: '', rbs: '', ...patient.vitals } : { bp: '', rbs: '' },
@@ -117,7 +119,8 @@ export default function PatientDetailsEditModal({
             : '',
           occupation: fresh.occupation || '',
           address: fresh.address || '',
-          phone: fresh.phone || '',
+          primaryPhone: fresh.primaryPhone || fresh.phone || '',
+          secondaryPhone: fresh.secondaryPhone || '',
           medicalHistory: Array.isArray(fresh.medicalHistory) ? [...fresh.medicalHistory] : [],
           currentMedications: fresh.currentMedications || '',
           vitals: fresh.vitals && typeof fresh.vitals === 'object' ? { bp: '', rbs: '', ...fresh.vitals } : { bp: '', rbs: '' },
@@ -310,10 +313,20 @@ export default function PatientDetailsEditModal({
       return;
     }
 
-    const phoneErr = validatePhone(formData.phone, true);
-    if (phoneErr) {
-      setErrorMessage(phoneErr);
-      return;
+    if (formData.primaryPhone) {
+      const phoneErr = validatePhone(formData.primaryPhone, 'Primary Phone', false);
+      if (phoneErr) {
+        setErrorMessage(phoneErr);
+        return;
+      }
+    }
+
+    if (formData.secondaryPhone) {
+      const secPhoneErr = validatePhone(formData.secondaryPhone, 'Secondary Phone', false);
+      if (secPhoneErr) {
+        setErrorMessage(secPhoneErr);
+        return;
+      }
     }
 
     const ageErr = validateAge(formData.age, false);
@@ -333,13 +346,14 @@ export default function PatientDetailsEditModal({
     const payload = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
-      age: formData.age !== '' && formData.age !== null && formData.age !== undefined ? Number(formData.age) : undefined,
+      age: formData.age !== '' && formData.age !== null && formData.age !== undefined && !isNaN(formData.age) ? parseFloat(formData.age) : undefined,
       sex: formData.sex || '',
       patientType: formData.patientType || 'adult',
       dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : null,
       occupation: formData.occupation.trim(),
       address: formData.address.trim(),
-      phone: formData.phone.trim(),
+      primaryPhone: formData.primaryPhone.trim(),
+      secondaryPhone: formData.secondaryPhone.trim(),
       medicalHistory: formData.medicalHistory,
       currentMedications: formData.currentMedications.trim(),
       vitals: formData.vitals,
@@ -453,18 +467,34 @@ export default function PatientDetailsEditModal({
 
                 <div>
                   <label className="block font-semibold text-ink-soft mb-1">
-                    Phone Number <span className="text-rose-600">*</span>
+                    Primary Phone
                   </label>
                   <input
                     type="tel"
-                    required
                     maxLength={10}
-                    className="input-field py-1.5 text-xs"
-                    placeholder="10-digit mobile number"
-                    value={formData.phone}
+                    className="input-field py-1.5 text-xs font-mono"
+                    placeholder="10-digit primary number"
+                    value={formData.primaryPhone}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setFormData({ ...formData, phone: val });
+                      setFormData({ ...formData, primaryPhone: val });
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">
+                    Secondary Phone <span className="font-normal text-[11px]">(optional)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    className="input-field py-1.5 text-xs font-mono"
+                    placeholder="10-digit secondary number"
+                    value={formData.secondaryPhone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({ ...formData, secondaryPhone: val });
                     }}
                   />
                 </div>
@@ -473,10 +503,11 @@ export default function PatientDetailsEditModal({
                   <label className="block font-semibold text-ink-soft mb-1">Age</label>
                   <input
                     type="number"
+                    step="0.5"
                     min="0"
-                    max="120"
-                    className="input-field py-1.5 text-xs"
-                    placeholder="e.g. 35"
+                    max="130"
+                    className="input-field py-1.5 text-xs font-mono"
+                    placeholder="e.g. 4.5 or 35"
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                   />

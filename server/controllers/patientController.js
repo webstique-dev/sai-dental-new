@@ -203,21 +203,20 @@ async function createPatient(req, res, next) {
       return res.status(400).json({ message: errors[0], errors });
     }
 
-    const cleanPhone = (data.phone || '').toString().trim().replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length !== 10) {
-      return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
+    // Clean primary phone if provided
+    const rawPrimary = data.primaryPhone !== undefined ? data.primaryPhone : data.phone;
+    if (rawPrimary !== undefined && rawPrimary !== null) {
+      data.primaryPhone = rawPrimary.toString().trim().replace(/\D/g, '');
+    } else {
+      data.primaryPhone = '';
     }
 
-    const existingPatient = await Patient.findOne({
-      phone: cleanPhone,
-      isDeleted: { $ne: true },
-    });
-
-    if (existingPatient) {
-      return res.status(409).json({ message: 'This phone number is already registered.' });
+    // Clean secondary phone if provided
+    if (data.secondaryPhone !== undefined && data.secondaryPhone !== null) {
+      data.secondaryPhone = data.secondaryPhone.toString().trim().replace(/\D/g, '');
+    } else {
+      data.secondaryPhone = '';
     }
-
-    data.phone = cleanPhone;
 
     if (req.user && req.user._id) {
       data.registeredBy = req.user._id;
@@ -234,7 +233,8 @@ async function createPatient(req, res, next) {
       newValue: {
         opNumber: patient.opNumber,
         name: `${patient.firstName || ''} ${patient.lastName || ''}`.trim(),
-        phone: patient.phone,
+        primaryPhone: patient.primaryPhone,
+        secondaryPhone: patient.secondaryPhone,
       },
     });
 
@@ -281,23 +281,13 @@ async function updatePatient(req, res, next) {
       return res.status(400).json({ message: errors[0], errors });
     }
 
-    if (req.body.phone !== undefined) {
-      const cleanPhone = (req.body.phone || '').toString().trim().replace(/\D/g, '');
-      if (!cleanPhone || cleanPhone.length !== 10) {
-        return res.status(400).json({ message: 'Phone number must be exactly 10 digits.' });
-      }
+    if (req.body.primaryPhone !== undefined || req.body.phone !== undefined) {
+      const rawPrimary = req.body.primaryPhone !== undefined ? req.body.primaryPhone : req.body.phone;
+      req.body.primaryPhone = (rawPrimary || '').toString().trim().replace(/\D/g, '');
+    }
 
-      const existingPatient = await Patient.findOne({
-        phone: cleanPhone,
-        _id: { $ne: req.params.id },
-        isDeleted: { $ne: true },
-      });
-
-      if (existingPatient) {
-        return res.status(409).json({ message: 'This phone number is already registered.' });
-      }
-
-      req.body.phone = cleanPhone;
+    if (req.body.secondaryPhone !== undefined) {
+      req.body.secondaryPhone = (req.body.secondaryPhone || '').toString().trim().replace(/\D/g, '');
     }
 
     const patient = await Patient.findByIdAndUpdate(req.params.id, req.body, {

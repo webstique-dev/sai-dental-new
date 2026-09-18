@@ -3,8 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import {
   History, Search, UserSquare2, Calendar, Stethoscope, Activity, Pill,
   FileHeart, Filter, FileText, RefreshCw, X, Eye, Clock, CheckCircle2,
-  Printer, ChevronRight, User, ChevronDown, ChevronUp
+  Printer, ChevronRight, User, ChevronDown, ChevronUp, ArrowLeft, AlertTriangle, Shield
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
@@ -588,11 +589,13 @@ export default function PatientHistory() {
                   </div>
                   <div className="text-xs text-ink-soft mt-0.5">
                     OP Number: <strong className="font-mono text-brand font-bold">#{selectedVisit.patient?.opNumber || 'N/A'}</strong>
-                    {selectedVisit.patient?.age ? ` • Age: ${selectedVisit.patient.age}y` : ''}
+                    {selectedVisit.patient?.age !== undefined && selectedVisit.patient?.age !== null && selectedVisit.patient?.age !== '' ? ` • Age: ${formatAge(selectedVisit.patient.age)}y` : ''}
                     {selectedVisit.patient?.sex ? ` • Sex: ${selectedVisit.patient.sex}` : ''}
                   </div>
-                  {selectedVisit.patient?.phone && (
-                    <div className="text-[11px] text-ink-soft mt-0.5">Phone: {selectedVisit.patient.phone}</div>
+                  {(selectedVisit.patient?.primaryPhone || selectedVisit.patient?.phone) && (
+                    <div className="text-[11px] text-ink-soft mt-0.5">
+                      Phone: {selectedVisit.patient.primaryPhone || selectedVisit.patient.phone}{selectedVisit.patient.secondaryPhone ? ` / ${selectedVisit.patient.secondaryPhone}` : ''}
+                    </div>
                   )}
                 </div>
 

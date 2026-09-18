@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  CalendarDays, List, Plus, Search, Filter, X, CheckCircle2, AlertTriangle,
-  Clock, UserCheck, UserX, Trash2, Edit3, RefreshCw, ChevronRight,
+  Calendar, CalendarDays, List, Plus, Clock, UserPlus, Filter, Search, Eye, Edit3, X, Check,
+  AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, UserSquare2, Sparkles, CheckCircle2, ShieldAlert
 } from 'lucide-react';
+import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
@@ -613,10 +614,10 @@ export default function Appointments() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-ink-soft text-[11px] flex-wrap">
-                      {selectedPatient.age && <span>Age: <strong className="text-ink">{selectedPatient.age}y</strong></span>}
+                      {selectedPatient.age !== undefined && selectedPatient.age !== null && selectedPatient.age !== '' && <span>Age: <strong className="text-ink">{formatAge(selectedPatient.age)}y</strong></span>}
                       {selectedPatient.sex && <span>Sex: <strong className="text-ink">{selectedPatient.sex}</strong></span>}
                       <span>Type: <strong className="text-ink">{((selectedPatient.patientType || (Number(selectedPatient.age) < 12 ? 'child' : 'adult')) === 'child') ? 'Child' : 'Adult'}</strong></span>
-                      {selectedPatient.phone && <span>Phone: <strong className="text-ink">{selectedPatient.phone}</strong></span>}
+                      {(selectedPatient.primaryPhone || selectedPatient.phone) && <span>Phone: <strong className="text-ink">{selectedPatient.primaryPhone || selectedPatient.phone}{selectedPatient.secondaryPhone ? ` / ${selectedPatient.secondaryPhone}` : ''}</strong></span>}
                     </div>
                     {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap pt-1">
