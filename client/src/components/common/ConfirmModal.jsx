@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  AlertTriangle, AlertCircle, Info, Trash2, LogOut, Save, RefreshCw, XCircle, MinusCircle, X, Loader2
+  AlertTriangle, AlertCircle, Info, Trash2, LogOut, Save, RefreshCw, XCircle, MinusCircle, X, Loader2, UserCheck, CheckCircle2
 } from 'lucide-react';
 
 const VARIANT_CONFIGS = {
@@ -50,6 +50,21 @@ const VARIANT_CONFIGS = {
     iconBg: 'bg-blue-100 text-brand',
     confirmBtn: 'bg-brand hover:bg-brand-dark text-white',
   },
+  confirm: {
+    icon: CheckCircle2,
+    iconBg: 'bg-emerald-100 text-emerald-700',
+    confirmBtn: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+  },
+  checkin: {
+    icon: UserCheck,
+    iconBg: 'bg-emerald-100 text-emerald-700',
+    confirmBtn: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+  },
+  success: {
+    icon: CheckCircle2,
+    iconBg: 'bg-emerald-100 text-emerald-700',
+    confirmBtn: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+  },
 };
 
 export default function ConfirmModal({
@@ -60,6 +75,7 @@ export default function ConfirmModal({
   message = 'This action cannot be undone.',
   confirmText = 'Confirm',
   cancelText = 'Cancel',
+  loadingText,
   variant = 'danger',
   loading = false,
   closeOnBackdrop = true,
@@ -129,7 +145,7 @@ export default function ConfirmModal({
             type="button"
             disabled={isProcessing}
             onClick={onClose}
-            className="btn-secondary text-xs px-4 py-2 font-semibold disabled:opacity-50"
+            className="btn-secondary text-xs px-4 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelText}
           </button>
@@ -137,10 +153,10 @@ export default function ConfirmModal({
             type="button"
             disabled={isProcessing}
             onClick={handleConfirmClick}
-            className={`btn-primary text-xs px-4 py-2 font-bold inline-flex items-center gap-2 transition-colors disabled:opacity-60 ${config.confirmBtn}`}
+            className={`btn-primary text-xs px-4 py-2 font-bold inline-flex items-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${config.confirmBtn}`}
           >
             {isProcessing && <Loader2 size={14} className="animate-spin" />}
-            <span>{isProcessing ? 'Processing...' : confirmText}</span>
+            <span>{isProcessing ? (loadingText || 'Processing...') : confirmText}</span>
           </button>
         </div>
       </div>

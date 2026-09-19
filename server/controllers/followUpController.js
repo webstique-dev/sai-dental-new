@@ -221,9 +221,196 @@ async function getLastDoctorForPatient(req, res, next) {
   }
 }
 
+// POST /api/follow-ups/:id/check-in
+async function checkInFollowUp(req, res, next) {
+  try {
+    const followUp = await FollowUp.findById(req.params.id);
+    if (!followUp) {
+      return res.status(404).json({ message: 'Follow-up record not found.' });
+    }
+
+    if (followUp.status === 'Completed' || followUp.status === 'Cancelled') {
+      return res.status(400).json({ message: `Cannot check in a ${followUp.status} follow-up.` });
+    }
+
+    const QueueEntry = require('../models/QueueEntry');
+    const { syncVisitStatus, getFormattedDateString } = require('../utils/statusSync');
+    const { emitAppointmentUpdate, emitQueueUpdate } = require('../utils/socket');
+    const { getDayBounds } = require('./appointmentController');
+
+    const now = new Date();
+    let apptId = followUp.scheduledAppointment;
+    let doctorId = followUp.doctor;
+
+    // If doctor not assigned, fallback to logged-in user (if doctor) or first doctor
+    if (!doctorId && req.user && req.user.role === 'doctor') {
+      doctorId = req.user._id;
+    }
+    if (!doctorId) {
+      const defaultDoc = await User.findOne({ role: 'doctor', status: 'active' });
+      doctorId = defaultDoc?._id || null;
+    }
+
+    let appt = null;
+    if (apptId) {
+      appt = await Appointment.findById(apptId);
+    }
+
+    if (!appt) {
+      appt = new Appointment({
+        patient: followUp.patient,
+        doctor: doctorId,
+        date: followUp.recommendedDate || now,
+        time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        reason: followUp.reason || 'Follow-up Visit',
+        type: 'Appointment',
+        status: 'Checked-In',
+        followUp: followUp._id,
+        createdBy: req.user ? req.user._id : undefined,
+      });
+      await appt.save();
+      followUp.scheduledAppointment = appt._id;
+    } else {
+      appt.status = 'Checked-In';
+      if (!appt.doctor && doctorId) appt.doctor = doctorId;
+      await appt.save();
+    }
+
+    // Ensure QueueEntry exists for today
+    const { start, end } = getDayBounds(now);
+    const queueDateStr = getFormattedDateString(now);
+
+    let qEntry = await QueueEntry.findOne({ appointment: appt._id });
+    if (!qEntry) {
+      const lastEntry = await QueueEntry.findOne({ date: { $gte: start, $lte: end } }).sort({ token: -1 });
+      const nextToken = lastEntry && (lastEntry.token || lastEntry.queue_token) ? (lastEntry.token || lastEntry.queue_token) + 1 : 1;
+      qEntry = new QueueEntry({
+        token: nextToken,
+        queue_token: nextToken,
+        patient: followUp.patient,
+        doctor: appt.doctor || doctorId,
+        appointment: appt._id,
+        type: appt.type || 'Appointment',
+        status: 'Checked-In',
+        checked_in_at: now,
+        checkInTime: now,
+        queue_date: queueDateStr,
+        date: now,
+      });
+      await qEntry.save();
+    } else {
+      qEntry.status = 'Checked-In';
+      qEntry.checked_in_at = now;
+      qEntry.checkInTime = now;
+      await qEntry.save();
+    }
+
+    followUp.status = 'Checked-In';
+    if (doctorId && !followUp.doctor) followUp.doctor = doctorId;
+    await followUp.save();
+
+    await syncVisitStatus({
+      appointmentId: appt._id,
+      queueEntryId: qEntry._id,
+      status: 'Checked-In',
+    });
+
+    const populatedFollowUp = await FollowUp.findById(followUp._id)
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
+      .populate('doctor', 'name specialization')
+      .populate({
+        path: 'scheduledAppointment',
+        populate: { path: 'doctor', select: 'name specialization' },
+      })
+      .populate('createdBy', 'name email');
+
+    const populatedAppt = await Appointment.findById(appt._id)
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
+      .populate('doctor', 'name specialization');
+
+    emitAppointmentUpdate(populatedAppt);
+    emitQueueUpdate(qEntry);
+
+    return res.json({
+      message: 'Follow-up patient checked in successfully! Added to live queue.',
+      followUp: populatedFollowUp,
+      appointment: populatedAppt,
+      queueEntry: qEntry,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/follow-ups/:id/cancel
+async function cancelFollowUp(req, res, next) {
+  try {
+    const { cancellationReason } = req.body;
+    if (!cancellationReason || !cancellationReason.trim()) {
+      return res.status(400).json({ message: 'Cancellation reason is required.' });
+    }
+
+    const followUp = await FollowUp.findById(req.params.id);
+    if (!followUp) {
+      return res.status(404).json({ message: 'Follow-up record not found.' });
+    }
+
+    if (followUp.status === 'Completed') {
+      return res.status(400).json({ message: 'Cannot cancel an already completed follow-up.' });
+    }
+
+    const QueueEntry = require('../models/QueueEntry');
+    const { syncVisitStatus } = require('../utils/statusSync');
+    const { emitAppointmentUpdate, emitQueueUpdate } = require('../utils/socket');
+
+    const reasonTrimmed = cancellationReason.trim();
+    followUp.status = 'Cancelled';
+    followUp.cancellationReason = reasonTrimmed;
+    await followUp.save();
+
+    let appt = null;
+    if (followUp.scheduledAppointment) {
+      appt = await Appointment.findById(followUp.scheduledAppointment);
+      if (appt) {
+        appt.status = 'Cancelled';
+        appt.cancellationReason = reasonTrimmed;
+        await appt.save();
+
+        // Clean up or cancel any queue entry
+        await QueueEntry.updateMany({ appointment: appt._id }, { status: 'Cancelled' });
+        emitAppointmentUpdate(appt);
+      }
+    }
+
+    await syncVisitStatus({
+      appointmentId: followUp.scheduledAppointment,
+      status: 'Cancelled',
+    });
+
+    const populatedFollowUp = await FollowUp.findById(followUp._id)
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
+      .populate('doctor', 'name specialization')
+      .populate({
+        path: 'scheduledAppointment',
+        populate: { path: 'doctor', select: 'name specialization' },
+      })
+      .populate('createdBy', 'name email');
+
+    return res.json({
+      message: 'Follow-up cancelled successfully.',
+      followUp: populatedFollowUp,
+      appointment: appt,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listFollowUps,
   createFollowUp,
   scheduleFollowUp,
   getLastDoctorForPatient,
+  checkInFollowUp,
+  cancelFollowUp,
 };

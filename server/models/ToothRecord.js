@@ -13,6 +13,7 @@ const toothConditionOptions = [
   'Extraction',
   'Restored',
   'Prosthetic',
+  'Mobility',
   'Other',
 ];
 
@@ -43,6 +44,19 @@ const toothHistorySchema = new mongoose.Schema(
     consultation: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Consultation',
+      default: null,
+    },
+    deleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       default: null,
     },
   },

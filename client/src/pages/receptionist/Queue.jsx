@@ -1415,9 +1415,10 @@ export default function Queue() {
                     type="button"
                     disabled={submitting}
                     onClick={handleFinalizeWalkIn}
-                    className="btn-primary text-xs"
+                    className="btn-primary text-xs inline-flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Checking In...' : 'Confirm & Issue Token'}
+                    {submitting && <Loader2 size={13} className="animate-spin" />}
+                    <span>{submitting ? 'Checking In...' : 'Confirm & Issue Token'}</span>
                   </button>
                 )}
 

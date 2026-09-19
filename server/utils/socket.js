@@ -161,6 +161,21 @@ function emitConsultationUpdate(consultationData, eventType = 'CONSULTATION_STAR
 }
 
 /**
+ * Emit Invoice Created or Updated event
+ */
+function emitInvoiceUpdate(invoiceData, isNew = false) {
+  if (!io) return;
+  const eventName = isNew ? 'INVOICE_CREATED' : 'INVOICE_UPDATED';
+  const payload = {
+    type: eventName,
+    timestamp: new Date().toISOString(),
+    invoice: invoiceData,
+  };
+
+  io.to('role:admin').to('role:receptionist').to('role:doctor').emit(eventName, payload);
+}
+
+/**
  * Emit User Status (Enable/Disable/Role) Change event
  */
 function emitUserStatusUpdate(userData) {
@@ -185,5 +200,7 @@ module.exports = {
   emitQueueUpdate,
   emitPatientUpdate,
   emitConsultationUpdate,
+  emitInvoiceUpdate,
   emitUserStatusUpdate,
 };
+

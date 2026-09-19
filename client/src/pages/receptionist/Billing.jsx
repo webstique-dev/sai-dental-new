@@ -48,7 +48,7 @@ export default function Billing() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [items, setItems] = useState([
-    { service: 'General Consultation', treatment: 'Dental Exam', quantity: 1, unitPrice: 500 },
+    { service: '', treatment: '', quantity: 1, unitPrice: '' },
   ]);
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
@@ -168,7 +168,7 @@ export default function Billing() {
     setPatientSearch('');
     setPatientOptions([]);
     setSelectedDoctorId(doctors[0]?._id || doctors[0]?.id || '');
-    setItems([{ service: 'General Consultation', treatment: 'Dental Exam', quantity: 1, unitPrice: 500 }]);
+    setItems([{ service: '', treatment: '', quantity: 1, unitPrice: '' }]);
     setDiscount(0);
     setTax(0);
     setErrorMessage('');
@@ -431,7 +431,7 @@ export default function Billing() {
           ) : (
             <>
               {/* Desktop Table View (≥768px) */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto scrollbar-none no-scrollbar">
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
                     <tr>
@@ -670,12 +670,20 @@ export default function Billing() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {(selectedInvoiceDetail.items || []).map((item, idx) => (
-                        <tr key={idx}>
-                          <td className="px-3 py-2 font-medium text-ink">{item.service || item.treatment}</td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-ink">₹{item.unitPrice?.toLocaleString() || 0}</td>
-                        </tr>
-                      ))}
+                      {(selectedInvoiceDetail.items || []).map((item, idx) => {
+                        const qty = item.quantity || 1;
+                        const price = item.unitPrice || 0;
+                        const sub = qty * price;
+                        return (
+                          <tr key={idx}>
+                            <td className="px-3 py-2 font-medium text-ink">
+                              {item.service || item.treatment}
+                              {qty > 1 && <span className="text-ink-soft text-[11px] ml-1.5 font-mono">x{qty}</span>}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-ink">₹{sub.toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -703,11 +711,37 @@ export default function Billing() {
 
               {/* Summary Totals */}
               <div className="p-3 rounded-xl bg-bg border border-border space-y-1.5 text-xs">
-                <div className="flex justify-between font-semibold">
-                  <span>Total Charges:</span>
-                  <span className="font-mono text-ink">₹{selectedInvoiceDetail.total?.toLocaleString() || 0}</span>
-                </div>
-                <div className="flex justify-between text-emerald-800 font-semibold">
+                {(() => {
+                  const itemsSubtotal = (selectedInvoiceDetail.items || []).reduce(
+                    (sum, item) => sum + (item.quantity || 1) * (item.unitPrice || 0),
+                    0
+                  );
+                  return (
+                    <>
+                      <div className="flex justify-between font-semibold text-ink-soft">
+                        <span>Items Subtotal:</span>
+                        <span className="font-mono text-ink font-bold">₹{itemsSubtotal.toLocaleString()}</span>
+                      </div>
+                      {selectedInvoiceDetail.discount > 0 && (
+                        <div className="flex justify-between text-ink-soft">
+                          <span>Discount Applied:</span>
+                          <span className="font-mono text-emerald-700">-₹{selectedInvoiceDetail.discount.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {selectedInvoiceDetail.tax > 0 && (
+                        <div className="flex justify-between text-ink-soft">
+                          <span>Tax:</span>
+                          <span className="font-mono">+₹{selectedInvoiceDetail.tax.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold text-ink border-t border-border/60 pt-1.5">
+                        <span>Total Invoice Amount:</span>
+                        <span className="font-mono text-brand font-bold">₹{selectedInvoiceDetail.total?.toLocaleString() || 0}</span>
+                      </div>
+                    </>
+                  );
+                })()}
+                <div className="flex justify-between text-emerald-800 font-semibold border-t border-border/60 pt-1">
                   <span>Amount Paid:</span>
                   <span className="font-mono">₹{selectedInvoiceDetail.amountPaid?.toLocaleString() || 0}</span>
                 </div>

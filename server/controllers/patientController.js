@@ -332,6 +332,7 @@ async function getPatientEMR(req, res, next) {
     const Investigation = require('../models/Investigation');
     const ToothRecord = require('../models/ToothRecord');
     const FollowUp = require('../models/FollowUp');
+    const Appointment = require('../models/Appointment');
 
     const ALL_FDI_TEETH = [
       18, 17, 16, 15, 14, 13, 12, 11,
@@ -419,15 +420,70 @@ async function getPatientEMR(req, res, next) {
       .sort({ recommendedDate: -1, createdAt: -1 })
       .populate({
         path: 'scheduledAppointment',
-        populate: { path: 'doctor', select: 'name specialization' },
+        populate: { path: 'doctor', select: 'name specialization email' },
+      })
+      .populate('doctor', 'name specialization email')
+      .populate('consultation', 'startedAt createdAt status chiefComplaints clinicalNotes')
+      .populate('createdBy', 'name email');
+
+    // 6. Fetch all Appointments for this patient
+    const appointments = await Appointment.find({ patient: patientId, isDeleted: { $ne: true } })
+      .sort({ date: -1, createdAt: -1 })
+      .populate('doctor', 'name specialization email')
+      .populate({
+        path: 'followUp',
+        populate: { path: 'consultation', select: 'startedAt createdAt status chiefComplaints' },
       })
       .populate('createdBy', 'name email');
+
+    // 7. Fetch Invoices and calculate read-only billing summary
+    const Invoice = require('../models/Invoice');
+    const rawInvoices = await Invoice.find({ patient: patientId })
+      .sort({ createdAt: -1 });
+
+    let totalCharges = 0;
+    let totalPaid = 0;
+    let totalBalance = 0;
+
+    const invoices = rawInvoices.map((inv) => {
+      const tot = Number(inv.total) || 0;
+      const paid = Number(inv.amountPaid) || 0;
+      const bal = Number(inv.balance) || 0;
+
+      totalCharges += tot;
+      totalPaid += paid;
+      totalBalance += bal;
+
+      const itemsSummary = (inv.items || [])
+        .map((item) => (item.service || item.treatment || '').trim())
+        .filter(Boolean)
+        .join(', ') || 'Dental Service';
+
+      return {
+        _id: inv._id,
+        date: inv.createdAt,
+        itemsSummary,
+        total: tot,
+        amountPaid: paid,
+        balance: bal,
+        paymentStatus: inv.paymentStatus || 'Pending',
+      };
+    });
+
+    const billing = {
+      totalCharges,
+      totalPaid,
+      totalBalance,
+      invoices,
+    };
 
     return res.json({
       patient,
       consultations: consultationsData,
       toothChart,
       followUps,
+      appointments,
+      billing,
     });
   } catch (err) {
     next(err);

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, UserPlus, Plus, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, UserPlus, Plus, X, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import CreateAppointmentModal from '../../components/common/CreateAppointmentModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
 const MEDICAL_HISTORY_OPTIONS = [
@@ -24,6 +26,10 @@ const HABITS_OPTIONS = ['Smoking', 'Tobacco', 'Alcohol', 'Pan'];
 export default function PatientRegistration() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useNotification();
+  const { user } = useAuth();
+
+  const [registeredPatientForAppointment, setRegisteredPatientForAppointment] = useState(null);
+  const [showBookModal, setShowBookModal] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -262,15 +268,21 @@ export default function PatientRegistration() {
       const res = await api.post('/patients', payload);
       const newPatient = res.data?.patient;
 
-      showSuccess(`Patient ${newPatient?.opNumber || ''} registered successfully! Redirecting to appointments...`);
-      setTimeout(() => {
-        navigate('/reception/appointments', {
-          state: {
-            newPatient,
-            autoOpenCreate: true,
-          },
-        });
-      }, 800);
+      if (user?.role === 'doctor') {
+        showSuccess(`Patient ${newPatient?.opNumber || ''} registered successfully!`);
+        setRegisteredPatientForAppointment(newPatient);
+        setShowBookModal(true);
+      } else {
+        showSuccess(`Patient ${newPatient?.opNumber || ''} registered successfully! Redirecting to appointments...`);
+        setTimeout(() => {
+          navigate('/reception/appointments', {
+            state: {
+              newPatient,
+              autoOpenCreate: true,
+            },
+          });
+        }, 800);
+      }
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to register patient. Please try again.');
     } finally {
@@ -284,7 +296,7 @@ export default function PatientRegistration() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link
-            to="/reception/patients"
+            to={user?.role === 'doctor' ? '/doctor/patients' : '/reception/patients'}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-soft transition-colors hover:bg-bg hover:text-ink"
           >
             <ArrowLeft size={18} />
@@ -298,9 +310,9 @@ export default function PatientRegistration() {
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="btn-primary shrink-0 w-full sm:w-auto justify-center text-xs sm:text-sm"
+          className="btn-primary shrink-0 w-full sm:w-auto justify-center text-xs sm:text-sm inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <UserPlus size={18} />
+          {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={18} />}
           <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
         </button>
       </div>
@@ -831,20 +843,36 @@ export default function PatientRegistration() {
           <button
             type="button"
             className="btn-secondary w-full sm:w-auto justify-center"
-            onClick={() => navigate('/reception/patients')}
+            onClick={() => navigate(user?.role === 'doctor' ? '/doctor/patients' : '/reception/patients')}
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary w-full sm:w-auto justify-center text-xs sm:text-sm"
+            className="btn-primary w-full sm:w-auto justify-center text-xs sm:text-sm inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <UserPlus size={18} />
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={18} />}
             <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
           </button>
         </div>
       </form>
+
+      {/* Follow-on Appointment Booking Step for Doctor */}
+      <CreateAppointmentModal
+        isOpen={showBookModal}
+        initialPatient={registeredPatientForAppointment}
+        initialDoctorId={user?._id || user?.id}
+        defaultAction="Schedule"
+        onClose={() => {
+          setShowBookModal(false);
+          navigate(user?.role === 'doctor' ? '/doctor/patients' : '/reception/appointments');
+        }}
+        onSuccess={() => {
+          setShowBookModal(false);
+          navigate(user?.role === 'doctor' ? '/doctor/queue' : '/reception/appointments');
+        }}
+      />
     </div>
   );
 }

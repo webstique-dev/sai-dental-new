@@ -4,17 +4,24 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, UserSquare2, Phone, Calendar, Stethoscope, FileText,
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
-  Check, Lock, X, LogOut, ChevronDown, ChevronUp, HeartPulse, ShieldAlert, MapPin, Briefcase
+  Check, Lock, X, LogOut, ChevronDown, ChevronUp, HeartPulse, ShieldAlert, MapPin, Briefcase,
+  Wallet, Receipt
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
+import EditableCombobox from '../../components/common/EditableCombobox.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
 import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
 import PrescriptionsTab from './consultation/PrescriptionsTab.jsx';
 import InvestigationsTab from './consultation/InvestigationsTab.jsx';
+import BillingTab from './consultation/BillingTab.jsx';
+import PatientBillingSummary from '../../components/common/PatientBillingSummary.jsx';
+import { TOOTH_CONDITIONS } from '../../constants/toothConditions.js';
+import { FOLLOW_UP_REASONS, PROCEDURE_TREATMENT_STATUSES } from '../../constants/followUpOptions.js';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
@@ -22,7 +29,8 @@ const CLINICAL_TABS = [
   { id: 'prescriptions', label: 'Prescription', icon: Pill },
   // { id: 'diagnosis', label: 'Diagnosis', icon: Stethoscope },
   // { id: 'investigations', label: 'Investigations', icon: Search },
-  { id: 'treatment-plan', label: 'Treatment Plan', icon: Activity },
+  // { id: 'treatment-plan', label: 'Treatment Plan', icon: Activity },
+  { id: 'billing', label: 'Billing', icon: Wallet },
 ];
 
 export default function Consultation() {
@@ -53,6 +61,7 @@ export default function Consultation() {
   const [closeNotes, setCloseNotes] = useState('');
   const [followUpForm, setFollowUpForm] = useState({
     recommendedDate: '',
+    time: '10:00 AM',
     reason: '',
     instructions: '',
     treatmentStatus: '',
@@ -104,8 +113,10 @@ export default function Consultation() {
         const existing = list[0];
         setExistingFollowUpId(existing._id || existing.id);
         setEnableFollowUp(true);
+        const existingTime = existing.scheduledAppointment?.time || '10:00 AM';
         setFollowUpForm({
           recommendedDate: formatDateForInput(existing.recommendedDate) || defaultDateStr,
+          time: existingTime,
           reason: existing.reason || '',
           instructions: existing.instructions || '',
           treatmentStatus: existing.treatmentStatus || '',
@@ -115,6 +126,7 @@ export default function Consultation() {
         setEnableFollowUp(false);
         setFollowUpForm({
           recommendedDate: defaultDateStr,
+          time: '10:00 AM',
           reason: '',
           instructions: '',
           treatmentStatus: '',
@@ -126,6 +138,7 @@ export default function Consultation() {
       setEnableFollowUp(false);
       setFollowUpForm({
         recommendedDate: defaultDateStr,
+        time: '10:00 AM',
         reason: '',
         instructions: '',
         treatmentStatus: '',
@@ -154,6 +167,7 @@ export default function Consultation() {
         followUp: enableFollowUp
           ? {
             recommendedDate: followUpForm.recommendedDate,
+            time: followUpForm.time || '10:00 AM',
             reason: followUpForm.reason.trim(),
             instructions: followUpForm.instructions.trim(),
             treatmentStatus: followUpForm.treatmentStatus.trim(),
@@ -171,7 +185,8 @@ export default function Consultation() {
           day: 'numeric',
           year: 'numeric',
         });
-        successStr = `Consultation closed • Follow-up scheduled for ${recDateStr}`;
+        const timeStr = followUpForm.time ? ` at ${followUpForm.time}` : '';
+        successStr = `Consultation closed • Follow-up scheduled for ${recDateStr}${timeStr}`;
       }
 
       setCloseSuccessMsg(successStr);
@@ -329,8 +344,8 @@ export default function Consultation() {
 
       {/* TWO-COLUMN RESPONSIVE LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* PATIENT REGISTRATION DETAILS (FIXED/STICKY ON LAPTOP/DESKTOP >=1024px, HIDDEN SCROLLBAR, COLLAPSIBLE ACCORDIONS) */}
-        <div className="lg:col-span-4 lg:order-2 space-y-3 lg:sticky lg:top-4 self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto scrollbar-none pr-0.5">
+        {/* PATIENT REGISTRATION DETAILS (COLLAPSIBLE ACCORDIONS) */}
+        <div className="lg:col-span-4 lg:order-2 space-y-3 self-start">
           {/* Card 1: Core Registration Profile & Demographics */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm">
             <button
@@ -619,13 +634,17 @@ export default function Consultation() {
           <div className={activeTab === 'treatment-plan' ? 'block' : 'hidden'}>
             <TreatmentPlanTab consultation={consultation} isReadOnly={isCompleted} />
           </div>
+
+          <div className={activeTab === 'billing' ? 'block' : 'hidden'}>
+            <BillingTab consultation={consultation} isReadOnly={isCompleted} />
+          </div>
         </div>
       </div>
 
       {/* 2-PART CLOSE CONSULTATION MODAL */}
       {showCloseModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden !mt-0">
-          <div className="card w-full max-w-xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="card w-full max-w-2xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-4 bg-surface shrink-0">
               <div>
                 <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
@@ -658,13 +677,13 @@ export default function Consultation() {
 
                 {/* PART A: FOLLOW-UP SECTION */}
                 <div className="rounded-xl border border-border bg-bg/40 p-4 space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <Calendar size={18} className="text-brand" />
-                      <span className="font-bold text-ink text-xs">Follow-Up Recommendation</span>
+                      <span className="font-bold text-ink text-xs sm:text-sm">Follow-Up Recommendation</span>
                     </div>
 
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={enableFollowUp}
@@ -686,7 +705,8 @@ export default function Consultation() {
 
                   {enableFollowUp && (
                     <div className="space-y-3 pt-2 border-t border-border/60 animate-in fade-in duration-150">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Row 1: Recommended Date & Time */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <DatePicker
                             label="Recommended Date"
@@ -698,38 +718,55 @@ export default function Consultation() {
                         </div>
 
                         <div>
-                          <label className="block font-semibold text-ink-soft mb-1">
-                            Reason for Follow-Up <span className="text-ink-soft/70 font-normal">(Optional)</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="input-field py-1.5"
-                            placeholder="e.g. Suture removal, Crown fit check (optional)"
-                            value={followUpForm.reason}
-                            onChange={(e) => setFollowUpForm({ ...followUpForm, reason: e.target.value })}
+                          <SplitTimeInput
+                            label="Follow-Up Time"
+                            value={followUpForm.time || '10:00 AM'}
+                            onChange={(time12) => setFollowUpForm({ ...followUpForm, time: time12 })}
                           />
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block font-semibold text-ink-soft mb-1">Patient Instructions</label>
+                      {/* Row 2: Reason for Follow-Up & Treatment Status Note */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                            <span className="truncate">Reason for Follow-Up</span>
+                            <span className="text-slate-400 font-normal text-[11px] shrink-0 ml-1">(Optional)</span>
+                          </label>
+                          <EditableCombobox
+                            options={TOOTH_CONDITIONS}
+                            placeholder="e.g. Caries, RCT, Crown, Mobility..."
+                            value={followUpForm.reason}
+                            onChange={(val) => setFollowUpForm({ ...followUpForm, reason: val })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                            <span className="truncate">Procedure / Treatment Status Note</span>
+                            <span className="text-slate-400 font-normal text-[11px] shrink-0 ml-1">(Optional)</span>
+                          </label>
+                          <EditableCombobox
+                            options={PROCEDURE_TREATMENT_STATUSES}
+                            placeholder="e.g. RCT Step 1 Done, Temp Crown..."
+                            value={followUpForm.treatmentStatus}
+                            onChange={(val) => setFollowUpForm({ ...followUpForm, treatmentStatus: val })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 3: Patient Instructions */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                          <span>Patient Instructions</span>
+                          <span className="text-slate-400 font-normal text-[11px] shrink-0 ml-1">(Optional)</span>
+                        </label>
                         <textarea
                           rows={2}
-                          className="input-field py-1.5"
+                          className="input-field text-xs py-2 min-h-[58px] resize-y"
                           placeholder="e.g. Continue warm saline rinses. Avoid chewing on right side."
                           value={followUpForm.instructions}
                           onChange={(e) => setFollowUpForm({ ...followUpForm, instructions: e.target.value })}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-semibold text-ink-soft mb-1">Treatment Status Note (Optional)</label>
-                        <input
-                          type="text"
-                          className="input-field py-1.5"
-                          placeholder="e.g. Root canal step 1 completed, awaiting final obturation"
-                          value={followUpForm.treatmentStatus}
-                          onChange={(e) => setFollowUpForm({ ...followUpForm, treatmentStatus: e.target.value })}
                         />
                       </div>
                     </div>
@@ -737,13 +774,13 @@ export default function Consultation() {
                 </div>
 
                 {/* PART B: CONSULTATION SUMMARY SECTION */}
-                <div className="space-y-2">
-                  <label className="block font-semibold text-ink-soft">
-                    Closing Summary Notes (Optional)
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Closing Summary Notes <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
                   </label>
                   <textarea
                     rows={2}
-                    className="input-field py-1.5"
+                    className="input-field text-xs py-2 min-h-[58px] resize-y"
                     placeholder="Enter optional clinical summary, post-op care advice, or final diagnosis notes..."
                     value={closeNotes}
                     onChange={(e) => setCloseNotes(e.target.value)}

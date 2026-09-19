@@ -31,6 +31,7 @@ const NAV = {
     { to: '/doctor', label: 'Dashboard', icon: LayoutGrid, end: true },
     { to: '/doctor/queue', label: 'My Appointments', icon: CalendarDays },
     { to: '/doctor/patients', label: 'Patients', icon: UserSquare2 },
+    { to: '/doctor/billing', label: 'Billing', icon: Wallet },
     { to: '/doctor/prescriptions', label: 'Prescriptions', icon: Pill },
     { to: '/doctor/follow-ups', label: 'Follow-Ups', icon: Bell },
     { to: '/doctor/reports', label: 'Reports & Analytics', icon: FileBarChart },

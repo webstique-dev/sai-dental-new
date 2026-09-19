@@ -56,6 +56,11 @@ const appointmentSchema = new mongoose.Schema(
       ref: 'FollowUp',
       default: null,
     },
+    cancellationReason: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

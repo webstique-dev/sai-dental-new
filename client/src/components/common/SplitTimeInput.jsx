@@ -11,7 +11,9 @@ export default function SplitTimeInput({
   label = 'Time',
   value = '',
   onChange = () => {},
+  isRequired = false,
   className = '',
+  labelClassName = '',
   inputClassName = '',
 }) {
   const parseInitialTime = (val) => {
@@ -141,13 +143,14 @@ export default function SplitTimeInput({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
-        <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+        <label className={`text-xs font-semibold text-slate-700 flex items-center gap-1 ${labelClassName}`}>
           {label}
+          {isRequired && <span className="text-red-500">*</span>}
         </label>
       )}
 
       <div
-        className={`relative flex items-center justify-between w-full rounded-xl border bg-white text-sm font-medium text-slate-800 transition-all duration-150 border-slate-200 hover:border-slate-300 focus-within:border-[#1E64EA] focus-within:ring-2 focus-within:ring-[#1E64EA]/20 pl-9 pr-2 py-1.5 ${inputClassName}`}
+        className={`relative flex items-center justify-between w-full h-[38px] rounded-xl border bg-white text-xs font-medium text-slate-800 transition-all duration-150 border-slate-200 hover:border-slate-300 focus-within:border-[#1E64EA] focus-within:ring-2 focus-within:ring-[#1E64EA]/20 pl-9 pr-1.5 py-0 ${inputClassName}`}
       >
         {/* Left Clock Icon (identical placement to DatePicker's Calendar icon) */}
         <div className="absolute left-3 text-slate-400 flex items-center justify-center pointer-events-none">
@@ -164,8 +167,8 @@ export default function SplitTimeInput({
             value={timeState.hour}
             onChange={handleHourChange}
             onBlur={handleHourBlur}
-            className="w-8 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none py-1 border border-slate-200/80 focus:border-[#1E64EA] transition-all"
-            placeholder="09"
+            className="w-8 h-7 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none border border-slate-200/80 focus:border-[#1E64EA] transition-all"
+            placeholder="10"
             aria-label="Hour"
           />
           <span className="font-mono font-extrabold text-slate-400 text-xs select-none px-0.5">:</span>
@@ -177,7 +180,7 @@ export default function SplitTimeInput({
             value={timeState.minute}
             onChange={handleMinuteChange}
             onBlur={handleMinuteBlur}
-            className="w-8 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none py-1 border border-slate-200/80 focus:border-[#1E64EA] transition-all"
+            className="w-8 h-7 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none border border-slate-200/80 focus:border-[#1E64EA] transition-all"
             placeholder="00"
             aria-label="Minute"
           />
@@ -188,7 +191,7 @@ export default function SplitTimeInput({
           <button
             type="button"
             onClick={() => handlePeriodToggle('AM')}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all ${
+            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all leading-none ${
               timeState.period === 'AM'
                 ? 'bg-gradient-to-r from-[#1E64EA] to-[#2090F0] text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
@@ -199,7 +202,7 @@ export default function SplitTimeInput({
           <button
             type="button"
             onClick={() => handlePeriodToggle('PM')}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all ${
+            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all leading-none ${
               timeState.period === 'PM'
                 ? 'bg-gradient-to-r from-[#1E64EA] to-[#2090F0] text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'

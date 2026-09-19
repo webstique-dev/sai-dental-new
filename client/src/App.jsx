@@ -34,6 +34,7 @@ import DoctorQueue from './pages/doctor/Queue.jsx';
 import Consultation from './pages/doctor/Consultation.jsx';
 import PatientHistory from './pages/doctor/PatientHistory.jsx';
 import DoctorPatients from './pages/doctor/Patients.jsx';
+import DoctorBilling from './pages/doctor/DoctorBilling.jsx';
 import PatientProfileEMR from './pages/doctor/PatientProfileEMR.jsx';
 import ClinicalExaminationPage from './pages/doctor/ClinicalExaminationPage.jsx';
 import ToothChartPage from './pages/doctor/ToothChartPage.jsx';
@@ -108,6 +109,8 @@ export default function App() {
           <Route path="/doctor/appointments" element={<DoctorQueue />} />
           <Route path="/doctor/consultation/:consultationId" element={<Consultation />} />
           <Route path="/doctor/patients" element={<DoctorPatients />} />
+          <Route path="/doctor/billing" element={<DoctorBilling />} />
+          <Route path="/doctor/patients/register" element={<PatientRegistration />} />
           <Route path="/doctor/patients/:patientId" element={<PatientProfileEMR />} />
           <Route path="/doctor/history" element={<PatientHistory />} />
           <Route path="/doctor/history/:patientId" element={<PatientHistory />} />

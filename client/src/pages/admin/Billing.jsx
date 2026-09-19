@@ -494,9 +494,46 @@ export default function AdminBilling() {
                     ))
                   )}
                 </div>
-                <div className="flex justify-between border-t border-border pt-3 font-bold text-sm text-ink">
-                  <span>Grand Total:</span>
-                  <span className="text-brand">₹{selectedInvoiceDetail.total?.toLocaleString()}</span>
+                {/* Financial Summary */}
+                <div className="border-t border-border pt-3 space-y-1.5 text-xs">
+                  {(() => {
+                    const itemsSubtotal = (selectedInvoiceDetail.items || []).reduce(
+                      (sum, item) => sum + (item.quantity || 1) * (item.unitPrice || 0),
+                      0
+                    );
+                    return (
+                      <>
+                        <div className="flex justify-between font-semibold text-ink-soft">
+                          <span>Items Subtotal:</span>
+                          <span className="font-mono text-ink font-bold">₹{itemsSubtotal.toLocaleString()}</span>
+                        </div>
+                        {selectedInvoiceDetail.discount > 0 && (
+                          <div className="flex justify-between text-ink-soft">
+                            <span>Discount Applied:</span>
+                            <span className="font-mono text-emerald-700">-₹{selectedInvoiceDetail.discount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {selectedInvoiceDetail.tax > 0 && (
+                          <div className="flex justify-between text-ink-soft">
+                            <span>Tax:</span>
+                            <span className="font-mono">+₹{selectedInvoiceDetail.tax.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t border-border/60 pt-1.5 font-bold text-sm text-ink">
+                          <span>Grand Total:</span>
+                          <span className="text-brand">₹{selectedInvoiceDetail.total?.toLocaleString() || 0}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                  <div className="flex justify-between text-emerald-800 font-semibold border-t border-border/60 pt-1">
+                    <span>Amount Paid:</span>
+                    <span className="font-mono">₹{(selectedInvoiceDetail.amountPaid || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-rose-600 font-bold border-t border-border/60 pt-1.5 text-sm">
+                    <span>Balance Due:</span>
+                    <span className="font-mono">₹{(selectedInvoiceDetail.balance || 0).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             </div>

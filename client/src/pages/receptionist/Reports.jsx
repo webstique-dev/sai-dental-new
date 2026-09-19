@@ -383,15 +383,19 @@ export default function ReceptionistReports() {
                   <span className="font-mono text-emerald-800">₹{(paymentsColl.byMethod?.Cash || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between p-2.5 rounded bg-bg font-semibold">
-                  <span>Card Payments</span>
-                  <span className="font-mono text-indigo-800">₹{(paymentsColl.byMethod?.Card || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between p-2.5 rounded bg-bg font-semibold">
                   <span>UPI / QR Payments</span>
                   <span className="font-mono text-purple-800">₹{(paymentsColl.byMethod?.UPI || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between p-2.5 rounded bg-bg font-semibold">
-                  <span>Other / Transfers</span>
+                  <span>Card Payments</span>
+                  <span className="font-mono text-indigo-800">₹{(paymentsColl.byMethod?.Card || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded bg-bg font-semibold">
+                  <span>Bank Transfers</span>
+                  <span className="font-mono text-blue-800">₹{(paymentsColl.byMethod?.['Bank Transfer'] || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded bg-bg font-semibold">
+                  <span>Other</span>
                   <span className="font-mono text-slate-700">₹{(paymentsColl.byMethod?.Other || 0).toLocaleString()}</span>
                 </div>
               </div>

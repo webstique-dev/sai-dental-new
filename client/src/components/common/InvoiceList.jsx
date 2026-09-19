@@ -38,7 +38,7 @@ export default function InvoiceList({
   return (
     <>
       {/* Desktop Table View (≥768px) */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto scrollbar-none no-scrollbar">
         <table className="w-full text-left text-xs">
           <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
             <tr>

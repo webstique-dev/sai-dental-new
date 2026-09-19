@@ -56,10 +56,15 @@ const followUpSchema = new mongoose.Schema(
       ref: 'Appointment',
       default: null,
     },
+    cancellationReason: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     status: {
       type: String,
       enum: followUpStatusOptions,
-      default: 'Pending',
+      default: 'Scheduled',
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Stethoscope, Plus, Trash2, Save, AlertTriangle } from 'lucide-react';
+import { X, Stethoscope, Plus, Trash2, Save, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
@@ -403,9 +403,9 @@ export default function ExaminationEditModal({
             <button
               type="submit"
               disabled={saving}
-              className="btn-primary text-xs font-bold flex items-center gap-1.5"
+              className="btn-primary text-xs font-bold flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Save size={15} />
+              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               <span>{saving ? 'Saving...' : 'Save Examination Record'}</span>
             </button>
           </div>

@@ -6,7 +6,7 @@ const { logAction } = require('../middleware/auditLog');
 const { syncVisitStatus } = require('../utils/statusSync');
 const { getDayBounds } = require('./appointmentController');
 const { updateConsultationTotals } = require('../utils/consultationTotalsSync');
-const { emitConsultationUpdate, emitQueueUpdate } = require('../utils/socket');
+const { emitConsultationUpdate, emitQueueUpdate, emitAppointmentUpdate } = require('../utils/socket');
 const { buildPatientSearchFilter } = require('../utils/patientSearchHelper');
 
 // Immutability Guard Helper: Rejects write actions on closed consultations with HTTP 403
@@ -83,8 +83,8 @@ async function listConsultations(req, res, next) {
           Prescription.find({ consultation: cId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }),
         ]);
 
-        const checkIn = c.startedAt || c.queueEntry?.checkInTime || c.appointment?.createdAt || c.createdAt;
-        const checkOut = c.closedAt || (c.status === 'Completed' ? c.updatedAt : null);
+        const checkIn = c.queueEntry?.checkInTime || c.queueEntry?.checked_in_at || c.startedAt || c.consultation_started_at || c.appointment?.createdAt || c.createdAt;
+        const checkOut = c.closedAt || c.consultation_ended_at || c.completed_at || (c.status === 'Completed' ? c.updatedAt : null);
         const reason = c.appointment?.reason || c.queueEntry?.reason || (c.queueEntry?.type === 'Walk-in' ? 'Walk-in Consultation' : 'General Dental Visit');
 
         const totalEstimatedCharges = c.totalEstimatedCharges || (treatmentPlans || []).reduce((sum, p) => sum + (p.estimatedCost || 0), 0);
@@ -95,9 +95,14 @@ async function listConsultations(req, res, next) {
           id: c._id,
           patient: c.patient,
           doctor: c.doctor,
-          visitDate: c.startedAt || c.createdAt,
+          appointment: c.appointment ? (c.appointment._id || c.appointment) : null,
+          queueEntry: c.queueEntry ? (c.queueEntry._id || c.queueEntry) : null,
+          visitDate: c.startedAt || c.consultation_started_at || c.createdAt,
           checkInTime: checkIn,
           checkOutTime: checkOut,
+          startedAt: c.startedAt || c.consultation_started_at || c.createdAt,
+          closedAt: checkOut,
+          createdAt: c.createdAt,
           status: c.status || 'Completed',
           reason,
           notes: c.clinicalNotes || c.notes || '',
@@ -367,7 +372,7 @@ async function closeConsultation(req, res, next) {
           instructions: instructions || '',
           notes: notes || '',
           treatmentStatus: treatmentStatus || '',
-          status: recommendedDate ? 'Scheduled' : 'Pending',
+          status: 'Scheduled',
           createdBy: req.user ? req.user._id : undefined,
         });
         await savedFollowUp.save();
@@ -415,49 +420,49 @@ async function closeConsultation(req, res, next) {
     const TreatmentPlan = require('../models/TreatmentPlan');
     const Patient = require('../models/Patient');
 
-    const patientDoc = await Patient.findById(consultation.patient);
-    const opNumber = patientDoc ? patientDoc.opNumber : '';
-
     let invoice = await Invoice.findOne({ consultation: consultation._id });
 
-    const records = await TreatmentRecord.find({
-      consultation: consultation._id,
-      isDeleted: { $ne: true },
-    });
-
-    const completedPlans = await TreatmentPlan.find({
-      consultation: consultation._id,
-      status: 'Completed',
-      isDeleted: { $ne: true },
-    });
-
-    let invoiceItems = [];
-    if (records.length > 0) {
-      invoiceItems = records.map((r) => ({
-        service: r.procedure + (r.tooth ? ` (Tooth #${r.tooth})` : ''),
-        treatment: r.procedure,
-        quantity: 1,
-        unitPrice: Number(r.charges) || 0,
-      }));
-    } else if (completedPlans.length > 0) {
-      invoiceItems = completedPlans.map((p) => ({
-        service: p.treatment + (p.tooth ? ` (Tooth #${p.tooth})` : ''),
-        treatment: p.treatment,
-        quantity: 1,
-        unitPrice: Number(p.estimatedCost) || 0,
-      }));
-    } else {
-      invoiceItems = [
-        {
-          service: 'General Dental Consultation',
-          treatment: 'Consultation',
-          quantity: 1,
-          unitPrice: 500,
-        },
-      ];
-    }
-
     if (!invoice) {
+      const patientDoc = await Patient.findById(consultation.patient);
+      const opNumber = patientDoc ? patientDoc.opNumber : '';
+
+      const records = await TreatmentRecord.find({
+        consultation: consultation._id,
+        isDeleted: { $ne: true },
+      });
+
+      const completedPlans = await TreatmentPlan.find({
+        consultation: consultation._id,
+        status: 'Completed',
+        isDeleted: { $ne: true },
+      });
+
+      let invoiceItems = [];
+      if (records.length > 0) {
+        invoiceItems = records.map((r) => ({
+          service: r.procedure + (r.tooth ? ` (Tooth #${r.tooth})` : ''),
+          treatment: r.procedure,
+          quantity: 1,
+          unitPrice: Number(r.charges) || 0,
+        }));
+      } else if (completedPlans.length > 0) {
+        invoiceItems = completedPlans.map((p) => ({
+          service: p.treatment + (p.tooth ? ` (Tooth #${p.tooth})` : ''),
+          treatment: p.treatment,
+          quantity: 1,
+          unitPrice: Number(p.estimatedCost) || 0,
+        }));
+      } else {
+        invoiceItems = [
+          {
+            service: 'General Dental Consultation',
+            treatment: 'Consultation',
+            quantity: 1,
+            unitPrice: 0,
+          },
+        ];
+      }
+
       invoice = new Invoice({
         patient: consultation.patient,
         doctor: consultation.doctor,
@@ -468,12 +473,6 @@ async function closeConsultation(req, res, next) {
         paymentStatus: 'Pending',
         createdBy: req.user ? req.user._id : undefined,
       });
-      await invoice.save();
-    } else {
-      invoice.items = invoiceItems;
-      if (invoice.amountPaid === 0) {
-        invoice.paymentStatus = 'Pending';
-      }
       await invoice.save();
     }
 
@@ -499,6 +498,14 @@ async function closeConsultation(req, res, next) {
     });
 
     emitConsultationUpdate(consultation, 'CONSULTATION_COMPLETED');
+    if (consultation.appointment) {
+      const apptDoc = await Appointment.findById(consultation.appointment).populate('patient doctor');
+      if (apptDoc) emitAppointmentUpdate(apptDoc);
+    }
+    if (consultation.queueEntry) {
+      const qDoc = await QueueEntry.findById(consultation.queueEntry).populate('patient doctor');
+      if (qDoc) emitQueueUpdate(qDoc);
+    }
 
     return res.json({
       message: 'Consultation closed successfully. Pending bill generated.',

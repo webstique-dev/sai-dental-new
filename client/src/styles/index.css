@@ -126,10 +126,13 @@
   border-width: 2px 2px 0 0 !important;
 }
 
-/* Hide scrollbars in all popup modals, drawers, dialogs, and utility classes across browsers */
+/* Hide scrollbars in all popup modals, drawers, dialogs, dropdowns, and utility classes across browsers */
 .fixed .overflow-y-auto,
 .fixed .overflow-x-auto,
 .fixed .overflow-auto,
+.absolute .overflow-y-auto,
+.absolute .overflow-x-auto,
+.absolute .overflow-auto,
 [role="dialog"] .overflow-y-auto,
 [role="dialog"] .overflow-auto,
 .no-scrollbar,
@@ -141,6 +144,9 @@
 .fixed .overflow-y-auto::-webkit-scrollbar,
 .fixed .overflow-x-auto::-webkit-scrollbar,
 .fixed .overflow-auto::-webkit-scrollbar,
+.absolute .overflow-y-auto::-webkit-scrollbar,
+.absolute .overflow-x-auto::-webkit-scrollbar,
+.absolute .overflow-auto::-webkit-scrollbar,
 [role="dialog"] .overflow-y-auto::-webkit-scrollbar,
 [role="dialog"] .overflow-auto::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar,

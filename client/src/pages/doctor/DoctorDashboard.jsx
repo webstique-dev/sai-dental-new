@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Users, Calendar, CalendarDays, Clock, CheckCircle2, AlertCircle, ArrowRight, Play, RefreshCw, Stethoscope, Sparkles, UserSquare2, ClipboardList
+  Users, Calendar, CalendarDays, Clock, CheckCircle2, AlertCircle, ArrowRight, Play, RefreshCw, Stethoscope, Sparkles, UserSquare2, ClipboardList, UserPlus
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import StatCard from '../../components/common/StatCard.jsx';
@@ -139,12 +139,20 @@ export default function DoctorDashboard() {
           </p>
         </div>
 
-        <button
-          onClick={() => fetchDoctorSummary(true)}
-          className="btn-secondary text-xs flex items-center justify-center gap-1.5 self-start sm:self-auto"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Workspace
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <Link
+            to="/doctor/patients/register"
+            className="btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <UserPlus size={14} /> Add Patient
+          </Link>
+          <button
+            onClick={() => fetchDoctorSummary(true)}
+            className="btn-secondary text-xs flex items-center justify-center gap-1.5"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh Workspace
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -197,9 +205,13 @@ export default function DoctorDashboard() {
             <button
               onClick={handleStartNextConsultation}
               disabled={starting}
-              className="btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2 shrink-0 shadow-sm w-full sm:w-auto"
+              className="btn-primary text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-2 shrink-0 shadow-sm w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Play size={15} className="fill-current shrink-0" />
+              {starting ? (
+                <RefreshCw size={15} className="animate-spin shrink-0" />
+              ) : (
+                <Play size={15} className="fill-current shrink-0" />
+              )}
               <span>
                 {starting
                   ? 'Starting Consultation...'

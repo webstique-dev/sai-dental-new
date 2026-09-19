@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp
+  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp, Plus, Loader2
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
@@ -9,6 +9,8 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import CreateAppointmentModal from '../../components/common/CreateAppointmentModal.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
@@ -28,7 +30,10 @@ export default function DoctorQueue() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
+  const { user } = useAuth();
   const { showSuccess, showError } = useNotification();
+
+  const [isCreateAppointmentOpen, setIsCreateAppointmentOpen] = useState(false);
 
   // Active Tab: 'today' (default) | 'upcoming' | 'history'
   const [activeTab, setActiveTab] = useState(() => (tabParam && ['today', 'upcoming', 'history'].includes(tabParam) ? tabParam : 'today'));
@@ -159,10 +164,16 @@ export default function DoctorQueue() {
           .filter(Boolean)
       );
 
-      const combinedToday = [...queueList];
+      const combinedToday = [];
+      queueList.forEach((q) => {
+        if (q.status !== 'Completed') {
+          combinedToday.push(q);
+        }
+      });
+
       todayApts.forEach((apt) => {
         const aptId = (apt._id || apt.id).toString();
-        if (!checkedInAptIds.has(aptId)) {
+        if (!checkedInAptIds.has(aptId) && apt.status !== 'Completed') {
           combinedToday.push({
             id: apt._id || apt.id,
             _id: apt._id || apt.id,
@@ -211,56 +222,81 @@ export default function DoctorQueue() {
         api.get('/users/doctors').catch(() => ({ data: { doctors: [] } })),
       ]);
 
-      const cList = cRes.data?.consultations || [];
+      const cList = cRes.data?.consultations || cRes.data?.visits || [];
       const aList = aRes.data?.appointments || [];
       const dList = dRes.data?.doctors || [];
 
       setDoctors(dList);
 
       const merged = [];
-      const consultAptIds = new Set();
+      const seenAppointmentIds = new Set();
+      const seenPatientDates = new Set();
 
       cList.forEach((c) => {
+        const cId = (c._id || c.id || '').toString();
         const aptId = c.appointment?._id || c.appointment?.id || c.appointment;
-        if (aptId) consultAptIds.add(aptId.toString());
+        if (aptId) {
+          seenAppointmentIds.add(aptId.toString());
+        }
+
+        const patId = (c.patient?._id || c.patient?.id || c.patient || '').toString();
+        const visitDateStr = new Date(c.visitDate || c.startedAt || c.createdAt).toDateString();
+        if (patId) {
+          seenPatientDates.add(`${patId}_${visitDateStr}`);
+        }
+
+        const apt = aList.find((a) => (a._id || a.id).toString() === (aptId ? aptId.toString() : ''));
+
+        const checkIn = c.checkInTime || c.queueEntry?.checkInTime || c.queueEntry?.checked_in_at || apt?.createdAt || c.startedAt || c.createdAt;
+        const startTime = c.startedAt || c.startTime || c.visitDate || c.createdAt;
+        const endTime = c.closedAt || c.checkOutTime || c.endTime || null;
 
         merged.push({
-          id: c._id || c.id,
+          id: `consult-${c._id || c.id}`,
           consultationId: c._id || c.id,
-          patient: c.patient,
-          doctor: c.doctor,
-          date: c.visitDate || c.startedAt || c.createdAt,
-          checkInTime: c.queueEntry?.checkInTime || c.startedAt || c.createdAt,
-          startTime: c.startedAt || c.createdAt,
-          endTime: c.closedAt || null,
+          appointmentId: aptId ? aptId.toString() : null,
+          patient: c.patient || apt?.patient,
+          doctor: c.doctor || apt?.doctor,
+          date: c.visitDate || c.startedAt || apt?.date || c.createdAt,
+          checkInTime: checkIn,
+          startTime: startTime,
+          endTime: endTime,
           status: c.status === 'In Progress' ? 'In Consultation' : (c.status || 'Completed'),
-          reason: c.appointment?.reason || c.queueEntry?.reason || (c.queueEntry?.type === 'Walk-in' ? 'Walk-in Consultation' : 'General Dental Visit'),
+          reason: c.reason || apt?.reason || (c.queueEntry?.type === 'Walk-in' ? 'Walk-in Consultation' : 'General Dental Visit'),
           notes: c.clinicalNotes || c.notes || '',
           diagnoses: c.diagnoses || [],
           prescriptions: c.prescriptions || [],
           treatmentPlans: c.treatmentPlans || [],
+          examination: c.examination || null,
         });
       });
 
       aList.forEach((a) => {
         const aId = (a._id || a.id).toString();
-        if (!consultAptIds.has(aId)) {
-          merged.push({
-            id: a._id || a.id,
-            patient: a.patient,
-            doctor: a.doctor,
-            date: a.date || a.createdAt,
-            checkInTime: a.createdAt,
-            startTime: null,
-            endTime: null,
-            status: a.status || 'Scheduled',
-            reason: a.reason || 'Scheduled Appointment',
-            notes: '',
-            diagnoses: [],
-            prescriptions: [],
-            treatmentPlans: [],
-          });
+        if (seenAppointmentIds.has(aId)) return;
+
+        const patId = (a.patient?._id || a.patient?.id || a.patient || '').toString();
+        const aDateStr = new Date(a.date || a.createdAt).toDateString();
+        if (patId && seenPatientDates.has(`${patId}_${aDateStr}`) && (a.status === 'Completed' || a.status === 'In Consultation')) {
+          return;
         }
+
+        merged.push({
+          id: `apt-${a._id || a.id}`,
+          appointmentId: aId,
+          patient: a.patient,
+          doctor: a.doctor,
+          date: a.date || a.createdAt,
+          checkInTime: a.createdAt,
+          startTime: a.status === 'In Consultation' || a.status === 'Completed' ? a.createdAt : null,
+          endTime: a.status === 'Completed' ? a.updatedAt : null,
+          status: a.status || 'Scheduled',
+          reason: a.reason || 'Scheduled Appointment',
+          notes: '',
+          diagnoses: [],
+          prescriptions: [],
+          treatmentPlans: [],
+        });
       });
 
       merged.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -296,6 +332,10 @@ export default function DoctorQueue() {
   });
 
   useSocketEvent('CONSULTATION_COMPLETED', () => {
+    refreshAll();
+  });
+
+  useSocketEvent('PATIENT_UPDATED', () => {
     refreshAll();
   });
 
@@ -380,10 +420,10 @@ export default function DoctorQueue() {
               type="button"
               disabled={isSubmitting}
               onClick={() => handleCheckInPatient(itemId)}
-              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               title="Check in patient to queue"
             >
-              <UserCheck size={13} />
+              {isSubmitting ? <Loader2 size={13} className="animate-spin" /> : <UserCheck size={13} />}
               <span>{isSubmitting ? 'Checking In...' : 'Check In'}</span>
             </button>
 
@@ -391,7 +431,7 @@ export default function DoctorQueue() {
               type="button"
               disabled={isSubmitting}
               onClick={() => setNoShowAppointment(item)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Mark patient as No Show"
             >
               <UserX size={13} />
@@ -407,9 +447,9 @@ export default function DoctorQueue() {
               type="button"
               disabled={isSubmitting}
               onClick={() => handleStartConsultation(item)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Play size={13} fill="currentColor" />
+              {isSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} fill="currentColor" />}
               <span>{isSubmitting ? 'Starting...' : 'Start Consultation'}</span>
             </button>
 
@@ -417,7 +457,7 @@ export default function DoctorQueue() {
               type="button"
               disabled={isSubmitting}
               onClick={() => setNoShowAppointment(item)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Mark patient as No Show"
             >
               <UserX size={13} />
@@ -453,16 +493,19 @@ export default function DoctorQueue() {
     );
   };
 
-  // Filtered Today Entries
+  // Filtered Today Entries (STRICTLY NON-COMPLETED STATUS ONLY)
   const filteredTodayEntries = useMemo(() => {
-    if (!todaySearch.trim()) return queueEntries;
+    let entries = queueEntries.filter((item) => item.status !== 'Completed');
+    if (!todaySearch.trim()) return entries;
     const q = todaySearch.trim().toLowerCase();
-    return queueEntries.filter((item) => {
+    return entries.filter((item) => {
       const p = item.patient || {};
       const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
       const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
       const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
-      return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q);
+      const op = (p.opNumber || '').toLowerCase();
+      const reason = (item.reason || '').toLowerCase();
+      return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q) || reason.includes(q);
     });
   }, [queueEntries, todaySearch]);
 
@@ -478,6 +521,7 @@ export default function DoctorQueue() {
         const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
         const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
         const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+        const op = (p.opNumber || '').toLowerCase();
         const reason = (item.reason || '').toLowerCase();
         return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q) || reason.includes(q);
       });
@@ -522,6 +566,7 @@ export default function DoctorQueue() {
         const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
         const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
         const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+        const op = (p.opNumber || '').toLowerCase();
         return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q);
       });
     }
@@ -592,27 +637,54 @@ export default function DoctorQueue() {
 
   // COMPLETED TODAY FILTERED ITEMS
   const filteredCompletedTodayItems = useMemo(() => {
-    const todayStr = new Date().toDateString();
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDate = today.getDate();
+
+    const isDateToday = (d) => {
+      if (!d) return false;
+      const parsed = new Date(d);
+      if (isNaN(parsed.getTime())) return false;
+      return (
+        parsed.getFullYear() === todayYear &&
+        parsed.getMonth() === todayMonth &&
+        parsed.getDate() === todayDate
+      );
+    };
 
     let result = rawHistoryItems.filter((item) => {
       // Must be status 'Completed'
       if (item.status !== 'Completed') return false;
 
       // Must be completed / visited today
-      const itemDate = item.date || item.endTime || item.startTime || item.checkInTime;
-      if (!itemDate) return false;
-      const d = new Date(itemDate);
-      return d.toDateString() === todayStr;
+      const itemDate = item.endTime || item.startTime || item.date || item.checkInTime;
+      return isDateToday(itemDate);
     });
+
+    // Deduplicate to guarantee each appointment appears only once
+    const uniqueMap = new Map();
+    result.forEach((item) => {
+      const pId = (item.patient?._id || item.patient?.id || item.patient || '').toString();
+      const key = item.consultationId
+        ? `c_${item.consultationId}`
+        : item.appointmentId
+        ? `a_${item.appointmentId}`
+        : `p_${pId}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, item);
+      }
+    });
+    result = Array.from(uniqueMap.values());
 
     if (completedTodaySearch) {
       const q = completedTodaySearch.toLowerCase();
       result = result.filter((item) => {
-        const pName = item.patient
-          ? `${item.patient.firstName} ${item.patient.lastName}`.toLowerCase()
-          : '';
-        const primaryPhone = (item.patient?.primaryPhone || item.patient?.phone || '').toLowerCase();
-        const secondaryPhone = (item.patient?.secondaryPhone || '').toLowerCase();
+        const p = item.patient || {};
+        const pName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+        const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
+        const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+        const op = (p.opNumber || '').toLowerCase();
         const reason = (item.reason || '').toLowerCase();
         const notes = (item.notes || '').toLowerCase();
         return pName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q) || reason.includes(q) || notes.includes(q);
@@ -679,6 +751,14 @@ export default function DoctorQueue() {
           </div>
 
           <button
+            onClick={() => setIsCreateAppointmentOpen(true)}
+            className="btn-primary text-xs flex items-center gap-1.5 py-1.5 px-3 shadow-sm"
+          >
+            <Plus size={14} />
+            <span>Book Appointment</span>
+          </button>
+
+          <button
             onClick={refreshAll}
             className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
           >
@@ -695,8 +775,8 @@ export default function DoctorQueue() {
           appointments={rawHistoryItems.length > 0 ? rawHistoryItems : upcomingAppointments}
           allowEdit={true}
           onEdit={(apt) => {
-            if (apt.status === 'Checked-In') {
-              handleCheckIn(apt);
+            if (apt.status === 'Checked-In' || apt.status === 'Scheduled') {
+              handleCheckInPatient(apt._id || apt.id);
             }
           }}
         />
@@ -717,9 +797,9 @@ export default function DoctorQueue() {
               >
                 <CalendarDays size={16} />
                 <span>Today's Appointments</span>
-                {queueEntries.length > 0 && (
+                {filteredTodayEntries.length > 0 && (
                   <span className="badge bg-brand-light/50 text-brand-dark font-mono text-[10px]">
-                    {queueEntries.length}
+                    {filteredTodayEntries.length}
                   </span>
                 )}
               </button>
@@ -1524,12 +1604,11 @@ export default function DoctorQueue() {
                       <table className="w-full text-left text-sm">
                         <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
                           <tr>
-                            <th className="px-5 py-3.5">Patient Details</th>
-                            <th className="px-5 py-3.5">OP Number</th>
-                            <th className="px-5 py-3.5">Attending Doctor</th>
-                            <th className="px-5 py-3.5">Visit / Reason</th>
-                            <th className="px-5 py-3.5">Timings</th>
-                            <th className="px-5 py-3.5">Status</th>
+                            <th className="px-5 py-3.5 min-w-[220px]">Patient Details</th>
+                            <th className="px-5 py-3.5 w-36">OP Number</th>
+                            <th className="px-5 py-3.5 min-w-[200px]">Visit / Reason</th>
+                            <th className="px-5 py-3.5 min-w-[200px]">Timings</th>
+                            <th className="px-5 py-3.5 w-40 text-center">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -1538,23 +1617,20 @@ export default function DoctorQueue() {
                             const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
                             const pType = patient.patientType || (patient.age !== undefined && Number(patient.age) < 12 ? 'child' : 'adult');
 
-                            const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : (item.appointment?.doctor?.name ? `Dr. ${item.appointment.doctor.name}` : 'Doctor');
-
                             const dateStr = item.date
                               ? new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
                               : 'Today';
 
-                            const checkInStr = item.checkInTime
-                              ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                              : '—';
+                            const formatTimingVal = (d) => {
+                              if (!d) return '—';
+                              const parsed = new Date(d);
+                              if (isNaN(parsed.getTime())) return '—';
+                              return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            };
 
-                            const startStr = item.startTime
-                              ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                              : '—';
-
-                            const endStr = item.endTime
-                              ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                              : 'Today';
+                            const checkInStr = formatTimingVal(item.checkInTime);
+                            const startStr = formatTimingVal(item.startTime);
+                            const endStr = formatTimingVal(item.endTime);
 
                             return (
                               <tr key={item.id} className="hover:bg-bg/60 transition-colors text-xs">
@@ -1574,10 +1650,6 @@ export default function DoctorQueue() {
                                   {patient.opNumber ? `#${patient.opNumber}` : '—'}
                                 </td>
 
-                                <td className="px-5 py-4 font-semibold text-ink">
-                                  {docName}
-                                </td>
-
                                 <td className="px-5 py-4 font-medium text-ink">
                                   <div>{item.reason || 'General Visit'}</div>
                                   <div className="text-[10px] text-ink-soft">{dateStr}</div>
@@ -1588,7 +1660,7 @@ export default function DoctorQueue() {
                                   <div>Start: <span className="font-semibold text-ink">{startStr}</span> • End: <span className="font-semibold text-emerald-700 font-bold">{endStr}</span></div>
                                 </td>
 
-                                <td className="px-5 py-4 whitespace-nowrap">
+                                <td className="px-5 py-4 text-center whitespace-nowrap">
                                   <span className="badge bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold">
                                     Completed Today
                                   </span>
@@ -1605,16 +1677,17 @@ export default function DoctorQueue() {
                       {filteredCompletedTodayItems.map((item) => {
                         const patient = item.patient || {};
                         const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
-                        const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : (item.appointment?.doctor?.name ? `Dr. ${item.appointment.doctor.name}` : 'Doctor');
-                        const checkInStr = item.checkInTime
-                          ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : '—';
-                        const startStr = item.startTime
-                          ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : '—';
-                        const endStr = item.endTime
-                          ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : 'Today';
+                        
+                        const formatTimingVal = (d) => {
+                          if (!d) return '—';
+                          const parsed = new Date(d);
+                          if (isNaN(parsed.getTime())) return '—';
+                          return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        };
+
+                        const checkInStr = formatTimingVal(item.checkInTime);
+                        const startStr = formatTimingVal(item.startTime);
+                        const endStr = formatTimingVal(item.endTime);
                         const isExpanded = expandedCompletedTodayId === item.id;
 
                         return (
@@ -1629,7 +1702,6 @@ export default function DoctorQueue() {
                                 </div>
                                 <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
                                   {patient.opNumber && <span className="font-bold text-brand">#{patient.opNumber}</span>}
-                                  <span className="text-ink font-sans font-semibold">• {docName}</span>
                                 </div>
                               </div>
 
@@ -2276,6 +2348,7 @@ export default function DoctorQueue() {
         isOpen={Boolean(noShowAppointment)}
         onClose={() => setNoShowAppointment(null)}
         onConfirm={handleConfirmNoShow}
+        loading={Boolean(submittingId)}
         title="Confirm No Show"
         message={
           noShowAppointment ? (
@@ -2298,6 +2371,7 @@ export default function DoctorQueue() {
         isOpen={Boolean(cancellingAppointment)}
         onClose={() => setCancellingAppointment(null)}
         onConfirm={handleConfirmCancel}
+        loading={Boolean(submittingId)}
         title="Confirm Cancellation"
         message={
           cancellingAppointment ? (
@@ -2312,6 +2386,17 @@ export default function DoctorQueue() {
         confirmText="Cancel Appointment"
         cancelText="Keep Appointment"
         variant="danger"
+      />
+
+      {/* CREATE APPOINTMENT MODAL */}
+      <CreateAppointmentModal
+        isOpen={isCreateAppointmentOpen}
+        onClose={() => setIsCreateAppointmentOpen(false)}
+        initialDoctorId={user?._id || user?.id}
+        onSuccess={() => {
+          setIsCreateAppointmentOpen(false);
+          refreshAll();
+        }}
       />
     </div>
   );

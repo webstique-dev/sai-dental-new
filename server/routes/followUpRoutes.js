@@ -4,6 +4,8 @@ const {
   createFollowUp,
   scheduleFollowUp,
   getLastDoctorForPatient,
+  checkInFollowUp,
+  cancelFollowUp,
 } = require('../controllers/followUpController');
 const protect = require('../middleware/auth');
 const allowRoles = require('../middleware/roleCheck');
@@ -17,5 +19,7 @@ router.get('/', listFollowUps);
 router.post('/', createFollowUp);
 router.get('/patient-last-doctor/:patientId', getLastDoctorForPatient);
 router.post('/:id/schedule', scheduleFollowUp);
+router.post('/:id/check-in', checkInFollowUp);
+router.post('/:id/cancel', cancelFollowUp);
 
 module.exports = router;

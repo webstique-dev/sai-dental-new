@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, UserCheck, Plus, AlertTriangle, Stethoscope, Save, ArrowRight, Edit3, Trash2 } from 'lucide-react';
+import { X, UserCheck, Plus, AlertTriangle, Stethoscope, Save, ArrowRight, Edit3, Trash2, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from './DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
@@ -453,11 +453,10 @@ export default function PatientDetailsEditModal({
 
                 <div>
                   <label className="block font-semibold text-ink-soft mb-1">
-                    Last Name <span className="text-rose-600">*</span>
+                    Last Name
                   </label>
                   <input
                     type="text"
-                    required
                     className="input-field py-1.5 text-xs"
                     placeholder="Last name"
                     value={formData.lastName}
@@ -948,9 +947,9 @@ export default function PatientDetailsEditModal({
               <button
                 type="submit"
                 disabled={saving}
-                className="btn-primary text-xs font-bold flex items-center justify-center gap-1.5"
+                className="btn-primary text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Save size={15} />
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
                 <span>{saving ? 'Saving...' : (shouldStartConsultation ? 'Save Patient Profile' : 'Save Patient Details')}</span>
               </button>
             </div>

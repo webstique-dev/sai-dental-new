@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  CalendarDays, Plus, Search, Calendar, Phone, CheckCircle2, UserCheck, X, Clock, AlertTriangle, User, List, ChevronDown, ChevronUp, Filter
+  CalendarDays, Plus, Search, Calendar, Phone, CheckCircle2, UserCheck, X, Clock, AlertTriangle, User, List, ChevronDown, ChevronUp, Filter, XCircle, AlertCircle
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
+import EditableCombobox from '../../components/common/EditableCombobox.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { TOOTH_CONDITIONS } from '../../constants/toothConditions.js';
+import { FOLLOW_UP_REASONS } from '../../constants/followUpOptions.js';
 
 const STATUS_BADGE_CLASSES = {
   Pending: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -42,7 +46,7 @@ export default function FollowUps() {
   const [loading, setLoading] = useState(true);
 
   // Filter & View Mode state
-  const [activeTab, setActiveTab] = useState('All');
+  const [activeTab, setActiveTab] = useState('Scheduled');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -261,6 +265,69 @@ export default function FollowUps() {
       showError(msg);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Real-Time Socket Event Listeners
+  useSocketEvent('APPOINTMENT_UPDATED', () => fetchFollowUps());
+  useSocketEvent('QUEUE_UPDATED', () => fetchFollowUps());
+  useSocketEvent('CONSULTATION_STARTED', () => fetchFollowUps());
+  useSocketEvent('CONSULTATION_COMPLETED', () => fetchFollowUps());
+  useSocketEvent('PATIENT_UPDATED', () => fetchFollowUps());
+
+  // Check-In and Cancellation State & Handlers
+  const [checkingInId, setCheckingInId] = useState(null);
+  const [cancellingFollowUp, setCancellingFollowUp] = useState(null);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [cancelModalError, setCancelModalError] = useState('');
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
+  const handleCheckInFollowUp = async (followUpId) => {
+    if (!followUpId) return;
+    try {
+      setCheckingInId(followUpId);
+      await api.post(`/follow-ups/${followUpId}/check-in`);
+      showSuccess('Patient checked in successfully! Added to live queue.');
+      fetchFollowUps();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to check in follow-up.');
+    } finally {
+      setCheckingInId(null);
+    }
+  };
+
+  const openCancelModal = (item) => {
+    setCancellingFollowUp(item);
+    setCancellationReason('');
+    setCancelModalError('');
+  };
+
+  const handleCancelSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!cancellingFollowUp) return;
+
+    const reasonTrimmed = cancellationReason.trim();
+    if (!reasonTrimmed) {
+      setCancelModalError('Please enter a cancellation reason.');
+      return;
+    }
+
+    try {
+      setCancelSubmitting(true);
+      setCancelModalError('');
+      const targetId = cancellingFollowUp._id || cancellingFollowUp.id;
+      await api.post(`/follow-ups/${targetId}/cancel`, {
+        cancellationReason: reasonTrimmed,
+      });
+
+      showSuccess('Follow-up cancelled successfully.');
+      setCancellingFollowUp(null);
+      setCancellationReason('');
+      fetchFollowUps();
+    } catch (err) {
+      setCancelModalError(err.response?.data?.message || 'Failed to cancel follow-up.');
+    } finally {
+      setCancelSubmitting(false);
     }
   };
 
@@ -573,14 +640,42 @@ export default function FollowUps() {
                           </td>
 
                           <td className="px-5 py-4 text-right whitespace-nowrap">
-                            {isPending && (
-                              <button
-                                onClick={() => openScheduleModal(item)}
-                                className="btn-primary text-xs py-1.5 px-3 inline-flex items-center gap-1"
-                              >
-                                <UserCheck size={14} /> Schedule Appt
-                              </button>
-                            )}
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {['Scheduled', 'Pending'].includes(item.status) && (
+                                <button
+                                  type="button"
+                                  disabled={checkingInId === (item._id || item.id)}
+                                  onClick={() => handleCheckInFollowUp(item._id || item.id)}
+                                  className="btn-primary py-1 px-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white inline-flex items-center gap-1 shadow-2xs"
+                                  title="Check In patient for visit"
+                                >
+                                  <UserCheck size={13} />
+                                  <span>{checkingInId === (item._id || item.id) ? '...' : 'Check-In'}</span>
+                                </button>
+                              )}
+
+                              {isPending && (
+                                <button
+                                  type="button"
+                                  onClick={() => openScheduleModal(item)}
+                                  className="btn-primary text-xs py-1 px-2.5 inline-flex items-center gap-1 shadow-2xs"
+                                >
+                                  <UserCheck size={13} /> Schedule Appt
+                                </button>
+                              )}
+
+                              {!['Completed', 'Cancelled'].includes(item.status) && (
+                                <button
+                                  type="button"
+                                  onClick={() => openCancelModal(item)}
+                                  className="btn-secondary py-1 px-2.5 text-xs font-bold text-rose-700 hover:text-rose-800 hover:bg-rose-50 border-rose-200 inline-flex items-center gap-1 shadow-2xs"
+                                  title="Cancel Follow-Up"
+                                >
+                                  <XCircle size={13} className="text-rose-600" />
+                                  <span>Cancel</span>
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -660,20 +755,42 @@ export default function FollowUps() {
                           </div>
 
                           {/* Actions */}
-                          {isPending && (
-                            <div className="pt-1 flex items-center justify-end">
+                          <div className="pt-1 flex items-center justify-end gap-2 flex-wrap">
+                            {['Scheduled', 'Pending'].includes(item.status) && (
+                              <button
+                                type="button"
+                                disabled={checkingInId === itemId}
+                                onClick={() => handleCheckInFollowUp(itemId)}
+                                className="btn-primary py-1.5 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex-1 justify-center flex items-center gap-1"
+                              >
+                                <UserCheck size={14} /> {checkingInId === itemId ? 'Checking In...' : 'Check-In'}
+                              </button>
+                            )}
+                            {isPending && (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   openScheduleModal(item);
                                 }}
-                                className="btn-primary py-2 px-3.5 text-xs w-full justify-center font-bold flex items-center gap-1.5"
+                                className="btn-primary py-1.5 px-3 text-xs flex-1 justify-center font-bold flex items-center gap-1"
                               >
-                                <UserCheck size={15} /> Schedule Appointment
+                                <UserCheck size={14} /> Schedule Appt
                               </button>
-                            </div>
-                          )}
+                            )}
+                            {!['Completed', 'Cancelled'].includes(item.status) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openCancelModal(item);
+                                }}
+                                className="btn-secondary py-1.5 px-3 text-xs font-bold text-rose-700 hover:bg-rose-50 border-rose-200 flex-1 justify-center flex items-center gap-1"
+                              >
+                                <XCircle size={14} className="text-rose-600" /> Cancel
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -761,13 +878,13 @@ export default function FollowUps() {
                   <label className="block font-semibold text-ink-soft mb-1">
                     Reason / Procedure <span className="text-rose-600">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <EditableCombobox
                     required
-                    className="input-field text-xs"
-                    placeholder="e.g. Suture removal, Crown Placement, Post-op evaluation"
+                    options={TOOTH_CONDITIONS}
+                    placeholder="e.g. Caries, RCT, Crown, Mobility..."
                     value={addFormData.reason}
-                    onChange={(e) => setAddFormData((prev) => ({ ...prev, reason: e.target.value }))}
+                    onChange={(val) => setAddFormData((prev) => ({ ...prev, reason: val }))}
+                    inputClassName="text-xs"
                   />
                 </div>
 
@@ -869,11 +986,12 @@ export default function FollowUps() {
 
                 <div>
                   <label className="block font-semibold text-ink-soft mb-1">Reason / Notes</label>
-                  <input
-                    type="text"
-                    className="input-field text-xs"
+                  <EditableCombobox
+                    options={TOOTH_CONDITIONS}
+                    placeholder="e.g. Suture removal, RCT follow-up, Mobility..."
                     value={scheduleFormData.reason}
-                    onChange={(e) => setScheduleFormData((prev) => ({ ...prev, reason: e.target.value }))}
+                    onChange={(val) => setScheduleFormData((prev) => ({ ...prev, reason: val }))}
+                    inputClassName="text-xs"
                   />
                 </div>
               </div>
@@ -888,6 +1006,84 @@ export default function FollowUps() {
                 </button>
                 <button type="submit" disabled={submitting} className="btn-primary text-xs">
                   {submitting ? 'Scheduling...' : 'Book Appointment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* CANCELLATION CONFIRMATION MODAL (REASON REQUIRED) */}
+      {cancellingFollowUp && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-3 sm:p-4 backdrop-blur-xs overflow-hidden !mt-0 animate-fadeIn">
+          <div className="card w-full max-w-md bg-surface p-5 sm:p-6 shadow-2xl border border-border space-y-4 rounded-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-bold text-ink">Cancel Follow-Up</h3>
+                  <p className="text-xs text-ink-soft">
+                    Please provide a reason to confirm the cancellation.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancellingFollowUp(null)}
+                className="p-1 rounded-lg text-ink-soft hover:text-ink hover:bg-bg transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {cancelModalError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold flex items-center gap-2">
+                <AlertCircle size={15} className="text-rose-600 shrink-0" />
+                <span>{cancelModalError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCancelSubmit} className="space-y-4">
+              <div className="space-y-1.5 text-xs">
+                <label className="block font-bold text-ink">
+                  Reason for Cancellation <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  className="input-field w-full text-xs py-2"
+                  placeholder="e.g. Patient called to cancel, patient rescheduled, symptoms resolved..."
+                  value={cancellationReason}
+                  onChange={(e) => {
+                    setCancellationReason(e.target.value);
+                    if (cancelModalError) setCancelModalError('');
+                  }}
+                  autoFocus
+                />
+                <p className="text-[11px] text-ink-soft">
+                  * A valid cancellation reason is required to maintain audit records.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setCancellingFollowUp(null)}
+                  disabled={cancelSubmitting}
+                  className="btn-secondary py-2 px-4 text-xs font-semibold"
+                >
+                  Keep Follow-Up
+                </button>
+                <button
+                  type="submit"
+                  disabled={cancelSubmitting || !cancellationReason.trim()}
+                  className="btn-primary py-2 px-4 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <XCircle size={14} />
+                  <span>{cancelSubmitting ? 'Cancelling...' : 'Confirm Cancellation'}</span>
                 </button>
               </div>
             </form>

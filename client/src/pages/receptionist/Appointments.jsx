@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Calendar, CalendarDays, List, Plus, Clock, UserPlus, Filter, Search, Eye, Edit3, X, Check,
-  AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, UserSquare2, Sparkles, CheckCircle2, ShieldAlert
+  AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, UserSquare2, Sparkles, CheckCircle2, ShieldAlert, Loader2, UserCheck
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
@@ -227,6 +227,14 @@ export default function Appointments() {
     fetchAppointments();
   });
 
+  useSocketEvent('CONSULTATION_COMPLETED', () => {
+    fetchAppointments();
+  });
+
+  useSocketEvent('PATIENT_UPDATED', () => {
+    fetchAppointments();
+  });
+
   // Live patient search inside create modal
   useEffect(() => {
     if (!patientSearch || patientSearch.trim().length < 2) {
@@ -294,6 +302,7 @@ export default function Appointments() {
       }
     }
 
+    setActionLoading(true);
     try {
       const { dateStr, timeStr } = getInitialExactDateTime();
       const payload = {
@@ -316,6 +325,8 @@ export default function Appointments() {
       const msg = err.response?.data?.message || 'Failed to create appointment';
       showError(msg);
       setErrorMessage(msg);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -334,6 +345,7 @@ export default function Appointments() {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editingAppointment) return;
+    setActionLoading(true);
     try {
       await api.patch(`/appointments/${editingAppointment._id}`, editFormData);
       showSuccess('Appointment updated successfully!');
@@ -341,6 +353,8 @@ export default function Appointments() {
       fetchAppointments();
     } catch (err) {
       setErrorMessage(err.response?.data?.message || 'Failed to update appointment');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -769,13 +783,27 @@ export default function Appointments() {
               <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
-                  className="btn-secondary text-xs"
+                  disabled={actionLoading}
+                  className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setShowCreateModal(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary text-xs">
-                  {formData.action === 'Schedule' ? 'Schedule Appointment' : 'Check In Patient'}
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="btn-primary text-xs inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {actionLoading && <Loader2 size={14} className="animate-spin" />}
+                  <span>
+                    {actionLoading
+                      ? formData.action === 'Schedule'
+                        ? 'Scheduling...'
+                        : 'Checking In...'
+                      : formData.action === 'Schedule'
+                      ? 'Schedule Appointment'
+                      : 'Check In Patient'}
+                  </span>
                 </button>
               </div>
             </form>
@@ -890,13 +918,19 @@ export default function Appointments() {
               <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
-                  className="btn-secondary text-xs"
+                  disabled={actionLoading}
+                  className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setEditingAppointment(null)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary text-xs">
-                  Save Changes
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="btn-primary text-xs inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {actionLoading && <Loader2 size={14} className="animate-spin" />}
+                  <span>{actionLoading ? 'Saving Changes...' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>
@@ -930,7 +964,8 @@ export default function Appointments() {
         }
         confirmText="Confirm Check-In"
         cancelText="Cancel"
-        variant="confirm"
+        loadingText="Checking In..."
+        variant="checkin"
         loading={actionLoading}
       />
 
@@ -955,7 +990,8 @@ export default function Appointments() {
         }
         confirmText="Mark No Show"
         cancelText="Cancel"
-        variant="cancel"
+        loadingText="Updating..."
+        variant="warning"
         loading={actionLoading}
       />
 

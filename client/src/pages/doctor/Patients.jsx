@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   UserSquare2, Search, Filter, Calendar, Eye, ArrowUpDown, ChevronLeft, ChevronRight,
-  RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3
+  RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3, UserPlus
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
@@ -13,6 +13,7 @@ import PatientDetailsEditModal from '../../components/common/PatientDetailsEditM
 
 export default function DoctorPatients() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   // Filters & Query State
@@ -144,9 +145,18 @@ export default function DoctorPatients() {
           </p>
         </div>
 
-        <button onClick={fetchPatients} className="btn-secondary text-xs flex items-center gap-1.5 self-start sm:self-auto">
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh List
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          <Link
+            to="/doctor/patients/register"
+            className="btn-primary text-xs flex items-center gap-1.5 py-2 px-3 shadow-xs"
+          >
+            <UserPlus size={15} />
+            <span>Add Patient</span>
+          </Link>
+          <button onClick={fetchPatients} className="btn-secondary text-xs flex items-center gap-1.5 py-2 px-3">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh List
+          </button>
+        </div>
       </div>
 
       {/* SEARCH & FILTERS BAR */}
@@ -300,11 +310,18 @@ export default function DoctorPatients() {
                     : null;
 
                   return (
-                    <tr key={pId} className="hover:bg-bg/60 transition-colors group">
+                    <tr
+                      key={pId}
+                      onClick={() => navigate(`/doctor/patients/${pId}`)}
+                      className="hover:bg-bg/60 transition-colors group cursor-pointer"
+                    >
                       {/* Name */}
                       <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="font-bold text-ink text-sm group-hover:text-brand transition-colors">
-                          {pName}
+                        <div className="font-bold text-ink text-sm group-hover:text-brand transition-colors flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-brand-light text-brand-dark flex items-center justify-center font-bold text-xs shrink-0">
+                            {pName.charAt(0).toUpperCase()}
+                          </div>
+                          <span>{pName}</span>
                         </div>
                       </td>
 
@@ -357,10 +374,13 @@ export default function DoctorPatients() {
 
                       {/* Action */}
                       <td className="px-5 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={() => setSelectedPatientForEdit(p)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPatientForEdit(p);
+                            }}
                             className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold text-ink hover:text-brand hover:border-brand transition-colors"
                             title="Edit Patient Details"
                           >
@@ -368,7 +388,8 @@ export default function DoctorPatients() {
                           </button>
                           <Link
                             to={`/doctor/patients/${pId}`}
-                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold"
+                            onClick={(e) => e.stopPropagation()}
+                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold hover:border-brand hover:text-brand"
                             title="View Patient EMR"
                           >
                             <Eye size={13} /> View

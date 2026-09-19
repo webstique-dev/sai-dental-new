@@ -190,6 +190,13 @@ async function updateAppointment(req, res, next) {
       }
     }
 
+    if (status === 'Cancelled') {
+      const { cancellationReason } = req.body;
+      if (!cancellationReason || !cancellationReason.trim()) {
+        return res.status(400).json({ message: 'Cancellation reason is required.' });
+      }
+    }
+
     const updated = await Appointment.findOneAndUpdate(
       { _id: req.params.id, isDeleted: { $ne: true } },
       req.body,
@@ -202,6 +209,23 @@ async function updateAppointment(req, res, next) {
     // Sync status with related QueueEntry/Consultation/FollowUp if status updated
     if (status) {
       await syncVisitStatus({ appointmentId: updated._id, status });
+    }
+
+    // If cancelled, propagate cancellationReason to linked follow up and update queue entries
+    if (status === 'Cancelled' || req.body.cancellationReason) {
+      const reasonTrimmed = (req.body.cancellationReason || '').trim();
+      const linkedFollowUp = await FollowUp.findOne({
+        $or: [{ scheduledAppointment: updated._id }, { _id: updated.followUp }],
+      });
+      if (linkedFollowUp) {
+        if (reasonTrimmed) linkedFollowUp.cancellationReason = reasonTrimmed;
+        if (status === 'Cancelled') linkedFollowUp.status = 'Cancelled';
+        await linkedFollowUp.save();
+      }
+      if (status === 'Cancelled') {
+        const QueueEntry = require('../models/QueueEntry');
+        await QueueEntry.updateMany({ appointment: updated._id }, { status: 'Cancelled' });
+      }
     }
 
     // If rescheduled to a new date, update linked follow-up

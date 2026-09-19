@@ -174,7 +174,7 @@ const CustomInputTrigger = forwardRef(
             placeholder:text-slate-400 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400
             ${Icon ? 'pl-9' : 'pl-3.5'}
             ${isClearable && inputValue && !disabled ? 'pr-9' : 'pr-3.5'}
-            py-2
+            h-[38px] py-1.5
             ${
               error
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20 text-red-900'
@@ -219,6 +219,7 @@ export const DatePicker = forwardRef(
       endDate,
       selectsRange = false,
       label,
+      labelClassName = '',
       helperText,
       error,
       isRequired = false,
@@ -281,7 +282,7 @@ export const DatePicker = forwardRef(
       <div className={`flex flex-col gap-1.5 ${wrapperClassName}`}>
         {/* Label */}
         {label && (
-          <label htmlFor={inputId} className="text-sm font-semibold text-slate-700 flex items-center gap-1">
+          <label htmlFor={inputId} className={`text-xs font-semibold text-slate-700 flex items-center gap-1 ${labelClassName}`}>
             {label}
             {isRequired && <span className="text-red-500">*</span>}
           </label>
