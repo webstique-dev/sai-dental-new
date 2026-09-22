@@ -633,6 +633,7 @@ function CompactConditionPopup({
       condition: parsed.formatted,
       treatment: treatment.trim(),
       notes: notes.trim(),
+      teethList: targetTeeth,
     });
   };
 
@@ -654,6 +655,7 @@ function CompactConditionPopup({
       condition: parsed.formatted,
       treatment: treatment.trim(),
       notes: notes.trim(),
+      teethList: targetTeeth,
     });
   };
 
@@ -666,6 +668,7 @@ function CompactConditionPopup({
       condition: pendingCondition,
       treatment: treatment.trim(),
       notes: notes.trim(),
+      teethList: targetTeeth,
     });
   };
 
@@ -766,7 +769,6 @@ function CompactConditionPopup({
                   <button
                     key={opt}
                     type="button"
-                    disabled={isSelected}
                     data-condition-name={parsed.name}
                     className={`relative group flex items-center justify-between px-2 py-2 rounded-xl border text-left font-semibold transition-all select-none min-h-[38px] ${isSelected
                         ? 'bg-brand-light/60 border-brand ring-2 ring-brand text-brand font-bold shadow-sm scale-[1.02] cursor-default opacity-95'
@@ -974,6 +976,12 @@ export default function ToothChart({
   const [teethMap, setTeethMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [failedSaves, setFailedSaves] = useState([]);
+  const saveVersionMapRef = useRef(new Map());
+  const activeSavesCountRef = useRef(0);
+  const savedTimeoutRef = useRef(null);
+
   const [selectedTeeth, setSelectedTeeth] = useState([]);
   const [inspectedTeeth, setInspectedTeeth] = useState([]);
   const [multiSelectMode, setMultiSelectMode] = useState(false);
@@ -1127,10 +1135,10 @@ export default function ToothChart({
     }
   }, [patient]);
 
-  const fetchToothChart = async () => {
+  const fetchToothChart = async (isInitial = false) => {
     if (!patientId) return;
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       const res = await api.get(`/tooth-chart/${patientId}`);
       const map = {};
       (res.data.teeth || []).forEach((t) => {
@@ -1140,12 +1148,40 @@ export default function ToothChart({
     } catch (err) {
       console.error('Failed to fetch tooth chart data:', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
+    }
+  };
+
+  const syncToothChart = async () => {
+    if (!patientId) return;
+    try {
+      const res = await api.get(`/tooth-chart/${patientId}`);
+      const backendTeeth = res.data.teeth || [];
+      setTeethMap((prev) => {
+        const merged = { ...prev };
+        backendTeeth.forEach((t) => {
+          const tNum = t.toothNumber;
+          const hasInFlight = (saveVersionMapRef.current.get(tNum) || 0) > 0 && activeSavesCountRef.current > 0;
+          if (!hasInFlight) {
+            merged[tNum] = t;
+          } else {
+            merged[tNum] = {
+              ...t,
+              currentCondition: prev[tNum]?.currentCondition || t.currentCondition,
+              treatment: prev[tNum]?.treatment !== undefined ? prev[tNum].treatment : t.treatment,
+              notes: prev[tNum]?.notes !== undefined ? prev[tNum].notes : t.notes,
+            };
+          }
+        });
+        return merged;
+      });
+    } catch (err) {
+      console.error('Failed to sync tooth chart in background:', err);
     }
   };
 
   useEffect(() => {
-    fetchToothChart();
+    fetchToothChart(true);
   }, [patientId]);
 
   // Handle Tooth Click
@@ -1205,9 +1241,15 @@ export default function ToothChart({
   };
 
   // Save handler for the compact condition picker popup (Auto-saves on selection)
-  const handleSavePopupCondition = async (payload) => {
+  const handleSavePopupCondition = (payload) => {
     if (isReadOnly) return;
-    const targetList = [...(selectedTeeth.length > 0 ? selectedTeeth : inspectedTeeth)];
+    const targetList = [
+      ...(payload?.teethList && payload.teethList.length > 0
+        ? payload.teethList
+        : selectedTeeth.length > 0
+        ? selectedTeeth
+        : inspectedTeeth),
+    ];
     if (targetList.length === 0) return;
 
     let chosenCondition = payload;
@@ -1223,8 +1265,8 @@ export default function ToothChart({
     const parsed = sanitizeCondition(chosenCondition);
     const saveCondition = parsed.formatted;
 
-    // Check if target tooth already has identical condition and treatment/notes
-    if (targetList.length === 1) {
+    // Check if target tooth already has identical condition and treatment/notes (skip only if not an explicit retry)
+    if (!payload?.isRetry && targetList.length === 1) {
       const tNum = targetList[0];
       const existing = teethMap[tNum];
       if (
@@ -1237,7 +1279,7 @@ export default function ToothChart({
       }
     }
 
-    // 1. Instant Optimistic UI Update: update SVG color & condition badge immediately (<1ms)
+    // 1. Instant Optimistic UI Update (<1ms): Update SVG color, badge, and details immediately
     setTeethMap((prev) => {
       const updated = { ...prev };
       targetList.forEach((tNum) => {
@@ -1261,60 +1303,112 @@ export default function ToothChart({
       setConditionOptions((prev) => [...prev, saveCondition]);
     }
 
-    if (isNewCustomCondition(parsed.name)) {
-      // Persist custom condition on backend
+    // 2. Concurrency Control: record unique request version per tooth
+    const currentVersions = {};
+    targetList.forEach((tNum) => {
+      const nextVer = (saveVersionMapRef.current.get(tNum) || 0) + 1;
+      saveVersionMapRef.current.set(tNum, nextVer);
+      currentVersions[tNum] = nextVer;
+    });
+
+    // 3. Non-blocking Background Autosave
+    activeSavesCountRef.current += 1;
+    setSaveStatus('saving');
+    if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+
+    (async () => {
       try {
-        await api.post('/tooth-chart/conditions', {
-          name: parsed.name,
-          code: parsed.code,
-        });
-      } catch (e) {
-        console.warn('Condition already exists or failed to save to conditions collection:', e);
+        if (isNewCustomCondition(parsed.name)) {
+          try {
+            await api.post('/tooth-chart/conditions', {
+              name: parsed.name,
+              code: parsed.code,
+            });
+          } catch (e) {
+            console.warn('Condition already exists or failed to save to conditions collection:', e);
+          }
+        }
+
+        let saveResponse;
+        if (targetList.length === 1) {
+          const tNum = targetList[0];
+          saveResponse = await api.patch(`/tooth-chart/${patientId}/${tNum}`, {
+            condition: saveCondition,
+            treatment: chosenTreatment,
+            notes: chosenNotes,
+            consultationId,
+          });
+
+          // Only update if no newer save was triggered for this tooth while in-flight
+          if (saveVersionMapRef.current.get(tNum) === currentVersions[tNum] && saveResponse.data?.record) {
+            setTeethMap((prev) => ({
+              ...prev,
+              [tNum]: saveResponse.data.record,
+            }));
+          }
+        } else {
+          saveResponse = await api.post(`/tooth-chart/${patientId}/bulk`, {
+            teeth: targetList,
+            condition: saveCondition,
+            treatment: chosenTreatment,
+            notes: chosenNotes,
+            consultationId,
+          });
+        }
+
+        // Remove resolved items from failed saves
+        setFailedSaves((prev) => prev.filter((item) => !targetList.some((t) => item.targetList?.includes(t))));
+
+        activeSavesCountRef.current = Math.max(0, activeSavesCountRef.current - 1);
+        if (activeSavesCountRef.current === 0) {
+          setSaveStatus('saved');
+          savedTimeoutRef.current = setTimeout(() => {
+            setSaveStatus('idle');
+          }, 2500);
+        }
+
+        // Silent background sync
+        syncToothChart();
+        fetchConditions();
+      } catch (err) {
+        console.error('Background autosave failed for tooth chart:', err);
+        activeSavesCountRef.current = Math.max(0, activeSavesCountRef.current - 1);
+        setSaveStatus('error');
+        // Preserve optimistic changes locally and enqueue for retry
+        setFailedSaves((prev) => [
+          ...prev.filter((item) => !targetList.some((t) => item.targetList?.includes(t))),
+          {
+            targetList,
+            condition: saveCondition,
+            treatment: chosenTreatment,
+            notes: chosenNotes,
+            errorMsg: err.response?.data?.message || 'Failed to update tooth condition.',
+            timestamp: Date.now(),
+          },
+        ]);
       }
-    }
+    })();
+  };
 
-    setSaving(true);
-    setErrorMessage('');
-    try {
-      if (targetList.length === 1) {
-        const tNum = targetList[0];
-        await api.patch(`/tooth-chart/${patientId}/${tNum}`, {
-          condition: saveCondition,
-          treatment: chosenTreatment,
-          notes: chosenNotes,
-          consultationId,
-        });
-      } else {
-        await api.post(`/tooth-chart/${patientId}/bulk`, {
-          teeth: targetList,
-          condition: saveCondition,
-          treatment: chosenTreatment,
-          notes: chosenNotes,
-          consultationId,
-        });
-      }
-
-      setSuccessMessage(
-        `Updated ${targetList.length === 1 ? `Tooth #${targetList[0]}` : `${targetList.length} teeth`} to ${parsed.name}!`
-      );
-
-      // Fetch tooth chart history in background
-      await fetchToothChart();
-      await fetchConditions();
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
-      console.error('Failed to update tooth chart:', err);
-      setErrorMessage(err.response?.data?.message || 'Failed to update tooth condition.');
-      // Revert to backend state if saving failed
-      await fetchToothChart();
-    } finally {
-      setSaving(false);
+  // Retry all failed autosaves
+  const handleRetryFailedSaves = () => {
+    if (failedSaves.length === 0) return;
+    const itemsToRetry = [...failedSaves];
+    setFailedSaves([]);
+    for (const item of itemsToRetry) {
+      handleSavePopupCondition({
+        condition: item.condition,
+        treatment: item.treatment,
+        notes: item.notes,
+        teethList: item.targetList,
+        isRetry: true,
+      });
     }
   };
 
   // Detail panel save handler (for full notes / treatment entry)
-  const handleSaveCondition = async (e) => {
-    e.preventDefault();
+  const handleSaveCondition = (e) => {
+    if (e) e.preventDefault();
     if (isReadOnly) return;
     const targetList = selectedTeeth.length > 0 ? selectedTeeth : inspectedTeeth;
     if (targetList.length === 0) {
@@ -1332,80 +1426,18 @@ export default function ToothChart({
       parsed.code = iconicCode.replace(/[\[\]]/g, '').trim().toUpperCase();
       parsed.formatted = `${parsed.name} [${parsed.code}]`;
     }
-    const saveCondition = parsed.formatted;
 
-    // Prevent re-saving exact same condition & notes on single tooth
-    if (targetList.length === 1) {
-      const tNum = targetList[0];
-      const existing = teethMap[tNum];
-      if (
-        existing &&
-        sanitizeCondition(existing.currentCondition).name.toLowerCase() === parsed.name.toLowerCase() &&
-        formTreatment.trim() === (existing.treatment || '').trim() &&
-        formNotes.trim() === (existing.notes || '').trim()
-      ) {
-        setErrorMessage(`Tooth #${tNum} already has the "${parsed.name}" condition recorded.`);
-        return;
-      }
-    }
+    handleSavePopupCondition({
+      condition: parsed.formatted,
+      treatment: formTreatment.trim(),
+      notes: formNotes.trim(),
+      teethList: targetList,
+    });
 
-    if (isNewCustomCondition(parsed.name)) {
-      try {
-        await api.post('/tooth-chart/conditions', {
-          name: parsed.name,
-          code: parsed.code,
-        });
-      } catch (e) {
-        console.warn('Failed to save custom condition to collection:', e);
-      }
-    }
-
-    setSaving(true);
-    setSuccessMessage('');
-    setErrorMessage('');
-    try {
-      if (targetList.length === 1) {
-        const tNum = targetList[0];
-        await api.patch(`/tooth-chart/${patientId}/${tNum}`, {
-          condition: saveCondition,
-          treatment: formTreatment,
-          notes: formNotes,
-          consultationId,
-        });
-      } else {
-        await api.post(`/tooth-chart/${patientId}/bulk`, {
-          teeth: targetList,
-          condition: saveCondition,
-          treatment: formTreatment,
-          notes: formNotes,
-          consultationId,
-        });
-      }
-
-      if (!conditionOptions.some((o) => sanitizeCondition(o).name.toLowerCase() === parsed.name.toLowerCase())) {
-        setConditionOptions((prev) => [...prev, saveCondition]);
-      }
-
-      setSuccessMessage(
-        `Updated ${targetList.length === 1 ? `Tooth #${targetList[0]}` : `${targetList.length} teeth`} to ${parsed.name}!`
-      );
-
-      // Automatically unselect/clear the selection state
-      setSelectedTeeth([]);
-      setInspectedTeeth([]);
-      setIsPopupOpen(false);
-      setPopupAnchorEl(null);
-      setIconicCode('');
-      setFormTreatment('');
-      setFormNotes('');
-      await fetchToothChart();
-      await fetchConditions();
-      setTimeout(() => setSuccessMessage(''), 3500);
-    } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to update tooth chart.');
-    } finally {
-      setSaving(false);
-    }
+    setSuccessMessage(
+      `Updated ${targetList.length === 1 ? `Tooth #${targetList[0]}` : `${targetList.length} teeth`} to ${parsed.name}!`
+    );
+    setTimeout(() => setSuccessMessage(''), 3000);
   };
 
   const renderToothCard = (tNum) => {
@@ -1544,7 +1576,7 @@ export default function ToothChart({
           {/* Chart Toolbar & Dentition Summary */}
           <div className="card p-3.5 sm:p-4 space-y-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border pb-3">
-              {/* Left: Title & Dentition Badge */}
+              {/* Left: Title, Dentition Badge & Autosave Status */}
               <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
                 <Layers size={18} className="text-brand shrink-0" />
                 <h3 className="font-display text-sm font-bold text-ink">
@@ -1555,6 +1587,38 @@ export default function ToothChart({
                     ? 'Pediatric Dentition (20 Primary Teeth)'
                     : 'Adult Dentition (32 Permanent Teeth)'}
                 </span>
+
+                {/* Live Non-Blocking Autosave Status Indicator */}
+                <div className="flex items-center gap-1.5" aria-live="polite">
+                  {saveStatus === 'saving' && (
+                    <span className="badge bg-blue-50 text-brand border border-blue-200 text-xs font-semibold flex items-center gap-1.5 py-0.5 px-2 animate-fadeIn shrink-0">
+                      <Loader2 size={12} className="animate-spin text-brand shrink-0" />
+                      <span>Saving...</span>
+                    </span>
+                  )}
+                  {saveStatus === 'saved' && (
+                    <span className="badge bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 py-0.5 px-2 animate-fadeIn shrink-0">
+                      <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                      <span>Saved</span>
+                    </span>
+                  )}
+                  {saveStatus === 'error' && (
+                    <div className="flex items-center gap-1 animate-fadeIn shrink-0">
+                      <span className="badge bg-rose-50 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 py-0.5 px-2">
+                        <AlertTriangle size={12} className="text-rose-600 shrink-0" />
+                        <span>Save failed</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRetryFailedSaves}
+                        className="btn-secondary text-[11px] py-0.5 px-2 font-bold text-brand hover:bg-brand-light border-brand/40 shadow-2xs"
+                        title="Retry saving unsaved changes"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Right: Actions (Multi-Select toggle + Done / Clear Action Group) */}
@@ -1703,7 +1767,7 @@ export default function ToothChart({
               </div>
             )}
 
-            {loading ? (
+            {loading && Object.keys(teethMap).length === 0 ? (
               <div className="p-8 text-center text-sm text-ink-soft flex items-center justify-center gap-2">
                 <Loader2 size={18} className="animate-spin text-brand" />
                 <span>Loading patient tooth records...</span>
@@ -2006,7 +2070,7 @@ export default function ToothChart({
         onClose={() => setIsPopupOpen(false)}
         onClearSelection={handleClearSelection}
         onDeleteCustomCondition={handleRequestDeleteCondition}
-        isSaving={saving}
+        isSaving={saveStatus === 'saving'}
       />
 
       {/* Treatment History Log (Timeline / Card Activity Stream) */}
@@ -2033,7 +2097,7 @@ export default function ToothChart({
           ) : null}
         </div>
 
-        {loading ? (
+        {loading && Object.keys(teethMap).length === 0 ? (
           <div className="p-8 text-center text-xs text-ink-soft flex items-center justify-center gap-2">
             <Loader2 size={16} className="animate-spin text-brand" />
             <span>Loading treatment history...</span>
