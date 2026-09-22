@@ -121,7 +121,7 @@ async function createWalkIn(req, res, next) {
         occupation: pData.occupation || '',
         medicalHistory: pData.medicalHistory || [],
         currentMedications: pData.currentMedications || '',
-        vitals: pData.vitals || { bp: '', rbs: '' },
+        vitals: pData.vitals || {},
         habits: pData.habits || [],
         dentalHistory: pData.dentalHistory || '',
         registeredBy: req.user ? req.user._id : undefined,

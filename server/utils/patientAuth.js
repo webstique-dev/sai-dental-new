@@ -1,11 +1,20 @@
 const Appointment = require('../models/Appointment');
 const Consultation = require('../models/Consultation');
 const QueueEntry = require('../models/QueueEntry');
+const Patient = require('../models/Patient');
 
 async function canDoctorAccessPatient(doctorUserId, patientId) {
   if (!doctorUserId || !patientId) return false;
 
   const docId = doctorUserId._id ? doctorUserId._id : doctorUserId;
+
+  // 0. Check if doctor registered this patient
+  const hasRegistered = await Patient.exists({
+    _id: patientId,
+    registeredBy: docId,
+    isDeleted: { $ne: true },
+  });
+  if (hasRegistered) return true;
 
   // 1. Check Appointment assigned to this doctor (active or past)
   const hasAppointment = await Appointment.exists({

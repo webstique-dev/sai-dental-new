@@ -401,6 +401,14 @@ async function closeConsultation(req, res, next) {
           path: 'scheduledAppointment',
           populate: { path: 'doctor', select: 'name specialization' },
         })
+    } else {
+      // If followUp payload is not supplied, preserve and load any previously scheduled follow-up
+      savedFollowUp = await FollowUp.findOne({ consultation: consultation._id })
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
+        .populate({
+          path: 'scheduledAppointment',
+          populate: { path: 'doctor', select: 'name specialization' },
+        })
         .populate('createdBy', 'name email');
     }
 
@@ -720,11 +728,165 @@ async function findOrCreateConsultation(req, res, next) {
   }
 }
 
+// GET /api/consultations/:id/complete-summary or GET /api/consultations/summary/by-visit
+async function getConsultationCompleteSummary(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { consultationId, appointmentId, queueId, patientId: queryPatientId } = req.query;
+
+    const Diagnosis = require('../models/Diagnosis');
+    const ToothRecord = require('../models/ToothRecord');
+    const TreatmentRecord = require('../models/TreatmentRecord');
+    const TreatmentPlan = require('../models/TreatmentPlan');
+    const Prescription = require('../models/Prescription');
+    const Patient = require('../models/Patient');
+
+    let consultation = null;
+    const searchId = id && id !== 'by-visit' ? id : consultationId;
+
+    if (searchId) {
+      consultation = await Consultation.findById(searchId)
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory patientType')
+        .populate('doctor', 'name email role specialization phone')
+        .populate('queueEntry')
+        .populate('appointment');
+    }
+
+    if (!consultation && (appointmentId || queueId)) {
+      const filter = {};
+      if (appointmentId) filter.appointment = appointmentId;
+      if (queueId) filter.queueEntry = queueId;
+      consultation = await Consultation.findOne(filter)
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory patientType')
+        .populate('doctor', 'name email role specialization phone')
+        .populate('queueEntry')
+        .populate('appointment');
+    }
+
+    let patient = consultation?.patient;
+    let doctor = consultation?.doctor;
+    let appointment = consultation?.appointment;
+    let queueEntry = consultation?.queueEntry;
+
+    if (!consultation) {
+      if (appointmentId) {
+        appointment = await Appointment.findById(appointmentId)
+          .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory patientType')
+          .populate('doctor', 'name email role specialization phone');
+        if (appointment) {
+          patient = appointment.patient;
+          doctor = appointment.doctor;
+        }
+      }
+      if (queueId && !patient) {
+        queueEntry = await QueueEntry.findById(queueId)
+          .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory patientType')
+          .populate('doctor', 'name email role specialization phone');
+        if (queueEntry) {
+          patient = queueEntry.patient;
+          doctor = queueEntry.doctor;
+        }
+      }
+    }
+
+    if (!patient && queryPatientId) {
+      patient = await Patient.findById(queryPatientId);
+    }
+
+    const resolvedPatientId = patient?._id || patient?.id || consultation?.patient?._id || consultation?.patient;
+    const activeConsultId = consultation?._id;
+
+    // Fetch related clinical records
+    const [
+      diagnoses,
+      toothRecords,
+      treatmentRecords,
+      treatmentPlans,
+      prescriptions,
+      followUps,
+    ] = await Promise.all([
+      activeConsultId
+        ? Diagnosis.find({ consultation: activeConsultId, isDeleted: { $ne: true } }).sort({ createdAt: 1 })
+        : resolvedPatientId
+        ? Diagnosis.find({ patient: resolvedPatientId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(10)
+        : [],
+      resolvedPatientId
+        ? ToothRecord.find({ patient: resolvedPatientId })
+        : [],
+      activeConsultId
+        ? TreatmentRecord.find({ consultation: activeConsultId, isDeleted: { $ne: true } }).sort({ createdAt: 1 })
+        : resolvedPatientId
+        ? TreatmentRecord.find({ patient: resolvedPatientId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(10)
+        : [],
+      activeConsultId
+        ? TreatmentPlan.find({ consultation: activeConsultId }).sort({ createdAt: 1 })
+        : resolvedPatientId
+        ? TreatmentPlan.find({ patient: resolvedPatientId }).sort({ createdAt: -1 }).limit(5)
+        : [],
+      activeConsultId
+        ? Prescription.find({ consultation: activeConsultId, isDeleted: { $ne: true } }).sort({ createdAt: 1 })
+        : resolvedPatientId
+        ? Prescription.find({ patient: resolvedPatientId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(5)
+        : [],
+      activeConsultId
+        ? FollowUp.find({ consultation: activeConsultId }).populate('scheduledAppointment').sort({ createdAt: -1 })
+        : resolvedPatientId
+        ? FollowUp.find({ patient: resolvedPatientId }).populate('scheduledAppointment').sort({ createdAt: -1 }).limit(1)
+        : [],
+    ]);
+
+    // Format tooth findings
+    const toothFindings = [];
+    (toothRecords || []).forEach((tr) => {
+      const matchingHistory = (tr.history || []).filter(
+        (h) => !h.deleted && (activeConsultId ? (h.consultation && h.consultation.toString() === activeConsultId.toString()) : true)
+      );
+      if (matchingHistory.length > 0) {
+        matchingHistory.forEach((h) => {
+          toothFindings.push({
+            toothNumber: tr.toothNumber,
+            condition: h.condition || tr.currentCondition,
+            treatment: h.treatment || '',
+            notes: h.notes || '',
+            date: h.date,
+          });
+        });
+      } else if (tr.currentCondition && tr.currentCondition !== 'Healthy') {
+        toothFindings.push({
+          toothNumber: tr.toothNumber,
+          condition: tr.currentCondition,
+          treatment: '',
+          notes: '',
+        });
+      }
+    });
+
+    return res.json({
+      consultation,
+      patient,
+      doctor,
+      appointment,
+      queueEntry,
+      vitals: consultation?.vitals || patient?.vitals || null,
+      clinicalNotes: consultation?.clinicalNotes || consultation?.notes || appointment?.notes || '',
+      diagnoses,
+      toothFindings,
+      treatmentRecords,
+      treatmentPlans,
+      prescriptions,
+      followUp: followUps && followUps.length > 0 ? followUps[0] : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listConsultations,
   getDoctorTodayQueue,
   startConsultation,
   getConsultationById,
+  getConsultationCompleteSummary,
   closeConsultation,
   checkConsultationNotClosed,
   getDoctorSummary,

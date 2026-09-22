@@ -85,7 +85,7 @@ const patientSchema = new mongoose.Schema(
     },
     vitals: {
       type: mongoose.Schema.Types.Mixed,
-      default: { bp: '', rbs: '' },
+      default: {},
     },
     habits: {
       type: [String],

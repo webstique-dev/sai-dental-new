@@ -4,6 +4,7 @@ const {
   getDoctorTodayQueue,
   startConsultation,
   getConsultationById,
+  getConsultationCompleteSummary,
   closeConsultation,
   getDoctorSummary,
   findOrCreateConsultation,
@@ -19,8 +20,10 @@ router.use(protect, allowRoles('doctor', 'admin', 'receptionist'));
 router.get('/', listConsultations);
 router.get('/queue/today', getDoctorTodayQueue);
 router.get('/doctor-summary', getDoctorSummary);
+router.get('/summary/by-visit', getConsultationCompleteSummary);
 router.post('/start', startConsultation);
 router.post('/find-or-create', findOrCreateConsultation);
+router.get('/:id/complete-summary', getConsultationCompleteSummary);
 router.get('/:id', getConsultationById);
 router.post('/:id/close', closeConsultation);
 

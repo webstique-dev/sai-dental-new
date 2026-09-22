@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Pill, Plus, Trash2, Save, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
+import ConfirmModal from './ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 
 const COMMON_DURATIONS = ['3 Days', '5 Days', '7 Days', '10 Days', '14 Days', '1 Month'];
@@ -18,6 +19,7 @@ export default function PrescriptionEditModal({
   const { showSuccess, showError } = useNotification();
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [deletingMedicineIndex, setDeletingMedicineIndex] = useState(null);
 
   const [medicines, setMedicines] = useState([
     { medicine: '', dosage: '', frequency: '1-0-1', duration: '5 Days', instructions: 'After Food' },
@@ -80,12 +82,28 @@ export default function PrescriptionEditModal({
     ]);
   };
 
-  const handleRemoveMedicineRow = (index) => {
-    if (medicines.length <= 1) {
-      setMedicines([{ medicine: '', dosage: '', frequency: '1-0-1', duration: '5 Days', instructions: 'After Food' }]);
-      return;
+  const handleInitiateRemoveRow = (index) => {
+    const item = medicines[index];
+    if (item && (item.medicine?.trim() || item.dosage?.trim() || item.duration?.trim())) {
+      setDeletingMedicineIndex(index);
+    } else {
+      if (medicines.length <= 1) {
+        setMedicines([{ medicine: '', dosage: '', frequency: '1-0-1', duration: '5 Days', instructions: 'After Food' }]);
+      } else {
+        setMedicines((prev) => prev.filter((_, i) => i !== index));
+      }
     }
-    setMedicines((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const confirmDeleteMedicineRow = () => {
+    if (deletingMedicineIndex !== null) {
+      if (medicines.length <= 1) {
+        setMedicines([{ medicine: '', dosage: '', frequency: '1-0-1', duration: '5 Days', instructions: 'After Food' }]);
+      } else {
+        setMedicines((prev) => prev.filter((_, i) => i !== deletingMedicineIndex));
+      }
+      setDeletingMedicineIndex(null);
+    }
   };
 
   const handleMedicineChange = (index, field, value) => {
@@ -217,12 +235,12 @@ export default function PrescriptionEditModal({
                         {medicines.length > 1 && (
                           <button
                             type="button"
-                            onClick={() => handleRemoveMedicineRow(idx)}
+                            onClick={() => handleInitiateRemoveRow(idx)}
                             className="text-rose-600 hover:text-rose-700 p-1 hover:bg-rose-50 rounded transition-colors flex items-center gap-1 text-[10px] font-medium"
                             title="Remove Medicine"
                           >
-                            <Trash2 size={12} />
-                            <span className="hidden sm:inline text-[10px]">Remove</span>
+                            <Trash2 size={13} />
+                            <span>Remove</span>
                           </button>
                         )}
                       </div>
@@ -397,6 +415,22 @@ export default function PrescriptionEditModal({
           </div>
         </form>
       </div>
+
+      {/* CONFIRM DELETE MEDICINE ROW MODAL */}
+      <ConfirmModal
+        isOpen={deletingMedicineIndex !== null}
+        onClose={() => setDeletingMedicineIndex(null)}
+        onConfirm={confirmDeleteMedicineRow}
+        title="Confirm Delete Medicine"
+        message={
+          deletingMedicineIndex !== null && medicines[deletingMedicineIndex]?.medicine?.trim()
+            ? `Are you sure you want to remove "${medicines[deletingMedicineIndex].medicine.trim()}" from this prescription?`
+            : 'Are you sure you want to remove this medicine item from the prescription?'
+        }
+        confirmText="Delete Medicine"
+        cancelText="Cancel"
+        variant="delete"
+      />
     </div>,
     document.body
   );

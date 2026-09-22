@@ -10,6 +10,7 @@ build/
 out/
 **/out/
 Dump
+Test-Folder
 
 # Environment files & secrets
 .env

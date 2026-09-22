@@ -253,6 +253,17 @@ export default function PatientRegistration() {
     setSubmitting(true);
 
     try {
+      const cleanedVitals = {};
+      if (formData.vitals && typeof formData.vitals === 'object') {
+        Object.entries(formData.vitals).forEach(([k, v]) => {
+          if (typeof v === 'string' && v.trim()) {
+            cleanedVitals[k] = v.trim();
+          } else if (v !== null && v !== undefined && typeof v !== 'string' && v !== '') {
+            cleanedVitals[k] = v;
+          }
+        });
+      }
+
       const payload = {
         ...formData,
         firstName: formData.firstName ? formData.firstName.trim() : '',
@@ -263,6 +274,7 @@ export default function PatientRegistration() {
         address: formData.address ? formData.address.trim() : '',
         age: formData.age !== '' && formData.age !== undefined && !isNaN(formData.age) ? parseFloat(formData.age) : undefined,
         dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : undefined,
+        vitals: cleanedVitals,
       };
 
       const res = await api.post('/patients', payload);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
-  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp, Plus, Loader2
+  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp, Plus, UserPlus, Loader2, Edit3
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
@@ -10,6 +10,7 @@ import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import CreateAppointmentModal from '../../components/common/CreateAppointmentModal.jsx';
+import CompletedConsultationModal from '../../components/common/CompletedConsultationModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
@@ -343,16 +344,44 @@ export default function DoctorQueue() {
     refreshAll();
   }, []);
 
-  // Action Handler: Start or Continue Consultation
+  // Action Handler: Start or Continue Consultation (Launches consultation flow directly)
   const handleStartConsultation = async (entry) => {
-    if (entry.activeConsultationId) {
-      navigate(`/doctor/consultation/${entry.activeConsultationId}`);
+    const activeCId = entry.activeConsultationId || entry.consultation?._id || entry.consultation?.id || entry.consultation;
+    if (activeCId) {
+      navigate(`/doctor/consultation/${activeCId}`);
       return;
     }
 
-    if (entry.patient) {
-      setSelectedPatientForEdit(entry.patient);
-      setAppointmentForEdit(entry.appointment?._id || entry.appointment?.id || entry.appointment || null);
+    const itemId = entry._id || entry.id;
+    const aptId = entry.appointment?._id || entry.appointment?.id || (entry.type === 'Appointment' ? itemId : null);
+    const qId = entry.type !== 'Appointment' && !entry.appointment ? itemId : (entry.queueEntry?._id || entry.queueEntryId || null);
+    const patientId = entry.patient?._id || entry.patient?.id || entry.patient;
+
+    try {
+      setSubmittingId(itemId);
+      let res;
+      if (qId || aptId) {
+        res = await api.post('/consultations/start', {
+          queueEntryId: qId,
+          appointmentId: aptId,
+        });
+      } else if (patientId) {
+        res = await api.post('/consultations/find-or-create', {
+          patientId,
+          appointmentId: aptId,
+        });
+      }
+
+      const consultation = res?.data?.consultation;
+      if (consultation && (consultation._id || consultation.id)) {
+        navigate(`/doctor/consultation/${consultation._id || consultation.id}`);
+      } else {
+        showError('Could not start consultation.');
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to start consultation.');
+    } finally {
+      setSubmittingId(null);
     }
   };
 
@@ -476,6 +505,23 @@ export default function DoctorQueue() {
           >
             <Play size={13} fill="currentColor" />
             <span>Continue Consultation</span>
+          </button>
+        )}
+
+        {/* EDIT PATIENT REGISTRATION DETAILS ACTION */}
+        {item.patient && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPatientForEdit(item.patient);
+              setAppointmentForEdit(item.appointment?._id || item.appointment?.id || item.appointment || item._id || null);
+            }}
+            className="btn-secondary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-brand hover:text-brand transition-colors"
+            title="Edit Patient Registration Details"
+          >
+            <Edit3 size={13} className="text-amber-600" />
+            <span>Edit</span>
           </button>
         )}
 
@@ -750,6 +796,14 @@ export default function DoctorQueue() {
             </button>
           </div>
 
+          <Link
+            to="/doctor/patients/register"
+            className="btn-primary text-xs flex items-center gap-1.5 py-1.5 px-3 shadow-sm"
+          >
+            <UserPlus size={14} />
+            <span>Add Patient</span>
+          </Link>
+
           <button
             onClick={() => setIsCreateAppointmentOpen(true)}
             className="btn-primary text-xs flex items-center gap-1.5 py-1.5 px-3 shadow-sm"
@@ -978,8 +1032,7 @@ export default function DoctorQueue() {
                             return (
                               <tr
                                 key={entryId}
-                                onClick={() => handleStartConsultation(entry)}
-                                className="hover:bg-bg/60 transition-colors cursor-pointer"
+                                className="hover:bg-bg/60 transition-colors"
                               >
                                 <td className="px-5 py-4 whitespace-nowrap">
                                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-brand/10 text-brand font-mono text-sm font-bold border border-brand/20">
@@ -1324,8 +1377,7 @@ export default function DoctorQueue() {
                             return (
                               <tr
                                 key={aptId}
-                                onClick={() => handleStartConsultation(apt)}
-                                className="hover:bg-bg/60 transition-colors cursor-pointer"
+                                className="hover:bg-bg/60 transition-colors"
                               >
                                 <td className="px-5 py-4">
                                   <div className="font-bold text-ink">{patientName}</div>
@@ -1608,7 +1660,8 @@ export default function DoctorQueue() {
                             <th className="px-5 py-3.5 w-36">OP Number</th>
                             <th className="px-5 py-3.5 min-w-[200px]">Visit / Reason</th>
                             <th className="px-5 py-3.5 min-w-[200px]">Timings</th>
-                            <th className="px-5 py-3.5 w-40 text-center">Status</th>
+                            <th className="px-5 py-3.5 w-36 text-center">Status</th>
+                            <th className="px-5 py-3.5 w-28 text-right">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -1665,6 +1718,16 @@ export default function DoctorQueue() {
                                     Completed Today
                                   </span>
                                 </td>
+
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedVisitSummary(item)}
+                                    className="btn-secondary py-1.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-brand/40 hover:text-brand transition-colors"
+                                  >
+                                    <Eye size={13} /> View
+                                  </button>
+                                </td>
                               </tr>
                             );
                           })}
@@ -1705,14 +1768,26 @@ export default function DoctorQueue() {
                                 </div>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={(e) => toggleExpandCompletedToday(item.id, e)}
-                                className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
-                                aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
-                              >
-                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedVisitSummary(item);
+                                  }}
+                                  className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1"
+                                >
+                                  <Eye size={12} /> View
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => toggleExpandCompletedToday(item.id, e)}
+                                  className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0"
+                                  aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+                                >
+                                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </button>
+                              </div>
                             </div>
 
                             {isExpanded && (
@@ -1731,6 +1806,18 @@ export default function DoctorQueue() {
                                     <div>Check-In: <span className="font-semibold text-ink">{checkInStr}</span></div>
                                     <div>Start: <span className="font-semibold text-ink">{startStr}</span> • End: <span className="font-bold text-emerald-700">{endStr}</span></div>
                                   </div>
+                                </div>
+                                <div className="flex justify-end pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedVisitSummary(item);
+                                    }}
+                                    className="btn-secondary w-full py-1.5 px-3 text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+                                  >
+                                    <Eye size={13} /> View Completed Consultation Summary
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -2231,106 +2318,13 @@ export default function DoctorQueue() {
       )}
 
       {/* ========================================================================= */}
-      {/* BRIEF VISIT SUMMARY MODAL */}
+      {/* COMPLETED CONSULTATION COMPLETE DETAILS MODAL */}
       {/* ========================================================================= */}
-      {selectedVisitSummary && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
-          <div className="card w-full max-w-lg max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-2xl border-brand/20">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-surface shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-brand text-white flex items-center justify-center font-bold">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <h3 className="font-display text-base font-bold text-ink">
-                    Visit Summary
-                  </h3>
-                  <p className="text-xs text-ink-soft">
-                    Date:{' '}
-                    <strong className="text-ink">
-                      {new Date(selectedVisitSummary.date).toLocaleDateString(undefined, {
-                        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-                      })}
-                    </strong>
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSelectedVisitSummary(null)}
-                className="p-1.5 rounded-lg text-ink-soft hover:text-ink hover:bg-bg"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
-              <div className="p-3.5 rounded-xl bg-bg border border-border space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-sm font-bold text-ink">
-                    {[selectedVisitSummary.patient?.firstName, selectedVisitSummary.patient?.lastName].filter(Boolean).join(' ') || 'Patient'}
-                  </span>
-                  <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[selectedVisitSummary.status] || 'bg-slate-100'}`}>
-                    {selectedVisitSummary.status}
-                  </span>
-                </div>
-                <div className="text-xs text-ink-soft">
-                  OP Number: <strong className="font-mono text-brand font-bold">#{selectedVisitSummary.patient?.opNumber || 'N/A'}</strong>
-                  {selectedVisitSummary.patient?.age ? ` • Age: ${selectedVisitSummary.patient.age}y` : ''}
-                  {selectedVisitSummary.patient?.sex ? ` • Sex: ${selectedVisitSummary.patient.sex}` : ''}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border border-border bg-surface">
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Attending Doctor</span>
-                  <span className="font-semibold text-ink block">Dr. {selectedVisitSummary.doctor?.name || 'Staff Doctor'}</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Reason / Type</span>
-                  <span className="font-semibold text-brand block">{selectedVisitSummary.reason || 'General Consultation'}</span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Checked-In Time</span>
-                  <span className="font-mono text-ink block">
-                    {selectedVisitSummary.checkInTime ? new Date(selectedVisitSummary.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Consultation Time</span>
-                  <span className="font-mono text-ink block">
-                    {selectedVisitSummary.startTime ? new Date(selectedVisitSummary.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}{' '}
-                    to{' '}
-                    {selectedVisitSummary.endTime ? new Date(selectedVisitSummary.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (selectedVisitSummary.status === 'In Consultation' ? 'In Progress' : '—')}
-                  </span>
-                </div>
-              </div>
-
-              {selectedVisitSummary.notes && (
-                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 space-y-1">
-                  <span className="font-bold text-[10px] uppercase tracking-wider block text-amber-800">
-                    Visit Notes:
-                  </span>
-                  <p className="whitespace-pre-wrap text-xs">{selectedVisitSummary.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end px-5 py-3 border-t border-border bg-bg/50 shrink-0">
-              <button
-                type="button"
-                onClick={() => setSelectedVisitSummary(null)}
-                className="btn-secondary py-1.5 px-4 text-xs font-semibold"
-              >
-                Close Summary
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CompletedConsultationModal
+        isOpen={Boolean(selectedVisitSummary)}
+        item={selectedVisitSummary}
+        onClose={() => setSelectedVisitSummary(null)}
+      />
 
       <PatientDetailsEditModal
         isOpen={Boolean(selectedPatientForEdit)}

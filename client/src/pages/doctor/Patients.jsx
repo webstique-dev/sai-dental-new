@@ -7,6 +7,7 @@ import {
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
@@ -22,7 +23,7 @@ export default function DoctorPatients() {
   const [lastVisitFrom, setLastVisitFrom] = useState('');
   const [lastVisitTo, setLastVisitTo] = useState('');
   const [doctorId, setDoctorId] = useState('');
-  const [sort, setSort] = useState('lastVisit');
+  const [sort, setSort] = useState('recent');
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const limit = 15;
@@ -87,6 +88,15 @@ export default function DoctorPatients() {
     }
   };
 
+  // Real-time socket updates for new and edited patients
+  useSocketEvent('PATIENT_CREATED', () => {
+    fetchPatients();
+  });
+
+  useSocketEvent('PATIENT_UPDATED', () => {
+    fetchPatients();
+  });
+
   useEffect(() => {
     fetchPatients();
   }, [debouncedSearch, lastVisitFrom, lastVisitTo, doctorId, sort, sortOrder, page]);
@@ -125,7 +135,7 @@ export default function DoctorPatients() {
     setLastVisitFrom('');
     setLastVisitTo('');
     setDoctorId('');
-    setSort('lastVisit');
+    setSort('recent');
     setSortOrder('desc');
     setPage(1);
   };
@@ -246,9 +256,10 @@ export default function DoctorPatients() {
               value={sort}
               onChange={(e) => handleSortToggle(e.target.value)}
             >
+              <option value="recent">Recent Patients (Default)</option>
               <option value="lastVisit">Last Visit Date</option>
-              <option value="name">Patient Name</option>
               <option value="registrationDate">Registration Date</option>
+              <option value="name">Patient Name</option>
             </select>
           </div>
         </div>

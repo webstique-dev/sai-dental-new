@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   UserSquare2, ArrowLeft, History, Stethoscope, Activity, Pill, Calendar, Plus, Clock,
   FileHeart, HeartPulse, ShieldAlert, Phone, MapPin, Briefcase, UserCheck, CheckCircle2,
-  ChevronDown, ChevronUp, Eye, Edit3, CalendarClock, CalendarDays, CalendarCheck,
+  ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, Eye, Edit3, CalendarClock, CalendarDays, CalendarCheck,
   CheckCircle, XCircle, AlertCircle, Sparkles, ExternalLink, ArrowRight, X,
   Receipt, Wallet, CreditCard
 } from 'lucide-react';
@@ -157,17 +157,27 @@ export default function PatientProfileEMR() {
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('examination');
 
-  // Accordion state: all expanded by default for full visibility
+  // Accordion state: all accordions closed by default
   const [accordions, setAccordions] = useState({
-    details: true,
-    contact: true,
-    vitals: true,
-    medical: true,
-    dental: true,
+    details: false,
+    contact: false,
+    vitals: false,
+    medical: false,
+    dental: false,
   });
 
   const toggleAccordion = (key) => {
     setAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleToggleAllAccordions = (openState) => {
+    setAccordions({
+      details: openState,
+      contact: openState,
+      vitals: openState,
+      medical: openState,
+      dental: openState,
+    });
   };
 
   const fetchEMR = async () => {
@@ -354,11 +364,12 @@ export default function PatientProfileEMR() {
   const latestConsultation = emrData?.consultations?.[0];
   const vitals = latestConsultation?.examination?.vitals || patient.vitals || {};
 
-  const bp = vitals.bp || vitals.bloodPressure || '120/80 mmHg';
-  const pulse = vitals.pulse || vitals.heartRate || '72 bpm';
-  const temp = vitals.temperature || '98.6 °F';
-  const weight = vitals.weight || '65 kg';
-  const bloodGroup = patient.bloodGroup || vitals.bloodGroup || 'O+';
+  const bp = vitals.bp || vitals.bloodPressure || null;
+  const pulse = vitals.pulse || vitals.heartRate || null;
+  const temp = vitals.temperature || null;
+  const weight = vitals.weight || null;
+  const rbs = vitals.rbs || null;
+  const bloodGroup = patient.bloodGroup || vitals.bloodGroup || null;
 
   // Medical, Dental & Habit arrays/strings
   const medicalHistoryList = Array.isArray(patient.medicalHistory)
@@ -555,33 +566,55 @@ export default function PatientProfileEMR() {
         </div>
       </div>
 
-      {/* TWO-COLUMN RESPONSIVE LAYOUT (MATCHING CONSULTATION DESIGN) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* PATIENT REGISTRATION DETAILS (COLLAPSIBLE ACCORDIONS ON RIGHT COLUMN) */}
-        <div className="lg:col-span-4 lg:order-2 space-y-3 self-start">
+      {/* PATIENT REGISTRATION & CLINICAL SUMMARY ACCORDIONS (ABOVE TABS) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider">
+            Patient Summary & Clinical Records
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleToggleAllAccordions(true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-brand bg-brand-light/60 hover:bg-brand-light border border-brand/20 transition-colors shadow-2xs"
+              title="Open all sections"
+            >
+              <ChevronsDown size={12} /> Open All
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleAllAccordions(false)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-ink-soft hover:text-ink bg-surface hover:bg-bg border border-border transition-colors shadow-2xs"
+              title="Close all sections"
+            >
+              <ChevronsUp size={12} /> Close All
+            </button>
+          </div>
+        </div>
+
+        {/* Primary Patient Cards (Details, Contact, Vitals) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
           {/* Card 1: Core Registration Profile & Demographics */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm">
-            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
-              <button
-                type="button"
-                onClick={() => toggleAccordion('details')}
-                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
-              >
-                <span className="flex items-center gap-2">
-                  <UserSquare2 size={16} className="text-brand" /> Patient Details
-                </span>
-                {accordions.details ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => toggleAccordion('details')}
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <UserSquare2 size={16} className="text-brand" /> Patient Details
+              </span>
+              {accordions.details ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
 
             {accordions.details && (
-              <div className="p-4 pt-0 space-y-4 text-xs border-t border-border/60">
-                <div className="flex items-center gap-3.5 pt-3">
-                  <div className="h-12 w-12 rounded-2xl bg-brand text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-md">
+              <div className="p-4 pt-0 space-y-3.5 text-xs border-t border-border/60">
+                <div className="flex items-center gap-3 pt-3">
+                  <div className="h-11 w-11 rounded-2xl bg-brand text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
                     {fullName.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <h3 className="font-display text-base font-bold text-ink">{fullName}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-display text-sm font-bold text-ink truncate">{fullName}</h3>
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                       <span className="font-mono text-xs font-bold text-brand">OP #{patient.opNumber || 'N/A'}</span>
                       <span className={`badge text-[10px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
@@ -591,7 +624,7 @@ export default function PatientProfileEMR() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
                     <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Age / Sex</span>
                     <span className="font-semibold text-ink">{patient.age !== undefined && patient.age !== null && patient.age !== '' ? `${formatAge(patient.age, 'yrs')}` : 'N/A'} / {patient.sex || 'N/A'}</span>
@@ -608,44 +641,52 @@ export default function PatientProfileEMR() {
 
           {/* Card 2: Contact & Personal Information */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
-              <button
-                type="button"
-                onClick={() => toggleAccordion('contact')}
-                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
-              >
-                <span className="flex items-center gap-2">
-                  <Phone size={15} className="text-brand" /> Contact Information
-                </span>
-                {accordions.contact ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => toggleAccordion('contact')}
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Phone size={15} className="text-brand" /> Contact Information
+              </span>
+              {accordions.contact ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
 
             {accordions.contact && (
               <div className="p-4 pt-0 space-y-2.5 border-t border-border/60 pt-3">
-                <div className="space-y-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Primary Phone</span>
                     <span className="font-mono font-semibold text-ink text-xs">{patient.primaryPhone || patient.phone || 'N/A'}</span>
                   </div>
-                  {patient.secondaryPhone && (
+
+                  {patient.secondaryPhone ? (
                     <div>
                       <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Secondary Phone</span>
                       <span className="font-mono font-semibold text-ink text-xs">{patient.secondaryPhone}</span>
                     </div>
+                  ) : (
+                    <div>
+                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
+                      <span className="font-medium text-ink">{regDateStr}</span>
+                    </div>
                   )}
                 </div>
 
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Occupation</span>
-                  <span className="font-medium text-ink flex items-center gap-1">
-                    <Briefcase size={12} className="text-ink-soft shrink-0" /> {patient.occupation || 'N/A'}
-                  </span>
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Occupation</span>
+                    <span className="font-medium text-ink flex items-center gap-1">
+                      <Briefcase size={12} className="text-ink-soft shrink-0" /> {patient.occupation || 'N/A'}
+                    </span>
+                  </div>
 
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
-                  <span className="font-medium text-ink">{regDateStr}</span>
+                  {patient.secondaryPhone && (
+                    <div>
+                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
+                      <span className="font-medium text-ink">{regDateStr}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -660,60 +701,94 @@ export default function PatientProfileEMR() {
 
           {/* Card 3: Clinical Vitals */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
-              <button
-                type="button"
-                onClick={() => toggleAccordion('vitals')}
-                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
-              >
-                <span className="flex items-center gap-2">
-                  <HeartPulse size={15} className="text-rose-600" /> Patient Vitals
-                </span>
-                {accordions.vitals ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => toggleAccordion('vitals')}
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <HeartPulse size={15} className="text-rose-600" /> Patient Vitals
+              </span>
+              {accordions.vitals ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
 
             {accordions.vitals && (
               <div className="p-4 pt-0 border-t border-border/60 pt-3">
                 <div className="grid grid-cols-2 gap-2.5">
                   <div className="p-2.5 rounded-xl bg-bg border border-border">
                     <span className="text-[10px] text-ink-soft block font-semibold">Blood Pressure</span>
-                    <span className="font-mono font-bold text-ink text-xs">{bp}</span>
+                    <span className={`font-mono font-bold text-xs ${bp ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {bp || 'Not recorded'}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-bg border border-border">
+                    <span className="text-[10px] text-ink-soft block font-semibold">Random Blood Sugar</span>
+                    <span className={`font-mono font-bold text-xs ${rbs ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {rbs || 'Not recorded'}
+                    </span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-bg border border-border">
                     <span className="text-[10px] text-ink-soft block font-semibold">Heart Rate</span>
-                    <span className="font-mono font-bold text-ink text-xs">{pulse}</span>
+                    <span className={`font-mono font-bold text-xs ${pulse ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {pulse || 'Not recorded'}
+                    </span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-bg border border-border">
                     <span className="text-[10px] text-ink-soft block font-semibold">Temperature</span>
-                    <span className="font-mono font-bold text-ink text-xs">{temp}</span>
+                    <span className={`font-mono font-bold text-xs ${temp ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {temp || 'Not recorded'}
+                    </span>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-bg border border-border">
-                    <span className="text-[10px] text-ink-soft block font-semibold">Blood Group</span>
-                    <span className="font-mono font-bold text-brand text-xs">{bloodGroup}</span>
-                  </div>
+                  {weight && (
+                    <div className="p-2.5 rounded-xl bg-bg border border-border">
+                      <span className="text-[10px] text-ink-soft block font-semibold">Weight</span>
+                      <span className="font-mono font-bold text-ink text-xs">{weight}</span>
+                    </div>
+                  )}
+
+                  {bloodGroup && (
+                    <div className="p-2.5 rounded-xl bg-bg border border-border col-span-2">
+                      <span className="text-[10px] text-ink-soft block font-semibold">Blood Group</span>
+                      <span className="font-mono font-bold text-brand text-xs">{bloodGroup}</span>
+                    </div>
+                  )}
+
+                  {/* Render any custom added vitals */}
+                  {Object.entries(vitals).map(([key, val]) => {
+                    if (['bp', 'bloodPressure', 'rbs', 'pulse', 'heartRate', 'temperature', 'weight', 'bloodGroup'].includes(key) || !val) {
+                      return null;
+                    }
+                    return (
+                      <div key={key} className="p-2.5 rounded-xl bg-bg border border-border">
+                        <span className="text-[10px] text-ink-soft block font-semibold">{key}</span>
+                        <span className="font-mono font-bold text-ink text-xs">{String(val)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </div>
+        </div>
 
+        {/* Clinical History & Habits Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           {/* Card 4: Medical History & Allergies */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
-              <button
-                type="button"
-                onClick={() => toggleAccordion('medical')}
-                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
-              >
-                <span className="flex items-center gap-2">
-                  <ShieldAlert size={15} className="text-amber-600" /> Medical History & Allergies
-                </span>
-                {accordions.medical ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => toggleAccordion('medical')}
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <ShieldAlert size={15} className="text-amber-600" /> Medical History & Allergies
+              </span>
+              {accordions.medical ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
 
             {accordions.medical && (
               <div className="p-4 pt-0 space-y-3 border-t border-border/60 pt-3">
@@ -761,18 +836,16 @@ export default function PatientProfileEMR() {
 
           {/* Card 5: Past Dental History & Personal Habits */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <div className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink">
-              <button
-                type="button"
-                onClick={() => toggleAccordion('dental')}
-                className="flex items-center justify-between gap-2 hover:text-brand transition-colors w-full"
-              >
-                <span className="flex items-center gap-2">
-                  <Stethoscope size={15} className="text-brand" /> Dental History & Habits
-                </span>
-                {accordions.dental ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => toggleAccordion('dental')}
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Stethoscope size={15} className="text-brand" /> Dental History & Habits
+              </span>
+              {accordions.dental ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+            </button>
 
             {accordions.dental && (
               <div className="p-4 pt-0 space-y-3.5 border-t border-border/60 pt-3">
@@ -833,45 +906,46 @@ export default function PatientProfileEMR() {
             )}
           </div>
         </div>
+      </div>
 
-        {/* CLINICAL CONTENT COLUMN WITH CONSULTATION-STYLE TABS (LEFT COLUMN) */}
-        <div className="lg:col-span-8 lg:order-1 space-y-4">
-          {/* PROFILE TAB BAR (MATCHING CONSULTATION TABS) */}
-          <div className="flex border-b border-border space-x-1 overflow-x-auto scrollbar-none">
-            {PROFILE_TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              let badgeCount = null;
-              if (tab.id === 'examination') badgeCount = emrData?.consultations?.length;
-              if (tab.id === 'treatment-plan') badgeCount = allTreatmentPlans.length > 0 ? allTreatmentPlans.length : null;
-              if (tab.id === 'followups-appointments') badgeCount = combinedUpcoming.length > 0 ? combinedUpcoming.length : null;
-              if (tab.id === 'billing') badgeCount = billingInvoices.length > 0 ? billingInvoices.length : null;
+      {/* CLINICAL CONTENT SECTION WITH FULL-WIDTH TABS (BELOW ACCORDIONS) */}
+      <div className="space-y-4 pt-2">
+        {/* PROFILE TAB BAR (MATCHING CONSULTATION TABS) */}
+        <div className="flex border-b border-border space-x-1 overflow-x-auto scrollbar-none">
+          {PROFILE_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            let badgeCount = null;
+            if (tab.id === 'examination') badgeCount = emrData?.consultations?.length;
+            if (tab.id === 'treatment-plan') badgeCount = allTreatmentPlans.length > 0 ? allTreatmentPlans.length : null;
+            if (tab.id === 'followups-appointments') badgeCount = combinedUpcoming.length > 0 ? combinedUpcoming.length : null;
+            if (tab.id === 'billing') badgeCount = billingInvoices.length > 0 ? billingInvoices.length : null;
 
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'border-brand text-brand font-bold'
-                      : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                  }`}
-                >
-                  <Icon size={16} />
-                  <span>{tab.label}</span>
-                  {badgeCount !== null && badgeCount !== undefined && badgeCount > 0 && (
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                        isActive ? 'bg-brand-light text-brand-dark' : 'bg-bg text-ink-soft'
-                      }`}
-                    >
-                      {badgeCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'border-brand text-brand font-bold'
+                    : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                }`}
+              >
+                <Icon size={16} />
+                <span>{tab.label}</span>
+                {badgeCount !== null && badgeCount !== undefined && badgeCount > 0 && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                      isActive ? 'bg-brand-light text-brand-dark' : 'bg-bg text-ink-soft'
+                    }`}
+                  >
+                    {badgeCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
           {/* TAB 1: DOCTOR EXAMINATION HISTORY */}
           <div className={activeTab === 'examination' ? 'block space-y-4 animate-fadeIn' : 'hidden'}>
@@ -1471,7 +1545,6 @@ export default function PatientProfileEMR() {
             <PatientBillingSummary billing={billing} showHeader={true} />
           </div>
         </div>
-      </div>
 
       {/* EDIT PATIENT DETAILS MODAL */}
       <PatientDetailsEditModal

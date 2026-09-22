@@ -10,6 +10,7 @@ import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { TableSkeleton, PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
 export default function AdminPatients() {
@@ -66,6 +67,14 @@ export default function AdminPatients() {
       setLoading(false);
     }
   };
+
+  useSocketEvent('PATIENT_CREATED', () => {
+    fetchPatients(page);
+  });
+
+  useSocketEvent('PATIENT_UPDATED', () => {
+    fetchPatients(page);
+  });
 
   useEffect(() => {
     fetchPatients(1);
@@ -180,8 +189,8 @@ export default function AdminPatients() {
           : [],
         currentMedications: editForm.currentMedications.trim(),
         vitals: {
-          bp: editForm.bp.trim(),
-          rbs: editForm.rbs.trim(),
+          ...(editForm.bp.trim() ? { bp: editForm.bp.trim() } : {}),
+          ...(editForm.rbs.trim() ? { rbs: editForm.rbs.trim() } : {}),
         },
         habits: editForm.habits
           ? editForm.habits.split(',').map((s) => s.trim()).filter(Boolean)
@@ -676,8 +685,8 @@ export default function AdminPatients() {
                 <div>
                   <div className="font-semibold text-ink-soft mb-1">Vitals</div>
                   <div className="p-2.5 bg-bg rounded border border-border text-ink flex gap-4">
-                    <span>BP: <strong>{selectedPatient.vitals?.bp || 'N/A'}</strong></span>
-                    <span>RBS: <strong>{selectedPatient.vitals?.rbs || 'N/A'}</strong></span>
+                    <span>BP: <strong className={selectedPatient.vitals?.bp ? '' : 'font-normal italic text-ink-soft'}>{selectedPatient.vitals?.bp || 'Not recorded'}</strong></span>
+                    <span>RBS: <strong className={selectedPatient.vitals?.rbs ? '' : 'font-normal italic text-ink-soft'}>{selectedPatient.vitals?.rbs || 'Not recorded'}</strong></span>
                   </div>
                 </div>
                 <div>

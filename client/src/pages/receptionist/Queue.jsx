@@ -8,6 +8,7 @@ import {
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
+import CompletedConsultationModal from '../../components/common/CompletedConsultationModal.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
@@ -1460,6 +1461,13 @@ export default function Queue() {
         cancelText="Keep in Queue"
         variant="cancel"
         loading={cancellingQueue}
+      />
+
+      {/* COMPLETED CONSULTATION COMPLETE DETAILS MODAL */}
+      <CompletedConsultationModal
+        isOpen={Boolean(selectedVisitSummary)}
+        item={selectedVisitSummary}
+        onClose={() => setSelectedVisitSummary(null)}
       />
     </>
   );

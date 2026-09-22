@@ -231,6 +231,17 @@ export default function PatientDetail() {
     setEditFeedback({ type: '', msg: '' });
 
     try {
+      const cleanedVitals = {};
+      if (editForm.vitals && typeof editForm.vitals === 'object') {
+        Object.entries(editForm.vitals).forEach(([k, v]) => {
+          if (typeof v === 'string' && v.trim()) {
+            cleanedVitals[k] = v.trim();
+          } else if (v !== null && v !== undefined && typeof v !== 'string' && v !== '') {
+            cleanedVitals[k] = v;
+          }
+        });
+      }
+
       const payload = {
         ...editForm,
         firstName: editForm.firstName ? editForm.firstName.trim() : '',
@@ -241,6 +252,7 @@ export default function PatientDetail() {
         address: editForm.address ? editForm.address.trim() : '',
         age: editForm.age !== '' && editForm.age !== undefined && !isNaN(editForm.age) ? parseFloat(editForm.age) : undefined,
         dateOfBirth: editForm.dateOfBirth ? editForm.dateOfBirth : null,
+        vitals: cleanedVitals,
       };
 
       const res = await api.patch(`/patients/${id}`, payload);
@@ -425,11 +437,15 @@ export default function PatientDetail() {
             <div className="flex flex-wrap gap-x-8 gap-y-3">
               <div>
                 <span className="text-xs text-ink-soft block font-medium">Blood Pressure (BP)</span>
-                <p className="font-semibold text-ink mt-0.5">{patient.vitals?.bp || 'Not measured'}</p>
+                <p className={`font-semibold mt-0.5 ${patient.vitals?.bp ? 'text-ink font-mono' : 'text-ink-soft italic font-normal'}`}>
+                  {patient.vitals?.bp || 'Not recorded'}
+                </p>
               </div>
               <div>
                 <span className="text-xs text-ink-soft block font-medium">Random Blood Sugar (RBS)</span>
-                <p className="font-semibold text-ink mt-0.5">{patient.vitals?.rbs || 'Not measured'}</p>
+                <p className={`font-semibold mt-0.5 ${patient.vitals?.rbs ? 'text-ink font-mono' : 'text-ink-soft italic font-normal'}`}>
+                  {patient.vitals?.rbs || 'Not recorded'}
+                </p>
               </div>
               {patient.vitals && Object.entries(patient.vitals).map(([key, val]) => {
                 if (key === 'bp' || key === 'rbs' || !val) return null;

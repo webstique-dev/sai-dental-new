@@ -64,10 +64,10 @@ async function listFollowUps(req, res, next) {
   }
 }
 
-// POST /api/follow-ups (Direct scheduling action: creates FollowUp + linked Appointment with status = Scheduled)
+// POST /api/follow-ups (Direct scheduling action: creates or updates FollowUp + linked Appointment with status = Scheduled)
 async function createFollowUp(req, res, next) {
   try {
-    const { patient, doctor, consultation, recommendedDate, time, reason, instructions, notes, treatmentStatus } = req.body;
+    const { followUpId, patient, doctor, consultation, recommendedDate, time, reason, instructions, notes, treatmentStatus } = req.body;
 
     if (!patient) {
       return res.status(400).json({ message: 'Patient selection is required.' });
@@ -83,6 +83,74 @@ async function createFollowUp(req, res, next) {
     }
     if (!reason || !reason.trim()) {
       return res.status(400).json({ message: 'Reason / Procedure is required.' });
+    }
+
+    // Check if an existing follow-up exists by ID or by active consultation to prevent duplicate bookings
+    let existingFollowUp = null;
+    if (followUpId) {
+      existingFollowUp = await FollowUp.findById(followUpId);
+    } else if (consultation) {
+      existingFollowUp = await FollowUp.findOne({
+        consultation,
+        status: { $nin: ['Completed', 'Cancelled'] },
+      });
+    }
+
+    if (existingFollowUp) {
+      existingFollowUp.doctor = doctor;
+      existingFollowUp.recommendedDate = recommendedDate;
+      existingFollowUp.reason = reason.trim();
+      existingFollowUp.instructions = instructions || '';
+      existingFollowUp.notes = notes || '';
+      existingFollowUp.treatmentStatus = treatmentStatus || '';
+      existingFollowUp.status = 'Scheduled';
+      if (consultation && !existingFollowUp.consultation) {
+        existingFollowUp.consultation = consultation;
+      }
+
+      let appt = null;
+      if (existingFollowUp.scheduledAppointment) {
+        appt = await Appointment.findById(existingFollowUp.scheduledAppointment);
+      }
+
+      if (!appt) {
+        appt = new Appointment({
+          patient,
+          doctor,
+          date: recommendedDate,
+          time: time || '10:00 AM',
+          reason: reason.trim(),
+          type: 'Appointment',
+          status: 'Scheduled',
+          followUp: existingFollowUp._id,
+          createdBy: req.user ? req.user._id : undefined,
+        });
+      } else {
+        appt.doctor = doctor;
+        appt.date = recommendedDate;
+        appt.time = time || '10:00 AM';
+        appt.reason = reason.trim();
+        appt.status = 'Scheduled';
+      }
+      await appt.save();
+
+      existingFollowUp.scheduledAppointment = appt._id;
+      await existingFollowUp.save();
+
+      const populated = await FollowUp.findById(existingFollowUp._id)
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
+        .populate('doctor', 'name specialization')
+        .populate({
+          path: 'scheduledAppointment',
+          populate: { path: 'doctor', select: 'name specialization' },
+        })
+        .populate('createdBy', 'name email');
+
+      return res.json({
+        message: 'Follow-up updated successfully',
+        followUp: populated,
+        appointment: appt,
+      });
     }
 
     const followUp = new FollowUp({
@@ -131,6 +199,76 @@ async function createFollowUp(req, res, next) {
       message: 'Follow-up created and appointment scheduled successfully',
       followUp: populated,
       appointment: newAppt,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PUT /api/follow-ups/:id (Update existing follow-up and linked appointment)
+async function updateFollowUp(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { doctor, recommendedDate, time, reason, instructions, notes, treatmentStatus } = req.body;
+
+    const followUp = await FollowUp.findById(id);
+    if (!followUp) {
+      return res.status(404).json({ message: 'Follow-up record not found.' });
+    }
+
+    if (doctor) followUp.doctor = doctor;
+    if (recommendedDate) followUp.recommendedDate = recommendedDate;
+    if (reason !== undefined) followUp.reason = String(reason).trim();
+    if (instructions !== undefined) followUp.instructions = instructions;
+    if (notes !== undefined) followUp.notes = notes;
+    if (treatmentStatus !== undefined) followUp.treatmentStatus = treatmentStatus;
+    if (followUp.status === 'Pending' && recommendedDate) {
+      followUp.status = 'Scheduled';
+    }
+
+    let appt = null;
+    if (followUp.scheduledAppointment) {
+      appt = await Appointment.findById(followUp.scheduledAppointment);
+    }
+
+    if (appt) {
+      if (doctor) appt.doctor = doctor;
+      if (recommendedDate) appt.date = recommendedDate;
+      if (time) appt.time = time;
+      if (reason) appt.reason = String(reason).trim();
+      appt.status = 'Scheduled';
+      await appt.save();
+    } else if (recommendedDate) {
+      appt = new Appointment({
+        patient: followUp.patient,
+        doctor: doctor || followUp.doctor,
+        date: recommendedDate,
+        time: time || '10:00 AM',
+        reason: reason || followUp.reason || 'Follow-Up Visit',
+        type: 'Appointment',
+        status: 'Scheduled',
+        followUp: followUp._id,
+        createdBy: req.user ? req.user._id : undefined,
+      });
+      await appt.save();
+      followUp.scheduledAppointment = appt._id;
+    }
+
+    await followUp.save();
+
+    const populated = await FollowUp.findById(followUp._id)
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
+      .populate('doctor', 'name specialization')
+      .populate({
+        path: 'scheduledAppointment',
+        populate: { path: 'doctor', select: 'name specialization' },
+      })
+      .populate('createdBy', 'name email');
+
+    return res.json({
+      message: 'Follow-up updated successfully',
+      followUp: populated,
+      appointment: appt,
     });
   } catch (err) {
     next(err);
@@ -409,6 +547,7 @@ async function cancelFollowUp(req, res, next) {
 module.exports = {
   listFollowUps,
   createFollowUp,
+  updateFollowUp,
   scheduleFollowUp,
   getLastDoctorForPatient,
   checkInFollowUp,

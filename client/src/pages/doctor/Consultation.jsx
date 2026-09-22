@@ -4,24 +4,19 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, UserSquare2, Phone, Calendar, Stethoscope, FileText,
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
-  Check, Lock, X, LogOut, ChevronDown, ChevronUp, HeartPulse, ShieldAlert, MapPin, Briefcase,
-  Wallet, Receipt
+  Check, Lock, X, LogOut, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, HeartPulse, ShieldAlert, MapPin, Briefcase,
+  Wallet, Receipt, Info
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
-import DatePicker from '../../components/common/DatePicker.jsx';
-import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
-import EditableCombobox from '../../components/common/EditableCombobox.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
 import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
 import PrescriptionsTab from './consultation/PrescriptionsTab.jsx';
 import InvestigationsTab from './consultation/InvestigationsTab.jsx';
 import BillingTab from './consultation/BillingTab.jsx';
 import PatientBillingSummary from '../../components/common/PatientBillingSummary.jsx';
-import { TOOTH_CONDITIONS } from '../../constants/toothConditions.js';
-import { FOLLOW_UP_REASONS, PROCEDURE_TREATMENT_STATUSES } from '../../constants/followUpOptions.js';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
@@ -42,11 +37,11 @@ export default function Consultation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Accordion state: first 3 expanded by default, 4 & 5 collapsed by default
+  // Accordion state: all accordions closed by default
   const [accordions, setAccordions] = useState({
-    details: true,
-    contact: true,
-    vitals: true,
+    details: false,
+    contact: false,
+    vitals: false,
     medical: false,
     dental: false,
   });
@@ -55,18 +50,20 @@ export default function Consultation() {
     setAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Close Consultation & Follow-Up Modal State
+  const handleToggleAllAccordions = (openState) => {
+    setAccordions({
+      details: openState,
+      contact: openState,
+      vitals: openState,
+      medical: openState,
+      dental: openState,
+    });
+  };
+
+  // Close Consultation Modal State
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [enableFollowUp, setEnableFollowUp] = useState(false);
   const [closeNotes, setCloseNotes] = useState('');
-  const [followUpForm, setFollowUpForm] = useState({
-    recommendedDate: '',
-    time: '10:00 AM',
-    reason: '',
-    instructions: '',
-    treatmentStatus: '',
-  });
-  const [existingFollowUpId, setExistingFollowUpId] = useState(null);
+  const [scheduledFollowUp, setScheduledFollowUp] = useState(null);
   const [closeModalError, setCloseModalError] = useState('');
   const [closeSuccessMsg, setCloseSuccessMsg] = useState('');
   const [closing, setClosing] = useState(false);
@@ -89,60 +86,23 @@ export default function Consultation() {
     }
   }, [consultationId]);
 
-  const formatDateForInput = (d) => {
-    if (!d) return '';
-    const dateObj = new Date(d);
-    if (isNaN(dateObj.getTime())) return '';
-    return dateObj.toISOString().split('T')[0];
-  };
-
   const handleOpenCloseModal = async () => {
     setCloseModalError('');
     setCloseSuccessMsg('');
     setCloseNotes('');
 
-    const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() + 7);
-    const defaultDateStr = defaultDate.toISOString().split('T')[0];
-
     try {
-      // Check if a follow-up already exists for this consultation
+      // Check if a follow-up is already scheduled for this consultation
       const res = await api.get(`/follow-ups?consultation=${consultationId}`);
       const list = res.data?.followUps || [];
       if (list.length > 0) {
-        const existing = list[0];
-        setExistingFollowUpId(existing._id || existing.id);
-        setEnableFollowUp(true);
-        const existingTime = existing.scheduledAppointment?.time || '10:00 AM';
-        setFollowUpForm({
-          recommendedDate: formatDateForInput(existing.recommendedDate) || defaultDateStr,
-          time: existingTime,
-          reason: existing.reason || '',
-          instructions: existing.instructions || '',
-          treatmentStatus: existing.treatmentStatus || '',
-        });
+        setScheduledFollowUp(list[0]);
       } else {
-        setExistingFollowUpId(null);
-        setEnableFollowUp(false);
-        setFollowUpForm({
-          recommendedDate: defaultDateStr,
-          time: '10:00 AM',
-          reason: '',
-          instructions: '',
-          treatmentStatus: '',
-        });
+        setScheduledFollowUp(null);
       }
     } catch (err) {
       console.error('Failed to check existing follow-up:', err);
-      setExistingFollowUpId(null);
-      setEnableFollowUp(false);
-      setFollowUpForm({
-        recommendedDate: defaultDateStr,
-        time: '10:00 AM',
-        reason: '',
-        instructions: '',
-        treatmentStatus: '',
-      });
+      setScheduledFollowUp(null);
     }
 
     setShowCloseModal(true);
@@ -152,32 +112,16 @@ export default function Consultation() {
     if (e) e.preventDefault();
     setCloseModalError('');
     setCloseSuccessMsg('');
-
-    if (enableFollowUp) {
-      if (!followUpForm.recommendedDate) {
-        setCloseModalError('Please select a recommended follow-up date.');
-        return;
-      }
-    }
-
     setClosing(true);
+
     try {
       const payload = {
         closeNotes: closeNotes.trim(),
-        followUp: enableFollowUp
-          ? {
-            recommendedDate: followUpForm.recommendedDate,
-            time: followUpForm.time || '10:00 AM',
-            reason: followUpForm.reason.trim(),
-            instructions: followUpForm.instructions.trim(),
-            treatmentStatus: followUpForm.treatmentStatus.trim(),
-          }
-          : null,
       };
 
       const res = await api.post(`/consultations/${consultationId}/close`, payload);
 
-      const savedFu = res.data?.followUp;
+      const savedFu = res.data?.followUp || scheduledFollowUp;
       let successStr = 'Consultation closed successfully.';
       if (savedFu && savedFu.recommendedDate) {
         const recDateStr = new Date(savedFu.recommendedDate).toLocaleDateString(undefined, {
@@ -185,8 +129,8 @@ export default function Consultation() {
           day: 'numeric',
           year: 'numeric',
         });
-        const timeStr = followUpForm.time ? ` at ${followUpForm.time}` : '';
-        successStr = `Consultation closed • Follow-up scheduled for ${recDateStr}${timeStr}`;
+        const timeStr = savedFu.scheduledAppointment?.time ? ` at ${savedFu.scheduledAppointment.time}` : '';
+        successStr = `Consultation closed • Follow-up preserved for ${recDateStr}${timeStr}`;
       }
 
       setCloseSuccessMsg(successStr);
@@ -277,10 +221,11 @@ export default function Consultation() {
   const pType = patient.patientType || (patient.age !== undefined && patient.age !== null && Number(patient.age) < 12 ? 'child' : 'adult');
 
   const vitals = patient.vitals || {};
-  const bp = vitals.bp || vitals.bloodPressure || '120/80 mmHg';
-  const pulse = vitals.pulse || vitals.heartRate || '72 bpm';
-  const temp = vitals.temperature || '98.6 °F';
-  const bloodGroup = patient.bloodGroup || vitals.bloodGroup || 'O+';
+  const bp = vitals.bp || vitals.bloodPressure || null;
+  const pulse = vitals.pulse || vitals.heartRate || null;
+  const temp = vitals.temperature || null;
+  const rbs = vitals.rbs || null;
+  const bloodGroup = patient.bloodGroup || vitals.bloodGroup || null;
 
   const medicalHistoryList = Array.isArray(patient.medicalHistory)
     ? patient.medicalHistory
@@ -342,16 +287,40 @@ export default function Consultation() {
         </div>
       )}
 
-      {/* TWO-COLUMN RESPONSIVE LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* PATIENT REGISTRATION DETAILS (COLLAPSIBLE ACCORDIONS) */}
-        <div className="lg:col-span-4 lg:order-2 space-y-3 self-start">
+      {/* PATIENT REGISTRATION & CLINICAL SUMMARY ACCORDIONS (ABOVE TABS) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider">
+            Patient Summary & Clinical Records
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleToggleAllAccordions(true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-brand bg-brand-light/60 hover:bg-brand-light border border-brand/20 transition-colors shadow-2xs"
+              title="Open all sections"
+            >
+              <ChevronsDown size={12} /> Open All
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleAllAccordions(false)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-ink-soft hover:text-ink bg-surface hover:bg-bg border border-border transition-colors shadow-2xs"
+              title="Close all sections"
+            >
+              <ChevronsUp size={12} /> Close All
+            </button>
+          </div>
+        </div>
+
+        {/* Primary Patient Cards (Details, Contact, Vitals) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
           {/* Card 1: Core Registration Profile & Demographics */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm">
             <button
               type="button"
               onClick={() => toggleAccordion('details')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
             >
               <span className="flex items-center gap-2">
                 <UserSquare2 size={16} className="text-brand" /> Patient Details
@@ -360,13 +329,13 @@ export default function Consultation() {
             </button>
 
             {accordions.details && (
-              <div className="p-4 pt-0 space-y-4 text-xs border-t border-border/60">
-                <div className="flex items-center gap-3.5 pt-3">
-                  <div className="h-12 w-12 rounded-2xl bg-brand text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-md">
+              <div className="p-4 pt-0 space-y-3.5 text-xs border-t border-border/60">
+                <div className="flex items-center gap-3 pt-3">
+                  <div className="h-11 w-11 rounded-2xl bg-brand text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
                     {fullName.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <h3 className="font-display text-base font-bold text-ink">{fullName}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-display text-sm font-bold text-ink truncate">{fullName}</h3>
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                       <span className="font-mono text-xs font-bold text-brand">OP #{patient.opNumber || 'N/A'}</span>
                       <span className={`badge text-[10px] py-0 px-1.5 font-bold ${pType === 'child' ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
@@ -376,7 +345,7 @@ export default function Consultation() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
                     <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Age / Sex</span>
                     <span className="font-semibold text-ink">{patient.age !== undefined && patient.age !== null && patient.age !== '' ? `${formatAge(patient.age, 'yrs')}` : 'N/A'} / {patient.sex || 'N/A'}</span>
@@ -396,7 +365,7 @@ export default function Consultation() {
             <button
               type="button"
               onClick={() => toggleAccordion('contact')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
             >
               <span className="flex items-center gap-2">
                 <Phone size={15} className="text-brand" /> Contact Information
@@ -406,28 +375,39 @@ export default function Consultation() {
 
             {accordions.contact && (
               <div className="p-4 pt-0 space-y-2.5 border-t border-border/60 pt-3">
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Primary Phone</span>
-                  <span className="font-mono font-semibold text-ink text-xs">{patient.primaryPhone || patient.phone || 'N/A'}</span>
-                </div>
-
-                {patient.secondaryPhone && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Secondary Phone</span>
-                    <span className="font-mono font-semibold text-ink text-xs">{patient.secondaryPhone}</span>
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Primary Phone</span>
+                    <span className="font-mono font-semibold text-ink text-xs">{patient.primaryPhone || patient.phone || 'N/A'}</span>
                   </div>
-                )}
 
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Occupation</span>
-                  <span className="font-medium text-ink flex items-center gap-1">
-                    <Briefcase size={12} className="text-ink-soft shrink-0" /> {patient.occupation || 'N/A'}
-                  </span>
+                  {patient.secondaryPhone ? (
+                    <div>
+                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Secondary Phone</span>
+                      <span className="font-mono font-semibold text-ink text-xs">{patient.secondaryPhone}</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
+                      <span className="font-medium text-ink">{regDateStr}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
-                  <span className="font-medium text-ink">{regDateStr}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Occupation</span>
+                    <span className="font-medium text-ink flex items-center gap-1">
+                      <Briefcase size={12} className="text-ink-soft shrink-0" /> {patient.occupation || 'N/A'}
+                    </span>
+                  </div>
+
+                  {patient.secondaryPhone && (
+                    <div>
+                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
+                      <span className="font-medium text-ink">{regDateStr}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -445,7 +425,7 @@ export default function Consultation() {
             <button
               type="button"
               onClick={() => toggleAccordion('vitals')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
             >
               <span className="flex items-center gap-2">
                 <HeartPulse size={15} className="text-rose-600" /> Patient Vitals
@@ -458,34 +438,64 @@ export default function Consultation() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <div className="p-2.5 rounded-xl bg-bg border border-border">
                     <span className="text-[10px] text-ink-soft block font-semibold">Blood Pressure</span>
-                    <span className="font-mono font-bold text-ink text-xs">{bp}</span>
+                    <span className={`font-mono font-bold text-xs ${bp ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {bp || 'Not recorded'}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-bg border border-border">
+                    <span className="text-[10px] text-ink-soft block font-semibold">Random Blood Sugar</span>
+                    <span className={`font-mono font-bold text-xs ${rbs ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {rbs || 'Not recorded'}
+                    </span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-bg border border-border">
                     <span className="text-[10px] text-ink-soft block font-semibold">Heart Rate</span>
-                    <span className="font-mono font-bold text-ink text-xs">{pulse}</span>
+                    <span className={`font-mono font-bold text-xs ${pulse ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {pulse || 'Not recorded'}
+                    </span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-bg border border-border">
                     <span className="text-[10px] text-ink-soft block font-semibold">Temperature</span>
-                    <span className="font-mono font-bold text-ink text-xs">{temp}</span>
+                    <span className={`font-mono font-bold text-xs ${temp ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
+                      {temp || 'Not recorded'}
+                    </span>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-bg border border-border">
-                    <span className="text-[10px] text-ink-soft block font-semibold">Blood Group</span>
-                    <span className="font-mono font-bold text-brand text-xs">{bloodGroup}</span>
-                  </div>
+                  {bloodGroup && (
+                    <div className="p-2.5 rounded-xl bg-bg border border-border col-span-2">
+                      <span className="text-[10px] text-ink-soft block font-semibold">Blood Group</span>
+                      <span className="font-mono font-bold text-brand text-xs">{bloodGroup}</span>
+                    </div>
+                  )}
+
+                  {Object.entries(vitals).map(([key, val]) => {
+                    if (['bp', 'bloodPressure', 'rbs', 'pulse', 'heartRate', 'temperature', 'bloodGroup'].includes(key) || !val) {
+                      return null;
+                    }
+                    return (
+                      <div key={key} className="p-2.5 rounded-xl bg-bg border border-border">
+                        <span className="text-[10px] text-ink-soft block font-semibold">{key}</span>
+                        <span className="font-mono font-bold text-ink text-xs">{String(val)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </div>
+        </div>
 
+        {/* Clinical History & Habits Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           {/* Card 4: Medical History & Allergies (Collapsed by default) */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
             <button
               type="button"
               onClick={() => toggleAccordion('medical')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
             >
               <span className="flex items-center gap-2">
                 <ShieldAlert size={15} className="text-amber-600" /> Medical History & Allergies
@@ -542,7 +552,7 @@ export default function Consultation() {
             <button
               type="button"
               onClick={() => toggleAccordion('dental')}
-              className="w-full p-4 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
             >
               <span className="flex items-center gap-2">
                 <Stethoscope size={15} className="text-brand" /> Dental History & Habits
@@ -581,63 +591,63 @@ export default function Consultation() {
             )}
           </div>
         </div>
+      </div>
 
-        {/* MAIN CLINICAL WORKSPACE COLUMN (BELOW ON MOBILE/TABLET <1024px, LEFT-SIDE ON LAPTOP/DESKTOP >=1024px) */}
-        <div className="lg:col-span-8 lg:order-1 space-y-4">
-          {/* CLINICAL TAB BAR */}
-          <div className="flex border-b border-border space-x-1 overflow-x-auto scrollbar-none">
-            {CLINICAL_TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${isActive
-                    ? 'border-brand text-brand'
-                    : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
-                    }`}
-                >
-                  <Icon size={16} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+      {/* CLINICAL WORKSPACE SECTION (TABS & CONTENT FULL-WIDTH) */}
+      <div className="space-y-4 pt-2">
+        {/* CLINICAL TAB BAR */}
+        <div className="flex border-b border-border space-x-1 overflow-x-auto scrollbar-none">
+          {CLINICAL_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${isActive
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                  }`}
+              >
+                <Icon size={16} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          {/* CLINICAL TABS CONTENT - Kept persistently mounted to preserve unsaved form inputs & draft states */}
-          <div className={activeTab === 'examination' ? 'block' : 'hidden'}>
-            <ExaminationTab consultation={consultation} isReadOnly={isCompleted} />
-          </div>
+        {/* CLINICAL TABS CONTENT - Kept persistently mounted to preserve unsaved form inputs & draft states */}
+        <div className={activeTab === 'examination' ? 'block' : 'hidden'}>
+          <ExaminationTab consultation={consultation} isReadOnly={isCompleted} />
+        </div>
 
-          <div className={activeTab === 'tooth-chart' ? 'block' : 'hidden'}>
-            <ToothChart
-              patientId={consultation.patient?._id || consultation.patient?.id}
-              consultationId={consultation._id || consultation.id}
-              isReadOnly={isCompleted}
-              patient={consultation.patient}
-            />
-          </div>
+        <div className={activeTab === 'tooth-chart' ? 'block' : 'hidden'}>
+          <ToothChart
+            patientId={consultation.patient?._id || consultation.patient?.id}
+            consultationId={consultation._id || consultation.id}
+            isReadOnly={isCompleted}
+            patient={consultation.patient}
+          />
+        </div>
 
-          <div className={activeTab === 'prescriptions' ? 'block' : 'hidden'}>
-            <PrescriptionsTab consultation={consultation} isReadOnly={isCompleted} />
-          </div>
+        <div className={activeTab === 'prescriptions' ? 'block' : 'hidden'}>
+          <PrescriptionsTab consultation={consultation} isReadOnly={isCompleted} />
+        </div>
 
-          <div className={activeTab === 'diagnosis' ? 'block' : 'hidden'}>
-            <DiagnosisTab consultation={consultation} isReadOnly={isCompleted} />
-          </div>
+        <div className={activeTab === 'diagnosis' ? 'block' : 'hidden'}>
+          <DiagnosisTab consultation={consultation} isReadOnly={isCompleted} />
+        </div>
 
-          <div className={activeTab === 'investigations' ? 'block' : 'hidden'}>
-            <InvestigationsTab consultation={consultation} isReadOnly={isCompleted} />
-          </div>
+        <div className={activeTab === 'investigations' ? 'block' : 'hidden'}>
+          <InvestigationsTab consultation={consultation} isReadOnly={isCompleted} />
+        </div>
 
-          <div className={activeTab === 'treatment-plan' ? 'block' : 'hidden'}>
-            <TreatmentPlanTab consultation={consultation} isReadOnly={isCompleted} />
-          </div>
+        <div className={activeTab === 'treatment-plan' ? 'block' : 'hidden'}>
+          <TreatmentPlanTab consultation={consultation} isReadOnly={isCompleted} />
+        </div>
 
-          <div className={activeTab === 'billing' ? 'block' : 'hidden'}>
-            <BillingTab consultation={consultation} isReadOnly={isCompleted} />
-          </div>
+        <div className={activeTab === 'billing' ? 'block' : 'hidden'}>
+          <BillingTab consultation={consultation} isReadOnly={isCompleted} />
         </div>
       </div>
 
@@ -675,103 +685,52 @@ export default function Consultation() {
                   </div>
                 )}
 
-                {/* PART A: FOLLOW-UP SECTION */}
-                <div className="rounded-xl border border-border bg-bg/40 p-4 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={18} className="text-brand" />
-                      <span className="font-bold text-ink text-xs sm:text-sm">Follow-Up Recommendation</span>
+                {/* FOLLOW-UP STATUS DISPLAY (MANAGED VIA PRESCRIPTION TAB) */}
+                {scheduledFollowUp && scheduledFollowUp.recommendedDate ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-2 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                      <Calendar size={16} className="text-emerald-600 shrink-0" />
+                      <span>Next Follow-Up Scheduled:</span>
                     </div>
-
-                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={enableFollowUp}
-                        onChange={(e) => setEnableFollowUp(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
-                      <span className="ml-2 text-xs font-semibold text-ink">
-                        {enableFollowUp ? 'Follow-Up Recommended' : 'No Follow-Up Required'}
-                      </span>
-                    </label>
+                    <div className="pl-6 space-y-1 text-ink">
+                      <p>
+                        <strong>Date & Time: </strong>
+                        {new Date(scheduledFollowUp.recommendedDate).toLocaleDateString(undefined, {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}{' '}
+                        at {scheduledFollowUp.scheduledAppointment?.time || '10:00 AM'}
+                      </p>
+                      {scheduledFollowUp.reason && (
+                        <p>
+                          <strong>Reason / Procedure: </strong>
+                          {scheduledFollowUp.reason}
+                        </p>
+                      )}
+                      {scheduledFollowUp.instructions && (
+                        <p className="text-ink-soft italic">
+                          <strong>Instructions: </strong>
+                          {scheduledFollowUp.instructions}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-emerald-700 pt-1 font-medium italic">
+                        ✓ This scheduled follow-up will be preserved in the receptionist queue.
+                      </p>
+                    </div>
                   </div>
-
-                  {existingFollowUpId && (
-                    <p className="text-[11px] text-brand font-medium italic">
-                      ℹ️ Pre-filled from existing follow-up created for this visit. Updating fields here will update the scheduled follow-up.
-                    </p>
-                  )}
-
-                  {enableFollowUp && (
-                    <div className="space-y-3 pt-2 border-t border-border/60 animate-in fade-in duration-150">
-                      {/* Row 1: Recommended Date & Time */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                        <div>
-                          <DatePicker
-                            label="Recommended Date"
-                            isRequired={enableFollowUp}
-                            value={followUpForm.recommendedDate}
-                            onChange={(date, dateStr) => setFollowUpForm({ ...followUpForm, recommendedDate: dateStr })}
-                            minDate={new Date()}
-                          />
-                        </div>
-
-                        <div>
-                          <SplitTimeInput
-                            label="Follow-Up Time"
-                            value={followUpForm.time || '10:00 AM'}
-                            onChange={(time12) => setFollowUpForm({ ...followUpForm, time: time12 })}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Row 2: Reason for Follow-Up & Treatment Status Note */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                            <span className="truncate">Reason for Follow-Up</span>
-                            <span className="text-slate-400 font-normal text-[11px] shrink-0 ml-1">(Optional)</span>
-                          </label>
-                          <EditableCombobox
-                            options={TOOTH_CONDITIONS}
-                            placeholder="e.g. Caries, RCT, Crown, Mobility..."
-                            value={followUpForm.reason}
-                            onChange={(val) => setFollowUpForm({ ...followUpForm, reason: val })}
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                            <span className="truncate">Procedure / Treatment Status Note</span>
-                            <span className="text-slate-400 font-normal text-[11px] shrink-0 ml-1">(Optional)</span>
-                          </label>
-                          <EditableCombobox
-                            options={PROCEDURE_TREATMENT_STATUSES}
-                            placeholder="e.g. RCT Step 1 Done, Temp Crown..."
-                            value={followUpForm.treatmentStatus}
-                            onChange={(val) => setFollowUpForm({ ...followUpForm, treatmentStatus: val })}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Row 3: Patient Instructions */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                          <span>Patient Instructions</span>
-                          <span className="text-slate-400 font-normal text-[11px] shrink-0 ml-1">(Optional)</span>
-                        </label>
-                        <textarea
-                          rows={2}
-                          className="input-field text-xs py-2 min-h-[58px] resize-y"
-                          placeholder="e.g. Continue warm saline rinses. Avoid chewing on right side."
-                          value={followUpForm.instructions}
-                          onChange={(e) => setFollowUpForm({ ...followUpForm, instructions: e.target.value })}
-                        />
-                      </div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-bg/50 p-3.5 text-xs text-ink-soft flex items-start gap-2.5">
+                    <Info size={16} className="text-brand shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-ink">No Next Follow-Up Scheduled</p>
+                      <p className="mt-0.5">
+                        Follow-up appointments can be scheduled directly from the <strong>Prescription</strong> tab.
+                      </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* PART B: CONSULTATION SUMMARY SECTION */}
                 <div className="space-y-1.5">

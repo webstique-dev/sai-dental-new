@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -89,14 +89,14 @@ function ConditionCombobox({ value, onChange, options, onDeleteCustomCondition }
   // If searchQuery is empty, show ALL unique options. Otherwise filter by search text.
   const filteredOptions = searchQuery.trim()
     ? uniqueOptions.filter((opt) => {
-        const parsed = sanitizeCondition(opt);
-        const q = searchQuery.trim().toLowerCase();
-        return (
-          opt.toLowerCase().includes(q) ||
-          parsed.name.toLowerCase().includes(q) ||
-          parsed.code.toLowerCase().includes(q)
-        );
-      })
+      const parsed = sanitizeCondition(opt);
+      const q = searchQuery.trim().toLowerCase();
+      return (
+        opt.toLowerCase().includes(q) ||
+        parsed.name.toLowerCase().includes(q) ||
+        parsed.code.toLowerCase().includes(q)
+      );
+    })
     : uniqueOptions;
 
   const exactMatch = uniqueOptions.some((opt) => {
@@ -161,9 +161,8 @@ function ConditionCombobox({ value, onChange, options, onDeleteCustomCondition }
               return (
                 <div
                   key={opt}
-                  className={`w-full px-3 py-2 hover:bg-brand-light/40 font-semibold flex items-center justify-between cursor-pointer transition-colors group ${
-                    isSelected ? 'bg-brand-light/60 text-brand font-bold' : 'text-ink'
-                  }`}
+                  className={`w-full px-3 py-2 hover:bg-brand-light/40 font-semibold flex items-center justify-between cursor-pointer transition-colors group ${isSelected ? 'bg-brand-light/60 text-brand font-bold' : 'text-ink'
+                    }`}
                   onClick={() => {
                     onChange(parsed.formatted);
                     setSearchQuery('');
@@ -258,9 +257,8 @@ function ToothSvg({ tNum, condition, isSelected }) {
     <div className="relative flex items-center justify-center w-5 h-8 xs:w-6 xs:h-9 sm:w-8 sm:h-12 my-0.5 shrink-0">
       <svg
         viewBox="0 0 50 85"
-        className={`w-full h-full transition-all duration-200 ${
-          isLowerArch ? 'rotate-180' : ''
-        }`}
+        className={`w-full h-full transition-all duration-200 ${isLowerArch ? 'rotate-180' : ''
+          }`}
       >
         {/* Base Anatomical Tooth Silhouette Paths */}
         {toothType === 'incisor' && (
@@ -460,6 +458,14 @@ function formatExactDateTime(dateInput) {
  * - Anchors next to clicked tooth and stays on screen
  * - Select-then-Save flow with explicit Clear Selection option
  */
+/**
+ * Compact Condition Picker Popup Component
+ * - Opens on the right side of the selected tooth / tooth chart (or left if near right edge)
+ * - Stays within viewport and is fully responsive on mobile/tablet
+ * - Automatically saves condition immediately when clicked without requiring Save button
+ * - Supports seamless switching between teeth preserving each tooth's changes
+ * - Optimistic UI updates tooth SVG color and code badge instantly
+ */
 function CompactConditionPopup({
   isOpen,
   anchorEl,
@@ -482,9 +488,10 @@ function CompactConditionPopup({
   const [notes, setNotes] = useState(initialNotes || '');
   const [isTreatmentOpen, setIsTreatmentOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const popupRef = useRef(null);
 
-  // Sync initial state when opened
+  // Sync state when target teeth or condition changes
   useEffect(() => {
     if (isOpen) {
       setPendingCondition(currentCondition || 'Healthy [H]');
@@ -493,46 +500,80 @@ function CompactConditionPopup({
       setCustomCode('');
       setTreatment(initialTreatment || '');
       setNotes(initialNotes || '');
-      setIsTreatmentOpen(false); // Collapsed by default as requested
-      setIsNotesOpen(false); // Collapsed by default as requested
+      setIsTreatmentOpen(Boolean(initialTreatment));
+      setIsNotesOpen(Boolean(initialNotes));
     }
-  }, [isOpen, currentCondition, initialTreatment, initialNotes]);
+  }, [isOpen, currentCondition, initialTreatment, initialNotes, targetTeeth]);
 
-  // Viewport-aware position calculations
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 340, maxHeight: 480 });
+  // Viewport-aware position calculations: Right side of selected tooth
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 360, maxHeight: 480, isReady: false });
 
-  useEffect(() => {
-    if (!isOpen || !anchorEl) return;
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setCoords((prev) => ({ ...prev, isReady: false }));
+      return;
+    }
 
     function calculatePosition() {
-      const rect = anchorEl.getBoundingClientRect();
-      const popupWidth = Math.min(360, window.innerWidth - 16);
-      const estimatedHeight = 440;
+      const targetTooth = targetTeeth && targetTeeth.length > 0 ? targetTeeth[0] : null;
+      const domToothEl = targetTooth
+        ? document.getElementById(`tooth-btn-${targetTooth}`) ||
+        document.querySelector(`[data-tooth-number="${targetTooth}"]`)
+        : null;
+      const activeEl = anchorEl && anchorEl.isConnected ? anchorEl : domToothEl;
 
-      // Center horizontally on anchor, clamp to viewport edges
-      let left = rect.left + rect.width / 2 - popupWidth / 2;
-      left = Math.max(8, Math.min(window.innerWidth - popupWidth - 8, left));
+      if (!activeEl) return;
+      const rect = activeEl.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0) return;
 
-      // Check space above vs below
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
+      const isMobile = window.innerWidth < 640;
+      const popupWidth = isMobile ? Math.min(360, window.innerWidth - 24) : 360;
+      const actualHeight = popupRef.current
+        ? Math.min(popupRef.current.offsetHeight, window.innerHeight - 32)
+        : 440;
 
+      let left = 0;
       let top = 0;
-      let availableMaxHeight = 480;
 
-      if (spaceBelow >= 320 || spaceBelow >= spaceAbove) {
-        top = rect.bottom + 6;
-        availableMaxHeight = Math.max(260, window.innerHeight - top - 12);
+      if (isMobile) {
+        // Mobile: center horizontally, place below or above clicked tooth
+        left = Math.max(12, (window.innerWidth - popupWidth) / 2);
+        if (rect.bottom + actualHeight + 12 <= window.innerHeight) {
+          top = rect.bottom + 8;
+        } else if (rect.top - actualHeight - 8 >= 10) {
+          top = rect.top - actualHeight - 8;
+        } else {
+          top = Math.max(12, Math.min(window.innerHeight - actualHeight - 16, (window.innerHeight - actualHeight) / 2));
+        }
       } else {
-        top = Math.max(10, rect.top - estimatedHeight - 6);
-        availableMaxHeight = Math.max(260, rect.top - 16);
+        // Desktop / Tablet: Open on RIGHT side of selected tooth
+        const spaceRight = window.innerWidth - rect.right;
+        const spaceLeft = rect.left;
+
+        if (spaceRight >= popupWidth + 16) {
+          // Open to the right of the tooth
+          left = rect.right + 12;
+        } else if (spaceLeft >= popupWidth + 16) {
+          // Flip to left of tooth if right side is too close to viewport edge
+          left = rect.left - popupWidth - 12;
+        } else {
+          // Center / clamp safely within viewport
+          left = Math.max(12, window.innerWidth - popupWidth - 16);
+        }
+
+        // Align vertically around tooth center, clamped within viewport
+        top = rect.top + rect.height / 2 - actualHeight / 2;
+        top = Math.max(12, Math.min(window.innerHeight - actualHeight - 16, top));
       }
 
+      const availableMaxHeight = Math.min(560, window.innerHeight - top - 16);
+
       setCoords({
-        top,
-        left,
-        width: popupWidth,
-        maxHeight: availableMaxHeight,
+        top: Math.round(top),
+        left: Math.round(left),
+        width: Math.round(popupWidth),
+        maxHeight: Math.round(availableMaxHeight),
+        isReady: true,
       });
     }
 
@@ -544,27 +585,58 @@ function CompactConditionPopup({
       window.removeEventListener('resize', calculatePosition);
       window.removeEventListener('scroll', calculatePosition, true);
     };
-  }, [isOpen, anchorEl]);
+  }, [isOpen, anchorEl, targetTeeth]);
 
-  // Handle ESC key
+  // Handle Click-Outside and ESC key without blocking pointer events
   useEffect(() => {
     if (!isOpen) return;
+
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
         onClose();
       }
     }
+
+    function handleDocumentMouseDown(e) {
+      if (popupRef.current && !popupRef.current.contains(e.target)) {
+        // If clicking another tooth button on the FDI chart, don't close here—the tooth's click will handle switching directly!
+        if (!e.target.closest('[data-tooth-btn]')) {
+          onClose();
+        }
+      }
+    }
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleDocumentMouseDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleDocumentMouseDown);
+    };
   }, [isOpen, onClose]);
 
-  if (!isOpen || !anchorEl) return null;
+  if (!isOpen || !coords.isReady) return null;
 
+  // Auto-save immediately when a condition is selected & expand both accordions
   const handleSelectCondition = (cond) => {
     const parsed = sanitizeCondition(cond);
+    // Prevent clicking same condition if already selected
+    if (pendingParsed.name.toLowerCase() === parsed.name.toLowerCase()) {
+      return;
+    }
     setPendingCondition(parsed.formatted);
+    setJustSaved(true);
+    setIsTreatmentOpen(true);
+    setIsNotesOpen(true);
+    setTimeout(() => setJustSaved(false), 2000);
+
+    onSave({
+      condition: parsed.formatted,
+      treatment: treatment.trim(),
+      notes: notes.trim(),
+    });
   };
 
+  // Auto-save custom condition immediately on apply & expand accordions
   const handleAddCustomCondition = (e) => {
     e.preventDefault();
     if (!customName.trim()) return;
@@ -573,10 +645,23 @@ function CompactConditionPopup({
     const parsed = sanitizeCondition(`${cleanName} [${cleanCode}]`);
     setPendingCondition(parsed.formatted);
     setShowCustomInput(false);
+    setJustSaved(true);
+    setIsTreatmentOpen(true);
+    setIsNotesOpen(true);
+    setTimeout(() => setJustSaved(false), 2000);
+
+    onSave({
+      condition: parsed.formatted,
+      treatment: treatment.trim(),
+      notes: notes.trim(),
+    });
   };
 
-  const handleSaveClick = (e) => {
-    e.preventDefault();
+  const handleSaveNotesAndTreatment = (e) => {
+    if (e) e.preventDefault();
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
+
     onSave({
       condition: pendingCondition,
       treatment: treatment.trim(),
@@ -604,14 +689,7 @@ function CompactConditionPopup({
 
   return (
     <>
-      {/* Invisible Transparent Click-Outside Layer (NO black opacity/overlay background) */}
-      <div
-        className="fixed inset-0 z-40 bg-transparent pointer-events-auto"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Compact Popover Box */}
+      {/* Compact Popover Box positioned to the RIGHT of selected tooth (No blocking overlay) */}
       <div
         ref={popupRef}
         style={{
@@ -624,7 +702,7 @@ function CompactConditionPopup({
         role="dialog"
         aria-label="Tooth Condition Picker"
       >
-        {/* Header with Clear Selection & Close */}
+        {/* Header with Live Saving Status, Clear Selection & Close */}
         <div className="p-3 bg-bg/80 border-b border-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-mono font-bold text-ink text-sm shrink-0">
@@ -635,6 +713,17 @@ function CompactConditionPopup({
             >
               {pendingParsed.formatted}
             </span>
+
+            {/* Instant Saving / Saved Feedback */}
+            {isSaving ? (
+              <span className="text-[10px] text-brand flex items-center gap-1 font-bold animate-pulse">
+                <Loader2 size={11} className="animate-spin" /> Saving...
+              </span>
+            ) : justSaved ? (
+              <span className="text-[10px] text-emerald-600 flex items-center gap-1 font-bold animate-in fade-in">
+                <Check size={11} /> Saved
+              </span>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-1">
@@ -650,7 +739,7 @@ function CompactConditionPopup({
               type="button"
               onClick={onClose}
               className="p-1 rounded-lg text-ink-soft hover:text-ink hover:bg-surface transition-colors"
-              title="Close picker without saving"
+              title="Close picker"
             >
               <X size={15} />
             </button>
@@ -659,11 +748,11 @@ function CompactConditionPopup({
 
         {/* Content Body: Conditions Grid + Collapsible Details */}
         <div className="p-3 overflow-y-auto space-y-3 scrollbar-none flex-1">
-          {/* Section: Condition Picker (Primary Required Field) */}
+          {/* Section: Condition Picker (Instant Auto-Save on Click) */}
           <div className="space-y-2">
             <div className="text-[11px] font-semibold text-ink-soft flex items-center justify-between">
               <span>Condition * ({allDisplayConditions.length} Available):</span>
-              <span className="text-[10px] text-ink-soft/70">Select condition</span>
+              <span className="text-[10px] text-emerald-600 font-medium">Click to save instantly</span>
             </div>
 
             <div className="grid grid-cols-2 xs:grid-cols-3 gap-1.5">
@@ -674,14 +763,16 @@ function CompactConditionPopup({
                   pendingParsed.name.toLowerCase() === parsed.name.toLowerCase();
 
                 return (
-                  <div
+                  <button
                     key={opt}
-                    className={`relative group flex items-center justify-between px-2 py-2 rounded-xl border text-left font-semibold transition-all select-none min-h-[38px] cursor-pointer ${
-                      isSelected
-                        ? 'bg-brand-light/60 border-brand ring-2 ring-brand text-brand font-bold shadow-sm scale-[1.02]'
-                        : 'bg-surface border-border hover:bg-bg/90 hover:border-brand/40 text-ink'
-                    }`}
-                    onClick={() => handleSelectCondition(parsed.formatted)}
+                    type="button"
+                    disabled={isSelected}
+                    data-condition-name={parsed.name}
+                    className={`relative group flex items-center justify-between px-2 py-2 rounded-xl border text-left font-semibold transition-all select-none min-h-[38px] ${isSelected
+                        ? 'bg-brand-light/60 border-brand ring-2 ring-brand text-brand font-bold shadow-sm scale-[1.02] cursor-default opacity-95'
+                        : 'bg-surface border-border hover:bg-bg/90 hover:border-brand/40 text-ink active:scale-95 cursor-pointer'
+                      }`}
+                    onClick={() => !isSelected && handleSelectCondition(parsed.formatted)}
                   >
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span
@@ -694,8 +785,9 @@ function CompactConditionPopup({
 
                     {/* Soft delete condition */}
                     {onDeleteCustomCondition && (
-                      <button
-                        type="button"
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteCustomCondition(opt);
@@ -705,9 +797,9 @@ function CompactConditionPopup({
                         aria-label={`Remove "${parsed.name}" condition`}
                       >
                         <Trash2 size={11} />
-                      </button>
+                      </span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -758,7 +850,7 @@ function CompactConditionPopup({
                   type="submit"
                   className="w-full btn-secondary py-1 text-xs font-bold text-brand hover:bg-brand-light/40"
                 >
-                  Apply Custom Selection
+                  Apply & Save Selection
                 </button>
               </form>
             )}
@@ -782,22 +874,29 @@ function CompactConditionPopup({
               </div>
               <ChevronDown
                 size={14}
-                className={`text-ink-soft transition-transform duration-200 shrink-0 ${
-                  isTreatmentOpen ? 'rotate-180' : ''
-                }`}
+                className={`text-ink-soft transition-transform duration-200 shrink-0 ${isTreatmentOpen ? 'rotate-180' : ''
+                  }`}
               />
             </button>
 
             {isTreatmentOpen && (
-              <div className="p-2.5 pt-1 border-t border-border/60 space-y-1.5 bg-surface animate-fadeIn">
+              <div className="p-2.5 pt-1 border-t border-border/60 space-y-2 bg-surface animate-fadeIn">
                 <input
                   type="text"
                   placeholder="e.g. Composite Restoration, Root Canal, Crown..."
                   className="input-field py-1.5 text-xs"
                   value={treatment}
                   onChange={(e) => setTreatment(e.target.value)}
+                  onBlur={handleSaveNotesAndTreatment}
                   autoFocus
                 />
+                <button
+                  type="button"
+                  onClick={handleSaveNotesAndTreatment}
+                  className="btn-secondary w-full py-1 text-[11px] font-bold text-brand"
+                >
+                  Save Treatment
+                </button>
               </div>
             )}
           </div>
@@ -820,54 +919,45 @@ function CompactConditionPopup({
               </div>
               <ChevronDown
                 size={14}
-                className={`text-ink-soft transition-transform duration-200 shrink-0 ${
-                  isNotesOpen ? 'rotate-180' : ''
-                }`}
+                className={`text-ink-soft transition-transform duration-200 shrink-0 ${isNotesOpen ? 'rotate-180' : ''
+                  }`}
               />
             </button>
 
             {isNotesOpen && (
-              <div className="p-2.5 pt-1 border-t border-border/60 space-y-1.5 bg-surface animate-fadeIn">
+              <div className="p-2.5 pt-1 border-t border-border/60 space-y-2 bg-surface animate-fadeIn">
                 <textarea
                   rows={2}
                   placeholder="Add specific clinical notes or observations for this tooth..."
                   className="input-field py-1.5 text-xs resize-none"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  onBlur={handleSaveNotesAndTreatment}
                   autoFocus
                 />
+                <button
+                  type="button"
+                  onClick={handleSaveNotesAndTreatment}
+                  className="btn-secondary w-full py-1 text-[11px] font-bold text-brand"
+                >
+                  Save Notes
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer Actions: Explicit Select-Then-Save Buttons */}
-        <div className="p-2.5 bg-bg/90 border-t border-border flex items-center justify-end gap-2 shrink-0">
+        {/* Footer: Close / Done Button & Auto-Save Confirmation */}
+        <div className="p-2.5 bg-bg/90 border-t border-border flex items-center justify-between gap-2 shrink-0">
+          <span className="text-[10px] text-ink-soft flex items-center gap-1 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> Auto-saves on selection
+          </span>
           <button
             type="button"
             onClick={onClose}
-            disabled={isSaving}
-            className="btn-secondary py-1.5 px-3 text-xs font-semibold"
+            className="btn-secondary py-1 px-3.5 text-xs font-semibold"
           >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveClick}
-            disabled={isSaving}
-            className="btn-primary py-1.5 px-4 text-xs font-bold flex items-center gap-1.5 shadow-sm"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 size={13} className="animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <Check size={14} />
-                <span>Save</span>
-              </>
-            )}
+            Done
           </button>
         </div>
       </div>
@@ -902,6 +992,8 @@ export default function ToothChart({
   const [iconicCode, setIconicCode] = useState('');
   const [formTreatment, setFormTreatment] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [isPanelTreatmentOpen, setIsPanelTreatmentOpen] = useState(false);
+  const [isPanelNotesOpen, setIsPanelNotesOpen] = useState(false);
   const [conditionOptions, setConditionOptions] = useState(INITIAL_CONDITION_OPTIONS);
 
   // Scoped Deletion confirmation for the single most recent historical entry
@@ -1080,15 +1172,22 @@ export default function ToothChart({
       setSelectedTeeth([tNum]);
       setInspectedTeeth([tNum]);
 
-      const current = teethMap[tNum]?.currentCondition || 'Healthy [H]';
+      const toothRecord = teethMap[tNum] || {};
+      const current = toothRecord.currentCondition || 'Healthy [H]';
       const parsedCurrent = sanitizeCondition(current);
       setFormCondition(parsedCurrent.formatted);
       if (!conditionOptions.some((o) => sanitizeCondition(o).name.toLowerCase() === parsedCurrent.name.toLowerCase())) {
         setConditionOptions((prev) => [...prev, parsedCurrent.formatted]);
       }
       setIconicCode('');
-      setFormTreatment('');
-      setFormNotes('');
+      setFormTreatment(toothRecord.treatment || '');
+      setFormNotes(toothRecord.notes || '');
+
+      // Open panel accordions if this tooth already has saved treatment or notes
+      if (toothRecord.treatment || toothRecord.notes) {
+        setIsPanelTreatmentOpen(true);
+        setIsPanelNotesOpen(true);
+      }
 
       // Open compact popup anchored directly to the clicked tooth in single-select mode
       if (!isReadOnly) {
@@ -1105,10 +1204,10 @@ export default function ToothChart({
     setIsPopupOpen(true);
   };
 
-  // Save handler for the compact condition picker popup
+  // Save handler for the compact condition picker popup (Auto-saves on selection)
   const handleSavePopupCondition = async (payload) => {
     if (isReadOnly) return;
-    const targetList = selectedTeeth.length > 0 ? selectedTeeth : inspectedTeeth;
+    const targetList = [...(selectedTeeth.length > 0 ? selectedTeeth : inspectedTeeth)];
     if (targetList.length === 0) return;
 
     let chosenCondition = payload;
@@ -1124,6 +1223,44 @@ export default function ToothChart({
     const parsed = sanitizeCondition(chosenCondition);
     const saveCondition = parsed.formatted;
 
+    // Check if target tooth already has identical condition and treatment/notes
+    if (targetList.length === 1) {
+      const tNum = targetList[0];
+      const existing = teethMap[tNum];
+      if (
+        existing &&
+        sanitizeCondition(existing.currentCondition).name.toLowerCase() === parsed.name.toLowerCase() &&
+        (chosenTreatment === '' || chosenTreatment === (existing.treatment || '')) &&
+        (chosenNotes === '' || chosenNotes === (existing.notes || ''))
+      ) {
+        return; // Nothing changed, skip redundant save
+      }
+    }
+
+    // 1. Instant Optimistic UI Update: update SVG color & condition badge immediately (<1ms)
+    setTeethMap((prev) => {
+      const updated = { ...prev };
+      targetList.forEach((tNum) => {
+        updated[tNum] = {
+          ...(updated[tNum] || { toothNumber: tNum }),
+          currentCondition: saveCondition,
+          treatment: chosenTreatment !== undefined && chosenTreatment !== '' ? chosenTreatment : updated[tNum]?.treatment || '',
+          notes: chosenNotes !== undefined && chosenNotes !== '' ? chosenNotes : updated[tNum]?.notes || '',
+        };
+      });
+      return updated;
+    });
+
+    setFormCondition(saveCondition);
+    if (chosenTreatment) setFormTreatment(chosenTreatment);
+    if (chosenNotes) setFormNotes(chosenNotes);
+    setIsPanelTreatmentOpen(true);
+    setIsPanelNotesOpen(true);
+
+    if (!conditionOptions.some((o) => sanitizeCondition(o).name.toLowerCase() === parsed.name.toLowerCase())) {
+      setConditionOptions((prev) => [...prev, saveCondition]);
+    }
+
     if (isNewCustomCondition(parsed.name)) {
       // Persist custom condition on backend
       try {
@@ -1137,7 +1274,6 @@ export default function ToothChart({
     }
 
     setSaving(true);
-    setSuccessMessage('');
     setErrorMessage('');
     try {
       if (targetList.length === 1) {
@@ -1158,28 +1294,19 @@ export default function ToothChart({
         });
       }
 
-      if (!conditionOptions.some((o) => sanitizeCondition(o).name.toLowerCase() === parsed.name.toLowerCase())) {
-        setConditionOptions((prev) => [...prev, saveCondition]);
-      }
-
       setSuccessMessage(
         `Updated ${targetList.length === 1 ? `Tooth #${targetList[0]}` : `${targetList.length} teeth`} to ${parsed.name}!`
       );
 
-      // Close popup and automatically unselect/clear the selection state for single and multi-select
-      setIsPopupOpen(false);
-      setSelectedTeeth([]);
-      setInspectedTeeth([]);
-      setPopupAnchorEl(null);
-      setFormCondition(saveCondition);
-      setFormTreatment('');
-      setFormNotes('');
-
+      // Fetch tooth chart history in background
       await fetchToothChart();
       await fetchConditions();
-      setTimeout(() => setSuccessMessage(''), 3500);
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to update tooth chart.');
+      console.error('Failed to update tooth chart:', err);
+      setErrorMessage(err.response?.data?.message || 'Failed to update tooth condition.');
+      // Revert to backend state if saving failed
+      await fetchToothChart();
     } finally {
       setSaving(false);
     }
@@ -1206,6 +1333,21 @@ export default function ToothChart({
       parsed.formatted = `${parsed.name} [${parsed.code}]`;
     }
     const saveCondition = parsed.formatted;
+
+    // Prevent re-saving exact same condition & notes on single tooth
+    if (targetList.length === 1) {
+      const tNum = targetList[0];
+      const existing = teethMap[tNum];
+      if (
+        existing &&
+        sanitizeCondition(existing.currentCondition).name.toLowerCase() === parsed.name.toLowerCase() &&
+        formTreatment.trim() === (existing.treatment || '').trim() &&
+        formNotes.trim() === (existing.notes || '').trim()
+      ) {
+        setErrorMessage(`Tooth #${tNum} already has the "${parsed.name}" condition recorded.`);
+        return;
+      }
+    }
 
     if (isNewCustomCondition(parsed.name)) {
       try {
@@ -1279,12 +1421,14 @@ export default function ToothChart({
       <button
         type="button"
         key={tNum}
+        data-tooth-btn="true"
+        data-tooth-number={tNum}
+        id={`tooth-btn-${tNum}`}
         onClick={(e) => handleToothClick(tNum, e)}
-        className={`flex flex-col items-center justify-between p-0.5 sm:p-1 rounded-lg sm:rounded-xl border transition-all duration-150 relative select-none flex-1 max-w-[34px] xs:max-w-[40px] sm:max-w-[46px] min-w-[24px] sm:min-w-[30px] min-h-[85px] xs:min-h-[95px] sm:min-h-[110px] ${
-          isSelected
+        className={`flex flex-col items-center justify-between p-0.5 sm:p-1 rounded-lg sm:rounded-xl border transition-all duration-150 relative select-none flex-1 max-w-[34px] xs:max-w-[40px] sm:max-w-[46px] min-w-[24px] sm:min-w-[30px] min-h-[85px] xs:min-h-[95px] sm:min-h-[110px] ${isSelected
             ? 'border-brand bg-brand-light/40 shadow-md ring-2 ring-brand scale-105 z-10'
             : 'border-border bg-surface hover:bg-bg/80 hover:border-brand/50'
-        }`}
+          }`}
       >
         {/* UPPER ARCH */}
         {!isLowerArch ? (
@@ -1370,12 +1514,12 @@ export default function ToothChart({
   const historySubtitleText = loading
     ? 'Loading treatment history...'
     : displayTeeth.length === 0
-    ? allPatientHistory.length > 0
-      ? `Overall patient timeline (${allPatientHistory.length} total ${allPatientHistory.length === 1 ? 'activity entry' : 'activity entries'})`
-      : 'No treatment history recorded for this patient yet.'
-    : displayTeeth.length === 1
-    ? `Treatment history for Tooth #${displayTeeth[0]}`
-    : `Treatment history for selected teeth (${displayTeeth.join(', ')})`;
+      ? allPatientHistory.length > 0
+        ? `Overall patient timeline (${allPatientHistory.length} total ${allPatientHistory.length === 1 ? 'activity entry' : 'activity entries'})`
+        : 'No treatment history recorded for this patient yet.'
+      : displayTeeth.length === 1
+        ? `Treatment history for Tooth #${displayTeeth[0]}`
+        : `Treatment history for selected teeth (${displayTeeth.join(', ')})`;
 
   return (
     <div className="space-y-6">
@@ -1393,320 +1537,294 @@ export default function ToothChart({
         </div>
       )}
 
-      {/* Chart Toolbar & Dentition Summary */}
-      <div className="card p-3.5 sm:p-4 space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border pb-3">
-          {/* Left: Title & Dentition Badge */}
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
-            <Layers size={18} className="text-brand shrink-0" />
-            <h3 className="font-display text-sm font-bold text-ink">
-              FDI Anatomical Interactive Tooth Chart
-            </h3>
-            <span className="badge bg-brand-light/50 text-brand-dark border border-brand/20 text-xs font-semibold px-2.5 py-0.5 shrink-0">
-              {patientType === 'child'
-                ? 'Pediatric Dentition (20 Primary Teeth)'
-                : 'Adult Dentition (32 Permanent Teeth)'}
-            </span>
-          </div>
+      {/* Main Responsive Layout: Chart on Left, Update Tooth Panel on Right (stacked on smaller screens) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (lg:col-span-7 xl:col-span-8): Chart Toolbar & FDI Chart Arches */}
+        <div className={`${isReadOnly ? 'lg:col-span-12' : 'lg:col-span-7 xl:col-span-8'} space-y-4`}>
+          {/* Chart Toolbar & Dentition Summary */}
+          <div className="card p-3.5 sm:p-4 space-y-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border pb-3">
+              {/* Left: Title & Dentition Badge */}
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
+                <Layers size={18} className="text-brand shrink-0" />
+                <h3 className="font-display text-sm font-bold text-ink">
+                  FDI Anatomical Interactive Tooth Chart
+                </h3>
+                <span className="badge bg-brand-light/50 text-brand-dark border border-brand/20 text-xs font-semibold px-2.5 py-0.5 shrink-0">
+                  {patientType === 'child'
+                    ? 'Pediatric Dentition (20 Primary Teeth)'
+                    : 'Adult Dentition (32 Permanent Teeth)'}
+                </span>
+              </div>
 
-          {/* Right: Actions (Multi-Select toggle + Done / Clear Action Group) */}
-          <div className="flex items-center gap-2 flex-wrap self-start md:self-center">
-            {/* Multi-Select Toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                const nextMode = !multiSelectMode;
-                setMultiSelectMode(nextMode);
-                setIsPopupOpen(false);
-                if (!nextMode) {
-                  setSelectedTeeth([]);
-                  setInspectedTeeth([]);
-                }
-              }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 min-h-[34px] shrink-0 select-none ${
-                multiSelectMode
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-sm ring-2 ring-purple-300'
-                  : 'bg-surface border-border text-ink-soft hover:text-ink hover:bg-bg/80 hover:border-brand/40'
-              }`}
-              title={multiSelectMode ? 'Click to disable multi-select mode' : 'Enable multi-select mode to select multiple teeth'}
-            >
-              <MousePointerClick size={14} />
-              <span>{multiSelectMode ? 'Multi-Select Active' : 'Enable Multi-Select'}</span>
-            </button>
-
-            {/* Action buttons grouped together */}
-            {selectedTeeth.length > 0 && multiSelectMode && (
-              <button
-                type="button"
-                onClick={handleOpenMultiConditionPopup}
-                className="btn-primary py-1.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm rounded-xl min-h-[34px] shrink-0"
-                title="Set condition for selected teeth"
-              >
-                <Sparkles size={14} />
-                <span>Done / Continue ({selectedTeeth.length})</span>
-              </button>
-            )}
-
-            {displayTeeth.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearSelection}
-                className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 flex items-center justify-center gap-1 shadow-2xs rounded-xl min-h-[34px] transition-colors shrink-0"
-                title="Deselect all selected teeth"
-              >
-                <X size={14} />
-                <span>Clear Selection {displayTeeth.length === 1 ? `(#${displayTeeth[0]})` : `(${displayTeeth.length})`}</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Condition Legend Badges */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] pt-0.5 select-none">
-          {['Healthy', 'Caries', 'Missing', 'Filling', 'RCT', 'Crown', 'Bridge', 'Implant', 'Mobility'].map(
-            (label) => {
-              const cfg = CONDITION_CODES[label];
-              if (!cfg) return null;
-              return (
-                <span
-                  key={label}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all ${cfg.color}`}
+              {/* Right: Actions (Multi-Select toggle + Done / Clear Action Group) */}
+              <div className="flex items-center gap-2 flex-wrap self-start md:self-center">
+                {/* Multi-Select Toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextMode = !multiSelectMode;
+                    setMultiSelectMode(nextMode);
+                    setIsPopupOpen(false);
+                    if (!nextMode) {
+                      setSelectedTeeth([]);
+                      setInspectedTeeth([]);
+                    }
+                  }}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 min-h-[34px] shrink-0 select-none ${multiSelectMode
+                      ? 'bg-purple-600 text-white border-purple-700 shadow-sm ring-2 ring-purple-300'
+                      : 'bg-surface border-border text-ink-soft hover:text-ink hover:bg-bg/80 hover:border-brand/40'
+                    }`}
+                  title={multiSelectMode ? 'Click to disable multi-select mode' : 'Enable multi-select mode to select multiple teeth'}
                 >
-                  <span className="font-mono text-[10px] font-bold">[{cfg.code}]</span>
-                  <span>{label}</span>
-                </span>
-              );
-            }
-          )}
-        </div>
-      </div>
+                  <MousePointerClick size={14} />
+                  <span>{multiSelectMode ? 'Multi-Select Active' : 'Enable Multi-Select'}</span>
+                </button>
 
-      {/* FDI CHART GRID ARCHES */}
-      <div
-        className="card p-2 sm:p-4 space-y-4 overflow-x-auto scrollbar-none w-full max-w-full relative"
-        aria-live="polite"
-        aria-label={`Tooth chart for ${patientType === 'child' ? 'Primary Child teeth' : 'Permanent Adult teeth'}`}
-      >
-        {/* Multi-Select Active Action Banner directly above tooth chart */}
-        {multiSelectMode && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-purple-50 border-2 border-purple-300 rounded-2xl p-3 shadow-xs animate-fadeIn">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-purple-600 text-white shadow-xs shrink-0">
-                <MousePointerClick size={14} /> Multi-Select Mode
-              </span>
-              {selectedTeeth.length > 0 ? (
-                <span className="text-xs font-bold text-purple-950 truncate">
-                  Selected {selectedTeeth.length} {selectedTeeth.length === 1 ? 'Tooth' : 'Teeth'}:{' '}
-                  <span className="font-mono text-purple-700 font-extrabold">
-                    {selectedTeeth.map((t) => `#${t}`).join(', ')}
-                  </span>
-                </span>
-              ) : (
-                <span className="text-xs text-purple-800 font-medium">
-                  Click any teeth to select them without popup interruptions.
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 ml-auto">
-              {selectedTeeth.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleClearSelection}
-                    className="px-3 py-1.5 text-xs font-bold text-rose-600 bg-surface border border-rose-200 rounded-xl hover:bg-rose-50 shadow-xs flex items-center gap-1.5 transition-colors"
-                    title="Clear all selected teeth"
-                  >
-                    <X size={13} /> Clear Selection
-                  </button>
-
+                {/* Action buttons grouped together */}
+                {selectedTeeth.length > 0 && multiSelectMode && (
                   <button
                     type="button"
                     onClick={handleOpenMultiConditionPopup}
-                    className="px-4 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-md flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
-                    title="Set condition for all selected teeth"
+                    className="btn-primary py-1.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm rounded-xl min-h-[34px] shrink-0"
+                    title="Set condition for selected teeth"
                   >
-                    <Sparkles size={14} /> Done / Continue ({selectedTeeth.length})
+                    <Sparkles size={14} />
+                    <span>Done / Continue ({selectedTeeth.length})</span>
                   </button>
-                </>
+                )}
+
+                {displayTeeth.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    className="btn-secondary py-1.5 px-2.5 text-xs font-bold text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 flex items-center justify-center gap-1 shadow-2xs rounded-xl min-h-[34px] transition-colors shrink-0"
+                    title="Deselect all selected teeth"
+                  >
+                    <X size={14} />
+                    <span>Clear Selection {displayTeeth.length === 1 ? `(#${displayTeeth[0]})` : `(${displayTeeth.length})`}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Condition Legend Badges */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] pt-0.5 select-none">
+              {['Healthy', 'Caries', 'Missing', 'Filling', 'RCT', 'Crown', 'Bridge', 'Implant', 'Mobility'].map(
+                (label) => {
+                  const cfg = CONDITION_CODES[label];
+                  if (!cfg) return null;
+                  return (
+                    <span
+                      key={label}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all ${cfg.color}`}
+                    >
+                      <span className="font-mono text-[10px] font-bold">[{cfg.code}]</span>
+                      <span>{label}</span>
+                    </span>
+                  );
+                }
               )}
             </div>
           </div>
-        )}
 
-        {/* Single-Select Quick Clear Banner when multiSelectMode is false and a tooth is selected */}
-        {!multiSelectMode && displayTeeth.length > 0 && (
-          <div className="flex items-center justify-between bg-brand-light/30 border border-brand/30 rounded-xl px-3 py-2 text-xs animate-fadeIn">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-brand">
-                Tooth #{displayTeeth[0]} Selected
-              </span>
-              <span className="text-ink-soft">
-                Current: <strong className="text-brand-dark">{sanitizeCondition(teethMap[displayTeeth[0]]?.currentCondition).name}</strong>
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleClearSelection}
-              className="px-2.5 py-1 text-xs font-bold text-rose-600 bg-surface border border-rose-200 rounded-lg hover:bg-rose-50 shadow-xs flex items-center gap-1 transition-colors"
-            >
-              <X size={13} /> Clear Selection
-            </button>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="p-8 text-center text-sm text-ink-soft flex items-center justify-center gap-2">
-            <Loader2 size={18} className="animate-spin text-brand" />
-            <span>Loading patient tooth records...</span>
-          </div>
-        ) : (
-          <div className="w-full min-w-[440px] sm:min-w-0 space-y-4">
-            {patientType === 'child' ? (
-              /* PRIMARY (CHILD) 20-TEETH CHART */
-              <>
-                {/* UPPER ARCH */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
-                    <span>Upper Right (55 - 51)</span>
-                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
-                      PRIMARY UPPER ARCH (MAXILLA)
+          {/* FDI CHART GRID ARCHES */}
+          <div
+            className="card p-2 sm:p-4 space-y-4 overflow-x-auto scrollbar-none w-full max-w-full relative"
+            aria-live="polite"
+            aria-label={`Tooth chart for ${patientType === 'child' ? 'Primary Child teeth' : 'Permanent Adult teeth'}`}
+          >
+            {/* Multi-Select Active Action Banner directly above tooth chart */}
+            {multiSelectMode && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-purple-50 border-2 border-purple-300 rounded-2xl p-3 shadow-xs animate-fadeIn">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-purple-600 text-white shadow-xs shrink-0">
+                    <MousePointerClick size={14} /> Multi-Select Mode
+                  </span>
+                  {selectedTeeth.length > 0 ? (
+                    <span className="text-xs font-bold text-purple-950 truncate">
+                      Selected {selectedTeeth.length} {selectedTeeth.length === 1 ? 'Tooth' : 'Teeth'}:{' '}
+                      <span className="font-mono text-purple-700 font-extrabold">
+                        {selectedTeeth.map((t) => `#${t}`).join(', ')}
+                      </span>
                     </span>
-                    <span>Upper Left (61 - 65)</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
-                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
-                      {PRIMARY_QUAD_UPPER_RIGHT.map(renderToothCard)}
-                    </div>
-                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
-                      {PRIMARY_QUAD_UPPER_LEFT.map(renderToothCard)}
-                    </div>
-                  </div>
+                  ) : (
+                    <span className="text-xs text-purple-800 font-medium">
+                      Click any teeth to select them without popup interruptions.
+                    </span>
+                  )}
                 </div>
 
-                {/* BITE LINE */}
-                <div className="relative flex items-center justify-center my-1">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-dashed border-brand/30"></div>
-                  </div>
-                  <span className="relative bg-surface px-3 py-0.5 text-[8px] sm:text-[9px] font-mono font-bold text-brand border border-brand/20 rounded-full">
-                    PRIMARY OCCLUSAL BITE LINE
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
+                  {selectedTeeth.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        className="px-3 py-1.5 text-xs font-bold text-rose-600 bg-surface border border-rose-200 rounded-xl hover:bg-rose-50 shadow-xs flex items-center gap-1.5 transition-colors"
+                        title="Clear all selected teeth"
+                      >
+                        <X size={13} /> Clear Selection
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenMultiConditionPopup}
+                        className="px-4 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-md flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
+                        title="Set condition for all selected teeth"
+                      >
+                        <Sparkles size={14} /> Done / Continue ({selectedTeeth.length})
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Single-Select Quick Clear Banner when multiSelectMode is false and a tooth is selected */}
+            {!multiSelectMode && displayTeeth.length > 0 && (
+              <div className="flex items-center justify-between bg-brand-light/30 border border-brand/30 rounded-xl px-3 py-2 text-xs animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-brand">
+                    Tooth #{displayTeeth[0]} Selected
+                  </span>
+                  <span className="text-ink-soft">
+                    Current: <strong className="text-brand-dark">{sanitizeCondition(teethMap[displayTeeth[0]]?.currentCondition).name}</strong>
                   </span>
                 </div>
 
-                {/* LOWER ARCH */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
-                    <span>Lower Right (85 - 81)</span>
-                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
-                      PRIMARY LOWER ARCH (MANDIBLE)
-                    </span>
-                    <span>Lower Left (71 - 75)</span>
-                  </div>
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  className="px-2.5 py-1 text-xs font-bold text-rose-600 bg-surface border border-rose-200 rounded-lg hover:bg-rose-50 shadow-xs flex items-center gap-1 transition-colors"
+                >
+                  <X size={13} /> Clear Selection
+                </button>
+              </div>
+            )}
 
-                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
-                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
-                      {PRIMARY_QUAD_LOWER_RIGHT.map(renderToothCard)}
-                    </div>
-                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
-                      {PRIMARY_QUAD_LOWER_LEFT.map(renderToothCard)}
-                    </div>
-                  </div>
-                </div>
-              </>
+            {loading ? (
+              <div className="p-8 text-center text-sm text-ink-soft flex items-center justify-center gap-2">
+                <Loader2 size={18} className="animate-spin text-brand" />
+                <span>Loading patient tooth records...</span>
+              </div>
             ) : (
-              /* PERMANENT (ADULT) 32-TEETH CHART */
-              <>
-                {/* UPPER ARCH */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
-                    <span>Maxillary Right (18 - 11)</span>
-                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
-                      UPPER ARCH (MAXILLA)
-                    </span>
-                    <span>Maxillary Left (21 - 28)</span>
-                  </div>
+              <div className="w-full min-w-[440px] sm:min-w-0 space-y-4">
+                {patientType === 'child' ? (
+                  /* PRIMARY (CHILD) 20-TEETH CHART */
+                  <>
+                    {/* UPPER ARCH */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                        <span>Upper Right (55 - 51)</span>
+                        <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
+                          PRIMARY UPPER ARCH (MAXILLA)
+                        </span>
+                        <span>Upper Left (61 - 65)</span>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
-                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
-                      {QUAD_UPPER_RIGHT.map(renderToothCard)}
+                      <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                        <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                          {PRIMARY_QUAD_UPPER_RIGHT.map(renderToothCard)}
+                        </div>
+                        <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                          {PRIMARY_QUAD_UPPER_LEFT.map(renderToothCard)}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
-                      {QUAD_UPPER_LEFT.map(renderToothCard)}
-                    </div>
-                  </div>
-                </div>
 
-                {/* BITE LINE */}
-                <div className="relative flex items-center justify-center my-1">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-dashed border-brand/30"></div>
-                  </div>
-                  <span className="relative bg-surface px-3 py-0.5 text-[8px] sm:text-[9px] font-mono font-bold text-brand border border-brand/20 rounded-full">
-                    OCCLUSAL BITE LINE
-                  </span>
-                </div>
-
-                {/* LOWER ARCH */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
-                    <span>Mandibular Right (48 - 41)</span>
-                    <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
-                      LOWER ARCH (MANDIBLE)
-                    </span>
-                    <span>Mandibular Left (31 - 38)</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
-                    <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
-                      {QUAD_LOWER_RIGHT.map(renderToothCard)}
+                    {/* BITE LINE */}
+                    <div className="relative flex items-center justify-center my-1">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-dashed border-brand/30"></div>
+                      </div>
+                      <span className="relative bg-surface px-3 py-0.5 text-[8px] sm:text-[9px] font-mono font-bold text-brand border border-brand/20 rounded-full">
+                        PRIMARY OCCLUSAL BITE LINE
+                      </span>
                     </div>
-                    <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
-                      {QUAD_LOWER_LEFT.map(renderToothCard)}
+
+                    {/* LOWER ARCH */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                        <span>Lower Right (85 - 81)</span>
+                        <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
+                          PRIMARY LOWER ARCH (MANDIBLE)
+                        </span>
+                        <span>Lower Left (71 - 75)</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                        <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                          {PRIMARY_QUAD_LOWER_RIGHT.map(renderToothCard)}
+                        </div>
+                        <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                          {PRIMARY_QUAD_LOWER_LEFT.map(renderToothCard)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </>
+                  </>
+                ) : (
+                  /* PERMANENT (ADULT) 32-TEETH CHART */
+                  <>
+                    {/* UPPER ARCH */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                        <span>Maxillary Right (18 - 11)</span>
+                        <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
+                          UPPER ARCH (MAXILLA)
+                        </span>
+                        <span>Maxillary Left (21 - 28)</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                        <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                          {QUAD_UPPER_RIGHT.map(renderToothCard)}
+                        </div>
+                        <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                          {QUAD_UPPER_LEFT.map(renderToothCard)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BITE LINE */}
+                    <div className="relative flex items-center justify-center my-1">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-dashed border-brand/30"></div>
+                      </div>
+                      <span className="relative bg-surface px-3 py-0.5 text-[8px] sm:text-[9px] font-mono font-bold text-brand border border-brand/20 rounded-full">
+                        OCCLUSAL BITE LINE
+                      </span>
+                    </div>
+
+                    {/* LOWER ARCH */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[9px] sm:text-xs font-bold text-ink-soft uppercase tracking-wider px-1 gap-1">
+                        <span>Mandibular Right (48 - 41)</span>
+                        <span className="text-brand font-display font-extrabold text-[10px] sm:text-xs">
+                          LOWER ARCH (MANDIBLE)
+                        </span>
+                        <span>Mandibular Left (31 - 38)</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5 sm:gap-3 bg-bg/40 p-1.5 sm:p-2.5 rounded-2xl border border-border">
+                        <div className="flex justify-end items-center gap-0.5 sm:gap-1 min-w-0">
+                          {QUAD_LOWER_RIGHT.map(renderToothCard)}
+                        </div>
+                        <div className="flex justify-start items-center gap-0.5 sm:gap-1 border-l border-border/80 pl-1 sm:pl-2.5 min-w-0">
+                          {QUAD_LOWER_LEFT.map(renderToothCard)}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* COMPACT CONDITION PICKER POPUP (No black overlay) */}
-      <CompactConditionPopup
-        isOpen={isPopupOpen}
-        anchorEl={popupAnchorEl}
-        targetTeeth={selectedTeeth.length > 0 ? selectedTeeth : inspectedTeeth}
-        currentCondition={
-          displayTeeth.length === 1
-            ? teethMap[displayTeeth[0]]?.currentCondition || 'Healthy [H]'
-            : 'Healthy [H]'
-        }
-        initialTreatment={
-          displayTeeth.length === 1
-            ? formTreatment || ''
-            : ''
-        }
-        initialNotes={
-          displayTeeth.length === 1
-            ? formNotes || ''
-            : ''
-        }
-        conditionOptions={conditionOptions}
-        onSave={handleSavePopupCondition}
-        onClose={() => setIsPopupOpen(false)}
-        onClearSelection={handleClearSelection}
-        onDeleteCustomCondition={handleRequestDeleteCondition}
-        isSaving={saving}
-      />
-
-      {/* DETAIL INSPECTION & FULL UPDATE FORM PANEL (Independent of popup) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Col: Detailed Treatment & Notes Form */}
+        {/* Right Column (lg:col-span-5 xl:col-span-4): Update Tooth Panel */}
         {!isReadOnly && (
-          <div className="lg:col-span-5 card p-5 space-y-4">
+          <div className="lg:col-span-5 xl:col-span-4 card p-5 space-y-4 lg:sticky lg:top-6">
             <div className="border-b border-border pb-3 flex items-center justify-between">
               <div>
                 <h4 className="font-display text-sm font-bold text-ink flex items-center gap-2">
@@ -1714,13 +1832,13 @@ export default function ToothChart({
                   {displayTeeth.length === 0
                     ? 'Record Finding for Selected Teeth'
                     : displayTeeth.length === 1
-                    ? `Update Tooth #${displayTeeth[0]}`
-                    : `Update ${displayTeeth.length} Selected Teeth (${displayTeeth.join(', ')})`}
+                      ? `Update Tooth #${displayTeeth[0]}`
+                      : `Update ${displayTeeth.length} Selected Teeth (${displayTeeth.join(', ')})`}
                 </h4>
                 <p className="text-xs text-ink-soft">
                   {displayTeeth.length > 0
                     ? 'Add clinical notes and treatments performed or planned.'
-                    : 'Click any tooth on the chart above to inspect and update.'}
+                    : 'Click any tooth on the chart to inspect and update.'}
                 </p>
               </div>
 
@@ -1735,12 +1853,16 @@ export default function ToothChart({
               )}
             </div>
 
-            <form onSubmit={handleSaveCondition} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveCondition} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-ink-soft mb-1">Condition *</label>
                 <ConditionCombobox
                   value={formCondition}
-                  onChange={(val) => setFormCondition(val)}
+                  onChange={(val) => {
+                    setFormCondition(val);
+                    setIsPanelTreatmentOpen(true);
+                    setIsPanelNotesOpen(true);
+                  }}
                   options={conditionOptions}
                   onDeleteCustomCondition={handleRequestDeleteCondition}
                 />
@@ -1768,90 +1890,280 @@ export default function ToothChart({
                 )}
               </div>
 
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">
-                  Treatment Performed / Planned
-                </label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="e.g. Composite Restoration, Pulpectomy"
-                  value={formTreatment}
-                  onChange={(e) => setFormTreatment(e.target.value)}
-                />
+              {/* Accordion 1: Treatment Performed / Planned */}
+              <div className="border border-border/80 rounded-xl overflow-hidden bg-bg/20 transition-all">
+                <button
+                  type="button"
+                  onClick={() => setIsPanelTreatmentOpen((prev) => !prev)}
+                  className="w-full px-3 py-2.5 flex items-center justify-between text-left hover:bg-surface transition-colors select-none"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Stethoscope size={14} className="text-brand shrink-0" />
+                    <span className="font-bold text-xs text-ink truncate">
+                      Treatment Performed / Planned
+                    </span>
+                    {formTreatment.trim() && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0" title="Treatment entered" />
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`text-ink-soft transition-transform duration-200 shrink-0 ${isPanelTreatmentOpen ? 'rotate-180' : ''
+                      }`}
+                  />
+                </button>
+
+                {isPanelTreatmentOpen && (
+                  <div className="p-3 pt-1 border-t border-border/60 space-y-2 bg-surface animate-fadeIn">
+                    <input
+                      type="text"
+                      className="input-field py-1.5 text-xs"
+                      placeholder="e.g. Composite Restoration, Pulpectomy"
+                      value={formTreatment}
+                      onChange={(e) => setFormTreatment(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="block font-semibold text-ink-soft mb-1">Clinical Notes</label>
-                <textarea
-                  rows={2}
-                  className="input-field"
-                  placeholder="Diagnostic observations, surface details (MO, DO, MOD)..."
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                />
+              {/* Accordion 2: Clinical Notes */}
+              <div className="border border-border/80 rounded-xl overflow-hidden bg-bg/20 transition-all">
+                <button
+                  type="button"
+                  onClick={() => setIsPanelNotesOpen((prev) => !prev)}
+                  className="w-full px-3 py-2.5 flex items-center justify-between text-left hover:bg-surface transition-colors select-none"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <FileText size={14} className="text-brand shrink-0" />
+                    <span className="font-bold text-xs text-ink truncate">
+                      Clinical Notes
+                    </span>
+                    {formNotes.trim() && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand shrink-0" title="Notes entered" />
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`text-ink-soft transition-transform duration-200 shrink-0 ${isPanelNotesOpen ? 'rotate-180' : ''
+                      }`}
+                  />
+                </button>
+
+                {isPanelNotesOpen && (
+                  <div className="p-3 pt-1 border-t border-border/60 space-y-2 bg-surface animate-fadeIn">
+                    <textarea
+                      rows={2}
+                      className="input-field py-1.5 text-xs resize-none"
+                      placeholder="Diagnostic observations, surface details (MO, DO, MOD)..."
+                      value={formNotes}
+                      onChange={(e) => setFormNotes(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
                 disabled={saving || displayTeeth.length === 0}
-                className="btn-primary w-full py-2.5 text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+                className="btn-primary w-full py-2.5 text-xs flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
               >
                 <Save size={16} />
                 <span>
                   {saving
                     ? 'Saving Record...'
                     : displayTeeth.length === 0
-                    ? 'Select Tooth Above'
-                    : `Save Details for ${displayTeeth.length === 1 ? `Tooth #${displayTeeth[0]}` : `${displayTeeth.length} Teeth`}`}
+                      ? 'Select Tooth Above'
+                      : `Save Details for ${displayTeeth.length === 1 ? `Tooth #${displayTeeth[0]}` : `${displayTeeth.length} Teeth`}`}
                 </span>
               </button>
             </form>
           </div>
         )}
+      </div>
 
-        {/* Right Col: Treatment History Log (Timeline / Card Activity Stream) */}
-        <div className={`${isReadOnly ? 'lg:col-span-12' : 'lg:col-span-7'} card p-5 space-y-4`}>
-          <div className="border-b border-border pb-3 flex items-center justify-between">
-            <div>
-              <h4 className="font-display text-sm font-bold text-ink flex items-center gap-2">
-                <History size={16} className="text-brand" /> Historical Treatment Log
-              </h4>
-              <p className="text-xs text-ink-soft">{historySubtitleText}</p>
-            </div>
-            {displayTeeth.length > 1 ? (
-              <span className="badge bg-purple-50 text-purple-800 border border-purple-200 text-xs font-mono">
-                {displayTeeth.length} Teeth Selected
-              </span>
-            ) : displayTeeth.length === 1 ? (
-              <span className="badge bg-brand-light/60 text-brand-dark border border-brand/20 text-xs font-mono font-bold">
-                Tooth #{displayTeeth[0]}
-              </span>
-            ) : allPatientHistory.length > 0 ? (
-              <span className="badge bg-slate-100 text-slate-700 border border-slate-200 text-xs font-mono">
-                {allPatientHistory.length} Logged
-              </span>
-            ) : null}
+      {/* COMPACT CONDITION PICKER POPUP (No black overlay) */}
+      <CompactConditionPopup
+        isOpen={isPopupOpen}
+        anchorEl={popupAnchorEl}
+        targetTeeth={selectedTeeth.length > 0 ? selectedTeeth : inspectedTeeth}
+        currentCondition={
+          displayTeeth.length === 1
+            ? teethMap[displayTeeth[0]]?.currentCondition || 'Healthy [H]'
+            : 'Healthy [H]'
+        }
+        initialTreatment={
+          displayTeeth.length === 1
+            ? teethMap[displayTeeth[0]]?.treatment || formTreatment || ''
+            : ''
+        }
+        initialNotes={
+          displayTeeth.length === 1
+            ? teethMap[displayTeeth[0]]?.notes || formNotes || ''
+            : ''
+        }
+        conditionOptions={conditionOptions}
+        onSave={handleSavePopupCondition}
+        onClose={() => setIsPopupOpen(false)}
+        onClearSelection={handleClearSelection}
+        onDeleteCustomCondition={handleRequestDeleteCondition}
+        isSaving={saving}
+      />
+
+      {/* Treatment History Log (Timeline / Card Activity Stream) */}
+      <div className="card p-5 space-y-4">
+        <div className="border-b border-border pb-3 flex items-center justify-between">
+          <div>
+            <h4 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+              <History size={16} className="text-brand" /> Historical Treatment Log
+            </h4>
+            <p className="text-xs text-ink-soft">{historySubtitleText}</p>
           </div>
+          {displayTeeth.length > 1 ? (
+            <span className="badge bg-purple-50 text-purple-800 border border-purple-200 text-xs font-mono">
+              {displayTeeth.length} Teeth Selected
+            </span>
+          ) : displayTeeth.length === 1 ? (
+            <span className="badge bg-brand-light/60 text-brand-dark border border-brand/20 text-xs font-mono font-bold">
+              Tooth #{displayTeeth[0]}
+            </span>
+          ) : allPatientHistory.length > 0 ? (
+            <span className="badge bg-slate-100 text-slate-700 border border-slate-200 text-xs font-mono">
+              {allPatientHistory.length} Logged
+            </span>
+          ) : null}
+        </div>
 
-          {loading ? (
-            <div className="p-8 text-center text-xs text-ink-soft flex items-center justify-center gap-2">
-              <Loader2 size={16} className="animate-spin text-brand" />
-              <span>Loading treatment history...</span>
+        {loading ? (
+          <div className="p-8 text-center text-xs text-ink-soft flex items-center justify-center gap-2">
+            <Loader2 size={16} className="animate-spin text-brand" />
+            <span>Loading treatment history...</span>
+          </div>
+        ) : displayTeeth.length === 0 ? (
+          /* OVERALL PATIENT TIMELINE (NO SPECIFIC TOOTH SELECTED) */
+          allPatientHistory.length === 0 ? (
+            <div className="p-12 text-center text-xs text-ink-soft space-y-2">
+              <History size={32} className="mx-auto text-ink-soft/40" />
+              <p className="font-semibold text-ink text-sm">No treatment activity logged yet</p>
+              <p>Select any tooth on the FDI chart above to record conditions, treatments, or clinical notes.</p>
             </div>
-          ) : displayTeeth.length === 0 ? (
-            /* OVERALL PATIENT TIMELINE (NO SPECIFIC TOOTH SELECTED) */
-            allPatientHistory.length === 0 ? (
-              <div className="p-12 text-center text-xs text-ink-soft space-y-2">
-                <History size={32} className="mx-auto text-ink-soft/40" />
-                <p className="font-semibold text-ink text-sm">No treatment activity logged yet</p>
-                <p>Select any tooth on the FDI chart above to record conditions, treatments, or clinical notes.</p>
+          ) : (
+            <div className="space-y-3 max-h-[420px] overflow-y-auto scrollbar-none pr-1">
+              <div className="divide-y divide-border border border-border/60 rounded-xl overflow-hidden bg-surface shadow-sm">
+                {allPatientHistory.map((h, idx) => {
+                  const isLatestOverall = idx === 0;
+                  const parsedCond = sanitizeCondition(h.condition);
+                  const condObj = getConditionCodeObj(h.condition);
+                  const relTime = formatRelativeTime(h.date);
+                  const exactTime = formatExactDateTime(h.date);
+
+                  return (
+                    <div
+                      key={h._id || idx}
+                      className={`p-3.5 text-xs space-y-2 hover:bg-bg/40 transition-colors ${isLatestOverall ? 'bg-surface/90 border-l-4 border-l-brand' : ''
+                        }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          {/* Tooth Number Badge */}
+                          <span className="font-mono font-bold text-xs bg-brand-light/60 text-brand-dark px-2 py-0.5 rounded-lg border border-brand/20 shrink-0">
+                            Tooth #{h.toothNumber}
+                          </span>
+
+                          {/* Condition Code & Name */}
+                          <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
+                            <span
+                              className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
+                            >
+                              {condObj.code}
+                            </span>
+                            <span className="font-bold text-ink text-xs whitespace-nowrap">
+                              {parsedCond.name}
+                            </span>
+                          </div>
+
+                          {/* Relative & Exact Timestamp */}
+                          {relTime && (
+                            <span
+                              className="text-[10px] font-bold text-brand bg-brand-light/40 px-2 py-0.5 rounded-md border border-brand/20 whitespace-nowrap"
+                              title={exactTime}
+                            >
+                              {relTime}
+                            </span>
+                          )}
+                          {exactTime && (
+                            <span className="text-[11px] text-ink-soft font-medium whitespace-nowrap hidden sm:inline">
+                              • {exactTime}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                          {!isReadOnly && h.isToothLatest && (
+                            <button
+                              type="button"
+                              onClick={() => handleRequestDeleteHistory(h.toothNumber, h)}
+                              className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
+                              title={`Delete last entry for Tooth #${h.toothNumber}`}
+                              aria-label={`Delete last entry for Tooth #${h.toothNumber}`}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {h.treatment && (
+                        <div className="text-xs pl-0.5">
+                          <span className="font-semibold text-ink-soft">Treatment: </span>
+                          <span className="font-bold text-ink">{h.treatment}</span>
+                        </div>
+                      )}
+
+                      {h.notes && (
+                        <div className="text-[11px] pl-0.5 text-ink-soft">
+                          <span className="font-semibold">Notes: </span>
+                          <span className="italic text-ink/80">{h.notes}</span>
+                        </div>
+                      )}
+
+                      <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
+                        Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
-              <div className="space-y-3 max-h-[420px] overflow-y-auto scrollbar-none pr-1">
+            </div>
+          )
+        ) : displayTeeth.length === 1 ? (
+          /* SINGLE TOOTH SELECTION LOG */
+          <div className="space-y-3 max-h-[420px] overflow-y-auto scrollbar-none pr-1">
+            {(() => {
+              const activeHistory = (selectedToothSingle?.history || [])
+                .filter((h) => !h.deleted)
+                .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+              if (activeHistory.length === 0) {
+                return (
+                  <div className="p-8 text-center text-xs text-ink-soft space-y-1">
+                    <Shield size={24} className="mx-auto text-ink-soft/40" />
+                    <p className="font-semibold text-ink">No historical treatments recorded yet.</p>
+                    <p>
+                      Tooth #{displayTeeth[0]} is currently marked as{' '}
+                      <span className="text-brand font-bold">
+                        {selectedToothSingle?.currentCondition || 'Healthy'}
+                      </span>
+                      .
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
                 <div className="divide-y divide-border border border-border/60 rounded-xl overflow-hidden bg-surface shadow-sm">
-                  {allPatientHistory.map((h, idx) => {
-                    const isLatestOverall = idx === 0;
+                  {activeHistory.map((h, idx) => {
+                    const tNum = displayTeeth[0];
+                    const isMostRecent = idx === 0;
                     const parsedCond = sanitizeCondition(h.condition);
                     const condObj = getConditionCodeObj(h.condition);
                     const relTime = formatRelativeTime(h.date);
@@ -1860,18 +2172,11 @@ export default function ToothChart({
                     return (
                       <div
                         key={h._id || idx}
-                        className={`p-3.5 text-xs space-y-2 hover:bg-bg/40 transition-colors ${
-                          isLatestOverall ? 'bg-surface/90 border-l-4 border-l-brand' : ''
-                        }`}
+                        className={`p-3.5 text-xs space-y-2 hover:bg-bg/40 transition-colors ${isMostRecent ? 'bg-surface/90 border-l-4 border-l-brand' : ''
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                           <div className="flex items-center gap-2 flex-wrap min-w-0">
-                            {/* Tooth Number Badge */}
-                            <span className="font-mono font-bold text-xs bg-brand-light/60 text-brand-dark px-2 py-0.5 rounded-lg border border-brand/20 shrink-0">
-                              Tooth #{h.toothNumber}
-                            </span>
-
-                            {/* Condition Code & Name */}
                             <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
                               <span
                                 className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
@@ -1882,8 +2187,11 @@ export default function ToothChart({
                                 {parsedCond.name}
                               </span>
                             </div>
-
-                            {/* Relative & Exact Timestamp */}
+                            {isMostRecent && (
+                              <span className="text-[10px] bg-brand-light/60 text-brand px-2 py-0.5 rounded-md font-bold border border-brand/20 whitespace-nowrap">
+                                Latest Entry
+                              </span>
+                            )}
                             {relTime && (
                               <span
                                 className="text-[10px] font-bold text-brand bg-brand-light/40 px-2 py-0.5 rounded-md border border-brand/20 whitespace-nowrap"
@@ -1900,13 +2208,13 @@ export default function ToothChart({
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                            {!isReadOnly && h.isToothLatest && (
+                            {!isReadOnly && isMostRecent && (
                               <button
                                 type="button"
-                                onClick={() => handleRequestDeleteHistory(h.toothNumber, h)}
+                                onClick={() => handleRequestDeleteHistory(tNum, h)}
                                 className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
-                                title={`Delete last entry for Tooth #${h.toothNumber}`}
-                                aria-label={`Delete last entry for Tooth #${h.toothNumber}`}
+                                title="Delete last entry"
+                                aria-label="Delete last entry"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -1935,253 +2243,140 @@ export default function ToothChart({
                     );
                   })}
                 </div>
+              );
+            })()}
+          </div>
+        ) : (
+          /* MULTIPLE TEETH SELECTION LOG */
+          <div className="space-y-4 max-h-[420px] overflow-y-auto scrollbar-none pr-1">
+            {totalHistoryCount === 0 ? (
+              <div className="p-8 text-center text-xs text-ink-soft space-y-2 bg-bg/30 rounded-xl border border-border">
+                <Shield size={28} className="mx-auto text-ink-soft/40" />
+                <p className="font-semibold text-ink text-sm">No treatment history found</p>
+                <p className="text-ink-soft">
+                  No previous treatment history found for {formatTeethListPhrase(displayTeeth)}.
+                </p>
               </div>
-            )
-          ) : displayTeeth.length === 1 ? (
-            /* SINGLE TOOTH SELECTION LOG */
-            <div className="space-y-3 max-h-[420px] overflow-y-auto scrollbar-none pr-1">
-              {(() => {
-                const activeHistory = (selectedToothSingle?.history || [])
-                  .filter((h) => !h.deleted)
-                  .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+            ) : (
+              <div className="space-y-4">
+                {displayTeeth.map((tNum) => {
+                  const record = teethMap[tNum] || {};
+                  const activeHistory = (record.history || [])
+                    .filter((h) => !h.deleted)
+                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
-                if (activeHistory.length === 0) {
                   return (
-                    <div className="p-8 text-center text-xs text-ink-soft space-y-1">
-                      <Shield size={24} className="mx-auto text-ink-soft/40" />
-                      <p className="font-semibold text-ink">No historical treatments recorded yet.</p>
-                      <p>
-                        Tooth #{displayTeeth[0]} is currently marked as{' '}
-                        <span className="text-brand font-bold">
-                          {selectedToothSingle?.currentCondition || 'Healthy'}
+                    <div
+                      key={tNum}
+                      className="border border-border rounded-xl p-3.5 space-y-2.5 bg-bg/30"
+                    >
+                      <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                        <span className="font-mono font-bold text-sm text-ink flex items-center gap-2">
+                          Tooth #{tNum}
                         </span>
-                        .
-                      </p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="divide-y divide-border border border-border/60 rounded-xl overflow-hidden bg-surface shadow-sm">
-                    {activeHistory.map((h, idx) => {
-                      const tNum = displayTeeth[0];
-                      const isMostRecent = idx === 0;
-                      const parsedCond = sanitizeCondition(h.condition);
-                      const condObj = getConditionCodeObj(h.condition);
-                      const relTime = formatRelativeTime(h.date);
-                      const exactTime = formatExactDateTime(h.date);
-
-                      return (
-                        <div
-                          key={h._id || idx}
-                          className={`p-3.5 text-xs space-y-2 hover:bg-bg/40 transition-colors ${
-                            isMostRecent ? 'bg-surface/90 border-l-4 border-l-brand' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-                            <div className="flex items-center gap-2 flex-wrap min-w-0">
-                              <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
-                                <span
-                                  className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
-                                >
-                                  {condObj.code}
-                                </span>
-                                <span className="font-bold text-ink text-xs whitespace-nowrap">
-                                  {parsedCond.name}
-                                </span>
-                              </div>
-                              {isMostRecent && (
-                                <span className="text-[10px] bg-brand-light/60 text-brand px-2 py-0.5 rounded-md font-bold border border-brand/20 whitespace-nowrap">
-                                  Latest Entry
-                                </span>
-                              )}
-                              {relTime && (
-                                <span
-                                  className="text-[10px] font-bold text-brand bg-brand-light/40 px-2 py-0.5 rounded-md border border-brand/20 whitespace-nowrap"
-                                  title={exactTime}
-                                >
-                                  {relTime}
-                                </span>
-                              )}
-                              {exactTime && (
-                                <span className="text-[11px] text-ink-soft font-medium whitespace-nowrap hidden sm:inline">
-                                  • {exactTime}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                              {!isReadOnly && isMostRecent && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRequestDeleteHistory(tNum, h)}
-                                  className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
-                                  title="Delete last entry"
-                                  aria-label="Delete last entry"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {h.treatment && (
-                            <div className="text-xs pl-0.5">
-                              <span className="font-semibold text-ink-soft">Treatment: </span>
-                              <span className="font-bold text-ink">{h.treatment}</span>
-                            </div>
-                          )}
-
-                          {h.notes && (
-                            <div className="text-[11px] pl-0.5 text-ink-soft">
-                              <span className="font-semibold">Notes: </span>
-                              <span className="italic text-ink/80">{h.notes}</span>
-                            </div>
-                          )}
-
-                          <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                            Recorded by: Dr. {h.doctor?.name || 'Doctor'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-          ) : (
-            /* MULTIPLE TEETH SELECTION LOG */
-            <div className="space-y-4 max-h-[420px] overflow-y-auto scrollbar-none pr-1">
-              {totalHistoryCount === 0 ? (
-                <div className="p-8 text-center text-xs text-ink-soft space-y-2 bg-bg/30 rounded-xl border border-border">
-                  <Shield size={28} className="mx-auto text-ink-soft/40" />
-                  <p className="font-semibold text-ink text-sm">No treatment history found</p>
-                  <p className="text-ink-soft">
-                    No previous treatment history found for {formatTeethListPhrase(displayTeeth)}.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {displayTeeth.map((tNum) => {
-                    const record = teethMap[tNum] || {};
-                    const activeHistory = (record.history || [])
-                      .filter((h) => !h.deleted)
-                      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-
-                    return (
-                      <div
-                        key={tNum}
-                        className="border border-border rounded-xl p-3.5 space-y-2.5 bg-bg/30"
-                      >
-                        <div className="flex items-center justify-between border-b border-border/70 pb-2">
-                          <span className="font-mono font-bold text-sm text-ink flex items-center gap-2">
-                            Tooth #{tNum}
+                        <span className="text-xs font-semibold text-ink-soft">
+                          Current:{' '}
+                          <span className="text-brand font-bold">
+                            {sanitizeCondition(record.currentCondition).name}
                           </span>
-                          <span className="text-xs font-semibold text-ink-soft">
-                            Current:{' '}
-                            <span className="text-brand font-bold">
-                              {sanitizeCondition(record.currentCondition).name}
-                            </span>
-                          </span>
-                        </div>
+                        </span>
+                      </div>
 
-                        {activeHistory.length > 0 ? (
-                          <div className="divide-y divide-border border border-border/60 rounded-xl overflow-hidden bg-surface shadow-sm">
-                            {activeHistory.map((h, idx) => {
-                              const isMostRecent = idx === 0;
-                              const parsedCond = sanitizeCondition(h.condition);
-                              const condObj = getConditionCodeObj(h.condition);
-                              const relTime = formatRelativeTime(h.date);
-                              const exactTime = formatExactDateTime(h.date);
+                      {activeHistory.length > 0 ? (
+                        <div className="divide-y divide-border border border-border/60 rounded-xl overflow-hidden bg-surface shadow-sm">
+                          {activeHistory.map((h, idx) => {
+                            const isMostRecent = idx === 0;
+                            const parsedCond = sanitizeCondition(h.condition);
+                            const condObj = getConditionCodeObj(h.condition);
+                            const relTime = formatRelativeTime(h.date);
+                            const exactTime = formatExactDateTime(h.date);
 
-                              return (
-                                <div
-                                  key={h._id || idx}
-                                  className={`p-3.5 text-xs space-y-2 hover:bg-bg/40 transition-colors ${
-                                    isMostRecent ? 'bg-surface/90 border-l-4 border-l-brand' : ''
+                            return (
+                              <div
+                                key={h._id || idx}
+                                className={`p-3.5 text-xs space-y-2 hover:bg-bg/40 transition-colors ${isMostRecent ? 'bg-surface/90 border-l-4 border-l-brand' : ''
                                   }`}
-                                >
-                                  <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                      <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
-                                        <span
-                                          className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
-                                        >
-                                          {condObj.code}
-                                        </span>
-                                        <span className="font-bold text-ink text-xs whitespace-nowrap">
-                                          {parsedCond.name}
-                                        </span>
-                                      </div>
-                                      {isMostRecent && (
-                                        <span className="text-[10px] bg-brand-light/60 text-brand px-2 py-0.5 rounded-md font-bold border border-brand/20 whitespace-nowrap">
-                                          Latest Entry
-                                        </span>
-                                      )}
-                                      {relTime && (
-                                        <span
-                                          className="text-[10px] font-bold text-brand bg-brand-light/40 px-2 py-0.5 rounded-md border border-brand/20 whitespace-nowrap"
-                                          title={exactTime}
-                                        >
-                                          {relTime}
-                                        </span>
-                                      )}
-                                      {exactTime && (
-                                        <span className="text-[11px] text-ink-soft font-medium whitespace-nowrap hidden sm:inline">
-                                          • {exactTime}
-                                        </span>
-                                      )}
+                              >
+                                <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                    <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
+                                      <span
+                                        className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
+                                      >
+                                        {condObj.code}
+                                      </span>
+                                      <span className="font-bold text-ink text-xs whitespace-nowrap">
+                                        {parsedCond.name}
+                                      </span>
                                     </div>
-
-                                    <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                                      {!isReadOnly && isMostRecent && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRequestDeleteHistory(tNum, h)}
-                                          className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
-                                          title="Delete last entry"
-                                          aria-label="Delete last entry"
-                                        >
-                                          <Trash2 size={13} />
-                                        </button>
-                                      )}
-                                    </div>
+                                    {isMostRecent && (
+                                      <span className="text-[10px] bg-brand-light/60 text-brand px-2 py-0.5 rounded-md font-bold border border-brand/20 whitespace-nowrap">
+                                        Latest Entry
+                                      </span>
+                                    )}
+                                    {relTime && (
+                                      <span
+                                        className="text-[10px] font-bold text-brand bg-brand-light/40 px-2 py-0.5 rounded-md border border-brand/20 whitespace-nowrap"
+                                        title={exactTime}
+                                      >
+                                        {relTime}
+                                      </span>
+                                    )}
+                                    {exactTime && (
+                                      <span className="text-[11px] text-ink-soft font-medium whitespace-nowrap hidden sm:inline">
+                                        • {exactTime}
+                                      </span>
+                                    )}
                                   </div>
 
-                                  {h.treatment && (
-                                    <div className="text-xs pl-0.5">
-                                      <span className="font-semibold text-ink-soft">Treatment: </span>
-                                      <span className="font-bold text-ink">{h.treatment}</span>
-                                    </div>
-                                  )}
-
-                                  {h.notes && (
-                                    <div className="text-[11px] pl-0.5 text-ink-soft">
-                                      <span className="font-semibold">Notes: </span>
-                                      <span className="italic text-ink/80">{h.notes}</span>
-                                    </div>
-                                  )}
-
-                                  <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                                    Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                                  <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                                    {!isReadOnly && isMostRecent && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRequestDeleteHistory(tNum, h)}
+                                        className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
+                                        title="Delete last entry"
+                                        aria-label="Delete last entry"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-ink-soft italic pt-1">
-                            No previous treatment history recorded for Tooth #{tNum}.
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+
+                                {h.treatment && (
+                                  <div className="text-xs pl-0.5">
+                                    <span className="font-semibold text-ink-soft">Treatment: </span>
+                                    <span className="font-bold text-ink">{h.treatment}</span>
+                                  </div>
+                                )}
+
+                                {h.notes && (
+                                  <div className="text-[11px] pl-0.5 text-ink-soft">
+                                    <span className="font-semibold">Notes: </span>
+                                    <span className="italic text-ink/80">{h.notes}</span>
+                                  </div>
+                                )}
+
+                                <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
+                                  Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-ink-soft italic pt-1">
+                          No previous treatment history recorded for Tooth #{tNum}.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* DELETE CONFIRMATION POPUP FOR MOST RECENT TOOTH HISTORY ENTRY */}
@@ -2190,15 +2385,14 @@ export default function ToothChart({
         title="Delete Last Entry"
         message={
           historyItemToDelete
-            ? `Remove the most recent entry for Tooth #${historyItemToDelete.toothNumber} — ${historyItemToDelete.condition} on ${
-                historyItemToDelete.date
-                  ? new Date(historyItemToDelete.date).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : 'today'
-              }? This cannot be undone.`
+            ? `Remove the most recent entry for Tooth #${historyItemToDelete.toothNumber} — ${historyItemToDelete.condition} on ${historyItemToDelete.date
+              ? new Date(historyItemToDelete.date).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })
+              : 'today'
+            }? This cannot be undone.`
             : 'Remove the most recent entry for this tooth? This cannot be undone.'
         }
         confirmText="Delete"
@@ -2234,3 +2428,4 @@ export default function ToothChart({
     </div>
   );
 }
+

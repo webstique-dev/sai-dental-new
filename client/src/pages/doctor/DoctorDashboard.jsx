@@ -95,9 +95,26 @@ export default function DoctorDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleStartNextConsultation = () => {
-    if (!summary?.nextInQueue?.patient) return;
-    setSelectedPatientForEdit(summary.nextInQueue.patient);
+  const handleStartNextConsultation = async () => {
+    if (!summary?.nextInQueue) return;
+    const nextQ = summary.nextInQueue;
+    try {
+      setStarting(true);
+      const res = await api.post('/consultations/start', {
+        queueEntryId: nextQ._id || nextQ.id,
+        appointmentId: nextQ.appointment?._id || nextQ.appointment?.id || nextQ.appointment,
+      });
+      const consultation = res.data?.consultation;
+      if (consultation && (consultation._id || consultation.id)) {
+        navigate(`/doctor/consultation/${consultation._id || consultation.id}`);
+      } else {
+        setError('Could not start consultation.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to start consultation.');
+    } finally {
+      setStarting(false);
+    }
   };
 
   if (loading) {

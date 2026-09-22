@@ -95,20 +95,6 @@ async function applyToothUpdate(patientId, toothNum, body, userId) {
     await checkConsultationNotClosed(consultationId);
   }
 
-  let record = await ToothRecord.findOne({
-    patient: patientId,
-    toothNumber: Number(toothNum),
-  });
-
-  if (!record) {
-    record = new ToothRecord({
-      patient: patientId,
-      toothNumber: Number(toothNum),
-      currentCondition: finalCondition,
-      history: [],
-    });
-  }
-
   const historyItem = {
     condition: finalCondition,
     treatment: treatment || '',
@@ -118,13 +104,66 @@ async function applyToothUpdate(patientId, toothNum, body, userId) {
     consultation: consultationId || null,
   };
 
-  // Critical rule: PUSH new entry onto history, NEVER overwrite prior entries
-  record.history.push(historyItem);
-  record.currentCondition = finalCondition;
+  // Server-side deduplication guard: If tooth already has identical condition and latest history details, skip duplicate history entry
+  const existingRecord = await ToothRecord.findOne({
+    patient: patientId,
+    toothNumber: Number(toothNum),
+  });
 
-  await record.save();
+  if (existingRecord) {
+    const existingSanitized = sanitizeCondition(existingRecord.currentCondition);
+    const activeHistory = (existingRecord.history || []).filter((h) => !h.deleted);
+    const lastHistory = activeHistory.length > 0 ? activeHistory[activeHistory.length - 1] : null;
 
-  return await ToothRecord.findById(record._id).populate('history.doctor', 'name email');
+    const isSameCondition = existingSanitized.name.toLowerCase() === sanitized.name.toLowerCase();
+    const isSameTreatment = (treatment || '').trim() === (lastHistory?.treatment || '').trim();
+    const isSameNotes = (notes || '').trim() === (lastHistory?.notes || '').trim();
+
+    if (isSameCondition && isSameTreatment && isSameNotes) {
+      return await ToothRecord.findById(existingRecord._id).populate('history.doctor', 'name email');
+    }
+  }
+
+  let updatedRecord;
+  try {
+    // Atomic findOneAndUpdate with upsert prevents race conditions on (patient, toothNumber)
+    updatedRecord = await ToothRecord.findOneAndUpdate(
+      {
+        patient: patientId,
+        toothNumber: Number(toothNum),
+      },
+      {
+        $set: { currentCondition: finalCondition },
+        $push: { history: historyItem },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    ).populate('history.doctor', 'name email');
+  } catch (err) {
+    // If a rare concurrent race condition causes MongoDB duplicate key error E11000 during upsert, retry cleanly as update
+    if (err.code === 11000 || (err.message && err.message.includes('E11000'))) {
+      updatedRecord = await ToothRecord.findOneAndUpdate(
+        {
+          patient: patientId,
+          toothNumber: Number(toothNum),
+        },
+        {
+          $set: { currentCondition: finalCondition },
+          $push: { history: historyItem },
+        },
+        {
+          new: true,
+        }
+      ).populate('history.doctor', 'name email');
+    } else {
+      throw err;
+    }
+  }
+
+  return updatedRecord;
 }
 
 // PATCH /api/tooth-chart/:patientId/:toothNumber

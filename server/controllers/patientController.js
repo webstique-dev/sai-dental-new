@@ -73,12 +73,13 @@ async function listPatients(req, res, next) {
       }
     );
 
-    // 3. If filtered by doctorId, ensure patient has at least one consultation, appointment, or queueEntry with this doctor
+    // 3. If filtered by doctorId, ensure patient has at least one consultation, appointment, or queueEntry with this doctor, OR was registered by this doctor
     if (effectiveDoctorId && mongoose.Types.ObjectId.isValid(effectiveDoctorId)) {
       const docObjId = new mongoose.Types.ObjectId(effectiveDoctorId);
       pipeline.push({
         $match: {
           $or: [
+            { registeredBy: docObjId },
             { 'consultations.doctor': docObjId },
             { appointments: { $elemMatch: { doctor: docObjId, isDeleted: { $ne: true } } } },
             { 'queueEntries.doctor': docObjId },
@@ -119,6 +120,14 @@ async function listPatients(req, res, next) {
           $ifNull: ['$lastVisitDoc.startedAt', '$lastVisitDoc.createdAt'],
         },
         lastVisitDoctorId: '$lastVisitDoc.doctor',
+        effectiveRecentDate: {
+          $max: [
+            { $ifNull: [{ $ifNull: ['$lastVisitDoc.startedAt', '$lastVisitDoc.createdAt'] }, new Date(0)] },
+            { $ifNull: ['$registrationDate', new Date(0)] },
+            { $ifNull: ['$createdAt', new Date(0)] },
+            { $ifNull: ['$updatedAt', new Date(0)] },
+          ],
+        },
       },
     });
 
@@ -157,16 +166,21 @@ async function listPatients(req, res, next) {
     });
 
     // 7. Sorting
-    const sortField = sort || sortBy || 'lastVisit';
+    const sortField = (sort || sortBy || 'recent').toString().trim();
     const direction = sortOrder === 'asc' ? 1 : -1;
     let sortOptions = {};
 
     if (sortField === 'name') {
-      sortOptions = { firstName: direction, lastName: direction };
+      sortOptions = { firstName: direction, lastName: direction, _id: direction };
     } else if (sortField === 'registrationDate') {
-      sortOptions = { registrationDate: direction, createdAt: direction };
+      sortOptions = { registrationDate: direction, createdAt: direction, _id: direction };
+    } else if (sortField === 'createdAt') {
+      sortOptions = { createdAt: direction, registrationDate: direction, _id: direction };
+    } else if (sortField === 'lastVisit') {
+      sortOptions = { lastVisitDate: direction, effectiveRecentDate: direction, createdAt: direction, _id: direction };
     } else {
-      sortOptions = { lastVisitDate: direction, createdAt: direction };
+      // Default: Most recent patients first (whichever is latest among last visit, registration, or creation)
+      sortOptions = { effectiveRecentDate: direction, createdAt: direction, _id: direction };
     }
 
     // 8. Pagination Facet
@@ -216,6 +230,21 @@ async function createPatient(req, res, next) {
       data.secondaryPhone = data.secondaryPhone.toString().trim().replace(/\D/g, '');
     } else {
       data.secondaryPhone = '';
+    }
+
+    // Clean vitals: only keep keys with non-empty values
+    if (data.vitals && typeof data.vitals === 'object') {
+      const cleanedVitals = {};
+      Object.entries(data.vitals).forEach(([key, val]) => {
+        if (typeof val === 'string' && val.trim()) {
+          cleanedVitals[key] = val.trim();
+        } else if (val !== null && val !== undefined && typeof val !== 'string' && val !== '') {
+          cleanedVitals[key] = val;
+        }
+      });
+      data.vitals = cleanedVitals;
+    } else {
+      data.vitals = {};
     }
 
     if (req.user && req.user._id) {
@@ -288,6 +317,22 @@ async function updatePatient(req, res, next) {
 
     if (req.body.secondaryPhone !== undefined) {
       req.body.secondaryPhone = (req.body.secondaryPhone || '').toString().trim().replace(/\D/g, '');
+    }
+
+    if (req.body.vitals !== undefined) {
+      if (req.body.vitals && typeof req.body.vitals === 'object') {
+        const cleanedVitals = {};
+        Object.entries(req.body.vitals).forEach(([key, val]) => {
+          if (typeof val === 'string' && val.trim()) {
+            cleanedVitals[key] = val.trim();
+          } else if (val !== null && val !== undefined && typeof val !== 'string' && val !== '') {
+            cleanedVitals[key] = val;
+          }
+        });
+        req.body.vitals = cleanedVitals;
+      } else {
+        req.body.vitals = {};
+      }
     }
 
     const patient = await Patient.findByIdAndUpdate(req.params.id, req.body, {

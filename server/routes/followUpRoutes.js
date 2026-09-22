@@ -2,6 +2,7 @@ const express = require('express');
 const {
   listFollowUps,
   createFollowUp,
+  updateFollowUp,
   scheduleFollowUp,
   getLastDoctorForPatient,
   checkInFollowUp,
@@ -17,6 +18,8 @@ router.use(protect, allowRoles('receptionist', 'admin', 'doctor'));
 
 router.get('/', listFollowUps);
 router.post('/', createFollowUp);
+router.put('/:id', updateFollowUp);
+router.patch('/:id', updateFollowUp);
 router.get('/patient-last-doctor/:patientId', getLastDoctorForPatient);
 router.post('/:id/schedule', scheduleFollowUp);
 router.post('/:id/check-in', checkInFollowUp);

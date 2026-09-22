@@ -166,14 +166,24 @@ export default function DoctorPatientHeader({ title, description, icon: Icon, on
               </div>
             </div>
 
-            {selectedPatient.vitals && (
+            {selectedPatient.vitals && (selectedPatient.vitals.bp || selectedPatient.vitals.rbs) ? (
               <div className="flex items-center gap-3 text-xs bg-bg p-2 rounded-lg border border-border">
                 <Heart size={16} className="text-rose-500 shrink-0" />
                 <div>
                   <span className="text-ink-soft block text-[10px] font-semibold uppercase">Vitals</span>
                   <span className="font-mono font-bold text-ink">
-                    BP: {selectedPatient.vitals.bp || '120/80'} | RBS: {selectedPatient.vitals.rbs || 'N/A'}
+                    {selectedPatient.vitals.bp ? `BP: ${selectedPatient.vitals.bp}` : ''}
+                    {selectedPatient.vitals.bp && selectedPatient.vitals.rbs ? ' | ' : ''}
+                    {selectedPatient.vitals.rbs ? `RBS: ${selectedPatient.vitals.rbs}` : ''}
                   </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 text-xs bg-bg p-2 rounded-lg border border-border">
+                <Heart size={16} className="text-rose-500 shrink-0" />
+                <div>
+                  <span className="text-ink-soft block text-[10px] font-semibold uppercase">Vitals</span>
+                  <span className="text-xs text-ink-soft italic">Not recorded</span>
                 </div>
               </div>
             )}

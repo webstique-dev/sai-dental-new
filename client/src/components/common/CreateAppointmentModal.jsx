@@ -165,8 +165,7 @@ export default function CreateAppointmentModal({
       showSuccess(successMsg);
       if (onSuccess) {
         onSuccess(newAppt || payload);
-      }
-      if (onClose) {
+      } else if (onClose) {
         onClose();
       }
     } catch (err) {

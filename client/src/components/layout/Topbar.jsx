@@ -56,7 +56,6 @@ export default function Topbar({ onMenuClick, title }) {
           <button onClick={onMenuClick} className="rounded-lg p-1.5 hover:bg-bg lg:hidden" aria-label="Open menu">
             <Menu size={20} />
           </button>
-          <h1 className="font-display text-lg font-bold text-ink">{title}</h1>
         </div>
 
         <div className="relative" ref={dropdownRef}>

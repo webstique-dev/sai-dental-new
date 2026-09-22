@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
 import {
   Pill, Plus, Trash2, Printer, FileText, X, Stethoscope, Save,
+  Calendar, Clock, CalendarDays, CheckCircle2, AlertTriangle, Sparkles, Check, ChevronDown, ChevronUp, Lock
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { openPrescriptionPDFWindow } from '../../../utils/prescriptionPdfGenerator.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
+import DatePicker from '../../../components/common/DatePicker.jsx';
+import SplitTimeInput from '../../../components/common/SplitTimeInput.jsx';
+import EditableCombobox from '../../../components/common/EditableCombobox.jsx';
 import { useNotification } from '../../../context/NotificationContext.jsx';
+import { FOLLOW_UP_REASONS, PROCEDURE_TREATMENT_STATUSES } from '../../../constants/followUpOptions.js';
+import { TOOTH_CONDITIONS } from '../../../constants/toothConditions.js';
 
 export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const consultationId = consultation?._id || consultation?.id;
@@ -29,6 +35,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   // Delete modal state
   const [deletingRx, setDeletingRx] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletingMedicineIndex, setDeletingMedicineIndex] = useState(null);
 
   // Print Modal State
   const [printingRx, setPrintingRx] = useState(null);
@@ -38,14 +45,32 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const [medicines, setMedicines] = useState([]);
   const [prescriptionNotes, setPrescriptionNotes] = useState('');
 
+  // Follow-Up Scheduling State
+  const [existingFollowUpId, setExistingFollowUpId] = useState(null);
+  const [existingFollowUp, setExistingFollowUp] = useState(null);
+  const [followUpScheduled, setFollowUpScheduled] = useState(false);
+  const [enableFollowUp, setEnableFollowUp] = useState(false);
+  const [followUpForm, setFollowUpForm] = useState({
+    recommendedDate: '',
+    time: '10:00 AM',
+    reason: '',
+    instructions: '',
+    treatmentStatus: '',
+    notes: '',
+  });
+  const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
+  const [followUpSuccessMsg, setFollowUpSuccessMsg] = useState('');
+  const [followUpError, setFollowUpError] = useState('');
+
   const fetchData = async () => {
     if (!consultationId) return;
     try {
       setLoading(true);
-      const [rxRes, diagRes, settingsRes] = await Promise.all([
+      const [rxRes, diagRes, settingsRes, fuRes] = await Promise.all([
         api.get(`/prescriptions?consultation=${consultationId}`),
         api.get(`/diagnoses?consultation=${consultationId}`).catch(() => ({ data: { diagnoses: [] } })),
         api.get('/clinic-settings').catch(() => ({ data: {} })),
+        api.get(`/follow-ups?consultation=${consultationId}`).catch(() => ({ data: { followUps: [] } })),
       ]);
 
       setPrescriptions(rxRes.data?.prescriptions || []);
@@ -53,6 +78,42 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
 
       if (settingsRes.data?.settings) {
         setClinicSettings((prev) => ({ ...prev, ...settingsRes.data.settings }));
+      }
+
+      const defaultDate = new Date();
+      defaultDate.setDate(defaultDate.getDate() + 7);
+      const defaultDateStr = defaultDate.toISOString().split('T')[0];
+
+      const fuList = fuRes.data?.followUps || [];
+      if (fuList.length > 0) {
+        const fu = fuList[0];
+        setExistingFollowUp(fu);
+        setExistingFollowUpId(fu._id || fu.id);
+        setFollowUpScheduled(true);
+        setEnableFollowUp(true);
+        const fuDateStr = fu.recommendedDate ? new Date(fu.recommendedDate).toISOString().split('T')[0] : defaultDateStr;
+        const fuTimeStr = fu.scheduledAppointment?.time || '10:00 AM';
+        setFollowUpForm({
+          recommendedDate: fuDateStr,
+          time: fuTimeStr,
+          reason: fu.reason || '',
+          instructions: fu.instructions || '',
+          treatmentStatus: fu.treatmentStatus || '',
+          notes: fu.notes || '',
+        });
+      } else {
+        setExistingFollowUp(null);
+        setExistingFollowUpId(null);
+        setFollowUpScheduled(false);
+        setEnableFollowUp(false);
+        setFollowUpForm({
+          recommendedDate: defaultDateStr,
+          time: '10:00 AM',
+          reason: '',
+          instructions: '',
+          treatmentStatus: '',
+          notes: '',
+        });
       }
     } catch (err) {
       console.error('Failed to load prescription data:', err);
@@ -94,9 +155,21 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
     ]);
   };
 
-  const handleRemoveRow = (index) => {
+  const handleInitiateRemoveRow = (index) => {
     if (isReadOnly) return;
-    setMedicines((prev) => prev.filter((_, i) => i !== index));
+    const item = medicines[index];
+    if (item && (item.medicine?.trim() || item.dosage?.trim() || item.duration?.trim())) {
+      setDeletingMedicineIndex(index);
+    } else {
+      setMedicines((prev) => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const confirmDeleteMedicineRow = () => {
+    if (deletingMedicineIndex !== null) {
+      setMedicines((prev) => prev.filter((_, i) => i !== deletingMedicineIndex));
+      setDeletingMedicineIndex(null);
+    }
   };
 
   const handleRowChange = (index, field, value) => {
@@ -160,6 +233,76 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
     }
   };
 
+  const handleQuickPresetDate = (daysToAdd) => {
+    if (isReadOnly) return;
+    const d = new Date();
+    d.setDate(d.getDate() + daysToAdd);
+    const dateStr = d.toISOString().split('T')[0];
+    setFollowUpForm((prev) => ({ ...prev, recommendedDate: dateStr }));
+    setEnableFollowUp(true);
+  };
+
+  const handleSaveFollowUp = async (e) => {
+    if (e) e.preventDefault();
+    if (isReadOnly) return;
+
+    if (!followUpForm.recommendedDate) {
+      setFollowUpError('Please select a recommended follow-up date.');
+      return;
+    }
+    if (!followUpForm.reason.trim()) {
+      setFollowUpError('Please enter or select a reason / procedure for the follow-up.');
+      return;
+    }
+
+    setFollowUpSubmitting(true);
+    setFollowUpError('');
+    setFollowUpSuccessMsg('');
+
+    try {
+      const payload = {
+        followUpId: existingFollowUpId,
+        patient: patientId,
+        doctor: doctor?._id || doctor?.id || consultation?.doctor?._id || consultation?.doctor,
+        consultation: consultationId,
+        recommendedDate: followUpForm.recommendedDate,
+        time: followUpForm.time || '10:00 AM',
+        reason: followUpForm.reason.trim(),
+        instructions: followUpForm.instructions ? followUpForm.instructions.trim() : '',
+        treatmentStatus: followUpForm.treatmentStatus ? followUpForm.treatmentStatus.trim() : '',
+        notes: followUpForm.notes ? followUpForm.notes.trim() : '',
+      };
+
+      let res;
+      if (existingFollowUpId) {
+        res = await api.put(`/follow-ups/${existingFollowUpId}`, payload);
+      } else {
+        res = await api.post('/follow-ups', payload);
+      }
+
+      const saved = res.data?.followUp;
+      setExistingFollowUp(saved);
+      setExistingFollowUpId(saved?._id || saved?.id || existingFollowUpId);
+      setFollowUpScheduled(true);
+      const isUpdate = Boolean(existingFollowUpId);
+      setFollowUpSuccessMsg(
+        isUpdate
+          ? 'Follow-up appointment updated successfully!'
+          : 'Next follow-up appointment scheduled successfully!'
+      );
+      showSuccess(isUpdate ? 'Follow-up updated successfully!' : 'Follow-up scheduled successfully!');
+      setTimeout(() => setFollowUpSuccessMsg(''), 4000);
+      fetchData();
+    } catch (err) {
+      console.error('Failed to save follow-up:', err);
+      const msg = err.response?.data?.message || 'Failed to schedule follow-up.';
+      setFollowUpError(msg);
+      showError(msg);
+    } finally {
+      setFollowUpSubmitting(false);
+    }
+  };
+
   const handleGeneratePDFWindow = (rxToPrint) => {
     const rxObj = rxToPrint || printingRx;
     if (!rxObj) return;
@@ -192,9 +335,11 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const doctorSpecialization = printingRx?.recordedBy?.specialization || doctor.specialization || 'BDS, MDS - Dental Specialist';
 
   return (
-    <div className="space-y-6">
-      {/* FORM: REPEATABLE MEDICINES PRESCRIPTION FORM (Hidden when read-only) */}
-      {!isReadOnly && (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* LEFT COLUMN: PRESCRIPTIONS FORM & HISTORY (7 COLS) */}
+      <div className="lg:col-span-7 space-y-6 min-w-0">
+        {/* FORM: REPEATABLE MEDICINES PRESCRIPTION FORM (Hidden when read-only) */}
+        {!isReadOnly && (
         <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
@@ -327,9 +472,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                             </select>
                             <button
                               type="button"
-                              onClick={() => handleRemoveRow(idx)}
+                              onClick={() => handleInitiateRemoveRow(idx)}
                               className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
-                              title="Remove row"
+                              title="Remove medicine"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -344,9 +489,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleRemoveRow(idx)}
+                              onClick={() => handleInitiateRemoveRow(idx)}
                               className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
-                              title="Remove row"
+                              title="Remove medicine"
                             >
                               <Trash2 size={15} />
                             </button>
@@ -595,12 +740,220 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                       {rx.notes}
                     </div>
                   )}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: SCHEDULE NEXT FOLLOW-UP SECTION (5 COLS) */}
+      <div className="lg:col-span-5 space-y-6 min-w-0 lg:sticky lg:top-4">
+        {/* SCHEDULE NEXT FOLLOW-UP SECTION */}
+        <div className="card p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-3">
+          <div>
+            <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
+              <Calendar className="text-brand shrink-0" size={18} /> Schedule Next Follow-Up
+            </h3>
+            <p className="text-xs text-ink-soft">
+              Set or update the patient's next clinical visit, planned procedure, and post-op recall instructions.
+            </p>
           </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {followUpScheduled ? (
+              <span className="badge bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 py-1 px-2.5 shadow-2xs">
+                <CheckCircle2 size={13} className="text-emerald-600" />
+                <span>
+                  Follow-up: {new Date(followUpForm.recommendedDate).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })} • {followUpForm.time || '10:00 AM'}
+                </span>
+              </span>
+            ) : (
+              <span className="badge bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold py-1 px-2.5">
+                No Follow-Up Scheduled
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Read-Only State Display */}
+        {isReadOnly ? (
+          followUpScheduled ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-2 text-xs">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <Calendar size={14} className="text-emerald-600" /> Recommended Date & Time:
+                </span>
+                <span className="font-mono font-bold text-ink bg-surface px-2.5 py-1 rounded-lg border border-emerald-200">
+                  {new Date(followUpForm.recommendedDate).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })} at {followUpForm.time || '10:00 AM'}
+                </span>
+              </div>
+              {followUpForm.reason && (
+                <div>
+                  <span className="font-semibold text-ink-soft">Reason / Procedure: </span>
+                  <span className="font-bold text-ink">{followUpForm.reason}</span>
+                </div>
+              )}
+              {followUpForm.treatmentStatus && (
+                <div>
+                  <span className="font-semibold text-ink-soft">Procedure Status Note: </span>
+                  <span className="text-ink">{followUpForm.treatmentStatus}</span>
+                </div>
+              )}
+              {followUpForm.instructions && (
+                <div>
+                  <span className="font-semibold text-ink-soft">Patient Instructions: </span>
+                  <span className="italic text-ink">{followUpForm.instructions}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-ink-soft italic p-3 text-center bg-bg/40 rounded-xl border border-border">
+              No follow-up appointment was scheduled during this consultation.
+            </p>
+          )
+        ) : (
+          /* Editable Follow-Up Form */
+          <form onSubmit={handleSaveFollowUp} className="space-y-4">
+            {followUpSuccessMsg && (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3.5 text-xs font-bold text-emerald-800 border border-emerald-200 animate-fadeIn">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                <span>{followUpSuccessMsg}</span>
+              </div>
+            )}
+
+            {followUpError && (
+              <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800 border border-rose-200 animate-fadeIn">
+                <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                <span>{followUpError}</span>
+              </div>
+            )}
+
+            {/* Quick Presets Bar */}
+            <div className="space-y-2 p-3 bg-bg/60 rounded-xl border border-border">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                <Clock size={14} className="text-brand shrink-0" />
+                <span>Quick Date Presets:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { label: '+3 Days', days: 3 },
+                  { label: '+1 Week', days: 7 },
+                  { label: '+2 Weeks', days: 14 },
+                  { label: '+1 Month', days: 30 },
+                  { label: '+3 Months', days: 90 },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => handleQuickPresetDate(preset.days)}
+                    className="flex-1 min-w-[70px] py-1.5 px-2 text-center text-xs font-bold rounded-lg border bg-surface hover:bg-brand-light/40 border-border hover:border-brand/40 text-ink transition-colors shadow-2xs whitespace-nowrap"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Form Fields Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3.5">
+              <div>
+                <DatePicker
+                  label="Recommended Follow-Up Date"
+                  isRequired={true}
+                  value={followUpForm.recommendedDate}
+                  onChange={(date, dateStr) => setFollowUpForm((prev) => ({ ...prev, recommendedDate: dateStr }))}
+                  minDate={new Date()}
+                />
+              </div>
+
+              <div>
+                <SplitTimeInput
+                  label="Appointment Time Slot"
+                  value={followUpForm.time || '10:00 AM'}
+                  onChange={(time12) => setFollowUpForm((prev) => ({ ...prev, time: time12 }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3.5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-ink-soft flex items-center justify-between flex-wrap gap-1">
+                  <span>Reason / Procedure *</span>
+                  <span className="text-[11px] text-brand font-medium">Dropdown or custom typing</span>
+                </label>
+                <EditableCombobox
+                  options={[...FOLLOW_UP_REASONS, ...TOOTH_CONDITIONS]}
+                  placeholder="e.g. Suture Removal, RCT Next Step, Crown Fit..."
+                  value={followUpForm.reason}
+                  onChange={(val) => setFollowUpForm((prev) => ({ ...prev, reason: val }))}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-ink-soft flex items-center justify-between flex-wrap gap-1">
+                  <span>Procedure / Treatment Status Note</span>
+                  <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
+                </label>
+                <EditableCombobox
+                  options={PROCEDURE_TREATMENT_STATUSES}
+                  placeholder="e.g. RCT Step 1 Done, Temp Crown Placed..."
+                  value={followUpForm.treatmentStatus}
+                  onChange={(val) => setFollowUpForm((prev) => ({ ...prev, treatmentStatus: val }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-ink-soft">
+                Patient Instructions & Clinical Notes <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
+              </label>
+              <textarea
+                rows={3}
+                className="input-field text-xs py-2 min-h-[64px] resize-y"
+                placeholder="e.g. Continue warm saline rinses. Avoid hard chewing on the left side until next sitting..."
+                value={followUpForm.instructions}
+                onChange={(e) => setFollowUpForm((prev) => ({ ...prev, instructions: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2.5 pt-2 border-t border-border/50">
+              <button
+                type="submit"
+                disabled={followUpSubmitting}
+                className="btn-primary w-full py-2.5 px-4 text-xs font-bold flex items-center justify-center gap-2 shadow-sm whitespace-nowrap transition-all"
+              >
+                <Save size={15} className="shrink-0" />
+                <span>
+                  {followUpSubmitting
+                    ? 'Saving Follow-Up...'
+                    : existingFollowUpId
+                    ? 'Update Follow-Up'
+                    : 'Save & Schedule Follow-Up'}
+                </span>
+              </button>
+
+              <p className="text-[11px] text-ink-soft italic text-center">
+                {existingFollowUpId
+                  ? 'ℹ️ Updates the patient\'s scheduled follow-up and appointment without duplicate entries.'
+                  : 'ℹ️ Creates a follow-up record and synchronized appointment for receptionist and doctor schedule.'}
+              </p>
+            </div>
+          </form>
         )}
       </div>
+    </div>
 
       {/* CONFIRM DELETE RX MODAL */}
       <ConfirmModal
@@ -613,6 +966,22 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
         cancelText="Cancel"
         variant="danger"
         loading={deleteLoading}
+      />
+
+      {/* CONFIRM DELETE MEDICINE ROW MODAL */}
+      <ConfirmModal
+        isOpen={deletingMedicineIndex !== null}
+        onClose={() => setDeletingMedicineIndex(null)}
+        onConfirm={confirmDeleteMedicineRow}
+        title="Confirm Delete Medicine"
+        message={
+          deletingMedicineIndex !== null && medicines[deletingMedicineIndex]?.medicine?.trim()
+            ? `Are you sure you want to remove "${medicines[deletingMedicineIndex].medicine.trim()}" from this prescription?`
+            : 'Are you sure you want to remove this medicine item from the prescription?'
+        }
+        confirmText="Delete Medicine"
+        cancelText="Cancel"
+        variant="delete"
       />
     </div>
   );
