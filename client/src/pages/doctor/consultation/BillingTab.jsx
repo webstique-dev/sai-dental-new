@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Receipt, Plus, Trash2, Save, RefreshCw, Tag, History,
   Eye, X, Stethoscope, Clock, CreditCard, UserSquare2, ChevronRight
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
 import { formatAge } from '../../../utils/formatters.js';
 
 const STATUS_BADGE_CLASSES = {
@@ -38,6 +39,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
+  const initialSnapshotRef = useRef(null);
 
   // Form Fields
   const [items, setItems] = useState([]);
@@ -50,6 +52,25 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
   const [historyInvoices, setHistoryInvoices] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedHistoryInvoice, setSelectedHistoryInvoice] = useState(null);
+
+  const isDirty = useMemo(() => {
+    if (loading || isReadOnly || !initialSnapshotRef.current) return false;
+    const currentSnapshot = JSON.stringify({
+      items: items.map((it) => ({
+        service: (it.service || '').trim(),
+        treatment: (it.treatment || '').trim(),
+        quantity: Number(it.quantity) || 1,
+        unitPrice: String(it.unitPrice || '').trim(),
+      })),
+      discount: String(discount || '').trim(),
+      tax: String(tax || '').trim(),
+      amountPaid: String(amountPaid || '').trim(),
+      paymentMethod,
+    });
+    return currentSnapshot !== initialSnapshotRef.current;
+  }, [loading, isReadOnly, items, discount, tax, amountPaid, paymentMethod]);
+
+  useUnsavedChanges(isDirty, 'consultation-billing');
 
   // Function to load all historical invoices for this patient
   const fetchPatientBillingHistory = async () => {
@@ -92,18 +113,34 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
             setPaymentMethod(inv.payments[0].method || 'Cash');
           }
 
-          if (inv.items && inv.items.length > 0) {
-            setItems(
-              inv.items.map((it) => ({
+          const loadedItems = (inv.items && inv.items.length > 0)
+            ? inv.items.map((it) => ({
                 service: it.service || it.treatment || '',
                 treatment: it.treatment && it.treatment !== it.service ? it.treatment : '',
                 quantity: Math.max(1, Number(it.quantity) || 1),
                 unitPrice: it.unitPrice !== undefined && it.unitPrice !== null ? String(it.unitPrice) : '',
               }))
-            );
-          } else {
-            setItems([{ service: '', treatment: '', quantity: 1, unitPrice: '' }]);
-          }
+            : [{ service: '', treatment: '', quantity: 1, unitPrice: '' }];
+
+          setItems(loadedItems);
+
+          const initDiscount = inv.discount !== undefined && inv.discount !== null && inv.discount !== 0 ? String(inv.discount) : '';
+          const initTax = inv.tax !== undefined && inv.tax !== null && inv.tax !== 0 ? String(inv.tax) : '';
+          const initAmountPaid = inv.amountPaid !== undefined && inv.amountPaid !== null && inv.amountPaid !== 0 ? String(inv.amountPaid) : '';
+          const initPayMethod = (inv.payments && inv.payments.length > 0) ? (inv.payments[0].method || 'Cash') : 'Cash';
+
+          initialSnapshotRef.current = JSON.stringify({
+            items: loadedItems.map((it) => ({
+              service: (it.service || '').trim(),
+              treatment: (it.treatment || '').trim(),
+              quantity: Number(it.quantity) || 1,
+              unitPrice: String(it.unitPrice || '').trim(),
+            })),
+            discount: initDiscount,
+            tax: initTax,
+            amountPaid: initAmountPaid,
+            paymentMethod: initPayMethod,
+          });
         } else {
           // No invoice exists yet — check for treatment plans / records to pre-fill
           setInvoiceId(null);
@@ -150,14 +187,31 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
 
             if (!isMounted) return;
 
-            if (prefilledItems.length > 0) {
-              setItems(prefilledItems);
-            } else {
-              setItems([{ service: '', treatment: '', quantity: 1, unitPrice: '' }]);
-            }
+            const finalPrefilled = prefilledItems.length > 0 ? prefilledItems : [{ service: '', treatment: '', quantity: 1, unitPrice: '' }];
+            setItems(finalPrefilled);
+            initialSnapshotRef.current = JSON.stringify({
+              items: finalPrefilled.map((it) => ({
+                service: (it.service || '').trim(),
+                treatment: (it.treatment || '').trim(),
+                quantity: Number(it.quantity) || 1,
+                unitPrice: String(it.unitPrice || '').trim(),
+              })),
+              discount: '',
+              tax: '',
+              amountPaid: '',
+              paymentMethod: 'Cash',
+            });
           } catch {
             if (isMounted) {
-              setItems([{ service: '', treatment: '', quantity: 1, unitPrice: '' }]);
+              const emptyItems = [{ service: '', treatment: '', quantity: 1, unitPrice: '' }];
+              setItems(emptyItems);
+              initialSnapshotRef.current = JSON.stringify({
+                items: emptyItems.map((it) => ({ service: '', treatment: '', quantity: 1, unitPrice: '' })),
+                discount: '',
+                tax: '',
+                amountPaid: '',
+                paymentMethod: 'Cash',
+              });
             }
           }
         }
@@ -276,16 +330,27 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
         setAmountPaid(savedInv.amountPaid !== undefined && savedInv.amountPaid !== null && savedInv.amountPaid !== 0 ? String(savedInv.amountPaid) : '');
         setLastSavedAt(savedInv.updatedAt || savedInv.createdAt);
 
-        if (savedInv.items && savedInv.items.length > 0) {
-          setItems(
-            savedInv.items.map((it) => ({
+        const currentSavedItems = (savedInv.items && savedInv.items.length > 0)
+          ? savedInv.items.map((it) => ({
               service: it.service || it.treatment || '',
               treatment: it.treatment && it.treatment !== it.service ? it.treatment : '',
               quantity: Math.max(1, Number(it.quantity) || 1),
               unitPrice: it.unitPrice !== undefined && it.unitPrice !== null ? String(it.unitPrice) : '',
             }))
-          );
-        }
+          : [{ service: '', treatment: '', quantity: 1, unitPrice: '' }];
+
+        initialSnapshotRef.current = JSON.stringify({
+          items: currentSavedItems.map((it) => ({
+            service: (it.service || '').trim(),
+            treatment: (it.treatment || '').trim(),
+            quantity: Number(it.quantity) || 1,
+            unitPrice: String(it.unitPrice || '').trim(),
+          })),
+          discount: savedInv.discount !== undefined && savedInv.discount !== null && savedInv.discount !== 0 ? String(savedInv.discount) : '',
+          tax: savedInv.tax !== undefined && savedInv.tax !== null && savedInv.tax !== 0 ? String(savedInv.tax) : '',
+          amountPaid: savedInv.amountPaid !== undefined && savedInv.amountPaid !== null && savedInv.amountPaid !== 0 ? String(savedInv.amountPaid) : '',
+          paymentMethod: (savedInv.payments && savedInv.payments.length > 0) ? (savedInv.payments[0].method || 'Cash') : 'Cash',
+        });
       }
 
       showSuccess(invoiceId ? 'Invoice updated successfully!' : 'Invoice generated successfully!');

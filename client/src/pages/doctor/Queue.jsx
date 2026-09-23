@@ -283,8 +283,10 @@ export default function DoctorQueue() {
         }
 
         merged.push({
-          id: `apt-${a._id || a.id}`,
+          id: a._id || a.id,
+          _id: a._id || a.id,
           appointmentId: aId,
+          type: 'Appointment',
           patient: a.patient,
           doctor: a.doctor,
           date: a.date || a.createdAt,
@@ -344,21 +346,31 @@ export default function DoctorQueue() {
     refreshAll();
   }, []);
 
+  const cleanObjectId = (val) => {
+    if (!val) return null;
+    const str = typeof val === 'object' ? (val._id || val.id || '') : String(val);
+    const cleaned = str.replace(/^(apt|queue|q|con|pat)-/, '').trim();
+    return cleaned || null;
+  };
+
   // Action Handler: Start or Continue Consultation (Launches consultation flow directly)
   const handleStartConsultation = async (entry) => {
-    const activeCId = entry.activeConsultationId || entry.consultation?._id || entry.consultation?.id || entry.consultation;
+    const rawActiveCId = entry.activeConsultationId || entry.consultation?._id || entry.consultation?.id || entry.consultation;
+    const activeCId = cleanObjectId(rawActiveCId);
     if (activeCId) {
       navigate(`/doctor/consultation/${activeCId}`);
       return;
     }
 
-    const itemId = entry._id || entry.id;
-    const aptId = entry.appointment?._id || entry.appointment?.id || (entry.type === 'Appointment' ? itemId : null);
-    const qId = entry.type !== 'Appointment' && !entry.appointment ? itemId : (entry.queueEntry?._id || entry.queueEntryId || null);
-    const patientId = entry.patient?._id || entry.patient?.id || entry.patient;
+    const itemId = cleanObjectId(entry._id || entry.id);
+    const rawAptId = entry.appointment?._id || entry.appointment?.id || entry.appointmentId || (entry.type === 'Appointment' ? itemId : null);
+    const aptId = cleanObjectId(rawAptId);
+    const rawQId = entry.type !== 'Appointment' && !entry.appointment ? itemId : (entry.queueEntry?._id || entry.queueEntryId || null);
+    const qId = cleanObjectId(rawQId);
+    const patientId = cleanObjectId(entry.patient?._id || entry.patient?.id || entry.patient);
 
     try {
-      setSubmittingId(itemId);
+      setSubmittingId(entry._id || entry.id);
       let res;
       if (qId || aptId) {
         res = await api.post('/consultations/start', {
@@ -386,8 +398,10 @@ export default function DoctorQueue() {
   };
 
   // Action Handler: Check In Patient (Scheduled -> Checked-In)
-  const handleCheckInPatient = async (aptId) => {
-    setSubmittingId(aptId);
+  const handleCheckInPatient = async (rawAptId) => {
+    const aptId = cleanObjectId(rawAptId);
+    if (!aptId) return;
+    setSubmittingId(rawAptId);
     try {
       await api.patch(`/queue/${aptId}/check-in`);
       showSuccess('Patient checked in successfully! Added to live queue.');
@@ -402,8 +416,9 @@ export default function DoctorQueue() {
   // Action Handler: Mark as No Show (Scheduled -> No Show)
   const handleConfirmNoShow = async () => {
     if (!noShowAppointment) return;
-    const aptId = noShowAppointment._id || noShowAppointment.id;
-    setSubmittingId(aptId);
+    const aptId = cleanObjectId(noShowAppointment._id || noShowAppointment.id || noShowAppointment.appointmentId);
+    if (!aptId) return;
+    setSubmittingId(noShowAppointment._id || noShowAppointment.id);
     try {
       await api.patch(`/appointments/${aptId}`, { status: 'No Show' });
       showSuccess('Appointment marked as No Show.');
@@ -419,8 +434,9 @@ export default function DoctorQueue() {
   // Action Handler: Cancel Appointment (Scheduled/Checked-In -> Cancelled)
   const handleConfirmCancel = async () => {
     if (!cancellingAppointment) return;
-    const aptId = cancellingAppointment._id || cancellingAppointment.id;
-    setSubmittingId(aptId);
+    const aptId = cleanObjectId(cancellingAppointment._id || cancellingAppointment.id || cancellingAppointment.appointmentId);
+    if (!aptId) return;
+    setSubmittingId(cancellingAppointment._id || cancellingAppointment.id);
     try {
       await api.delete(`/appointments/${aptId}`);
       showSuccess('Appointment cancelled successfully.');
@@ -699,9 +715,19 @@ export default function DoctorQueue() {
       );
     };
 
+    const currentDoctorId = (user?._id || user?.id || '').toString();
+
     let result = rawHistoryItems.filter((item) => {
       // Must be status 'Completed'
       if (item.status !== 'Completed') return false;
+
+      // Doctor role must only see their own completed consultations
+      if (user?.role === 'doctor' && currentDoctorId) {
+        const itemDocId = (item.doctor?._id || item.doctor?.id || item.doctor || item.appointment?.doctor?._id || item.appointment?.doctor || '').toString();
+        if (itemDocId && itemDocId !== currentDoctorId) {
+          return false;
+        }
+      }
 
       // Must be completed / visited today
       const itemDate = item.endTime || item.startTime || item.date || item.checkInTime;
@@ -827,12 +853,7 @@ export default function DoctorQueue() {
           calendarDate={calendarDate}
           setCalendarDate={setCalendarDate}
           appointments={rawHistoryItems.length > 0 ? rawHistoryItems : upcomingAppointments}
-          allowEdit={true}
-          onEdit={(apt) => {
-            if (apt.status === 'Checked-In' || apt.status === 'Scheduled') {
-              handleCheckInPatient(apt._id || apt.id);
-            }
-          }}
+          statusBadgeClasses={STATUS_BADGE_CLASSES}
         />
       ) : (
         <>
@@ -1525,21 +1546,23 @@ export default function DoctorQueue() {
 
                   {/* Filter Controls */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      className="input-field py-1.5 text-xs font-semibold w-full sm:w-auto"
-                      value={completedTodayDoctorFilter}
-                      onChange={(e) => setCompletedTodayDoctorFilter(e.target.value)}
-                    >
-                      <option value="">All Attending Doctors</option>
-                      {doctors.map((doc) => {
-                        const dId = doc._id || doc.id;
-                        return (
-                          <option key={dId} value={dId}>
-                            Dr. {doc.name}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    {user?.role !== 'doctor' && (
+                      <select
+                        className="input-field py-1.5 text-xs font-semibold w-full sm:w-auto"
+                        value={completedTodayDoctorFilter}
+                        onChange={(e) => setCompletedTodayDoctorFilter(e.target.value)}
+                      >
+                        <option value="">All Attending Doctors</option>
+                        {doctors.map((doc) => {
+                          const dId = doc._id || doc.id;
+                          return (
+                            <option key={dId} value={dId}>
+                              Dr. {doc.name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
 
                     {hasActiveCompletedTodayFilters && (
                       <button
@@ -1607,21 +1630,23 @@ export default function DoctorQueue() {
                       )}
                     </div>
 
-                    <select
-                      className="input-field py-1.5 text-xs font-semibold w-full"
-                      value={completedTodayDoctorFilter}
-                      onChange={(e) => setCompletedTodayDoctorFilter(e.target.value)}
-                    >
-                      <option value="">All Attending Doctors</option>
-                      {doctors.map((doc) => {
-                        const dId = doc._id || doc.id;
-                        return (
-                          <option key={dId} value={dId}>
-                            Dr. {doc.name}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    {user?.role !== 'doctor' && (
+                      <select
+                        className="input-field py-1.5 text-xs font-semibold w-full"
+                        value={completedTodayDoctorFilter}
+                        onChange={(e) => setCompletedTodayDoctorFilter(e.target.value)}
+                      >
+                        <option value="">All Attending Doctors</option>
+                        {doctors.map((doc) => {
+                          const dId = doc._id || doc.id;
+                          return (
+                            <option key={dId} value={dId}>
+                              Dr. {doc.name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
 
                     {hasActiveCompletedTodayFilters && (
                       <button

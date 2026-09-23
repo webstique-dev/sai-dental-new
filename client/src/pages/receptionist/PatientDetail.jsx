@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -10,6 +10,8 @@ import {
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import UnsavedChangesModal from '../../components/common/UnsavedChangesModal.jsx';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
 
@@ -38,10 +40,13 @@ export default function PatientDetail() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editFeedback, setEditFeedback] = useState({ type: '', msg: '' });
+  const initialSnapshotRef = useRef(null);
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
     phone: '',
+    primaryPhone: '',
+    secondaryPhone: '',
     age: '',
     sex: '',
     dateOfBirth: '',
@@ -58,6 +63,28 @@ export default function PatientDetail() {
   const [editCustomHabitInput, setEditCustomHabitInput] = useState('');
   const [editCustomVitalLabel, setEditCustomVitalLabel] = useState('');
   const [editCustomVitalValue, setEditCustomVitalValue] = useState('');
+
+  const isDirty = useMemo(() => {
+    if (!showEditModal || !initialSnapshotRef.current) return false;
+    return JSON.stringify(editForm) !== initialSnapshotRef.current;
+  }, [showEditModal, editForm]);
+
+  const {
+    showConfirmModal,
+    confirmLeave,
+    handleStay,
+    handleDiscard,
+    resetDirty,
+  } = useUnsavedChanges(isDirty);
+
+  const handleCloseEditModal = () => {
+    if (!saving) {
+      confirmLeave(() => {
+        setShowEditModal(false);
+        initialSnapshotRef.current = null;
+      });
+    }
+  };
 
   const handleAddEditCustomMedicalHistory = () => {
     const trimmed = editCustomMedicalInput.trim();
@@ -126,7 +153,7 @@ export default function PatientDetail() {
 
   const handleOpenEdit = () => {
     if (!patient) return;
-    setEditForm({
+    const initialData = {
       firstName: patient.firstName || '',
       lastName: patient.lastName || '',
       primaryPhone: patient.primaryPhone || patient.phone || '',
@@ -144,7 +171,9 @@ export default function PatientDetail() {
       },
       habits: Array.isArray(patient.habits) ? [...patient.habits] : [],
       dentalHistory: patient.dentalHistory || '',
-    });
+    };
+    setEditForm(initialData);
+    initialSnapshotRef.current = JSON.stringify(initialData);
     setEditFeedback({ type: '', msg: '' });
     setShowEditModal(true);
   };
@@ -257,10 +286,12 @@ export default function PatientDetail() {
 
       const res = await api.patch(`/patients/${id}`, payload);
       setPatient(res.data?.patient);
+      resetDirty();
       setEditFeedback({ type: 'success', msg: 'Patient profile updated successfully!' });
       showSuccess('Patient profile updated successfully!');
       setTimeout(() => {
         setShowEditModal(false);
+        initialSnapshotRef.current = null;
       }, 800);
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to update patient profile.';
@@ -535,21 +566,29 @@ export default function PatientDetail() {
 
       {/* EDIT PATIENT PROFILE MODAL */}
       {showEditModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0">
-          <div className="card w-full max-w-2xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl border border-border animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
-              <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
-                <Edit3 size={18} className="text-brand" /> Edit Patient Registration Details
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors"
-                aria-label="Close modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
+        <>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                handleCloseEditModal();
+              }
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0"
+          >
+            <div className="card w-full max-w-2xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl border border-border animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
+                <h3 className="font-display text-base sm:text-lg font-bold text-ink flex items-center gap-2">
+                  <Edit3 size={18} className="text-brand" /> Edit Patient Registration Details
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleCloseEditModal}
+                  className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors"
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
             <form onSubmit={handleSavePatient} autoComplete="off" className="flex flex-col flex-1 overflow-hidden min-h-0 !mt-0 !mb-0">
               <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-4 text-xs">
@@ -958,7 +997,7 @@ export default function PatientDetail() {
               <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-border bg-bg/50 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={handleCloseEditModal}
                   className="btn-secondary text-xs"
                 >
                   Cancel
@@ -973,10 +1012,16 @@ export default function PatientDetail() {
               </div>
             </form>
           </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
+        </div>
+        <UnsavedChangesModal
+          isOpen={showConfirmModal}
+          onStay={handleStay}
+          onDiscard={handleDiscard}
+        />
+      </>,
+      document.body
+    )}
+  </div>
+);
 }
 

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Consultation = require('../models/Consultation');
 const QueueEntry = require('../models/QueueEntry');
 const Appointment = require('../models/Appointment');
@@ -20,16 +21,36 @@ async function checkConsultationNotClosed(consultationId) {
   }
 }
 
-// GET /api/consultations?patient=&doctor=&dateFrom=&dateTo=&search=
+// GET /api/consultations?patient=&doctor=&dateFrom=&dateTo=&search=&status=&completedToday=&dateFilterPreset=&page=&limit=
 async function listConsultations(req, res, next) {
   try {
-    const { patient, doctor, dateFrom, dateTo, search } = req.query;
+    const { patient, doctor, dateFrom, dateTo, search, status, completedToday, dateFilterPreset, page, limit } = req.query;
     const filter = {};
 
     if (patient) filter.patient = patient;
-    if (doctor) filter.doctor = doctor;
 
-    if (dateFrom || dateTo) {
+    // Doctor role sees only their own consultations; Admin and Receptionist can query across doctors
+    if (req.user && req.user.role === 'doctor') {
+      filter.doctor = req.user._id;
+    } else if (doctor) {
+      filter.doctor = doctor;
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (completedToday === 'true' || dateFilterPreset === 'today') {
+      const { minStart, maxEnd } = getDayBounds(new Date());
+      filter.status = 'Completed';
+      filter.$or = [
+        { closedAt: { $gte: minStart, $lte: maxEnd } },
+        { completed_at: { $gte: minStart, $lte: maxEnd } },
+        { consultation_ended_at: { $gte: minStart, $lte: maxEnd } },
+        { startedAt: { $gte: minStart, $lte: maxEnd } },
+        { createdAt: { $gte: minStart, $lte: maxEnd } },
+      ];
+    } else if (dateFrom || dateTo) {
       filter.$or = [
         { startedAt: {} },
         { createdAt: {} },
@@ -59,12 +80,22 @@ async function listConsultations(req, res, next) {
       filter.patient = { $in: patientIds };
     }
 
-    const rawConsultations = await Consultation.find(filter)
+    let query = Consultation.find(filter)
       .sort({ startedAt: -1, createdAt: -1 })
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
       .populate('doctor', 'name email specialization role')
       .populate('queueEntry')
       .populate('appointment');
+
+    const totalCount = await Consultation.countDocuments(filter);
+
+    if (page && limit) {
+      const p = Math.max(1, parseInt(page, 10));
+      const l = Math.max(1, parseInt(limit, 10));
+      query = query.skip((p - 1) * l).limit(l);
+    }
+
+    const rawConsultations = await query;
 
     const Examination = require('../models/Examination');
     const Diagnosis = require('../models/Diagnosis');
@@ -205,7 +236,10 @@ async function getDoctorTodayQueue(req, res, next) {
 // POST /api/consultations/start (body: { queueEntryId })
 async function startConsultation(req, res, next) {
   try {
-    const { queueEntryId, appointmentId } = req.body;
+    const rawQueueId = req.body.queueEntryId ? req.body.queueEntryId.toString().replace(/^(queue|q)-/, '') : null;
+    const rawAptId = req.body.appointmentId ? req.body.appointmentId.toString().replace(/^apt-/, '') : null;
+    const queueEntryId = rawQueueId && mongoose.Types.ObjectId.isValid(rawQueueId) ? rawQueueId : null;
+    const appointmentId = rawAptId && mongoose.Types.ObjectId.isValid(rawAptId) ? rawAptId : null;
 
     if (!queueEntryId && !appointmentId) {
       return res.status(400).json({ message: 'queueEntryId or appointmentId is required.' });
@@ -680,10 +714,12 @@ async function getDoctorSummary(req, res, next) {
 // POST /api/consultations/find-or-create (body: { patientId })
 async function findOrCreateConsultation(req, res, next) {
   try {
-    const { patientId } = req.body;
-    if (!patientId) {
-      return res.status(400).json({ message: 'patientId is required.' });
+    const rawPatientId = req.body.patientId ? req.body.patientId.toString().replace(/^pat-/, '') : null;
+    if (!rawPatientId || !mongoose.Types.ObjectId.isValid(rawPatientId)) {
+      return res.status(400).json({ message: 'Valid patientId is required.' });
     }
+
+    const patientId = rawPatientId;
 
     let consultation = await Consultation.findOne({
       patient: patientId,
@@ -732,7 +768,18 @@ async function findOrCreateConsultation(req, res, next) {
 async function getConsultationCompleteSummary(req, res, next) {
   try {
     const { id } = req.params;
-    const { consultationId, appointmentId, queueId, patientId: queryPatientId } = req.query;
+    const { consultationId, appointmentId: rawAptId, queueId: rawQueueId, patientId: rawPatientId } = req.query;
+
+    const sanitizeParamId = (val) => {
+      if (!val || val === 'by-visit') return null;
+      const clean = val.toString().replace(/^(apt|queue|q|con|pat)-/, '');
+      return mongoose.Types.ObjectId.isValid(clean) ? clean : null;
+    };
+
+    const searchId = sanitizeParamId(id) || sanitizeParamId(consultationId);
+    const appointmentId = sanitizeParamId(rawAptId);
+    const queueId = sanitizeParamId(rawQueueId);
+    const queryPatientId = sanitizeParamId(rawPatientId);
 
     const Diagnosis = require('../models/Diagnosis');
     const ToothRecord = require('../models/ToothRecord');
@@ -742,7 +789,6 @@ async function getConsultationCompleteSummary(req, res, next) {
     const Patient = require('../models/Patient');
 
     let consultation = null;
-    const searchId = id && id !== 'by-visit' ? id : consultationId;
 
     if (searchId) {
       consultation = await Consultation.findById(searchId)

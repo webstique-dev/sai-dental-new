@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const QueueEntry = require('../models/QueueEntry');
 const Patient = require('../models/Patient');
 const Appointment = require('../models/Appointment');
@@ -41,7 +42,11 @@ async function getTodayQueue(req, res, next) {
     }
 
     if (status) {
-      filter.status = status;
+      if (status === 'In Consultation') {
+        filter.status = { $in: ['In Consultation', 'With Doctor'] };
+      } else {
+        filter.status = status;
+      }
     } else if (includeAll !== 'true') {
       filter.status = { $in: ['Checked-In', 'In Consultation'] };
     }

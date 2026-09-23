@@ -5,7 +5,7 @@ import {
   ArrowLeft, UserSquare2, Phone, Calendar, Stethoscope, FileText,
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
   Check, Lock, X, LogOut, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, HeartPulse, ShieldAlert, MapPin, Briefcase,
-  Wallet, Receipt, Info
+  Wallet, Receipt, Info, Edit3
 } from 'lucide-react';
 import { formatAge } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
@@ -17,6 +17,7 @@ import PrescriptionsTab from './consultation/PrescriptionsTab.jsx';
 import InvestigationsTab from './consultation/InvestigationsTab.jsx';
 import BillingTab from './consultation/BillingTab.jsx';
 import PatientBillingSummary from '../../components/common/PatientBillingSummary.jsx';
+import PatientSectionEditModal from '../../components/common/PatientSectionEditModal.jsx';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
@@ -59,6 +60,9 @@ export default function Consultation() {
       dental: openState,
     });
   };
+
+  // State for direct section editing modal
+  const [editingSection, setEditingSection] = useState(null);
 
   // Close Consultation Modal State
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -317,16 +321,29 @@ export default function Consultation() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
           {/* Card 1: Core Registration Profile & Demographics */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm">
-            <button
-              type="button"
+            <div
               onClick={() => toggleAccordion('details')}
-              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors cursor-pointer select-none"
             >
               <span className="flex items-center gap-2">
                 <UserSquare2 size={16} className="text-brand" /> Patient Details
               </span>
-              {accordions.details ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSection('details');
+                  }}
+                  className="p-1 rounded-md text-ink-soft hover:text-brand hover:bg-brand-light/60 transition-colors"
+                  title="Edit Patient Details"
+                  aria-label="Edit Patient Details"
+                >
+                  <Edit3 size={14} />
+                </button>
+                {accordions.details ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </div>
+            </div>
 
             {accordions.details && (
               <div className="p-4 pt-0 space-y-3.5 text-xs border-t border-border/60">
@@ -348,7 +365,7 @@ export default function Consultation() {
                 <div className="grid grid-cols-2 gap-2.5 text-xs">
                   <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
                     <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Age / Sex</span>
-                    <span className="font-semibold text-ink">{patient.age !== undefined && patient.age !== null && patient.age !== '' ? `${formatAge(patient.age, 'yrs')}` : 'N/A'} / {patient.sex || 'N/A'}</span>
+                    <span className="font-semibold text-ink">{patient.age !== undefined && patient.age !== null && patient.age !== '' ? `${formatAge(patient.age, 'yrs')}` : 'Not recorded'} / {patient.sex || 'Not recorded'}</span>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-bg/60 border border-border">
@@ -362,58 +379,62 @@ export default function Consultation() {
 
           {/* Card 2: Contact & Personal Information */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
+            <div
               onClick={() => toggleAccordion('contact')}
-              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors cursor-pointer select-none"
             >
               <span className="flex items-center gap-2">
                 <Phone size={15} className="text-brand" /> Contact Information
               </span>
-              {accordions.contact ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSection('contact');
+                  }}
+                  className="p-1 rounded-md text-ink-soft hover:text-brand hover:bg-brand-light/60 transition-colors"
+                  title="Edit Contact Information"
+                  aria-label="Edit Contact Information"
+                >
+                  <Edit3 size={14} />
+                </button>
+                {accordions.contact ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </div>
+            </div>
 
             {accordions.contact && (
               <div className="p-4 pt-0 space-y-2.5 border-t border-border/60 pt-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Primary Phone</span>
-                    <span className="font-mono font-semibold text-ink text-xs">{patient.primaryPhone || patient.phone || 'N/A'}</span>
+                    <span className="font-mono font-semibold text-ink text-xs">{patient.primaryPhone || patient.phone || 'Not recorded'}</span>
                   </div>
 
-                  {patient.secondaryPhone ? (
-                    <div>
-                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Secondary Phone</span>
-                      <span className="font-mono font-semibold text-ink text-xs">{patient.secondaryPhone}</span>
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
-                      <span className="font-medium text-ink">{regDateStr}</span>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Secondary Phone</span>
+                    <span className="font-mono font-semibold text-ink text-xs">{patient.secondaryPhone || 'Not recorded'}</span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Occupation</span>
                     <span className="font-medium text-ink flex items-center gap-1">
-                      <Briefcase size={12} className="text-ink-soft shrink-0" /> {patient.occupation || 'N/A'}
+                      <Briefcase size={12} className="text-ink-soft shrink-0" /> {patient.occupation || 'Not recorded'}
                     </span>
                   </div>
 
-                  {patient.secondaryPhone && (
-                    <div>
-                      <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
-                      <span className="font-medium text-ink">{regDateStr}</span>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Registration Date</span>
+                    <span className="font-medium text-ink">{regDateStr || 'Not recorded'}</span>
+                  </div>
                 </div>
 
                 <div>
                   <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block">Address</span>
                   <span className="font-medium text-ink leading-relaxed flex items-start gap-1">
-                    <MapPin size={12} className="text-ink-soft shrink-0 mt-0.5" /> {patient.address || 'N/A'}
+                    <MapPin size={12} className="text-ink-soft shrink-0 mt-0.5" /> {patient.address || 'Not recorded'}
                   </span>
                 </div>
               </div>
@@ -422,16 +443,29 @@ export default function Consultation() {
 
           {/* Card 3: Clinical Vitals */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
+            <div
               onClick={() => toggleAccordion('vitals')}
-              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors cursor-pointer select-none"
             >
               <span className="flex items-center gap-2">
                 <HeartPulse size={15} className="text-rose-600" /> Patient Vitals
               </span>
-              {accordions.vitals ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSection('vitals');
+                  }}
+                  className="p-1 rounded-md text-ink-soft hover:text-brand hover:bg-brand-light/60 transition-colors"
+                  title="Edit Patient Vitals"
+                  aria-label="Edit Patient Vitals"
+                >
+                  <Edit3 size={14} />
+                </button>
+                {accordions.vitals ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </div>
+            </div>
 
             {accordions.vitals && (
               <div className="p-4 pt-0 border-t border-border/60 pt-3">
@@ -451,7 +485,7 @@ export default function Consultation() {
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-bg border border-border">
-                    <span className="text-[10px] text-ink-soft block font-semibold">Heart Rate</span>
+                    <span className="text-[10px] text-ink-soft block font-semibold">Heart Rate / Pulse</span>
                     <span className={`font-mono font-bold text-xs ${pulse ? 'text-ink' : 'text-ink-soft italic font-normal'}`}>
                       {pulse || 'Not recorded'}
                     </span>
@@ -464,15 +498,15 @@ export default function Consultation() {
                     </span>
                   </div>
 
-                  {bloodGroup && (
+                  {bloodGroup ? (
                     <div className="p-2.5 rounded-xl bg-bg border border-border col-span-2">
                       <span className="text-[10px] text-ink-soft block font-semibold">Blood Group</span>
                       <span className="font-mono font-bold text-brand text-xs">{bloodGroup}</span>
                     </div>
-                  )}
+                  ) : null}
 
                   {Object.entries(vitals).map(([key, val]) => {
-                    if (['bp', 'bloodPressure', 'rbs', 'pulse', 'heartRate', 'temperature', 'bloodGroup'].includes(key) || !val) {
+                    if (['bp', 'bloodPressure', 'rbs', 'pulse', 'heartRate', 'temperature', 'temp', 'bloodGroup'].includes(key) || !val) {
                       return null;
                     }
                     return (
@@ -492,16 +526,29 @@ export default function Consultation() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           {/* Card 4: Medical History & Allergies (Collapsed by default) */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
+            <div
               onClick={() => toggleAccordion('medical')}
-              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors cursor-pointer select-none"
             >
               <span className="flex items-center gap-2">
                 <ShieldAlert size={15} className="text-amber-600" /> Medical History & Allergies
               </span>
-              {accordions.medical ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSection('medical');
+                  }}
+                  className="p-1 rounded-md text-ink-soft hover:text-brand hover:bg-brand-light/60 transition-colors"
+                  title="Edit Medical History & Allergies"
+                  aria-label="Edit Medical History & Allergies"
+                >
+                  <Edit3 size={14} />
+                </button>
+                {accordions.medical ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </div>
+            </div>
 
             {accordions.medical && (
               <div className="p-4 pt-0 space-y-3 border-t border-border/60 pt-3">
@@ -535,30 +582,45 @@ export default function Consultation() {
                   )}
                 </div>
 
-                {patient.currentMedications && (
-                  <div>
-                    <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Current Medications</span>
+                <div>
+                  <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-1">Current Medications</span>
+                  {patient.currentMedications ? (
                     <p className="text-ink font-medium leading-relaxed bg-bg/50 p-2 rounded-lg border border-border">
                       {patient.currentMedications}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <span className="text-ink-soft/70 italic">Not recorded</span>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
           {/* Card 5: Past Dental History & Personal Habits (Collapsed by default) */}
           <div className="card bg-surface border-border overflow-hidden shadow-sm text-xs">
-            <button
-              type="button"
+            <div
               onClick={() => toggleAccordion('dental')}
-              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors"
+              className="w-full px-4 py-3.5 flex items-center justify-between text-left font-display text-xs font-bold text-ink hover:bg-bg/50 transition-colors cursor-pointer select-none"
             >
               <span className="flex items-center gap-2">
                 <Stethoscope size={15} className="text-brand" /> Dental History & Habits
               </span>
-              {accordions.dental ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
-            </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSection('dental');
+                  }}
+                  className="p-1 rounded-md text-ink-soft hover:text-brand hover:bg-brand-light/60 transition-colors"
+                  title="Edit Dental History & Habits"
+                  aria-label="Edit Dental History & Habits"
+                >
+                  <Edit3 size={14} />
+                </button>
+                {accordions.dental ? <ChevronUp size={16} className="text-ink-soft" /> : <ChevronDown size={16} className="text-ink-soft" />}
+              </div>
+            </div>
 
             {accordions.dental && (
               <div className="p-4 pt-0 space-y-3 border-t border-border/60 pt-3">
@@ -773,6 +835,21 @@ export default function Consultation() {
         </div>,
         document.body
       )}
+
+      {/* DIRECT SECTION EDIT MODAL FOR PATIENT CARDS */}
+      <PatientSectionEditModal
+        isOpen={Boolean(editingSection)}
+        section={editingSection || 'details'}
+        patient={patient}
+        onClose={() => setEditingSection(null)}
+        onSuccess={(updatedPatient) => {
+          setConsultation((prev) => ({
+            ...prev,
+            patient: updatedPatient,
+          }));
+          setEditingSection(null);
+        }}
+      />
     </div>
   );
 }

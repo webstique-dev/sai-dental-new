@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
+import UnsavedChangesModal from '../../../components/common/UnsavedChangesModal.jsx';
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
 
 // Permanent (Adult) Teeth Quadrants (32 teeth)
 const QUAD_UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -491,6 +493,20 @@ function CompactConditionPopup({
   const [justSaved, setJustSaved] = useState(false);
   const popupRef = useRef(null);
 
+  const isDirty = (treatment.trim() !== (initialTreatment || '').trim()) || (notes.trim() !== (initialNotes || '').trim()) || customName.trim() !== '';
+
+  const {
+    showConfirmModal,
+    confirmLeave,
+    handleStay,
+    handleDiscard,
+    resetDirty,
+  } = useUnsavedChanges(isDirty);
+
+  const handleRequestClose = () => {
+    confirmLeave(onClose);
+  };
+
   // Sync state when target teeth or condition changes
   useEffect(() => {
     if (isOpen) {
@@ -502,6 +518,7 @@ function CompactConditionPopup({
       setNotes(initialNotes || '');
       setIsTreatmentOpen(Boolean(initialTreatment));
       setIsNotesOpen(Boolean(initialNotes));
+      resetDirty();
     }
   }, [isOpen, currentCondition, initialTreatment, initialNotes, targetTeeth]);
 
@@ -593,7 +610,7 @@ function CompactConditionPopup({
 
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
-        onClose();
+        handleRequestClose();
       }
     }
 
@@ -601,7 +618,7 @@ function CompactConditionPopup({
       if (popupRef.current && !popupRef.current.contains(e.target)) {
         // If clicking another tooth button on the FDI chart, don't close here—the tooth's click will handle switching directly!
         if (!e.target.closest('[data-tooth-btn]')) {
-          onClose();
+          handleRequestClose();
         }
       }
     }
@@ -612,7 +629,7 @@ function CompactConditionPopup({
       window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('mousedown', handleDocumentMouseDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isDirty]);
 
   if (!isOpen || !coords.isReady) return null;
 
@@ -662,6 +679,7 @@ function CompactConditionPopup({
   const handleSaveNotesAndTreatment = (e) => {
     if (e) e.preventDefault();
     setJustSaved(true);
+    resetDirty();
     setTimeout(() => setJustSaved(false), 2000);
 
     onSave({
@@ -740,8 +758,8 @@ function CompactConditionPopup({
             </button>
             <button
               type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg text-ink-soft hover:text-ink hover:bg-surface transition-colors"
+              onClick={handleRequestClose}
+              className="p-1 rounded-lg text-ink-soft hover:text-ink hover:bg-surface transition-colors cursor-pointer"
               title="Close picker"
             >
               <X size={15} />
@@ -751,13 +769,6 @@ function CompactConditionPopup({
 
         {/* Content Body: Conditions Grid + Collapsible Details */}
         <div className="p-3 overflow-y-auto space-y-3 scrollbar-none flex-1">
-          {/* Section: Condition Picker (Instant Auto-Save on Click) */}
-          <div className="space-y-2">
-            <div className="text-[11px] font-semibold text-ink-soft flex items-center justify-between">
-              <span>Condition * ({allDisplayConditions.length} Available):</span>
-              <span className="text-[10px] text-emerald-600 font-medium">Click to save instantly</span>
-            </div>
-
             <div className="grid grid-cols-2 xs:grid-cols-3 gap-1.5">
               {allDisplayConditions.map((opt) => {
                 const parsed = sanitizeCondition(opt);
@@ -856,7 +867,6 @@ function CompactConditionPopup({
                 </button>
               </form>
             )}
-          </div>
 
           {/* Collapsible Section 1: Treatment Performed / Planned (Collapsed by default) */}
           <div className="border border-border/80 rounded-xl overflow-hidden bg-bg/30 transition-all">
@@ -956,13 +966,19 @@ function CompactConditionPopup({
           </span>
           <button
             type="button"
-            onClick={onClose}
-            className="btn-secondary py-1 px-3.5 text-xs font-semibold"
+            onClick={handleRequestClose}
+            className="btn-secondary py-1 px-3.5 text-xs font-semibold cursor-pointer"
           >
             Done
           </button>
         </div>
       </div>
+
+      <UnsavedChangesModal
+        isOpen={showConfirmModal}
+        onStay={handleStay}
+        onDiscard={handleDiscard}
+      />
     </>
   );
 }
@@ -981,6 +997,9 @@ export default function ToothChart({
   const saveVersionMapRef = useRef(new Map());
   const activeSavesCountRef = useRef(0);
   const savedTimeoutRef = useRef(null);
+
+  // Autosave dirty tracking for browser beforeunload
+  useUnsavedChanges(saveStatus === 'saving' || saveStatus === 'error', 'consultation-tooth-chart-autosave');
 
   const [selectedTeeth, setSelectedTeeth] = useState([]);
   const [inspectedTeeth, setInspectedTeeth] = useState([]);

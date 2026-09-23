@@ -79,6 +79,10 @@ const patientSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    allergies: {
+      type: mongoose.Schema.Types.Mixed,
+      default: [],
+    },
     currentMedications: {
       type: String,
       default: '',

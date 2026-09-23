@@ -350,6 +350,7 @@ export default function Queue() {
         const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
         const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
         const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+        const op = (p.opNumber || '').toLowerCase();
         return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q);
       });
     }

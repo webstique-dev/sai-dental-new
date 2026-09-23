@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Appointment = require('../models/Appointment');
 const Patient = require('../models/Patient');
 const FollowUp = require('../models/FollowUp');
@@ -56,10 +57,10 @@ async function listAppointments(req, res, next) {
       filter.date = { $gte: start, $lte: end };
     }
 
-    if (doctor) {
-      filter.doctor = doctor;
-    } else if (req.user && req.user.role === 'doctor') {
+    if (req.user && req.user.role === 'doctor') {
       filter.doctor = req.user._id;
+    } else if (doctor) {
+      filter.doctor = doctor;
     }
     if (status) {
       filter.status = status;
@@ -170,7 +171,13 @@ async function updateAppointment(req, res, next) {
       }
     }
 
-    const existing = await Appointment.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+    const rawId = req.params.id || '';
+    const cleanId = rawId.toString().replace(/^(apt|queue|q)-/, '');
+    if (!mongoose.Types.ObjectId.isValid(cleanId)) {
+      return res.status(400).json({ message: 'Invalid appointment ID format.' });
+    }
+
+    const existing = await Appointment.findOne({ _id: cleanId, isDeleted: { $ne: true } });
     if (!existing) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
@@ -198,7 +205,7 @@ async function updateAppointment(req, res, next) {
     }
 
     const updated = await Appointment.findOneAndUpdate(
-      { _id: req.params.id, isDeleted: { $ne: true } },
+      { _id: cleanId, isDeleted: { $ne: true } },
       req.body,
       { new: true, runValidators: true }
     )
@@ -256,8 +263,14 @@ async function updateAppointment(req, res, next) {
 // DELETE /api/appointments/:id (Cancel appointment — set status to Cancelled immediately, keep in history)
 async function cancelAppointment(req, res, next) {
   try {
+    const rawId = req.params.id || '';
+    const cleanId = rawId.toString().replace(/^(apt|queue|q)-/, '');
+    if (!mongoose.Types.ObjectId.isValid(cleanId)) {
+      return res.status(400).json({ message: 'Invalid appointment ID format.' });
+    }
+
     const cancelled = await Appointment.findOneAndUpdate(
-      { _id: req.params.id, isDeleted: { $ne: true } },
+      { _id: cleanId, isDeleted: { $ne: true } },
       {
         status: 'Cancelled',
         isDeleted: false,

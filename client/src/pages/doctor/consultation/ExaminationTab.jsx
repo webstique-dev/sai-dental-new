@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Save, Check, FileHeart } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
 
 const EXTRAORAL_OPTIONS = ['Facial Symmetry', 'TMJ', 'Lymph Nodes', 'Swelling'];
 
@@ -30,6 +31,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const initialSnapshotRef = useRef(null);
 
   // Chief complaints state
   const [chiefComplaints, setChiefComplaints] = useState('');
@@ -52,16 +54,28 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
         setLoading(true);
         const res = await api.get(`/examinations?consultation=${consultationId}`);
         const exam = res.data?.examination;
-        if (exam) {
-          setChiefComplaints(exam.chiefComplaints || consultation?.chiefComplaints || consultation?.reason || '');
-          setExtraoral(exam.extraoral || []);
-          setSoftTissue(exam.softTissue || []);
-          setGingivalFindings(exam.gingivalFindings || []);
-          setPeriodontalDetails(exam.periodontalDetails || '');
-          setOverallNotes(exam.overallNotes || '');
-        } else {
-          setChiefComplaints(consultation?.chiefComplaints || consultation?.reason || '');
-        }
+        const initialCC = exam?.chiefComplaints || consultation?.chiefComplaints || consultation?.reason || '';
+        const initialEO = exam?.extraoral || [];
+        const initialST = exam?.softTissue || [];
+        const initialGF = exam?.gingivalFindings || [];
+        const initialPD = exam?.periodontalDetails || '';
+        const initialON = exam?.overallNotes || '';
+
+        setChiefComplaints(initialCC);
+        setExtraoral(initialEO);
+        setSoftTissue(initialST);
+        setGingivalFindings(initialGF);
+        setPeriodontalDetails(initialPD);
+        setOverallNotes(initialON);
+
+        initialSnapshotRef.current = JSON.stringify({
+          chiefComplaints: initialCC.trim(),
+          extraoral: initialEO,
+          softTissue: initialST,
+          gingivalFindings: initialGF,
+          periodontalDetails: initialPD.trim(),
+          overallNotes: initialON.trim(),
+        });
       } catch (err) {
         console.error('Failed to load examination:', err);
       } finally {
@@ -70,6 +84,21 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
     }
     fetchExamination();
   }, [consultationId, consultation]);
+
+  const isDirty = useMemo(() => {
+    if (loading || isReadOnly || !initialSnapshotRef.current) return false;
+    const currentSnapshot = JSON.stringify({
+      chiefComplaints: (chiefComplaints || '').trim(),
+      extraoral,
+      softTissue,
+      gingivalFindings,
+      periodontalDetails: (periodontalDetails || '').trim(),
+      overallNotes: (overallNotes || '').trim(),
+    });
+    return currentSnapshot !== initialSnapshotRef.current;
+  }, [loading, isReadOnly, chiefComplaints, extraoral, softTissue, gingivalFindings, periodontalDetails, overallNotes]);
+
+  useUnsavedChanges(isDirty, 'consultation-examination');
 
   // Extraoral handlers
   const isExtraoralSelected = (finding) => extraoral.some((e) => e.finding === finding);
@@ -133,6 +162,14 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
       };
 
       await api.post('/examinations', payload);
+      initialSnapshotRef.current = JSON.stringify({
+        chiefComplaints: chiefComplaints.trim(),
+        extraoral,
+        softTissue,
+        gingivalFindings,
+        periodontalDetails: periodontalDetails.trim(),
+        overallNotes: overallNotes.trim(),
+      });
       showSuccess('Clinical examination findings saved successfully!');
     } catch (err) {
       showError(err.response?.data?.message || 'Failed to save examination findings.');

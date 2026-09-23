@@ -5,6 +5,7 @@ import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { NotificationProvider } from './context/NotificationContext.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
+import { UnsavedChangesProvider } from './context/UnsavedChangesContext.jsx';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -13,10 +14,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <SocketProvider>
           <NotificationProvider>
-            <App />
+            <UnsavedChangesProvider>
+              <App />
+            </UnsavedChangesProvider>
           </NotificationProvider>
         </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
+

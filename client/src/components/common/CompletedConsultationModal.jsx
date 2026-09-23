@@ -146,11 +146,11 @@ export default function CompletedConsultationModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto animate-fadeIn !m-0 !mt-0 !mb-0"
       onClick={onClose}
     >
       <div
-        className="card w-full max-w-4xl max-h-[90vh] flex flex-col bg-surface shadow-2xl border border-border rounded-2xl overflow-hidden animate-scaleUp"
+        className="card w-full max-w-4xl max-h-[90vh] flex flex-col bg-surface shadow-2xl border border-border rounded-2xl overflow-hidden animate-scaleUp !m-0 !mt-0 !mb-0"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

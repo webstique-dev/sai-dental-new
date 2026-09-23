@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { formatAge } from '../../utils/formatters.js';
@@ -6,6 +7,8 @@ import DatePicker from './DatePicker.jsx';
 import SplitTimeInput from './SplitTimeInput.jsx';
 import PatientSearchInput from './PatientSearchInput.jsx';
 import EditableCombobox from './EditableCombobox.jsx';
+import UnsavedChangesModal from './UnsavedChangesModal.jsx';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
 import { TOOTH_CONDITIONS } from '../../constants/toothConditions.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -36,7 +39,7 @@ export default function CreateAppointmentModal({
   onSuccess,
   initialPatient = null,
   initialDoctorId = null,
-  defaultAction = 'Schedule',
+  defaultAction = 'Check-in',
 }) {
   const { showSuccess, showError } = useNotification();
   const { user } = useAuth();
@@ -46,6 +49,7 @@ export default function CreateAppointmentModal({
   const [selectedPatient, setSelectedPatient] = useState(initialPatient);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const initialSnapshotRef = useRef(null);
 
   const [formData, setFormData] = useState(() => {
     const { dateStr, timeStr } = getInitialExactDateTime();
@@ -56,9 +60,37 @@ export default function CreateAppointmentModal({
       time: timeStr,
       type: 'Walk-In',
       reason: '',
-      action: defaultAction || 'Schedule',
+      action: defaultAction || 'Check-in',
     };
   });
+
+  // Re-sync default action and patient whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const { dateStr, timeStr } = getInitialExactDateTime();
+      const p = initialPatient || null;
+      setSelectedPatient(p);
+      const initForm = {
+        patient: p?._id || p?.id || '',
+        doctor: initialDoctorId || '',
+        date: dateStr,
+        time: timeStr,
+        type: 'Walk-In',
+        reason: '',
+        action: defaultAction || 'Check-in',
+      };
+      setFormData(initForm);
+      initialSnapshotRef.current = {
+        patientId: p?._id || p?.id || '',
+        doctorId: initialDoctorId || '',
+        reason: '',
+        type: 'Walk-In',
+      };
+      setErrorMessage('');
+    } else {
+      initialSnapshotRef.current = null;
+    }
+  }, [isOpen, defaultAction, initialPatient, initialDoctorId]);
 
   // Load doctors list on open
   useEffect(() => {
@@ -79,16 +111,43 @@ export default function CreateAppointmentModal({
         const userDocId = user?.role === 'doctor' ? (user._id || user.id) : null;
         const fallbackDocId = initialDoctorId || userDocId || (primDoc ? (primDoc._id || primDoc.id) : (docList[0]?._id || docList[0]?.id || ''));
 
-        setFormData((prev) => ({
-          ...prev,
-          doctor: prev.doctor || fallbackDocId,
-        }));
+        setFormData((prev) => {
+          const updatedDoc = prev.doctor || fallbackDocId;
+          if (initialSnapshotRef.current && !initialSnapshotRef.current.doctorId) {
+            initialSnapshotRef.current.doctorId = updatedDoc;
+          }
+          return {
+            ...prev,
+            doctor: updatedDoc,
+          };
+        });
       } catch (err) {
         console.error('Failed to load doctors list:', err);
       }
     }
     fetchDoctors();
   }, [isOpen, initialDoctorId, user]);
+
+  const isDirty = useMemo(() => {
+    if (!isOpen || !initialSnapshotRef.current) return false;
+    const curPatientId = selectedPatient?._id || selectedPatient?.id || '';
+    const initPatientId = initialSnapshotRef.current.patientId || '';
+    if (curPatientId !== initPatientId) return true;
+
+    if ((formData.reason || '').trim() !== (initialSnapshotRef.current.reason || '')) return true;
+    if (formData.type !== (initialSnapshotRef.current.type || 'Walk-In')) return true;
+    if (initialSnapshotRef.current.doctorId && formData.doctor && formData.doctor !== initialSnapshotRef.current.doctorId) return true;
+
+    return false;
+  }, [isOpen, selectedPatient, formData]);
+
+  const {
+    showConfirmModal,
+    confirmLeave,
+    handleStay,
+    handleDiscard,
+    resetDirty,
+  } = useUnsavedChanges(isDirty);
 
   // Sync initialPatient if changed
   useEffect(() => {
@@ -162,6 +221,7 @@ export default function CreateAppointmentModal({
         ? 'Appointment booked as Scheduled!'
         : 'Patient checked in successfully & added to doctor queue!';
 
+      resetDirty();
       showSuccess(successMsg);
       if (onSuccess) {
         onSuccess(newAppt || payload);
@@ -177,15 +237,34 @@ export default function CreateAppointmentModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="card w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in fade-in duration-150">
+  const handleRequestClose = () => {
+    if (!submitting && onClose) {
+      confirmLeave(onClose);
+    }
+  };
+
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      handleRequestClose();
+    }
+  };
+
+  return createPortal(
+    <div
+      data-modal-backdrop="create-appointment"
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !m-0 !mt-0"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="card w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl animate-in zoom-in-95 duration-150 !mt-0 !my-0"
+      >
         <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
           <h3 className="font-display text-base sm:text-lg font-bold text-ink">Book New Appointment</h3>
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors"
+            onClick={handleRequestClose}
+            className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors cursor-pointer"
             aria-label="Close modal"
           >
             <X size={18} />
@@ -397,7 +476,7 @@ export default function CreateAppointmentModal({
                 options={TOOTH_CONDITIONS}
                 placeholder="e.g. Toothache, Scaling, Root Canal follow-up, Mobility..."
                 value={formData.reason}
-                onChange={(val) => setFormData({ ...formData, reason: val })}
+                onChange={(val) => setFormData((prev) => ({ ...prev, reason: val }))}
                 inputClassName="text-xs"
               />
             </div>
@@ -408,7 +487,7 @@ export default function CreateAppointmentModal({
               type="button"
               disabled={submitting}
               className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={onClose}
+              onClick={handleRequestClose}
             >
               Cancel
             </button>
@@ -431,6 +510,13 @@ export default function CreateAppointmentModal({
           </div>
         </form>
       </div>
-    </div>
+
+      <UnsavedChangesModal
+        isOpen={showConfirmModal}
+        onStay={handleStay}
+        onDiscard={handleDiscard}
+      />
+    </div>,
+    document.body
   );
 }

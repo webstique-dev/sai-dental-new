@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Pill, Plus, Trash2, Printer, FileText, X, Stethoscope, Save,
   Calendar, Clock, CalendarDays, CheckCircle2, AlertTriangle, Sparkles, Check, ChevronDown, ChevronUp, Lock
@@ -10,6 +10,7 @@ import DatePicker from '../../../components/common/DatePicker.jsx';
 import SplitTimeInput from '../../../components/common/SplitTimeInput.jsx';
 import EditableCombobox from '../../../components/common/EditableCombobox.jsx';
 import { useNotification } from '../../../context/NotificationContext.jsx';
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
 import { FOLLOW_UP_REASONS, PROCEDURE_TREATMENT_STATUSES } from '../../../constants/followUpOptions.js';
 import { TOOTH_CONDITIONS } from '../../../constants/toothConditions.js';
 
@@ -44,6 +45,15 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   // Dynamic Medicine Rows State
   const [medicines, setMedicines] = useState([]);
   const [prescriptionNotes, setPrescriptionNotes] = useState('');
+
+  const isDirty = useMemo(() => {
+    if (isReadOnly) return false;
+    const hasDraftMedicines = medicines.some((m) => (m.name || '').trim() || (m.instructions || '').trim() || (m.dosage || '').trim());
+    const hasDraftNotes = Boolean((prescriptionNotes || '').trim());
+    return hasDraftMedicines || hasDraftNotes;
+  }, [isReadOnly, medicines, prescriptionNotes]);
+
+  useUnsavedChanges(isDirty, 'consultation-prescriptions');
 
   // Follow-Up Scheduling State
   const [existingFollowUpId, setExistingFollowUpId] = useState(null);

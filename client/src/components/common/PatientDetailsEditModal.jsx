@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, UserCheck, Plus, AlertTriangle, Stethoscope, Save, ArrowRight, Edit3, Trash2, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from './DatePicker.jsx';
+import UnsavedChangesModal from './UnsavedChangesModal.jsx';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { validateName, validatePhone, validateAge, validateDOB } from '../../utils/validators.js';
 
@@ -36,6 +38,7 @@ export default function PatientDetailsEditModal({
   const { showSuccess, showError } = useNotification();
 
   const shouldStartConsultation = startConsultation !== null ? Boolean(startConsultation) : Boolean(appointmentId);
+  const initialSnapshotRef = useRef(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -69,11 +72,11 @@ export default function PatientDetailsEditModal({
   const [editingHabitValue, setEditingHabitValue] = useState('');
 
   useEffect(() => {
-    if (patient) {
+    if (patient && isOpen) {
       const pAge = patient.age !== undefined && patient.age !== null ? Number(patient.age) : null;
       const initialType = patient.patientType || (pAge !== null && pAge < 12 ? 'child' : 'adult');
 
-      setFormData({
+      const initialData = {
         firstName: patient.firstName || '',
         lastName: patient.lastName || '',
         age: patient.age !== undefined && patient.age !== null ? String(patient.age) : '',
@@ -91,10 +94,15 @@ export default function PatientDetailsEditModal({
         vitals: patient.vitals && typeof patient.vitals === 'object' ? { bp: '', rbs: '', ...patient.vitals } : { bp: '', rbs: '' },
         habits: Array.isArray(patient.habits) ? [...patient.habits] : [],
         dentalHistory: patient.dentalHistory || '',
-      });
+      };
+
+      setFormData(initialData);
+      initialSnapshotRef.current = JSON.stringify(initialData);
       setErrorMessage('');
+    } else if (!isOpen) {
+      initialSnapshotRef.current = null;
     }
-  }, [patient]);
+  }, [patient, isOpen]);
 
   // When opened, fetch full up-to-date patient profile in background
   useEffect(() => {
@@ -105,27 +113,35 @@ export default function PatientDetailsEditModal({
     let isMounted = true;
     api.get(`/patients/${pId}`).then((res) => {
       if (isMounted && res.data?.patient) {
-        const fresh = res.data.patient;
-        const pAge = fresh.age !== undefined && fresh.age !== null ? Number(fresh.age) : null;
-        const initialType = fresh.patientType || (pAge !== null && pAge < 12 ? 'child' : 'adult');
-        setFormData({
-          firstName: fresh.firstName || '',
-          lastName: fresh.lastName || '',
-          age: fresh.age !== undefined && fresh.age !== null ? String(fresh.age) : '',
-          sex: fresh.sex || '',
-          patientType: initialType,
-          dateOfBirth: fresh.dateOfBirth
-            ? new Date(fresh.dateOfBirth).toISOString().split('T')[0]
-            : '',
-          occupation: fresh.occupation || '',
-          address: fresh.address || '',
-          primaryPhone: fresh.primaryPhone || fresh.phone || '',
-          secondaryPhone: fresh.secondaryPhone || '',
-          medicalHistory: Array.isArray(fresh.medicalHistory) ? [...fresh.medicalHistory] : [],
-          currentMedications: fresh.currentMedications || '',
-          vitals: fresh.vitals && typeof fresh.vitals === 'object' ? { bp: '', rbs: '', ...fresh.vitals } : { bp: '', rbs: '' },
-          habits: Array.isArray(fresh.habits) ? [...fresh.habits] : [],
-          dentalHistory: fresh.dentalHistory || '',
+        setFormData((prev) => {
+          // If the user already made edits, preserve their edits
+          if (initialSnapshotRef.current && JSON.stringify(prev) !== initialSnapshotRef.current) {
+            return prev;
+          }
+          const fresh = res.data.patient;
+          const pAge = fresh.age !== undefined && fresh.age !== null ? Number(fresh.age) : null;
+          const initialType = fresh.patientType || (pAge !== null && pAge < 12 ? 'child' : 'adult');
+          const freshData = {
+            firstName: fresh.firstName || '',
+            lastName: fresh.lastName || '',
+            age: fresh.age !== undefined && fresh.age !== null ? String(fresh.age) : '',
+            sex: fresh.sex || '',
+            patientType: initialType,
+            dateOfBirth: fresh.dateOfBirth
+              ? new Date(fresh.dateOfBirth).toISOString().split('T')[0]
+              : '',
+            occupation: fresh.occupation || '',
+            address: fresh.address || '',
+            primaryPhone: fresh.primaryPhone || fresh.phone || '',
+            secondaryPhone: fresh.secondaryPhone || '',
+            medicalHistory: Array.isArray(fresh.medicalHistory) ? [...fresh.medicalHistory] : [],
+            currentMedications: fresh.currentMedications || '',
+            vitals: fresh.vitals && typeof fresh.vitals === 'object' ? { bp: '', rbs: '', ...fresh.vitals } : { bp: '', rbs: '' },
+            habits: Array.isArray(fresh.habits) ? [...fresh.habits] : [],
+            dentalHistory: fresh.dentalHistory || '',
+          };
+          initialSnapshotRef.current = JSON.stringify(freshData);
+          return freshData;
         });
       }
     }).catch(() => {
@@ -136,6 +152,25 @@ export default function PatientDetailsEditModal({
       isMounted = false;
     };
   }, [isOpen, patient]);
+
+  const isDirty = useMemo(() => {
+    if (!isOpen || !initialSnapshotRef.current) return false;
+    return JSON.stringify(formData) !== initialSnapshotRef.current;
+  }, [isOpen, formData]);
+
+  const {
+    showConfirmModal,
+    confirmLeave,
+    handleStay,
+    handleDiscard,
+    resetDirty,
+  } = useUnsavedChanges(isDirty);
+
+  const handleRequestClose = () => {
+    if (!saving && onClose) {
+      confirmLeave(onClose);
+    }
+  };
 
   if (!isOpen || !patient) return null;
 
@@ -397,39 +432,47 @@ export default function PatientDetailsEditModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0">
-      <div className="card w-full max-w-2xl sm:max-w-3xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl border border-border animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-9 w-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold shrink-0">
-              <Stethoscope size={18} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-display text-base sm:text-lg font-bold text-ink">
-                  {title || (shouldStartConsultation ? 'Edit Patient Registration Details' : 'Edit Patient Details')}
-                </h3>
-                <span className="badge bg-brand/10 text-brand font-mono text-[10px] font-bold">
-                  OP #{patient.opNumber || 'N/A'}
-                </span>
+    <>
+      <div
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            handleRequestClose();
+          }
+        }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150 !mt-0"
+      >
+        <div className="card w-full max-w-2xl sm:max-w-3xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface overflow-hidden shadow-xl border border-border animate-in fade-in zoom-in-95 duration-150 !mt-0 !my-0">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6 sm:py-3.5 bg-surface shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-bold shrink-0">
+                <Stethoscope size={18} />
               </div>
-              <p className="text-[11px] text-ink-soft truncate">
-                {subtitle || (shouldStartConsultation ? 'Review and update patient info recorded during registration' : 'Review and update patient demographics, medical history, vitals, and habits')}
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display text-base sm:text-lg font-bold text-ink">
+                    {title || (shouldStartConsultation ? 'Edit Patient Registration Details' : 'Edit Patient Details')}
+                  </h3>
+                  <span className="badge bg-brand/10 text-brand font-mono text-[10px] font-bold">
+                    OP #{patient.opNumber || 'N/A'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-ink-soft truncate">
+                  {subtitle || (shouldStartConsultation ? 'Review and update patient info recorded during registration' : 'Review and update patient demographics, medical history, vitals, and habits')}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors disabled:opacity-50"
-            aria-label="Close modal"
-          >
-            <X size={18} />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleRequestClose}
+              disabled={saving}
+              className="rounded-lg p-1 text-ink-soft hover:text-ink hover:bg-bg transition-colors disabled:opacity-50"
+              aria-label="Close modal"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
         {/* Form Body & Footer */}
         <form onSubmit={handleFormSubmit} autoComplete="off" className="flex flex-col flex-1 overflow-hidden min-h-0 !mt-0 !mb-0">
@@ -937,7 +980,7 @@ export default function PatientDetailsEditModal({
             <button
               type="button"
               disabled={saving}
-              onClick={onClose}
+              onClick={handleRequestClose}
               className="btn-secondary text-xs font-semibold w-full sm:w-auto"
             >
               Cancel
@@ -967,7 +1010,13 @@ export default function PatientDetailsEditModal({
           </div>
         </form>
       </div>
-    </div>,
-    document.body
-  );
+    </div>
+    <UnsavedChangesModal
+      isOpen={showConfirmModal}
+      onStay={handleStay}
+      onDiscard={handleDiscard}
+    />
+  </>,
+  document.body
+);
 }

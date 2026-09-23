@@ -1,9 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, UserPlus, Plus, X, Loader2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  UserPlus,
+  Plus,
+  X,
+  Loader2,
+  User,
+  HeartPulse,
+  ClipboardList,
+  Activity,
+  Stethoscope,
+  Smile,
+  Baby,
+} from 'lucide-react';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import CreateAppointmentModal from '../../components/common/CreateAppointmentModal.jsx';
+import UnsavedChangesModal from '../../components/common/UnsavedChangesModal.jsx';
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
@@ -48,6 +64,42 @@ export default function PatientRegistration() {
     habits: [],
     dentalHistory: '',
   });
+
+  const isDirty = useMemo(() => {
+    const f = formData;
+    return Boolean(
+      f.firstName?.trim() ||
+      f.lastName?.trim() ||
+      (f.age !== '' && f.age !== undefined && f.age !== null) ||
+      f.sex ||
+      f.dateOfBirth ||
+      f.occupation?.trim() ||
+      f.address?.trim() ||
+      f.primaryPhone?.trim() ||
+      f.secondaryPhone?.trim() ||
+      (f.medicalHistory && f.medicalHistory.length > 0) ||
+      f.currentMedications?.trim() ||
+      (f.vitals && Object.values(f.vitals).some((v) => (typeof v === 'string' ? v.trim() : v))) ||
+      (f.habits && f.habits.length > 0) ||
+      f.dentalHistory?.trim()
+    );
+  }, [formData]);
+
+  const {
+    showConfirmModal,
+    confirmLeave,
+    handleStay,
+    handleDiscard,
+    resetDirty,
+  } = useUnsavedChanges(isDirty);
+
+  const handleBackNavigation = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const targetUrl = user?.role === 'doctor' ? '/doctor/patients' : '/reception/patients';
+    confirmLeave(() => {
+      navigate(targetUrl);
+    });
+  };
 
   const [userManuallySetPatientType, setUserManuallySetPatientType] = useState(false);
   const [similarPatients, setSimilarPatients] = useState([]);
@@ -173,26 +225,6 @@ export default function PatientRegistration() {
     }));
   };
 
-  const handleMedicalHistoryToggle = (item) => {
-    setFormData((prev) => {
-      const exists = prev.medicalHistory.includes(item);
-      const updated = exists
-        ? prev.medicalHistory.filter((m) => m !== item)
-        : [...prev.medicalHistory, item];
-      return { ...prev, medicalHistory: updated };
-    });
-  };
-
-  const handleHabitToggle = (item) => {
-    setFormData((prev) => {
-      const exists = prev.habits.includes(item);
-      const updated = exists
-        ? prev.habits.filter((h) => h !== item)
-        : [...prev.habits, item];
-      return { ...prev, habits: updated };
-    });
-  };
-
   const handleCheckboxToggle = (field, item) => {
     setFormData((prev) => {
       const list = prev[field] || [];
@@ -279,6 +311,7 @@ export default function PatientRegistration() {
 
       const res = await api.post('/patients', payload);
       const newPatient = res.data?.patient;
+      resetDirty();
 
       if (user?.role === 'doctor') {
         showSuccess(`Patient ${newPatient?.opNumber || ''} registered successfully!`);
@@ -303,566 +336,701 @@ export default function PatientRegistration() {
   };
 
   return (
-    <div className="max-w-4xl space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-12">
+      {/* 1. Header Bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/80 pb-4">
         <div className="flex items-center gap-3">
-          <Link
-            to={user?.role === 'doctor' ? '/doctor/patients' : '/reception/patients'}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-soft transition-colors hover:bg-bg hover:text-ink"
+          <button
+            type="button"
+            onClick={handleBackNavigation}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-soft shadow-xs transition-colors hover:bg-bg hover:text-ink cursor-pointer"
+            title="Back to Patients"
           >
             <ArrowLeft size={18} />
-          </Link>
+          </button>
           <div>
-            <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Register & Book Appointment</h2>
-            <p className="text-xs sm:text-sm text-ink-soft">Create a new Dental OP Record and schedule an appointment</p>
+            <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-ink">
+              Register & Book Appointment
+            </h1>
+            <p className="text-xs sm:text-sm text-ink-soft mt-0.5">
+              Create a new Dental OP Record and schedule an appointment
+            </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="btn-primary shrink-0 w-full sm:w-auto justify-center text-xs sm:text-sm inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={18} />}
-          <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
-        </button>
+
+        <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto w-full sm:w-auto">
+          <button
+            type="button"
+            className="btn-secondary flex-1 sm:flex-initial text-xs sm:text-sm"
+            onClick={() => navigate(user?.role === 'doctor' ? '/doctor/patients' : '/reception/patients')}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="btn-primary flex-1 sm:flex-initial text-xs sm:text-sm inline-flex items-center justify-center gap-2"
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={17} />}
+            <span>{submitting ? 'Registering...' : 'Register & Book'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Soft Duplicate / Family Member Notice */}
+      {/* 2. Soft Duplicate / Family Member Notice */}
       {similarPatients.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 sm:p-4 text-amber-900">
-          <div className="flex items-start gap-2.5">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
-            <div className="space-y-1 text-sm">
-              <p className="font-semibold text-xs sm:text-sm">Notice: Similar patient record found</p>
-              <ul className="list-disc pl-4 space-y-0.5 text-xs text-amber-800">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 text-amber-900 shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-600" />
+            <div className="space-y-1.5 text-sm flex-1">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-xs sm:text-sm text-amber-950">
+                  Notice: Similar patient record found ({similarPatients.length})
+                </p>
+                <span className="text-[11px] font-semibold uppercase tracking-wider bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-md">
+                  Potential Family Match
+                </span>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1 text-xs text-amber-900">
                 {similarPatients.map((p) => {
                   const pPhones = [p.primaryPhone || p.phone, p.secondaryPhone].filter(Boolean).join(' / ') || 'No phone';
                   return (
-                    <li key={p._id}>
-                      <span className="font-medium">{p.firstName} {p.lastName}</span> ({p.opNumber || 'No OP#'}) — {pPhones}
+                    <li key={p._id} className="bg-white/80 rounded-xl p-2.5 border border-amber-200/70 flex flex-col gap-0.5">
+                      <span className="font-bold text-ink">
+                        {p.firstName} {p.lastName}
+                      </span>
+                      <span className="font-mono text-[11px] text-brand-dark font-medium">
+                        OP: {p.opNumber || 'N/A'}
+                      </span>
+                      <span className="text-ink-soft text-[11px]">📞 {pPhones}</span>
                     </li>
                   );
                 })}
               </ul>
-              <p className="text-xs text-amber-700 pt-1">
-                A patient with matching details already exists — this may be a family member. Continue to create a new record, or select their existing record if this is actually the same person.
+              <p className="text-xs text-amber-800/90 pt-1">
+                A patient with matching details already exists. You may continue to create a new record if this is a family member, or search their record above.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-        {/* 1. Basic Details */}
-        <div className="card p-4 sm:p-6 space-y-4">
-          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
-            Basic Details
-          </h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">
-                First Name <span className="text-rose-600">*</span>
-              </label>
-              <input
-                type="text"
-                className={`input-field ${errors.firstName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
-                  }`}
-                placeholder="e.g. John"
-                autoComplete="off"
-                value={formData.firstName}
-                onChange={(e) => handleChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
-              />
-              {errors.firstName && (
-                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> {errors.firstName}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Last Name</label>
-              <input
-                type="text"
-                autoComplete="off"
-                className={`input-field ${errors.lastName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
-                  }`}
-                placeholder="e.g. Doe"
-                value={formData.lastName}
-                onChange={(e) => handleChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
-              />
-              {errors.lastName && (
-                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> {errors.lastName}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">
-                Primary Phone
-              </label>
-              <input
-                type="tel"
-                autoComplete="off"
-                maxLength={10}
-                className={`input-field font-mono ${errors.primaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
-                  }`}
-                placeholder="e.g. 9876543210"
-                value={formData.primaryPhone}
-                onChange={(e) => handleChange('primaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
-              />
-              {errors.primaryPhone && (
-                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> {errors.primaryPhone}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">
-                Secondary Phone <span className="text-ink-soft font-normal">(optional)</span>
-              </label>
-              <input
-                type="tel"
-                autoComplete="off"
-                maxLength={10}
-                className={`input-field font-mono ${errors.secondaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
-                  }`}
-                placeholder="e.g. 9123456789"
-                value={formData.secondaryPhone}
-                onChange={(e) => handleChange('secondaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
-              />
-              {errors.secondaryPhone && (
-                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> {errors.secondaryPhone}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Sex / Gender</label>
-              <select
-                className="input-field"
-                value={formData.sex}
-                onChange={(e) => handleChange('sex', e.target.value)}
-              >
-                <option value="">Select Sex</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Age</label>
-              <input
-                type="number"
-                step="0.5"
-                min="0"
-                max="130"
-                autoComplete="off"
-                className={`input-field font-mono ${errors.age ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
-                  }`}
-                placeholder="e.g. 4.5 or 30"
-                value={formData.age}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '' || (!isNaN(val) && Number(val) >= 0 && Number(val) <= 130)) {
-                    handleChange('age', val);
-                  }
-                }}
-              />
-              {errors.age && (
-                <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> {errors.age}
-                </p>
-              )}
-            </div>
-            <div>
-              <DatePicker
-                label="Date of Birth"
-                value={formData.dateOfBirth}
-                onChange={(date, dateStr) => handleChange('dateOfBirth', dateStr)}
-                maxDate={new Date()}
-                error={errors.dateOfBirth}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-ink-soft mb-1">
-                Patient Type (Dentition) <span className="text-rose-600">*</span>
-              </label>
-              <div className="inline-flex flex-col sm:flex-row rounded-xl border border-border bg-bg p-1 w-full gap-1 sm:gap-0" role="radiogroup" aria-label="Patient Type">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={formData.patientType === 'adult'}
-                  onClick={() => {
-                    setUserManuallySetPatientType(true);
-                    handleChange('patientType', 'adult');
-                  }}
-                  className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg transition-all text-center ${formData.patientType === 'adult'
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'text-ink-soft hover:text-ink'
-                    }`}
-                >
-                  Adult (Permanent 32 Teeth)
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={formData.patientType === 'child'}
-                  onClick={() => {
-                    setUserManuallySetPatientType(true);
-                    handleChange('patientType', 'child');
-                  }}
-                  className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg transition-all text-center ${formData.patientType === 'child'
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'text-ink-soft hover:text-ink'
-                    }`}
-                >
-                  Child (Primary 20 Teeth)
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Occupation</label>
-              <input
-                type="text"
-                autoComplete="off"
-                className="input-field"
-                placeholder="e.g. Teacher, Engineer"
-                value={formData.occupation}
-                onChange={(e) => handleChange('occupation', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Address</label>
-              <input
-                type="text"
-                autoComplete="off"
-                className="input-field"
-                placeholder="Street, City, Pin Code"
-                value={formData.address}
-                onChange={(e) => handleChange('address', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Medical History */}
-        <div className="card p-4 sm:p-6 space-y-4">
-          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
-            Medical History
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {MEDICAL_HISTORY_OPTIONS.map((item) => {
-              const checked = formData.medicalHistory.includes(item);
-              return (
-                <label
-                  key={item}
-                  className={`flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer text-sm transition-colors ${checked
-                    ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
-                    : 'border-border bg-surface text-ink hover:bg-bg'
-                    }`}
-                >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand shrink-0"
-                    checked={checked}
-                    onChange={() => handleCheckboxToggle('medicalHistory', item)}
-                  />
-                  <span>{item}</span>
-                </label>
-              );
-            })}
-          </div>
-
-          {/* Custom Medical History Input & Add Option */}
-          <div className="pt-3 border-t border-border/70 space-y-3">
-            <label className="block text-xs font-semibold text-ink-soft">
-              Add Custom Medical History / Condition
-            </label>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <input
-                type="text"
-                autoComplete="off"
-                className="input-field py-2 text-sm flex-1"
-                placeholder="Enter additional medical condition..."
-                value={customMedicalInput}
-                onChange={(e) => setCustomMedicalInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddCustomMedicalHistory();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleAddCustomMedicalHistory}
-                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
-              >
-                <Plus size={14} /> Add
-              </button>
-            </div>
-
-            {/* Display Added Custom Items */}
-            {formData.medicalHistory.some((item) => !MEDICAL_HISTORY_OPTIONS.includes(item)) && (
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">
-                  Added Custom Conditions:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {formData.medicalHistory.map((item) => {
-                    if (MEDICAL_HISTORY_OPTIONS.includes(item)) return null;
-                    return (
-                      <span
-                        key={item}
-                        className="inline-flex items-center gap-1.5 bg-teal-50 text-teal-800 border border-teal-200 px-3 py-1 rounded-full text-xs font-medium"
-                      >
-                        <span>{item}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCheckboxToggle('medicalHistory', item)}
-                          className="text-teal-600 hover:text-teal-900 rounded-full p-0.5"
-                          title="Remove condition"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    );
-                  })}
+      {/* 3. Main Responsive Grid Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
+          
+          {/* ================= LEFT / PRIMARY COLUMN (7 cols on lg, 8 cols on xl) ================= */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-5 sm:space-y-6">
+            
+            {/* Card 1: Personal & Contact Information */}
+            <div className="card p-4 sm:p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-border/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-light text-brand">
+                    <User size={18} />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-base font-bold text-ink">
+                      Personal & Contact Information
+                    </h2>
+                    <p className="text-xs text-ink-soft">Basic demographic and contact details</p>
+                  </div>
                 </div>
+                <span className="text-[11px] font-semibold text-ink-soft bg-bg px-2.5 py-1 rounded-full border border-border/60">
+                  Required <span className="text-rose-600">*</span>
+                </span>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* 3. Current Medications */}
-        <div className="card p-4 sm:p-6 space-y-4">
-          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
-            Current Medications
-          </h3>
-          <div>
-            <textarea
-              rows={3}
-              className="input-field"
-              placeholder="List any ongoing medications or drug allergies..."
-              value={formData.currentMedications}
-              onChange={(e) => handleChange('currentMedications', e.target.value)}
-            />
-          </div>
-        </div>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                {/* First Name */}
+                <div className="sm:col-span-6">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
+                    First Name <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className={`input-field ${
+                      errors.firstName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                    }`}
+                    placeholder="e.g. John"
+                    autoComplete="off"
+                    value={formData.firstName}
+                    onChange={(e) => handleChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                  />
+                  {errors.firstName && (
+                    <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> {errors.firstName}
+                    </p>
+                  )}
+                </div>
 
-        {/* 4. Vitals */}
-        <div className="card p-4 sm:p-6 space-y-4">
-          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
-            Vitals
-          </h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Blood Pressure (BP)</label>
-              <input
-                type="text"
-                autoComplete="off"
-                className="input-field"
-                placeholder="e.g. 120/80 mmHg"
-                value={formData.vitals?.bp || ''}
-                onChange={(e) => handleVitalsChange('bp', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Random Blood Sugar (RBS)</label>
-              <input
-                type="text"
-                autoComplete="off"
-                className="input-field"
-                placeholder="e.g. 110 mg/dL"
-                value={formData.vitals?.rbs || ''}
-                onChange={(e) => handleVitalsChange('rbs', e.target.value)}
-              />
-            </div>
+                {/* Last Name */}
+                <div className="sm:col-span-6">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    className={`input-field ${
+                      errors.lastName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                    }`}
+                    placeholder="e.g. Doe"
+                    value={formData.lastName}
+                    onChange={(e) => handleChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                  />
+                  {errors.lastName && (
+                    <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> {errors.lastName}
+                    </p>
+                  )}
+                </div>
 
-            {/* Render Any Added Custom Vitals */}
-            {Object.entries(formData.vitals || {}).map(([key, val]) => {
-              if (key === 'bp' || key === 'rbs') return null;
-              return (
-                <div key={key} className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <label className="block text-xs font-semibold text-ink-soft mb-1">{key}</label>
+                {/* Primary Phone */}
+                <div className="sm:col-span-6">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
+                    Primary Phone
+                  </label>
+                  <div className="relative">
                     <input
-                      type="text"
-                      className="input-field"
-                      value={val || ''}
-                      onChange={(e) => handleVitalsChange(key, e.target.value)}
+                      type="tel"
+                      autoComplete="off"
+                      maxLength={10}
+                      className={`input-field font-mono ${
+                        errors.primaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                      }`}
+                      placeholder="9876543210"
+                      value={formData.primaryPhone}
+                      onChange={(e) => handleChange('primaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCustomVital(key)}
-                    className="p-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors shrink-0"
-                    title={`Remove ${key}`}
-                  >
-                    <X size={16} />
-                  </button>
+                  {errors.primaryPhone && (
+                    <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> {errors.primaryPhone}
+                    </p>
+                  )}
                 </div>
-              );
-            })}
-          </div>
 
-          {/* Custom Vital Input Row */}
-          <div className="pt-3 border-t border-border/70 space-y-3">
-            <label className="block text-xs font-semibold text-ink-soft">
-              Add Custom Vital (e.g. Pulse, SpO2, Weight, Temperature)
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-              <input
-                type="text"
-                className="input-field py-2 text-sm sm:col-span-2"
-                placeholder="Vital Name (e.g. Pulse)..."
-                value={customVitalLabel}
-                onChange={(e) => setCustomVitalLabel(e.target.value)}
-              />
-              <input
-                type="text"
-                className="input-field py-2 text-sm sm:col-span-2"
-                placeholder="Value (e.g. 72 bpm)..."
-                value={customVitalValue}
-                onChange={(e) => setCustomVitalValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddCustomVital();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleAddCustomVital}
-                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
-              >
-                <Plus size={14} /> Add
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Habits */}
-        <div className="card p-4 sm:p-6 space-y-4">
-          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
-            Habits
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {HABITS_OPTIONS.map((habit) => {
-              const checked = formData.habits.includes(habit);
-              return (
-                <label
-                  key={habit}
-                  className={`flex items-center gap-2.5 rounded-xl border p-3 cursor-pointer text-sm transition-colors ${checked
-                    ? 'border-brand bg-brand-light/30 text-brand-dark font-medium'
-                    : 'border-border bg-surface text-ink hover:bg-bg'
-                    }`}
-                >
+                {/* Secondary Phone */}
+                <div className="sm:col-span-6">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
+                    Secondary Phone <span className="text-ink-soft/70 font-normal">(optional)</span>
+                  </label>
                   <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand shrink-0"
-                    checked={checked}
-                    onChange={() => handleCheckboxToggle('habits', habit)}
+                    type="tel"
+                    autoComplete="off"
+                    maxLength={10}
+                    className={`input-field font-mono ${
+                      errors.secondaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                    }`}
+                    placeholder="9123456789"
+                    value={formData.secondaryPhone}
+                    onChange={(e) => handleChange('secondaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                   />
-                  <span>{habit}</span>
-                </label>
-              );
-            })}
-          </div>
+                  {errors.secondaryPhone && (
+                    <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> {errors.secondaryPhone}
+                    </p>
+                  )}
+                </div>
 
-          {/* Custom Habit Input & Add Option */}
-          <div className="pt-3 border-t border-border/70 space-y-3">
-            <label className="block text-xs font-semibold text-ink-soft">
-              Add Custom Habit
-            </label>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <input
-                type="text"
-                autoComplete="off"
-                className="input-field py-2 text-sm flex-1"
-                placeholder="Enter additional habit (e.g. Vaping)..."
-                value={customHabitInput}
-                onChange={(e) => setCustomHabitInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddCustomHabit();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleAddCustomHabit}
-                className="btn-primary py-2 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
-              >
-                <Plus size={14} /> Add
-              </button>
-            </div>
+                {/* Date of Birth */}
+                <div className="sm:col-span-4">
+                  <DatePicker
+                    label="Date of Birth"
+                    value={formData.dateOfBirth}
+                    onChange={(date, dateStr) => handleChange('dateOfBirth', dateStr)}
+                    maxDate={new Date()}
+                    error={errors.dateOfBirth}
+                  />
+                </div>
 
-            {/* Display Added Custom Habits */}
-            {formData.habits.some((item) => !HABITS_OPTIONS.includes(item)) && (
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">
-                  Added Custom Habits:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {formData.habits.map((item) => {
-                    if (HABITS_OPTIONS.includes(item)) return null;
-                    return (
-                      <span
-                        key={item}
-                        className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-xs font-medium"
-                      >
-                        <span>{item}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCheckboxToggle('habits', item)}
-                          className="text-amber-600 hover:text-amber-900 rounded-full p-0.5"
-                          title="Remove habit"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    );
-                  })}
+                {/* Age */}
+                <div className="sm:col-span-4">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">Age</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="130"
+                    autoComplete="off"
+                    className={`input-field font-mono ${
+                      errors.age ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
+                    }`}
+                    placeholder="e.g. 28"
+                    value={formData.age}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || (!isNaN(val) && Number(val) >= 0 && Number(val) <= 130)) {
+                        handleChange('age', val);
+                      }
+                    }}
+                  />
+                  {errors.age && (
+                    <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> {errors.age}
+                    </p>
+                  )}
+                </div>
+
+                {/* Sex / Gender */}
+                <div className="sm:col-span-4">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">Sex / Gender</label>
+                  <select
+                    className="input-field"
+                    value={formData.sex}
+                    onChange={(e) => handleChange('sex', e.target.value)}
+                  >
+                    <option value="">Select Sex</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Patient Type (Dentition) Toggle */}
+                <div className="sm:col-span-12">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
+                    Dentition Type <span className="text-rose-600">*</span>
+                  </label>
+                  <div
+                    className="grid grid-cols-2 rounded-xl border border-border bg-bg p-1 gap-1"
+                    role="radiogroup"
+                    aria-label="Patient Dentition Type"
+                  >
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={formData.patientType === 'adult'}
+                      onClick={() => {
+                        setUserManuallySetPatientType(true);
+                        handleChange('patientType', 'adult');
+                      }}
+                      className={`flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-lg transition-all ${
+                        formData.patientType === 'adult'
+                          ? 'bg-brand text-white shadow-xs'
+                          : 'text-ink-soft hover:text-ink hover:bg-surface/60'
+                      }`}
+                    >
+                      <Smile size={15} />
+                      <span>Adult (Permanent 32 Teeth)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={formData.patientType === 'child'}
+                      onClick={() => {
+                        setUserManuallySetPatientType(true);
+                        handleChange('patientType', 'child');
+                      }}
+                      className={`flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-lg transition-all ${
+                        formData.patientType === 'child'
+                          ? 'bg-brand text-white shadow-xs'
+                          : 'text-ink-soft hover:text-ink hover:bg-surface/60'
+                      }`}
+                    >
+                      <Baby size={15} />
+                      <span>Child (Primary 20 Teeth)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Occupation */}
+                <div className="sm:col-span-5">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">Occupation</label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    className="input-field"
+                    placeholder="e.g. Teacher, Engineer"
+                    value={formData.occupation}
+                    onChange={(e) => handleChange('occupation', e.target.value)}
+                  />
+                </div>
+
+                {/* Address */}
+                <div className="sm:col-span-7">
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">Address</label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    className="input-field"
+                    placeholder="Street, Area, City, Pin Code"
+                    value={formData.address}
+                    onChange={(e) => handleChange('address', e.target.value)}
+                  />
                 </div>
               </div>
-            )}
+            </div>
+
+            {/* Card 2: Clinical & Dental Background */}
+            <div className="card p-4 sm:p-6 space-y-5">
+              <div className="flex items-center gap-2.5 border-b border-border/80 pb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
+                  <Stethoscope size={18} />
+                </div>
+                <div>
+                  <h2 className="font-display text-base font-bold text-ink">
+                    Clinical Background & Dental History
+                  </h2>
+                  <p className="text-xs text-ink-soft">Previous complaints, treatments, and current medications</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Dental History */}
+                <div>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
+                    Dental History & Chief Complaints
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="input-field leading-relaxed"
+                    placeholder="Previous dental treatments, chief complaints, extractions, root canals, restorations, or pain history..."
+                    value={formData.dentalHistory}
+                    onChange={(e) => handleChange('dentalHistory', e.target.value)}
+                  />
+                </div>
+
+                {/* Current Medications */}
+                <div>
+                  <label className="block text-xs font-semibold text-ink-soft mb-1.5">
+                    Current Medications & Drug Allergies
+                  </label>
+                  <textarea
+                    rows={2}
+                    className="input-field leading-relaxed"
+                    placeholder="List any ongoing medications (anticoagulants, antihypertensives, etc.) or known drug allergies..."
+                    value={formData.currentMedications}
+                    onChange={(e) => handleChange('currentMedications', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* ================= RIGHT / CLINICAL & VITALS COLUMN (5 cols on lg, 4 cols on xl) ================= */}
+          <div className="lg:col-span-5 xl:col-span-4 space-y-5 sm:space-y-6">
+            
+            {/* Card 3: Vitals */}
+            <div className="card p-4 sm:p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+                  <HeartPulse size={18} />
+                </div>
+                <div>
+                  <h2 className="font-display text-sm sm:text-base font-bold text-ink">
+                    Patient Vitals
+                  </h2>
+                  <p className="text-[11px] text-ink-soft">Baseline clinical measurements</p>
+                </div>
+              </div>
+
+              {/* Standard Vitals: BP & RBS */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-ink-soft mb-1 uppercase tracking-wider">
+                    BP (mmHg)
+                  </label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    className="input-field font-mono text-sm py-2"
+                    placeholder="120/80"
+                    value={formData.vitals?.bp || ''}
+                    onChange={(e) => handleVitalsChange('bp', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-ink-soft mb-1 uppercase tracking-wider">
+                    RBS (mg/dL)
+                  </label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    className="input-field font-mono text-sm py-2"
+                    placeholder="110"
+                    value={formData.vitals?.rbs || ''}
+                    onChange={(e) => handleVitalsChange('rbs', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Added Custom Vitals */}
+              {Object.entries(formData.vitals || {}).filter(([k]) => k !== 'bp' && k !== 'rbs').length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border/60">
+                  <span className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">
+                    Custom Vitals:
+                  </span>
+                  <div className="space-y-1.5">
+                    {Object.entries(formData.vitals || {}).map(([key, val]) => {
+                      if (key === 'bp' || key === 'rbs') return null;
+                      return (
+                        <div key={key} className="flex items-center justify-between bg-bg rounded-lg px-2.5 py-1.5 border border-border/70 text-xs">
+                          <span className="font-medium text-ink">{key}: <span className="font-mono text-ink-soft">{val || '—'}</span></span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomVital(key)}
+                            className="text-rose-600 hover:text-rose-800 p-0.5 rounded transition-colors"
+                            title={`Remove ${key}`}
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add Custom Vital Input Row */}
+              <div className="pt-2 border-t border-border/60 space-y-2">
+                <label className="block text-[11px] font-semibold text-ink-soft">
+                  Add Custom Vital (Pulse, SpO2, Temp, Weight)
+                </label>
+                <div className="grid grid-cols-12 gap-1.5">
+                  <input
+                    type="text"
+                    className="input-field text-xs py-1.5 col-span-6"
+                    placeholder="Name (e.g. Pulse)"
+                    value={customVitalLabel}
+                    onChange={(e) => setCustomVitalLabel(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="input-field text-xs py-1.5 col-span-4"
+                    placeholder="Value (72 bpm)"
+                    value={customVitalValue}
+                    onChange={(e) => setCustomVitalValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomVital();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomVital}
+                    className="btn-primary col-span-2 px-1 py-1.5 text-xs font-bold flex items-center justify-center"
+                    title="Add custom vital"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Medical History */}
+            <div className="card p-4 sm:p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+                  <ClipboardList size={18} />
+                </div>
+                <div>
+                  <h2 className="font-display text-sm sm:text-base font-bold text-ink">
+                    Medical History
+                  </h2>
+                  <p className="text-[11px] text-ink-soft">Systemic conditions & contraindications</p>
+                </div>
+              </div>
+
+              {/* 2-Column Responsive Checkbox Cards */}
+              <div className="grid grid-cols-2 gap-2">
+                {MEDICAL_HISTORY_OPTIONS.map((item) => {
+                  const checked = formData.medicalHistory.includes(item);
+                  return (
+                    <label
+                      key={item}
+                      className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer text-xs transition-all ${
+                        checked
+                          ? 'border-brand bg-brand-light/40 text-brand-navy font-semibold shadow-2xs'
+                          : 'border-border/80 bg-surface text-ink hover:bg-bg'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 rounded border-border text-brand focus:ring-brand shrink-0"
+                        checked={checked}
+                        onChange={() => handleCheckboxToggle('medicalHistory', item)}
+                      />
+                      <span className="truncate" title={item}>{item}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Custom Medical Condition Input */}
+              <div className="pt-2 border-t border-border/60 space-y-2">
+                <label className="block text-[11px] font-semibold text-ink-soft">
+                  Add Custom Medical Condition
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    className="input-field text-xs py-1.5 flex-1"
+                    placeholder="Other condition..."
+                    value={customMedicalInput}
+                    onChange={(e) => setCustomMedicalInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomMedicalHistory();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomMedicalHistory}
+                    className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center justify-center gap-1 shrink-0"
+                  >
+                    <Plus size={13} /> Add
+                  </button>
+                </div>
+
+                {/* Display Custom Medical Conditions Tags */}
+                {formData.medicalHistory.some((item) => !MEDICAL_HISTORY_OPTIONS.includes(item)) && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {formData.medicalHistory.map((item) => {
+                      if (MEDICAL_HISTORY_OPTIONS.includes(item)) return null;
+                      return (
+                        <span
+                          key={item}
+                          className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 border border-teal-200/80 px-2 py-0.5 rounded-md text-[11px] font-medium"
+                        >
+                          <span>{item}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCheckboxToggle('medicalHistory', item)}
+                            className="text-teal-600 hover:text-teal-900 rounded p-0.5"
+                            title="Remove condition"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Card 5: Habits & Lifestyle */}
+            <div className="card p-4 sm:p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+                  <Activity size={18} />
+                </div>
+                <div>
+                  <h2 className="font-display text-sm sm:text-base font-bold text-ink">
+                    Habits & Lifestyle
+                  </h2>
+                  <p className="text-[11px] text-ink-soft">Oral health risk factors</p>
+                </div>
+              </div>
+
+              {/* 2x2 Habit Chips */}
+              <div className="grid grid-cols-2 gap-2">
+                {HABITS_OPTIONS.map((habit) => {
+                  const checked = formData.habits.includes(habit);
+                  return (
+                    <label
+                      key={habit}
+                      className={`flex items-center gap-2 rounded-lg border p-2 cursor-pointer text-xs transition-all ${
+                        checked
+                          ? 'border-brand bg-brand-light/40 text-brand-navy font-semibold shadow-2xs'
+                          : 'border-border/80 bg-surface text-ink hover:bg-bg'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 rounded border-border text-brand focus:ring-brand shrink-0"
+                        checked={checked}
+                        onChange={() => handleCheckboxToggle('habits', habit)}
+                      />
+                      <span>{habit}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Add Custom Habit */}
+              <div className="pt-2 border-t border-border/60 space-y-2">
+                <label className="block text-[11px] font-semibold text-ink-soft">
+                  Add Custom Habit
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    className="input-field text-xs py-1.5 flex-1"
+                    placeholder="e.g. Vaping..."
+                    value={customHabitInput}
+                    onChange={(e) => setCustomHabitInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomHabit();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomHabit}
+                    className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center justify-center gap-1 shrink-0"
+                  >
+                    <Plus size={13} /> Add
+                  </button>
+                </div>
+
+                {/* Display Custom Habits Tags */}
+                {formData.habits.some((item) => !HABITS_OPTIONS.includes(item)) && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {formData.habits.map((item) => {
+                      if (HABITS_OPTIONS.includes(item)) return null;
+                      return (
+                        <span
+                          key={item}
+                          className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] font-medium"
+                        >
+                          <span>{item}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCheckboxToggle('habits', item)}
+                            className="text-amber-600 hover:text-amber-900 rounded p-0.5"
+                            title="Remove habit"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* 6. Dental History */}
-        <div className="card p-4 sm:p-6 space-y-4">
-          <h3 className="font-display text-sm sm:text-base font-bold text-ink border-b border-border pb-3">
-            Dental History
-          </h3>
-          <div>
-            <textarea
-              rows={4}
-              className="input-field"
-              placeholder="Previous dental treatments, chief complaints, extractions, root canals, etc."
-              value={formData.dentalHistory}
-              onChange={(e) => handleChange('dentalHistory', e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Submit Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 sm:gap-3 pt-2">
+        {/* 4. Bottom Action Buttons Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-3 border-t border-border/80">
           <button
             type="button"
+            id="btn-cancel-registration"
             className="btn-secondary w-full sm:w-auto justify-center"
-            onClick={() => navigate(user?.role === 'doctor' ? '/doctor/patients' : '/reception/patients')}
+            onClick={handleBackNavigation}
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="btn-primary w-full sm:w-auto justify-center text-xs sm:text-sm inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn-primary w-full sm:w-auto justify-center text-xs sm:text-sm inline-flex items-center gap-2"
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={18} />}
             <span>{submitting ? 'Registering...' : 'Register & Book Appointment'}</span>
@@ -870,12 +1038,12 @@ export default function PatientRegistration() {
         </div>
       </form>
 
-      {/* Follow-on Appointment Booking Step for Doctor */}
+      {/* 5. Follow-on Appointment Booking Step for Doctor */}
       <CreateAppointmentModal
         isOpen={showBookModal}
         initialPatient={registeredPatientForAppointment}
         initialDoctorId={user?._id || user?.id}
-        defaultAction="Schedule"
+        defaultAction="Check-in"
         onClose={() => {
           setShowBookModal(false);
           navigate(user?.role === 'doctor' ? '/doctor/patients' : '/reception/appointments');
@@ -885,7 +1053,13 @@ export default function PatientRegistration() {
           navigate(user?.role === 'doctor' ? '/doctor/queue' : '/reception/appointments');
         }}
       />
+
+      {/* 6. Unsaved Changes Confirmation Modal */}
+      <UnsavedChangesModal
+        isOpen={showConfirmModal}
+        onStay={handleStay}
+        onDiscard={handleDiscard}
+      />
     </div>
   );
 }
-
