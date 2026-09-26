@@ -3,9 +3,13 @@ import { createPortal } from 'react-dom';
 import { X, Pill, Plus, Trash2, Save, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import ConfirmModal from './ConfirmModal.jsx';
+import MedicineSuggestionInput from './MedicineSuggestionInput.jsx';
+import { useMedicineSuggestions } from '../../hooks/useMedicineSuggestions.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 const COMMON_DURATIONS = ['3 Days', '5 Days', '7 Days', '10 Days', '14 Days', '1 Month'];
+const COMMON_DOSAGES = ['500 mg', '650 mg', '250 mg', '100 mg', '10 ml', '5 ml', '1 tablet', '1 drop'];
 const INSTRUCTION_OPTIONS = ['Before Food', 'After Food'];
 
 export default function PrescriptionEditModal({
@@ -17,6 +21,7 @@ export default function PrescriptionEditModal({
   onSuccess = () => {},
 }) {
   const { showSuccess, showError } = useNotification();
+  const { medicines: medicineSuggestions, refreshMedicines } = useMedicineSuggestions();
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [deletingMedicineIndex, setDeletingMedicineIndex] = useState(null);
@@ -107,9 +112,30 @@ export default function PrescriptionEditModal({
   };
 
   const handleMedicineChange = (index, field, value) => {
+    let formattedVal = value;
+    if (['medicine', 'dosage', 'duration', 'instructions'].includes(field)) {
+      formattedVal = capitalizeWords(value);
+    }
     setMedicines((prev) => {
-      const updated = [...medicines];
-      updated[index] = { ...updated[index], [field]: value };
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: formattedVal };
+      return updated;
+    });
+  };
+
+  const handleSelectSuggestion = (index, suggestion) => {
+    if (!suggestion) return;
+    setMedicines((prev) => {
+      const updated = [...prev];
+      const current = updated[index] || {};
+      updated[index] = {
+        ...current,
+        medicine: capitalizeWords(suggestion.name || ''),
+        dosage: suggestion.dosage ? capitalizeWords(suggestion.dosage) : current.dosage,
+        frequency: suggestion.defaultFrequency || current.frequency || '1-0-1',
+        duration: suggestion.defaultDuration ? capitalizeWords(suggestion.defaultDuration) : (current.duration || '5 Days'),
+        instructions: suggestion.defaultInstructions ? capitalizeWords(suggestion.defaultInstructions) : (current.instructions || 'After Food'),
+      };
       return updated;
     });
   };
@@ -121,11 +147,11 @@ export default function PrescriptionEditModal({
 
     const validMedicines = medicines
       .map((m) => ({
-        medicine: m.medicine.trim(),
-        dosage: (m.dosage || '').trim(),
+        medicine: capitalizeWords(m.medicine.trim()),
+        dosage: capitalizeWords((m.dosage || '').trim()),
         frequency: m.frequency.trim(),
-        duration: m.duration.trim(),
-        instructions: m.instructions.trim(),
+        duration: capitalizeWords((m.duration || '').trim()),
+        instructions: capitalizeWords((m.instructions || '').trim()),
       }))
       .filter((m) => m.medicine);
 
@@ -139,18 +165,20 @@ export default function PrescriptionEditModal({
       if (isEditMode) {
         const res = await api.put(`/prescriptions/${rxId}`, {
           medicines: validMedicines,
-          notes: notes.trim(),
+          notes: capitalizeWords(notes.trim()),
         });
         showSuccess('Prescription record updated successfully!');
+        refreshMedicines();
         onSuccess(res.data?.prescription);
       } else {
         const res = await api.post('/prescriptions', {
           patient: patientId,
           consultation: consultationId,
           medicines: validMedicines,
-          notes: notes.trim(),
+          notes: capitalizeWords(notes.trim()),
         });
         showSuccess('New prescription added successfully!');
+        refreshMedicines();
         onSuccess(res.data?.prescription);
       }
       onClose();
@@ -248,22 +276,38 @@ export default function PrescriptionEditModal({
                       {/* Single Row on md/lg, responsive stack on mobile */}
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end">
                         {/* Medicine Name */}
-                        <div className="md:col-span-4">
+                        <div className="md:col-span-3">
                           <label className="block text-[10px] font-bold text-ink-soft uppercase mb-0.5">
                             Medicine Name <span className="text-rose-600">*</span>
                           </label>
+                          <MedicineSuggestionInput
+                            value={item.medicine}
+                            dosage={item.dosage}
+                            suggestions={medicineSuggestions}
+                            onChange={(val) => handleMedicineChange(idx, 'medicine', val)}
+                            onSelect={(suggestion) => handleSelectSuggestion(idx, suggestion)}
+                            placeholder="e.g. Augmentin"
+                            required
+                          />
+                        </div>
+
+                        {/* Dosage */}
+                        <div className="md:col-span-2">
+                          <label className="block text-[10px] font-bold text-ink-soft uppercase mb-0.5">
+                            Dosage
+                          </label>
                           <input
                             type="text"
-                            required
-                            className="input-field py-1 text-xs font-semibold w-full"
-                            placeholder="e.g. Amoxicillin, Paracetamol"
-                            value={item.medicine}
-                            onChange={(e) => handleMedicineChange(idx, 'medicine', e.target.value)}
+                            list="dosage-options"
+                            className="input-field py-1 text-xs w-full"
+                            placeholder="e.g. 500 mg"
+                            value={item.dosage || ''}
+                            onChange={(e) => handleMedicineChange(idx, 'dosage', e.target.value)}
                           />
                         </div>
 
                         {/* Frequency (Interactive toggle + Quick presets without SOS) */}
-                        <div className="md:col-span-4">
+                        <div className="md:col-span-3">
                           <label className="block text-[10px] font-bold text-ink-soft uppercase mb-0.5">
                             Frequency (1 - 0 - 1)
                           </label>
@@ -372,6 +416,11 @@ export default function PrescriptionEditModal({
               </div>
 
               {/* Datalists for quick completion */}
+              <datalist id="dosage-options">
+                {COMMON_DOSAGES.map((d) => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
               <datalist id="duration-options">
                 {COMMON_DURATIONS.map((d) => (
                   <option key={d} value={d} />
@@ -389,7 +438,7 @@ export default function PrescriptionEditModal({
                 className="input-field text-xs"
                 placeholder="Additional advice, dietary precautions, follow-up timeline..."
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => setNotes(capitalizeWords(e.target.value))}
               />
             </div>
           </div>

@@ -16,6 +16,8 @@ const medicalHistoryOptions = [
 
 const habitOptions = ['Smoking', 'Tobacco', 'Alcohol', 'Pan'];
 
+const { capitalizeWords, capitalizeName } = require('../utils/formatters.js');
+
 const patientSchema = new mongoose.Schema(
   {
     opNumber: {
@@ -27,12 +29,15 @@ const patientSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     lastName: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
+
     age: {
       type: Number,
       min: [0, 'Age cannot be negative'],
@@ -59,11 +64,13 @@ const patientSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     address: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     primaryPhone: {
       type: String,
@@ -86,6 +93,7 @@ const patientSchema = new mongoose.Schema(
     currentMedications: {
       type: String,
       default: '',
+      set: capitalizeWords,
     },
     vitals: {
       type: mongoose.Schema.Types.Mixed,
@@ -98,6 +106,7 @@ const patientSchema = new mongoose.Schema(
     dentalHistory: {
       type: String,
       default: '',
+      set: capitalizeWords,
     },
     registeredBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -127,9 +136,16 @@ const patientSchema = new mongoose.Schema(
   }
 );
 
-// Pre-save hook to auto-generate sequential OP number if not present
+// Pre-save hook to format names and auto-generate sequential OP number if not present
 // Format: YYYY-MM-001 (e.g. 2026-08-001), sequence restarts from 001 at start of each year
 patientSchema.pre('save', async function (next) {
+  if (this.firstName && typeof this.firstName === 'string') {
+    this.firstName = capitalizeName(this.firstName);
+  }
+  if (this.lastName && typeof this.lastName === 'string') {
+    this.lastName = capitalizeName(this.lastName);
+  }
+
   if (!this.opNumber) {
     try {
       const Patient = mongoose.model('Patient');
@@ -166,6 +182,28 @@ patientSchema.pre('save', async function (next) {
   }
   next();
 });
+
+patientSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function (next) {
+  const update = this.getUpdate();
+  if (update) {
+    if (update.firstName !== undefined && typeof update.firstName === 'string') {
+      update.firstName = capitalizeName(update.firstName);
+    }
+    if (update.lastName !== undefined && typeof update.lastName === 'string') {
+      update.lastName = capitalizeName(update.lastName);
+    }
+    if (update.$set) {
+      if (update.$set.firstName !== undefined && typeof update.$set.firstName === 'string') {
+        update.$set.firstName = capitalizeName(update.$set.firstName);
+      }
+      if (update.$set.lastName !== undefined && typeof update.$set.lastName === 'string') {
+        update.$set.lastName = capitalizeName(update.$set.lastName);
+      }
+    }
+  }
+  next();
+});
+
 
 // Text index for search on firstName, lastName, primaryPhone, secondaryPhone, opNumber
 patientSchema.index({

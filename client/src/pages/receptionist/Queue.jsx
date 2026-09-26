@@ -13,8 +13,9 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validatePhone, validateAge } from '../../utils/validators.js';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, capitalizeName, capitalizeWords, formatPatientFullName } from '../../utils/formatters.js';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+
 
 const STATUS_BADGE_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -294,14 +295,20 @@ export default function Queue() {
     try {
       const payload = {
         doctorId: selectedDoctorId,
-        reason: visitReason || 'Walk-in Consultation',
+        reason: capitalizeWords(visitReason ? visitReason.trim() : 'Walk-in Consultation'),
       };
 
       if (patientMode === 'search' && selectedPatient) {
         payload.patientId = selectedPatient._id;
       } else {
-        payload.patientData = newPatientData;
+        payload.patientData = {
+          ...newPatientData,
+          firstName: capitalizeName(newPatientData.firstName ? newPatientData.firstName.trim() : ''),
+          lastName: newPatientData.lastName ? capitalizeName(newPatientData.lastName.trim()) : '',
+          address: newPatientData.address ? capitalizeWords(newPatientData.address.trim()) : '',
+        };
       }
+
 
       const res = await api.post('/queue/walk-in', payload);
       const newEntry = res.data?.queueEntry;
@@ -498,10 +505,9 @@ export default function Queue() {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {queueEntries.map((entry) => {
-                        const patientName = entry.patient
-                          ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
-                          : 'Walk-in Patient';
+                        const patientName = formatPatientFullName(entry.patient) || 'Walk-in Patient';
                         const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
+
                         const timeStr = (entry.checked_in_at || entry.checkInTime)
                           ? new Date(entry.checked_in_at || entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : entry.appointment?.time || '—';
@@ -590,10 +596,9 @@ export default function Queue() {
                 {/* Mobile Accordion Cards View (<768px down to 320px) */}
                 <div className="block md:hidden divide-y divide-border">
                   {queueEntries.map((entry) => {
-                    const patientName = entry.patient
-                      ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
-                      : 'Walk-in Patient';
+                    const patientName = formatPatientFullName(entry.patient) || 'Walk-in Patient';
                     const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
+
                     const timeStr = (entry.checked_in_at || entry.checkInTime)
                       ? new Date(entry.checked_in_at || entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       : entry.appointment?.time || '—';
@@ -812,8 +817,9 @@ export default function Queue() {
                       <tbody className="divide-y divide-border">
                         {filteredCompletedEntries.map((item) => {
                           const p = item.patient || {};
-                          const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                          const patientName = formatPatientFullName(p) || 'Patient';
                           const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : 'Staff Doctor';
+
 
                           const checkInTimeStr = item.checkInTime
                             ? new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -902,8 +908,9 @@ export default function Queue() {
                   <div className="block md:hidden divide-y divide-border">
                     {filteredCompletedEntries.map((item) => {
                       const p = item.patient || {};
-                      const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                      const patientName = formatPatientFullName(p) || 'Patient';
                       const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : 'Staff Doctor';
+
                       const isExpanded = expandedCompletedId === item.id;
 
                       const checkInTimeStr = item.checkInTime
@@ -1035,7 +1042,7 @@ export default function Queue() {
               <div className="p-3.5 rounded-xl bg-bg border border-border space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-sm font-bold text-ink">
-                    {[selectedVisitSummary.patient?.firstName, selectedVisitSummary.patient?.lastName].filter(Boolean).join(' ') || 'Patient'}
+                    {formatPatientFullName(selectedVisitSummary.patient) || 'Patient'}
                   </span>
                   <span className={`badge border text-[10px] ${STATUS_BADGE_CLASSES[selectedVisitSummary.status] || 'bg-slate-100'}`}>
                     {selectedVisitSummary.status}
@@ -1175,22 +1182,25 @@ export default function Queue() {
                         <input
                           type="text"
                           required
+                          autoCapitalize="words"
                           className="input-field"
                           placeholder="e.g. Alex"
                           value={newPatientData.firstName}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, firstName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, firstName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                         />
                       </div>
                       <div>
                         <label className="block text-ink-soft font-semibold mb-1">Last Name</label>
                         <input
                           type="text"
+                          autoCapitalize="words"
                           className="input-field"
                           placeholder="e.g. Smith"
                           value={newPatientData.lastName}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, lastName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, lastName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                         />
                       </div>
+
                       <div>
                         <label className="block text-ink-soft font-semibold mb-1">Primary Phone</label>
                         <input
@@ -1265,7 +1275,7 @@ export default function Queue() {
                           className="input-field"
                           placeholder="e.g. 123 Main St, City"
                           value={newPatientData.address || ''}
-                          onChange={(e) => setNewPatientData({ ...newPatientData, address: e.target.value })}
+                          onChange={(e) => setNewPatientData({ ...newPatientData, address: capitalizeWords(e.target.value) })}
                         />
                       </div>
                     </div>
@@ -1302,7 +1312,7 @@ export default function Queue() {
                       className="input-field py-2.5 text-xs"
                       placeholder="e.g. Toothache, Urgent scaling, Walk-in consultation"
                       value={visitReason}
-                      onChange={(e) => setVisitReason(e.target.value)}
+                      onChange={(e) => setVisitReason(capitalizeWords(e.target.value))}
                     />
                   </div>
                 </div>
@@ -1321,8 +1331,8 @@ export default function Queue() {
                         <span className="text-ink-soft block font-medium">Patient Name</span>
                         <span className="font-bold text-sm">
                           {patientMode === 'search' && selectedPatient
-                            ? `${selectedPatient.firstName} ${selectedPatient.lastName}`
-                            : `${newPatientData.firstName} ${newPatientData.lastName}` || 'Unnamed Walk-in'}
+                            ? formatPatientFullName(selectedPatient)
+                            : (formatPatientFullName(newPatientData.firstName, newPatientData.lastName) || 'Unnamed Walk-in')}
                         </span>
                       </div>
 
@@ -1379,7 +1389,7 @@ export default function Queue() {
                       Token #{issuedToken.queue_token || issuedToken.token} Issued!
                     </h4>
                     <p className="text-xs text-ink-soft mt-1">
-                      Patient <span className="font-semibold text-ink">{issuedToken.patient?.firstName} {issuedToken.patient?.lastName}</span> has been checked in for <span className="font-semibold text-brand">Dr. {issuedToken.doctor?.name}</span>.
+                      Patient <span className="font-semibold text-ink">{formatPatientFullName(issuedToken.patient)}</span> has been checked in for <span className="font-semibold text-brand">Dr. {issuedToken.doctor?.name}</span>.
                     </p>
                   </div>
                 </div>
@@ -1450,8 +1460,9 @@ export default function Queue() {
             <p className="text-xs">
               Are you sure you want to cancel the check-in for{' '}
               <strong className="text-ink font-bold">
-                {pendingCancelQueueEntry.patient?.firstName} {pendingCancelQueueEntry.patient?.lastName}
+                {formatPatientFullName(pendingCancelQueueEntry.patient)}
               </strong>
+
               ?
             </p>
           ) : (

@@ -1,14 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Pill, Plus, Trash2, Printer, FileText, X, Stethoscope, Save,
-  Calendar, Clock, CalendarDays, CheckCircle2, AlertTriangle, Sparkles, Check, ChevronDown, ChevronUp, Lock
+  Calendar, Clock, CalendarDays, CheckCircle2, AlertTriangle, Sparkles, Check, ChevronDown, ChevronUp, Lock, Edit3
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { openPrescriptionPDFWindow } from '../../../utils/prescriptionPdfGenerator.js';
+import { formatPatientFullName, capitalizeWords } from '../../../utils/formatters.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
+import PrescriptionEditModal from '../../../components/common/PrescriptionEditModal.jsx';
 import DatePicker from '../../../components/common/DatePicker.jsx';
 import SplitTimeInput from '../../../components/common/SplitTimeInput.jsx';
 import EditableCombobox from '../../../components/common/EditableCombobox.jsx';
+import MedicineSuggestionInput from '../../../components/common/MedicineSuggestionInput.jsx';
+import { useMedicineSuggestions } from '../../../hooks/useMedicineSuggestions.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
 import { FOLLOW_UP_REASONS, PROCEDURE_TREATMENT_STATUSES } from '../../../constants/followUpOptions.js';
@@ -20,6 +24,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const patientId = patient?._id || patient?.id;
   const doctor = consultation?.doctor || {};
   const { showSuccess, showError } = useNotification();
+  const { medicines: medicineSuggestions, refreshMedicines } = useMedicineSuggestions();
 
   const [prescriptions, setPrescriptions] = useState([]);
   const [diagnoses, setDiagnoses] = useState([]);
@@ -45,6 +50,8 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   // Dynamic Medicine Rows State
   const [medicines, setMedicines] = useState([]);
   const [prescriptionNotes, setPrescriptionNotes] = useState('');
+  const [selectedPrescriptionForEdit, setSelectedPrescriptionForEdit] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const isDirty = useMemo(() => {
     if (isReadOnly) return false;
@@ -185,14 +192,38 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const handleRowChange = (index, field, value) => {
     if (isReadOnly) return;
     const updated = [...medicines];
-    updated[index][field] = value;
+    updated[index][field] = (field === 'medicine' || field === 'dosage' || field === 'duration') ? capitalizeWords(value) : value;
+    setMedicines(updated);
+  };
+
+  const handleSelectSuggestion = (index, suggestion) => {
+    if (isReadOnly || !suggestion) return;
+    const updated = [...medicines];
+    const current = updated[index] || {};
+    updated[index] = {
+      ...current,
+      medicine: capitalizeWords(suggestion.name || ''),
+      dosage: suggestion.dosage ? capitalizeWords(suggestion.dosage) : current.dosage,
+      frequency: suggestion.defaultFrequency || current.frequency || '1-0-1',
+      duration: suggestion.defaultDuration ? capitalizeWords(suggestion.defaultDuration) : (current.duration || '3 Days'),
+      instructions: suggestion.defaultInstructions ? capitalizeWords(suggestion.defaultInstructions) : (current.instructions || 'After food'),
+    };
     setMedicines(updated);
   };
 
   const handleSavePrescription = async (e) => {
     e.preventDefault();
     if (isReadOnly) return;
-    const validMedicines = medicines.filter((m) => m.medicine && m.medicine.trim());
+    const validMedicines = medicines
+      .filter((m) => m.medicine && m.medicine.trim())
+      .map((m) => ({
+        ...m,
+        medicine: capitalizeWords(m.medicine.trim()),
+        dosage: m.dosage ? capitalizeWords(m.dosage.trim()) : '',
+        duration: m.duration ? capitalizeWords(m.duration.trim()) : '',
+        instructions: m.instructions ? capitalizeWords(m.instructions) : 'After food',
+      }));
+
     if (validMedicines.length === 0) {
       showError('Please add at least one medicine name.');
       return;
@@ -204,7 +235,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
         consultation: consultationId,
         patient: patientId,
         medicines: validMedicines,
-        notes: prescriptionNotes ? prescriptionNotes.trim() : '',
+        notes: prescriptionNotes ? capitalizeWords(prescriptionNotes.trim()) : '',
       };
 
       const res = await api.post('/prescriptions', payload);
@@ -214,6 +245,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
       setPrescriptionNotes('');
 
       fetchData();
+      refreshMedicines();
       if (res.data?.prescription) {
         setPrintingRx(res.data.prescription);
         setShowPrintModal(true);
@@ -277,10 +309,10 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
         consultation: consultationId,
         recommendedDate: followUpForm.recommendedDate,
         time: followUpForm.time || '10:00 AM',
-        reason: followUpForm.reason.trim(),
-        instructions: followUpForm.instructions ? followUpForm.instructions.trim() : '',
-        treatmentStatus: followUpForm.treatmentStatus ? followUpForm.treatmentStatus.trim() : '',
-        notes: followUpForm.notes ? followUpForm.notes.trim() : '',
+        reason: capitalizeWords(followUpForm.reason.trim()),
+        instructions: followUpForm.instructions ? capitalizeWords(followUpForm.instructions.trim()) : '',
+        treatmentStatus: followUpForm.treatmentStatus ? capitalizeWords(followUpForm.treatmentStatus.trim()) : '',
+        notes: followUpForm.notes ? capitalizeWords(followUpForm.notes.trim()) : '',
       };
 
       let res;
@@ -340,7 +372,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
     }
   };
 
-  const patientFullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+  const patientFullName = formatPatientFullName(patient) || 'Patient';
   const attendingDoctorName = printingRx?.recordedBy?.name || doctor.name || 'Medical Practitioner';
   const doctorSpecialization = printingRx?.recordedBy?.specialization || doctor.specialization || 'BDS, MDS - Dental Specialist';
 
@@ -371,23 +403,135 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
           </div>
 
           <form onSubmit={handleSavePrescription} className="space-y-4">
-            <div className="border border-border rounded-xl bg-bg/30 overflow-hidden flex flex-col">
-              {/* Table Header (Desktop Only) */}
-              <div className="hidden md:block p-3 pb-2 border-b border-border/50 bg-bg/60">
-                <div className="grid grid-cols-12 gap-2 text-xs font-bold text-ink-soft uppercase px-1">
-                  <span className="col-span-3">Medicine Name *</span>
-                  <span className="col-span-2">Dosage</span>
-                  <span className="col-span-3 text-center">Frequency (1 - 0 - 1)</span>
-                  <span className="col-span-2">Duration</span>
-                  <span className="col-span-2">Instructions</span>
-                </div>
+            <div className="border border-border rounded-xl bg-surface overflow-hidden shadow-2xs">
+              {/* Desktop / Tablet Table View (≥768px) */}
+              <div className="hidden md:block overflow-x-auto scrollbar-none no-scrollbar">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-border bg-bg/60 text-ink-soft font-semibold uppercase tracking-wider text-[11px]">
+                      <th className="py-2.5 px-3 text-center w-10">#</th>
+                      <th className="py-2.5 px-3 min-w-[160px]">Medicine Name *</th>
+                      <th className="py-2.5 px-3 min-w-[110px]">Dosage</th>
+                      <th className="py-2.5 px-3 text-center min-w-[150px]">Frequency (1 - 0 - 1)</th>
+                      <th className="py-2.5 px-3 min-w-[110px]">Duration</th>
+                      <th className="py-2.5 px-3 min-w-[130px]">Instructions</th>
+                      <th className="py-2.5 px-3 text-center w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {medicines.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-6 text-center text-xs text-ink-soft italic">
+                          No medicines added yet. Click the <span className="font-bold text-brand">+ Add Medicine Row</span> button below to add medicine.
+                        </td>
+                      </tr>
+                    ) : (
+                      medicines.map((item, idx) => {
+                        const freqPattern = parseFrequencyPattern(item.frequency);
+                        return (
+                          <tr key={idx} className="hover:bg-bg/25 transition-colors">
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="h-6 w-6 rounded-md bg-brand-light/60 text-brand font-mono font-bold inline-flex items-center justify-center text-xs">
+                                {idx + 1}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <MedicineSuggestionInput
+                                value={item.medicine}
+                                dosage={item.dosage}
+                                suggestions={medicineSuggestions}
+                                onChange={(val) => handleRowChange(idx, 'medicine', val)}
+                                onSelect={(suggestion) => handleSelectSuggestion(idx, suggestion)}
+                                placeholder="e.g. Augmentin"
+                                required
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                autoComplete="off"
+                                className="input-field py-1.5 px-2.5 text-xs w-full"
+                                placeholder="500 mg"
+                                value={item.dosage}
+                                onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
+                              />
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="inline-flex items-center justify-center gap-1 rounded-xl border border-border bg-surface px-2 py-1 text-xs font-bold shadow-2xs">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFreqSlot(idx, 0)}
+                                  title="Morning Slot (1 or 0)"
+                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[0] === 1 ? 'bg-brand text-white shadow-xs' : 'text-ink-soft hover:text-ink bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[0]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFreqSlot(idx, 1)}
+                                  title="Afternoon Slot (1 or 0)"
+                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[1] === 1 ? 'bg-brand text-white shadow-xs' : 'text-ink-soft hover:text-ink bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[1]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFreqSlot(idx, 2)}
+                                  title="Night Slot (1 or 0)"
+                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[2] === 1 ? 'bg-brand text-white shadow-xs' : 'text-ink-soft hover:text-ink bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[2]}
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                autoComplete="off"
+                                className="input-field py-1.5 px-2.5 text-xs w-full"
+                                placeholder="5 days"
+                                value={item.duration}
+                                onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <select
+                                className="input-field py-1.5 px-2 text-xs font-semibold w-full"
+                                value={item.instructions || 'After food'}
+                                onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
+                              >
+                                <option value="Before food">Before food</option>
+                                <option value="After food">After food</option>
+                              </select>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleInitiateRemoveRow(idx)}
+                                className="p-1 text-ink-soft hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
+                                title="Remove medicine"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
 
-              {/* Scrollable Medicines Container */}
-              <div
-                className="p-3 space-y-3 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:hidden"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
+              {/* Mobile Stacked Card View (<768px down to 320px) */}
+              <div className="block md:hidden p-3 space-y-3">
                 {medicines.length === 0 ? (
                   <div className="py-6 text-center text-xs text-ink-soft italic">
                     No medicines added yet. Click the <span className="font-bold text-brand">+ Add Medicine Row</span> button below to add medicine.
@@ -396,212 +540,119 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                   medicines.map((item, idx) => {
                     const freqPattern = parseFrequencyPattern(item.frequency);
                     return (
-                      <div key={idx}>
-                        {/* Desktop Grid View (≥768px) */}
-                        <div className="hidden md:grid grid-cols-12 gap-2 items-center text-xs">
-                          <div className="col-span-3">
-                            <input
-                              type="text"
-                              autoComplete="off"
-                              className="input-field py-1.5 text-xs"
-                              placeholder="Medicine Name (e.g. Amoxicillin)"
-                              value={item.medicine}
-                              onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <input
-                              type="text"
-                              autoComplete="off"
-                              className="input-field py-1.5 text-xs"
-                              placeholder="Dosage (500 mg)"
-                              value={item.dosage}
-                              onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
-                            />
-                          </div>
-                          <div className="col-span-3 flex items-center justify-center">
-                            <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 py-1 text-xs font-bold shadow-2xs">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleFreqSlot(idx, 0)}
-                                title="Morning Slot (1 or 0)"
-                                className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
-                                  freqPattern[0] === 1
-                                    ? 'bg-brand text-white shadow-xs'
-                                    : 'text-ink-soft hover:text-ink bg-bg'
-                                }`}
-                              >
-                                {freqPattern[0]}
-                              </button>
-                              <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleFreqSlot(idx, 1)}
-                                title="Afternoon Slot (1 or 0)"
-                                className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
-                                  freqPattern[1] === 1
-                                    ? 'bg-brand text-white shadow-xs'
-                                    : 'text-ink-soft hover:text-ink bg-bg'
-                                }`}
-                              >
-                                {freqPattern[1]}
-                              </button>
-                              <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleFreqSlot(idx, 2)}
-                                title="Night Slot (1 or 0)"
-                                className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-150 ${
-                                  freqPattern[2] === 1
-                                    ? 'bg-brand text-white shadow-xs'
-                                    : 'text-ink-soft hover:text-ink bg-bg'
-                                }`}
-                              >
-                                {freqPattern[2]}
-                              </button>
-                            </div>
-                          </div>
-                          <div className="col-span-2">
-                            <input
-                              type="text"
-                              autoComplete="off"
-                              className="input-field py-1.5 text-xs"
-                              placeholder="Duration (5 days)"
-                              value={item.duration}
-                              onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
-                            />
-                          </div>
-                          <div className="col-span-2 flex items-center justify-between gap-1 min-w-0">
-                            <select
-                              className="input-field py-1.5 text-xs font-semibold w-full min-w-0 truncate"
-                              value={item.instructions || 'After food'}
-                              onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
-                            >
-                              <option value="Before food">Before food</option>
-                              <option value="After food">After food</option>
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => handleInitiateRemoveRow(idx)}
-                              className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
-                              title="Remove medicine"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
+                      <div key={idx} className="p-3 bg-surface border border-border rounded-xl space-y-2.5 shadow-2xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-brand uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-md bg-brand-light/60 text-brand flex items-center justify-center text-[11px] font-mono font-bold">
+                              {idx + 1}
+                            </span>
+                            Medicine #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleInitiateRemoveRow(idx)}
+                            className="p-1 text-ink-soft hover:text-rose-600 rounded shrink-0"
+                            title="Remove medicine"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
 
-                        {/* Mobile Stacked Card View (<768px down to 320px) */}
-                        <div className="block md:hidden p-3 bg-surface border border-border rounded-xl space-y-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-bold text-brand uppercase tracking-wider">
-                              Medicine #{idx + 1}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleInitiateRemoveRow(idx)}
-                              className="p-1 text-ink-soft hover:text-rose-600 shrink-0"
-                              title="Remove medicine"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                              Medicine Name *
+                            </label>
+                            <MedicineSuggestionInput
+                              value={item.medicine}
+                              dosage={item.dosage}
+                              suggestions={medicineSuggestions}
+                              onChange={(val) => handleRowChange(idx, 'medicine', val)}
+                              onSelect={(suggestion) => handleSelectSuggestion(idx, suggestion)}
+                              placeholder="e.g. Augmentin"
+                              required
+                            />
                           </div>
 
-                          <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
-                                Medicine Name *
+                                Dosage
                               </label>
                               <input
                                 type="text"
                                 autoComplete="off"
                                 className="input-field py-1.5 text-xs w-full"
-                                placeholder="Medicine Name (e.g. Amoxicillin)"
-                                value={item.medicine}
-                                onChange={(e) => handleRowChange(idx, 'medicine', e.target.value)}
+                                placeholder="500 mg"
+                                value={item.dosage}
+                                onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
                               />
                             </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                Duration
+                              </label>
+                              <input
+                                type="text"
+                                autoComplete="off"
+                                className="input-field py-1.5 text-xs w-full"
+                                placeholder="5 days"
+                                value={item.duration}
+                                onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
+                              />
+                            </div>
+                          </div>
 
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
-                                  Dosage
-                                </label>
-                                <input
-                                  type="text"
-                                  autoComplete="off"
-                                  className="input-field py-1.5 text-xs w-full"
-                                  placeholder="500 mg"
-                                  value={item.dosage}
-                                  onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
-                                  Duration
-                                </label>
-                                <input
-                                  type="text"
-                                  autoComplete="off"
-                                  className="input-field py-1.5 text-xs w-full"
-                                  placeholder="5 days"
-                                  value={item.duration}
-                                  onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
-                                />
+                          <div className="grid grid-cols-2 gap-2 items-end">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase text-center">
+                                Frequency
+                              </label>
+                              <div className="inline-flex items-center justify-center w-full gap-1 rounded-xl border border-border bg-surface px-2 py-1 text-xs font-bold shadow-2xs">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFreqSlot(idx, 0)}
+                                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[0] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[0]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFreqSlot(idx, 1)}
+                                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[1] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[1]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFreqSlot(idx, 2)}
+                                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[2] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[2]}
+                                </button>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 items-end">
-                              <div>
-                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase text-center">
-                                  Frequency
-                                </label>
-                                <div className="inline-flex items-center justify-center w-full gap-1 rounded-xl border border-border bg-surface px-2 py-1 text-xs font-bold shadow-2xs">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleFreqSlot(idx, 0)}
-                                    className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
-                                      freqPattern[0] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
-                                    }`}
-                                  >
-                                    {freqPattern[0]}
-                                  </button>
-                                  <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleFreqSlot(idx, 1)}
-                                    className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
-                                      freqPattern[1] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
-                                    }`}
-                                  >
-                                    {freqPattern[1]}
-                                  </button>
-                                  <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleFreqSlot(idx, 2)}
-                                    className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
-                                      freqPattern[2] === 1 ? 'bg-brand text-white' : 'text-ink-soft bg-bg'
-                                    }`}
-                                  >
-                                    {freqPattern[2]}
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
-                                  Instructions
-                                </label>
-                                <select
-                                  className="input-field py-1.5 text-xs font-semibold w-full"
-                                  value={item.instructions || 'After food'}
-                                  onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
-                                >
-                                  <option value="Before food">Before food</option>
-                                  <option value="After food">After food</option>
-                                </select>
-                              </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                Instructions
+                              </label>
+                              <select
+                                className="input-field py-1.5 text-xs font-semibold w-full"
+                                value={item.instructions || 'After food'}
+                                onChange={(e) => handleRowChange(idx, 'instructions', e.target.value)}
+                              >
+                                <option value="Before food">Before food</option>
+                                <option value="After food">After food</option>
+                              </select>
                             </div>
                           </div>
                         </div>
@@ -630,7 +681,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 className="input-field text-xs"
                 placeholder="General instructions for the patient..."
                 value={prescriptionNotes}
-                onChange={(e) => setPrescriptionNotes(e.target.value)}
+                onChange={(e) => setPrescriptionNotes(capitalizeWords(e.target.value))}
               />
             </div>
 
@@ -695,12 +746,30 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
 
                     <div className="flex items-center gap-2 text-right">
                       <span className="text-xs font-semibold text-ink mr-1">{dateStr}</span>
+                      {!isReadOnly && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPrescriptionForEdit(rx);
+                            setIsEditModalOpen(true);
+                          }}
+                          className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 text-amber-700 hover:text-amber-800 hover:border-amber-300 font-semibold"
+                          title="Edit Prescription"
+                        >
+                          <Edit3 size={14} />
+                          <span className="hidden sm:inline">Edit Prescription</span>
+                          <span className="sm:hidden inline">Edit</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => openPrescriptionPDFWindow({ rx, consultation, clinicSettings, diagnoses }, true)}
                         className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-sm"
+                        title="Print Prescription PDF"
                       >
-                        <Printer size={14} /> Print
+                        <Printer size={14} />
+                        <span className="hidden sm:inline">Print Prescription</span>
+                        <span className="sm:hidden inline">Print</span>
                       </button>
 
                       {!isReadOnly && (
@@ -934,7 +1003,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 className="input-field text-xs py-2 min-h-[64px] resize-y"
                 placeholder="e.g. Continue warm saline rinses. Avoid hard chewing on the left side until next sitting..."
                 value={followUpForm.instructions}
-                onChange={(e) => setFollowUpForm((prev) => ({ ...prev, instructions: e.target.value }))}
+                onChange={(e) => setFollowUpForm((prev) => ({ ...prev, instructions: capitalizeWords(e.target.value) }))}
               />
             </div>
 
@@ -992,6 +1061,21 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
         confirmText="Delete Medicine"
         cancelText="Cancel"
         variant="delete"
+      />
+
+      {/* EDIT PRESCRIPTION MODAL */}
+      <PrescriptionEditModal
+        isOpen={isEditModalOpen}
+        prescription={selectedPrescriptionForEdit}
+        patientId={patientId}
+        consultationId={consultationId}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedPrescriptionForEdit(null);
+        }}
+        onSuccess={() => {
+          fetchData();
+        }}
       />
     </div>
   );

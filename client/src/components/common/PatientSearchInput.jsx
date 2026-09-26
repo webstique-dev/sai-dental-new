@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, UserSquare2, Phone, Hash, Clock, X, Sparkles, Check } from 'lucide-react';
 import api from '../../api/axios.js';
+import { formatPatientFullName, capitalizeName } from '../../utils/formatters.js';
+
+
 
 export default function PatientSearchInput({
   selectedPatient = null,
@@ -108,13 +111,13 @@ export default function PatientSearchInput({
         <div className="flex items-center justify-between rounded-xl border border-brand bg-brand-light/20 p-2.5 text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-white font-bold text-xs">
-              {selectedPatient.firstName?.[0]}
-              {selectedPatient.lastName?.[0]}
+              {selectedPatient.firstName?.[0]?.toUpperCase()}
+              {selectedPatient.lastName?.[0]?.toUpperCase()}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-ink truncate">
-                  {selectedPatient.firstName} {selectedPatient.lastName}
+                  {formatPatientFullName(selectedPatient)}
                 </span>
                 <span className="badge bg-brand text-white font-mono text-[10px] font-bold">
                   {selectedPatient.opNumber}
@@ -193,7 +196,8 @@ export default function PatientSearchInput({
               ) : (
                 patients.map((p) => {
                   const pId = p._id || p.id;
-                  const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unnamed Patient';
+                  const fullName = formatPatientFullName(p) || 'Unnamed Patient';
+
                   const regDateStr = p.registrationDate || p.createdAt
                     ? new Date(p.registrationDate || p.createdAt).toLocaleDateString(undefined, {
                         month: 'short',

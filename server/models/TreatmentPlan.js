@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const priorityOptions = ['Low', 'Medium', 'High', 'Normal', 'Urgent'];
 const treatmentStatusOptions = ['Planned', 'Approved', 'In Progress', 'Completed', 'Cancelled'];
@@ -28,11 +29,13 @@ const treatmentPlanSchema = new mongoose.Schema(
       type: String,
       trim: true,
       required: true,
+      set: capitalizeWords,
     },
     description: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     estimatedCost: {
       type: Number,
@@ -43,6 +46,7 @@ const treatmentPlanSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     priority: {
       type: String,
@@ -53,6 +57,7 @@ const treatmentPlanSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     status: {
       type: String,

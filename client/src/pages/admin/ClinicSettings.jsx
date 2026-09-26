@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -93,8 +94,8 @@ export default function ClinicSettings() {
 
     try {
       const payload = {
-        clinicName,
-        address,
+        clinicName: capitalizeWords(clinicName.trim()),
+        address: capitalizeWords(address.trim()),
         phone,
         email,
         primaryDoctor: primaryDoctor || null,
@@ -184,7 +185,7 @@ export default function ClinicSettings() {
                 className="input-field"
                 placeholder="e.g. Sai Dental Clinic – Digital Platform"
                 value={clinicName}
-                onChange={(e) => setClinicName(e.target.value)}
+                onChange={(e) => setClinicName(capitalizeWords(e.target.value))}
               />
             </div>
 
@@ -217,7 +218,7 @@ export default function ClinicSettings() {
                 className="input-field"
                 placeholder="123 Healthcare Ave..."
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={(e) => setAddress(capitalizeWords(e.target.value))}
               />
             </div>
           </div>

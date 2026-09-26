@@ -180,7 +180,8 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
                       title="Edit Prescription"
                     >
                       <Edit3 size={13} />
-                      <span className="hidden sm:inline">Edit</span>
+                      <span className="hidden md:inline">Edit Prescription</span>
+                      <span className="md:hidden inline">Edit</span>
                     </button>
 
                     <button
@@ -190,7 +191,8 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
                       title="Print Prescription PDF"
                     >
                       <Printer size={13} />
-                      <span className="hidden sm:inline">Print</span>
+                      <span className="hidden md:inline">Print Prescription</span>
+                      <span className="md:hidden inline">Print</span>
                     </button>
 
                     <button
@@ -221,6 +223,7 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
                       <table className="w-full text-left text-xs">
                         <thead className="bg-bg/60 border-b border-border text-[10px] font-bold text-ink-soft uppercase">
                           <tr>
+                            <th className="px-3 py-2 text-center w-10">#</th>
                             <th className="px-3 py-2">Medicine Name</th>
                             <th className="px-3 py-2">Dosage</th>
                             <th className="px-3 py-2">Frequency</th>
@@ -231,6 +234,7 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
                         <tbody className="divide-y divide-border">
                           {medicines.map((m, mIdx) => (
                             <tr key={mIdx} className="hover:bg-bg/30">
+                              <td className="px-3 py-2.5 font-bold text-ink-soft text-center">{mIdx + 1}</td>
                               <td className="px-3 py-2.5 font-bold text-ink">{m.medicine || '—'}</td>
                               <td className="px-3 py-2.5 text-ink-soft font-medium">{m.dosage || '—'}</td>
                               <td className="px-3 py-2.5 font-mono text-brand font-bold">

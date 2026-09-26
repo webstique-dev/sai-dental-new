@@ -398,8 +398,7 @@ const DEFAULT_CONDITIONS = [
   { name: 'Other', code: 'O', color: 'bg-gray-100 text-gray-800 border-gray-300', isDefault: true },
 ];
 
-// Helper to sanitize condition strings and strip duplicate [bracket] tags (e.g. "Moha [ME] [ME]" -> { name: "Moha", code: "ME", formatted: "Moha [ME]" })
-function sanitizeCondition(raw) {
+function sanitizeSingleCondition(raw) {
   if (!raw || typeof raw !== 'string') return { name: 'Healthy', code: 'H', formatted: 'Healthy [H]' };
   
   const bracketMatches = raw.match(/\[(.*?)\]/g);
@@ -417,6 +416,40 @@ function sanitizeCondition(raw) {
     name: cleanName,
     code,
     formatted: `${cleanName} [${code}]`,
+  };
+}
+
+// Helper to sanitize condition strings and strip duplicate [bracket] tags (e.g. "Moha [ME] [ME]" -> { name: "Moha", code: "ME", formatted: "Moha [ME]" })
+function sanitizeCondition(raw) {
+  if (!raw || typeof raw !== 'string') return { name: 'Healthy', code: 'H', formatted: 'Healthy [H]', conditions: [{ name: 'Healthy', code: 'H', formatted: 'Healthy [H]' }] };
+  
+  if (typeof raw === 'string' && raw.includes(',')) {
+    const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    const parsedParts = [];
+    const seenNames = new Set();
+    for (const p of parts) {
+      const single = sanitizeSingleCondition(p);
+      const key = single.name.toLowerCase();
+      if (!seenNames.has(key)) {
+        seenNames.add(key);
+        parsedParts.push(single);
+      }
+    }
+    if (parsedParts.length === 0) {
+      return sanitizeSingleCondition('Healthy');
+    }
+    return {
+      name: parsedParts.map((p) => p.name).join(', '),
+      code: parsedParts.map((p) => p.code).join(', '),
+      formatted: parsedParts.map((p) => p.formatted).join(', '),
+      conditions: parsedParts,
+    };
+  }
+
+  const single = sanitizeSingleCondition(raw);
+  return {
+    ...single,
+    conditions: [single],
   };
 }
 

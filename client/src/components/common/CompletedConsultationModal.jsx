@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/axios.js';
+import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
 import {
   X,
   User,
@@ -110,7 +111,7 @@ export default function CompletedConsultationModal({
   const followUp = summaryData?.followUp || null;
   const clinicalNotes = summaryData?.clinicalNotes || resolvedConsultation?.clinicalNotes || resolvedConsultation?.notes || item?.notes || '';
 
-  const patientName = [resolvedPatient?.firstName, resolvedPatient?.lastName].filter(Boolean).join(' ') || 'Patient';
+  const patientName = formatPatientFullName(resolvedPatient) || 'Patient';
   const targetPatientId = resolvedPatient?._id || resolvedPatient?.id || activePatientId;
   const opNumber = resolvedPatient?.opNumber ? `#${resolvedPatient.opNumber}` : 'Not recorded';
   const patientType = resolvedPatient?.patientType || (resolvedPatient?.age !== undefined && Number(resolvedPatient?.age) < 12 ? 'Child' : 'Adult');

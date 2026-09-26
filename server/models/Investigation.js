@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const investigationTypeOptions = ['RVG/IOPA', 'OPG', 'CBCT', 'Other', 'X-Ray', 'Blood Tests'];
 
@@ -23,6 +24,7 @@ const investigationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     investigationDetails: {
       type: Map,
@@ -33,6 +35,7 @@ const investigationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     // Legacy / individual item fields
     type: {
@@ -43,11 +46,13 @@ const investigationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     notes: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     result: {
       type: String,

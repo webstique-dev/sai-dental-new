@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 export default function EditableCombobox({
   value = '',
@@ -12,6 +13,7 @@ export default function EditableCombobox({
   disabled = false,
   id,
   name,
+  autoCapitalize = true,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(value || '');
@@ -36,7 +38,8 @@ export default function EditableCombobox({
   );
 
   const handleInputChange = (e) => {
-    const val = e.target.value;
+    const raw = e.target.value;
+    const val = autoCapitalize ? capitalizeWords(raw) : raw;
     setSearchQuery(val);
     if (onChange) onChange(val);
     setIsOpen(true);

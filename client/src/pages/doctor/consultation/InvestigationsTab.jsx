@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Save, Check } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
+import { capitalizeWords } from '../../../utils/formatters.js';
 
 const INVESTIGATION_TYPES = ['RVG / IOPA', 'OPG', 'CBCT', 'Other'];
 
@@ -63,7 +64,7 @@ export default function InvestigationsTab({ consultation, isReadOnly = false }) 
     if (isReadOnly) return;
     setInvestigationDetails({
       ...investigationDetails,
-      [type]: detailValue,
+      [type]: capitalizeWords(detailValue),
     });
   };
 
@@ -72,13 +73,18 @@ export default function InvestigationsTab({ consultation, isReadOnly = false }) 
     if (isReadOnly) return;
     setSaving(true);
     try {
+      const sanitizedDetails = {};
+      Object.keys(investigationDetails).forEach((k) => {
+        sanitizedDetails[k] = investigationDetails[k] ? capitalizeWords(investigationDetails[k]) : '';
+      });
+
       const payload = {
         consultation: consultationId,
         patient: patientId,
         selectedTypes,
-        otherText: isTypeSelected('Other') ? otherText.trim() : '',
-        investigationDetails,
-        findings: findings ? findings.trim() : '',
+        otherText: isTypeSelected('Other') ? capitalizeWords(otherText.trim()) : '',
+        investigationDetails: sanitizedDetails,
+        findings: findings ? capitalizeWords(findings.trim()) : '',
       };
 
       await api.post('/investigations', payload);
@@ -143,7 +149,7 @@ export default function InvestigationsTab({ consultation, isReadOnly = false }) 
               className="input-field text-xs py-1.5"
               placeholder="Enter custom investigation name..."
               value={otherText}
-              onChange={(e) => setOtherText(e.target.value)}
+              onChange={(e) => setOtherText(capitalizeWords(e.target.value))}
             />
           </div>
         )}
@@ -190,7 +196,7 @@ export default function InvestigationsTab({ consultation, isReadOnly = false }) 
             className="input-field text-xs"
             placeholder="Enter findings from the investigation..."
             value={findings}
-            onChange={(e) => setFindings(e.target.value)}
+            onChange={(e) => setFindings(capitalizeWords(e.target.value))}
           />
         </div>
       </div>

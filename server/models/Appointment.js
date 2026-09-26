@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const appointmentStatusOptions = [
   'Scheduled',
@@ -40,6 +41,7 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     status: {
       type: String,
@@ -60,6 +62,7 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

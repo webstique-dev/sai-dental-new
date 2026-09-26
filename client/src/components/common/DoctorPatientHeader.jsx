@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   UserSquare2, Stethoscope, ChevronRight, Activity, AlertCircle, Phone, Heart, ClipboardList,
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+
 import api from '../../api/axios.js';
 
 export default function DoctorPatientHeader({ title, description, icon: Icon, onPatientChange }) {
@@ -108,7 +109,7 @@ export default function DoctorPatientHeader({ title, description, icon: Icon, on
                   const pId = p._id || p.id;
                   return (
                     <option key={`q-${q._id}`} value={pId}>
-                      Token #{q.token || 1} — {p.firstName} {p.lastName} (OP: {p.opNumber || 'N/A'}) [{q.status}]
+                      Token #{q.token || 1} — {formatPatientFullName(p)} (OP: {p.opNumber || 'N/A'}) [{q.status}]
                     </option>
                   );
                 })}
@@ -122,7 +123,7 @@ export default function DoctorPatientHeader({ title, description, icon: Icon, on
                 const pPhone = [p.primaryPhone || p.phone, p.secondaryPhone].filter(Boolean).join(' / ');
                 return (
                   <option key={`p-${pId}`} value={pId}>
-                    {p.firstName} {p.lastName} (OP: {p.opNumber || 'N/A'}) {pPhone ? `• ${pPhone}` : ''}
+                    {formatPatientFullName(p)} (OP: {p.opNumber || 'N/A'}) {pPhone ? `• ${pPhone}` : ''}
                   </option>
                 );
               })}
@@ -142,8 +143,9 @@ export default function DoctorPatientHeader({ title, description, icon: Icon, on
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-display text-base font-bold text-ink">
-                    {[selectedPatient.firstName, selectedPatient.lastName].filter(Boolean).join(' ') || 'Patient'}
+                    {formatPatientFullName(selectedPatient) || 'Patient'}
                   </h2>
+
                   <span className="badge bg-brand-light/40 text-brand-dark font-mono font-bold text-[10px] border border-brand/30">
                     OP #{selectedPatient.opNumber || 'N/A'}
                   </span>

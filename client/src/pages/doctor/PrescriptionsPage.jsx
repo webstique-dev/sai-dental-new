@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Pill, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Calendar, Printer, FileText, ChevronRight, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistoryPanel.jsx';
@@ -93,7 +93,7 @@ export default function PrescriptionsPage() {
   // If a Patient is selected to view their complete prescription history
   if (selectedPatient) {
     const p = selectedPatient;
-    const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+    const patientName = formatPatientFullName(p) || 'Patient';
     const patientId = p._id || p.id;
 
     return (
@@ -234,7 +234,7 @@ export default function PrescriptionsPage() {
                   {patientGroups.map((group) => {
                     const p = group.patient;
                     const pId = p._id || p.id;
-                    const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                    const patientName = formatPatientFullName(p) || 'Patient';
                     const latestDateStr = group.latestVisitDate
                       ? new Date(group.latestVisitDate).toLocaleDateString(undefined, {
                           month: 'short', day: 'numeric', year: 'numeric',
@@ -301,7 +301,7 @@ export default function PrescriptionsPage() {
               {patientGroups.map((group) => {
                 const p = group.patient;
                 const pId = p._id || p.id;
-                const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                const patientName = formatPatientFullName(p) || 'Patient';
                 const latestDateStr = group.latestVisitDate
                   ? new Date(group.latestVisitDate).toLocaleDateString(undefined, {
                       month: 'short', day: 'numeric', year: 'numeric',

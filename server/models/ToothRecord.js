@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const toothConditionOptions = [
   'Healthy',
@@ -22,11 +23,13 @@ const toothHistorySchema = new mongoose.Schema(
     condition: {
       type: String,
       required: true,
+      set: capitalizeWords,
     },
     treatment: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     date: {
       type: Date,
@@ -40,6 +43,7 @@ const toothHistorySchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     consultation: {
       type: mongoose.Schema.Types.ObjectId,

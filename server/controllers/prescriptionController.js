@@ -1,5 +1,6 @@
 const Prescription = require('../models/Prescription');
 const { checkConsultationNotClosed } = require('./consultationController');
+const { registerMedicinesFromPrescription } = require('../utils/seedMedicines');
 
 // GET /api/prescriptions?consultation=
 async function listPrescriptions(req, res, next) {
@@ -65,6 +66,11 @@ async function createPrescription(req, res, next) {
 
     await newPrescription.save();
 
+    // Automatically register any new medicines to the suggestion catalog
+    registerMedicinesFromPrescription(newPrescription.medicines).catch((e) =>
+      console.error('Error auto-registering prescription medicines:', e)
+    );
+
     const populated = await Prescription.findById(newPrescription._id)
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
       .populate('recordedBy', 'name email role specialization');
@@ -107,6 +113,13 @@ async function updatePrescription(req, res, next) {
 
     rx.recordedBy = req.user ? req.user._id : rx.recordedBy;
     await rx.save();
+
+    // Automatically register any new medicines to the suggestion catalog
+    if (Array.isArray(rx.medicines)) {
+      registerMedicinesFromPrescription(rx.medicines).catch((e) =>
+        console.error('Error auto-registering prescription medicines:', e)
+      );
+    }
 
     const populated = await Prescription.findById(rx._id)
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')

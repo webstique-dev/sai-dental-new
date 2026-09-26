@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const extraoralFindingsOptions = ['Facial Symmetry', 'TMJ', 'Lymph Nodes', 'Swelling'];
 const softTissueAreaOptions = ['Labial/Buccal Mucosa', 'Tongue', 'Floor of Mouth', 'Gingiva', 'Hard Palate', 'Soft Palate'];
@@ -6,16 +7,16 @@ const gingivalFindingsOptions = ['Healthy', 'Gingivitis', 'Periodontitis', 'Enla
 
 const extraoralItemSchema = new mongoose.Schema(
   {
-    finding: { type: String, trim: true, default: '' },
-    notes: { type: String, trim: true, default: '' },
+    finding: { type: String, trim: true, default: '', set: capitalizeWords },
+    notes: { type: String, trim: true, default: '', set: capitalizeWords },
   },
   { _id: false }
 );
 
 const softTissueItemSchema = new mongoose.Schema(
   {
-    area: { type: String, trim: true, default: '' },
-    notes: { type: String, trim: true, default: '' },
+    area: { type: String, trim: true, default: '', set: capitalizeWords },
+    notes: { type: String, trim: true, default: '', set: capitalizeWords },
   },
   { _id: false }
 );
@@ -36,6 +37,7 @@ const examinationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     extraoral: [extraoralItemSchema],
     softTissue: [softTissueItemSchema],
@@ -43,17 +45,20 @@ const examinationSchema = new mongoose.Schema(
       {
         type: String,
         trim: true,
+        set: capitalizeWords,
       },
     ],
     periodontalDetails: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     overallNotes: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,

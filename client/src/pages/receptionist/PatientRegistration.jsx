@@ -23,6 +23,8 @@ import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { validateName, validatePhone, validateDOB, validateAge } from '../../utils/validators.js';
+import { capitalizeName, capitalizeWords } from '../../utils/formatters.js';
+
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -111,7 +113,7 @@ export default function PatientRegistration() {
   const [customVitalValue, setCustomVitalValue] = useState('');
 
   const handleAddCustomMedicalHistory = () => {
-    const trimmed = customMedicalInput.trim();
+    const trimmed = capitalizeWords(customMedicalInput.trim());
     if (!trimmed) return;
     if (!formData.medicalHistory.includes(trimmed)) {
       setFormData((prev) => ({
@@ -123,7 +125,7 @@ export default function PatientRegistration() {
   };
 
   const handleAddCustomHabit = () => {
-    const trimmed = customHabitInput.trim();
+    const trimmed = capitalizeWords(customHabitInput.trim());
     if (!trimmed) return;
     if (!formData.habits.includes(trimmed)) {
       setFormData((prev) => ({
@@ -135,7 +137,7 @@ export default function PatientRegistration() {
   };
 
   const handleAddCustomVital = () => {
-    const labelTrimmed = customVitalLabel.trim();
+    const labelTrimmed = capitalizeWords(customVitalLabel.trim());
     const valueTrimmed = customVitalValue.trim();
     if (!labelTrimmed) return;
     setFormData((prev) => ({
@@ -209,7 +211,13 @@ export default function PatientRegistration() {
   }, [formData.age, formData.dateOfBirth, userManuallySetPatientType]);
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    let formattedVal = value;
+    if (['firstName', 'lastName'].includes(field)) {
+      formattedVal = capitalizeWords(value.replace(/[^a-zA-Z\s'-]/g, ''));
+    } else if (['occupation', 'address', 'currentMedications', 'dentalHistory'].includes(field)) {
+      formattedVal = capitalizeWords(value);
+    }
+    setFormData((prev) => ({ ...prev, [field]: formattedVal }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
     }
@@ -298,12 +306,15 @@ export default function PatientRegistration() {
 
       const payload = {
         ...formData,
-        firstName: formData.firstName ? formData.firstName.trim() : '',
-        lastName: formData.lastName ? formData.lastName.trim() : '',
+        firstName: formData.firstName ? capitalizeName(formData.firstName.trim()) : '',
+        lastName: formData.lastName ? capitalizeName(formData.lastName.trim()) : '',
         primaryPhone: formData.primaryPhone ? formData.primaryPhone.trim() : '',
+
         secondaryPhone: formData.secondaryPhone ? formData.secondaryPhone.trim() : '',
-        occupation: formData.occupation ? formData.occupation.trim() : '',
-        address: formData.address ? formData.address.trim() : '',
+        occupation: formData.occupation ? capitalizeWords(formData.occupation.trim()) : '',
+        address: formData.address ? capitalizeWords(formData.address.trim()) : '',
+        currentMedications: formData.currentMedications ? capitalizeWords(formData.currentMedications.trim()) : '',
+        dentalHistory: formData.dentalHistory ? capitalizeWords(formData.dentalHistory.trim()) : '',
         age: formData.age !== '' && formData.age !== undefined && !isNaN(formData.age) ? parseFloat(formData.age) : undefined,
         dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : undefined,
         vitals: cleanedVitals,
@@ -398,7 +409,7 @@ export default function PatientRegistration() {
                   return (
                     <li key={p._id} className="bg-white/80 rounded-xl p-2.5 border border-amber-200/70 flex flex-col gap-0.5">
                       <span className="font-bold text-ink">
-                        {p.firstName} {p.lastName}
+                        {capitalizeName(p.firstName)} {capitalizeName(p.lastName)}
                       </span>
                       <span className="font-mono text-[11px] text-brand-dark font-medium">
                         OP: {p.opNumber || 'N/A'}
@@ -455,8 +466,9 @@ export default function PatientRegistration() {
                     }`}
                     placeholder="e.g. John"
                     autoComplete="off"
+                    autoCapitalize="words"
                     value={formData.firstName}
-                    onChange={(e) => handleChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                    onChange={(e) => handleChange('firstName', capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')))}
                   />
                   {errors.firstName && (
                     <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
@@ -473,12 +485,13 @@ export default function PatientRegistration() {
                   <input
                     type="text"
                     autoComplete="off"
+                    autoCapitalize="words"
                     className={`input-field ${
                       errors.lastName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                     }`}
                     placeholder="e.g. Doe"
                     value={formData.lastName}
-                    onChange={(e) => handleChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                    onChange={(e) => handleChange('lastName', capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')))}
                   />
                   {errors.lastName && (
                     <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
@@ -486,6 +499,7 @@ export default function PatientRegistration() {
                     </p>
                   )}
                 </div>
+
 
                 {/* Primary Phone */}
                 <div className="sm:col-span-6">
@@ -875,7 +889,7 @@ export default function PatientRegistration() {
                     className="input-field text-xs py-1.5 flex-1"
                     placeholder="Other condition..."
                     value={customMedicalInput}
-                    onChange={(e) => setCustomMedicalInput(e.target.value)}
+                    onChange={(e) => setCustomMedicalInput(capitalizeWords(e.target.value))}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -970,7 +984,7 @@ export default function PatientRegistration() {
                     className="input-field text-xs py-1.5 flex-1"
                     placeholder="e.g. Vaping..."
                     value={customHabitInput}
-                    onChange={(e) => setCustomHabitInput(e.target.value)}
+                    onChange={(e) => setCustomHabitInput(capitalizeWords(e.target.value))}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();

@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAuth, ROLE_HOME } from '../context/AuthContext.jsx';
 import { useNotification } from '../context/NotificationContext.jsx';
 import { validateName, validateEmail, validatePhone } from '../utils/validators.js';
+import { capitalizeWords } from '../utils/formatters.js';
 
 const ROLES_CONFIG = [
   { role: 'admin', title: 'Admin' },
@@ -69,7 +70,7 @@ export default function Signup() {
 
     try {
       const user = await signup({
-        name: name.trim(),
+        name: capitalizeWords(name.trim()),
         email: email.trim(),
         phone: phone.trim(),
         password,
@@ -161,7 +162,7 @@ export default function Signup() {
                 autoComplete="off"
                 placeholder="e.g. Dr. Sarah Jenkins or John Smith"
                 value={name}
-                onChange={(e) => setName(e.target.value.replace(/[^a-zA-Z\s'.-]/g, ''))}
+                onChange={(e) => setName(capitalizeWords(e.target.value.replace(/[^a-zA-Z\s'.-]/g, '')))}
                 className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400"
               />
             </div>

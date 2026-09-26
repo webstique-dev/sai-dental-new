@@ -4,7 +4,7 @@ import {
   Calendar, CalendarDays, List, Plus, Clock, UserPlus, Filter, Search, Eye, Edit3, X, Check,
   AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, UserSquare2, Sparkles, CheckCircle2, ShieldAlert, Loader2, UserCheck
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
@@ -163,7 +163,7 @@ export default function Appointments() {
       if (location.state?.newPatient) {
         const p = location.state.newPatient;
         setSelectedPatient(p);
-        setPatientSearch(`${p.firstName || ''} ${p.lastName || ''}`.trim());
+        setPatientSearch(formatPatientFullName(p));
       } else {
         setSelectedPatient(null);
         setPatientSearch('');
@@ -309,7 +309,7 @@ export default function Appointments() {
         patient: selectedPatient._id,
         doctor: docId,
         type: formData.type || 'Walk-In',
-        reason: formData.reason || '',
+        reason: capitalizeWords(formData.reason || ''),
         status: isSchedule ? 'Scheduled' : 'Checked-In',
         date: isSchedule ? formData.date : dateStr,
         time: isSchedule ? formData.time : timeStr,
@@ -347,7 +347,11 @@ export default function Appointments() {
     if (!editingAppointment) return;
     setActionLoading(true);
     try {
-      await api.patch(`/appointments/${editingAppointment._id}`, editFormData);
+      const payload = {
+        ...editFormData,
+        reason: capitalizeWords(editFormData.reason || ''),
+      };
+      await api.patch(`/appointments/${editingAppointment._id}`, payload);
       showSuccess('Appointment updated successfully!');
       setEditingAppointment(null);
       fetchAppointments();
@@ -362,7 +366,8 @@ export default function Appointments() {
     setActionLoading(true);
     try {
       await api.patch(`/queue/${apt._id}/check-in`);
-      showSuccess(`Patient ${apt.patient?.firstName || ''} checked in successfully! Added to queue.`);
+      const pName = formatPatientFullName(apt.patient) || 'Patient';
+      showSuccess(`Patient ${pName} checked in successfully! Added to queue.`);
       setCheckingInAppointment(null);
       fetchAppointments();
     } catch (err) {
@@ -621,7 +626,7 @@ export default function Appointments() {
                   <div className="p-3 rounded-xl bg-bg/50 border border-border text-xs space-y-1.5">
                     <div className="flex items-center justify-between text-ink">
                       <span className="font-bold">
-                        {selectedPatient.firstName} {selectedPatient.lastName}
+                        {formatPatientFullName(selectedPatient)}
                       </span>
                       <span className="badge bg-brand/10 text-brand font-mono font-bold text-[10px]">
                         OP #{selectedPatient.opNumber}
@@ -775,7 +780,7 @@ export default function Appointments() {
                     className="input-field"
                     placeholder="e.g. Toothache, Scaling, Root Canal follow-up"
                     value={formData.reason}
-                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, reason: capitalizeWords(e.target.value) })}
                   />
                 </div>
               </div>
@@ -829,7 +834,7 @@ export default function Appointments() {
                 <div className="rounded-xl bg-bg p-3 text-xs">
                   <span className="text-ink-soft font-semibold block">Patient</span>
                   <span className="font-bold text-ink text-sm">
-                    {editingAppointment.patient?.firstName} {editingAppointment.patient?.lastName}
+                    {formatPatientFullName(editingAppointment.patient)}
                   </span>{' '}
                   <span className="text-brand font-mono">({editingAppointment.patient?.opNumber})</span>
                 </div>
@@ -910,7 +915,7 @@ export default function Appointments() {
                     autoComplete="off"
                     className="input-field"
                     value={editFormData.reason}
-                    onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
+                    onChange={(e) => setEditFormData({ ...editFormData, reason: capitalizeWords(e.target.value) })}
                   />
                 </div>
               </div>
@@ -950,7 +955,7 @@ export default function Appointments() {
               <p>
                 Check in patient{' '}
                 <strong className="text-ink font-bold">
-                  {checkingInAppointment.patient?.firstName} {checkingInAppointment.patient?.lastName}
+                  {formatPatientFullName(checkingInAppointment.patient)}
                 </strong>{' '}
                 for today's queue?
               </p>
@@ -980,7 +985,7 @@ export default function Appointments() {
             <p className="text-xs">
               Are you sure you want to mark the appointment for{' '}
               <strong className="text-ink font-bold">
-                {noShowAppointment.patient?.firstName} {noShowAppointment.patient?.lastName}
+                {formatPatientFullName(noShowAppointment.patient)}
               </strong>{' '}
               as <strong className="text-slate-800 font-bold font-mono">No Show</strong>?
             </p>
@@ -1007,7 +1012,7 @@ export default function Appointments() {
               <p>
                 Are you sure you want to cancel the appointment for{' '}
                 <strong className="text-ink font-bold">
-                  {cancellingAppointment.patient?.firstName} {cancellingAppointment.patient?.lastName}
+                  {formatPatientFullName(cancellingAppointment.patient)}
                 </strong>{' '}
                 scheduled on{' '}
                 <strong className="text-ink font-bold">

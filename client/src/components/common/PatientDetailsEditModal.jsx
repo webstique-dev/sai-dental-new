@@ -8,6 +8,10 @@ import UnsavedChangesModal from './UnsavedChangesModal.jsx';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { validateName, validatePhone, validateAge, validateDOB } from '../../utils/validators.js';
+import { capitalizeName, capitalizeWords } from '../../utils/formatters.js';
+
+
+
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -197,7 +201,7 @@ export default function PatientDetailsEditModal({
   };
 
   const handleAddCustomMedicalHistory = () => {
-    const trimmed = customMedicalInput.trim();
+    const trimmed = capitalizeWords(customMedicalInput.trim());
     if (!trimmed) return;
     if (!formData.medicalHistory.includes(trimmed)) {
       setFormData((prev) => ({
@@ -214,7 +218,7 @@ export default function PatientDetailsEditModal({
   };
 
   const handleSaveEditCustomMedical = (oldItem) => {
-    const trimmed = editingMedicalValue.trim();
+    const trimmed = capitalizeWords(editingMedicalValue.trim());
     if (!trimmed) {
       handleRemoveCustomMedical(oldItem);
     } else {
@@ -235,7 +239,7 @@ export default function PatientDetailsEditModal({
   };
 
   const handleAddCustomHabit = () => {
-    const trimmed = customHabitInput.trim();
+    const trimmed = capitalizeWords(customHabitInput.trim());
     if (!trimmed) return;
     if (!formData.habits.includes(trimmed)) {
       setFormData((prev) => ({
@@ -252,7 +256,7 @@ export default function PatientDetailsEditModal({
   };
 
   const handleSaveEditCustomHabit = (oldItem) => {
-    const trimmed = editingHabitValue.trim();
+    const trimmed = capitalizeWords(editingHabitValue.trim());
     if (!trimmed) {
       handleRemoveCustomHabit(oldItem);
     } else {
@@ -273,7 +277,7 @@ export default function PatientDetailsEditModal({
   };
 
   const handleAddCustomVital = () => {
-    const labelTrimmed = customVitalLabel.trim();
+    const labelTrimmed = capitalizeWords(customVitalLabel.trim());
     const valueTrimmed = customVitalValue.trim();
     if (!labelTrimmed) return;
     setFormData((prev) => ({
@@ -390,21 +394,22 @@ export default function PatientDetailsEditModal({
     }
 
     const payload = {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
+      firstName: capitalizeName(formData.firstName.trim()),
+      lastName: formData.lastName ? capitalizeName(formData.lastName.trim()) : '',
       age: formData.age !== '' && formData.age !== null && formData.age !== undefined && !isNaN(formData.age) ? parseFloat(formData.age) : undefined,
       sex: formData.sex || '',
+
       patientType: formData.patientType || 'adult',
       dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth : null,
-      occupation: formData.occupation.trim(),
-      address: formData.address.trim(),
+      occupation: capitalizeWords(formData.occupation.trim()),
+      address: capitalizeWords(formData.address.trim()),
       primaryPhone: formData.primaryPhone.trim(),
       secondaryPhone: formData.secondaryPhone.trim(),
       medicalHistory: formData.medicalHistory,
-      currentMedications: formData.currentMedications.trim(),
+      currentMedications: capitalizeWords(formData.currentMedications.trim()),
       vitals: cleanedVitals,
       habits: formData.habits,
-      dentalHistory: formData.dentalHistory.trim(),
+      dentalHistory: capitalizeWords(formData.dentalHistory.trim()),
     };
 
     if (shouldStartConsultation) {
@@ -498,10 +503,11 @@ export default function PatientDetailsEditModal({
                   <input
                     type="text"
                     required
+                    autoCapitalize="words"
                     className="input-field py-1.5 text-xs"
                     placeholder="First name"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, firstName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                   />
                 </div>
 
@@ -511,12 +517,14 @@ export default function PatientDetailsEditModal({
                   </label>
                   <input
                     type="text"
+                    autoCapitalize="words"
                     className="input-field py-1.5 text-xs"
                     placeholder="Last name"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, lastName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                   />
                 </div>
+
 
                 <div>
                   <label className="block font-semibold text-ink-soft mb-1">
@@ -630,7 +638,7 @@ export default function PatientDetailsEditModal({
                     className="input-field py-1.5 text-xs"
                     placeholder="e.g. Engineer, Business"
                     value={formData.occupation}
-                    onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, occupation: capitalizeWords(e.target.value) })}
                   />
                 </div>
 
@@ -641,7 +649,7 @@ export default function PatientDetailsEditModal({
                     className="input-field py-1.5 text-xs"
                     placeholder="Full residential address"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, address: capitalizeWords(e.target.value) })}
                   />
                 </div>
               </div>
@@ -696,7 +704,7 @@ export default function PatientDetailsEditModal({
                                   className="input-field py-0.5 px-2 text-xs font-semibold max-w-[170px]"
                                   autoFocus
                                   value={editingMedicalValue}
-                                  onChange={(e) => setEditingMedicalValue(e.target.value)}
+                                  onChange={(e) => setEditingMedicalValue(capitalizeWords(e.target.value))}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                       e.preventDefault();
@@ -762,7 +770,7 @@ export default function PatientDetailsEditModal({
                     className="input-field py-1.5 text-xs max-w-sm"
                     placeholder="Type custom condition (e.g. GERD, Penicillin Allergy)..."
                     value={customMedicalInput}
-                    onChange={(e) => setCustomMedicalInput(e.target.value)}
+                    onChange={(e) => setCustomMedicalInput(capitalizeWords(e.target.value))}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -788,7 +796,7 @@ export default function PatientDetailsEditModal({
                   className="input-field text-xs"
                   placeholder="List any regular medicines currently being taken..."
                   value={formData.currentMedications}
-                  onChange={(e) => setFormData({ ...formData, currentMedications: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, currentMedications: capitalizeWords(e.target.value) })}
                 />
               </div>
             </div>
@@ -877,7 +885,7 @@ export default function PatientDetailsEditModal({
                                   className="input-field py-0.5 px-2 text-xs font-semibold max-w-[160px]"
                                   autoFocus
                                   value={editingHabitValue}
-                                  onChange={(e) => setEditingHabitValue(e.target.value)}
+                                  onChange={(e) => setEditingHabitValue(capitalizeWords(e.target.value))}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                       e.preventDefault();
@@ -943,7 +951,7 @@ export default function PatientDetailsEditModal({
                     className="input-field py-1.5 text-xs max-w-sm"
                     placeholder="Type custom habit (e.g. Betel nut, Vaping)..."
                     value={customHabitInput}
-                    onChange={(e) => setCustomHabitInput(e.target.value)}
+                    onChange={(e) => setCustomHabitInput(capitalizeWords(e.target.value))}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -969,7 +977,7 @@ export default function PatientDetailsEditModal({
                   className="input-field text-xs"
                   placeholder="Details of previous dental treatments or past extractions..."
                   value={formData.dentalHistory}
-                  onChange={(e) => setFormData({ ...formData, dentalHistory: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, dentalHistory: capitalizeWords(e.target.value) })}
                 />
               </div>
             </div>

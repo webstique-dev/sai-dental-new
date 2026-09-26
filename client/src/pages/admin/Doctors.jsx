@@ -6,6 +6,7 @@ import {
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 const DEFAULT_DAYS = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -110,10 +111,10 @@ export default function AdminDoctors() {
 
     try {
       const payload = {
-        name: profileForm.name.trim(),
+        name: capitalizeWords(profileForm.name.trim()),
         phone: profileForm.phone.trim(),
-        specialization: profileForm.specialization.trim(),
-        qualification: profileForm.qualification.trim(),
+        specialization: capitalizeWords(profileForm.specialization.trim()),
+        qualification: capitalizeWords(profileForm.qualification.trim()),
         status: profileForm.status,
       };
 
@@ -473,7 +474,7 @@ export default function AdminDoctors() {
                       className="input-field py-1.5"
                       placeholder="Dr. Full Name"
                       value={profileForm.name}
-                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: capitalizeWords(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -524,7 +525,7 @@ export default function AdminDoctors() {
                       className="input-field py-1.5"
                       placeholder="e.g. Orthodontics, Endodontics"
                       value={profileForm.specialization}
-                      onChange={(e) => setProfileForm({ ...profileForm, specialization: e.target.value })}
+                      onChange={(e) => setProfileForm({ ...profileForm, specialization: capitalizeWords(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -534,7 +535,7 @@ export default function AdminDoctors() {
                       className="input-field py-1.5"
                       placeholder="e.g. BDS, MDS, DNB"
                       value={profileForm.qualification}
-                      onChange={(e) => setProfileForm({ ...profileForm, qualification: e.target.value })}
+                      onChange={(e) => setProfileForm({ ...profileForm, qualification: capitalizeWords(e.target.value) })}
                     />
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const diagnosisSeverityOptions = ['Mild', 'Moderate', 'Severe'];
 
@@ -17,16 +18,19 @@ const diagnosisSchema = new mongoose.Schema(
       type: String,
       trim: true,
       required: true,
+      set: capitalizeWords,
     },
     clinicalFindings: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     notes: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     severity: {
       type: String,

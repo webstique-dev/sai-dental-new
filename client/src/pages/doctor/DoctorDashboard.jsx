@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Users, Calendar, CalendarDays, Clock, CheckCircle2, AlertCircle, ArrowRight, Play, RefreshCw, Stethoscope, Sparkles, UserSquare2, ClipboardList, UserPlus
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+
 import StatCard from '../../components/common/StatCard.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -123,8 +124,9 @@ export default function DoctorDashboard() {
 
   const nextPatient = summary?.nextInQueue;
   const nextPatientName = nextPatient?.patient
-    ? `${nextPatient.patient.firstName || ''} ${nextPatient.patient.lastName || ''}`.trim()
+    ? formatPatientFullName(nextPatient.patient)
     : 'Patient';
+
 
   const stats = [
     {

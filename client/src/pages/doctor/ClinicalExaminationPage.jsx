@@ -6,6 +6,7 @@ import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 export default function ClinicalExaminationPage() {
   const [consultations, setConsultations] = useState([]);
@@ -53,7 +54,7 @@ export default function ClinicalExaminationPage() {
   // If a record is selected for Viewing/Editing
   if (selectedConsultation) {
     const p = selectedConsultation.patient || {};
-    const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+    const patientName = formatPatientFullName(p) || 'Patient';
     const isCompleted = selectedConsultation.status === 'Completed';
 
     return (
@@ -196,7 +197,7 @@ export default function ClinicalExaminationPage() {
                 {consultations.map((c) => {
                   const cId = c._id || c.id;
                   const p = c.patient || {};
-                  const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const patientName = formatPatientFullName(p) || 'Patient';
                   const examDateStr = c.startedAt || c.visitDate || c.createdAt
                     ? new Date(c.startedAt || c.visitDate || c.createdAt).toLocaleDateString(undefined, {
                         month: 'short', day: 'numeric', year: 'numeric',

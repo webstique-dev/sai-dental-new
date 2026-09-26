@@ -9,6 +9,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -347,7 +348,7 @@ export default function AdminAppointments() {
             <p>
               Are you sure you want to cancel the appointment for{' '}
               <strong className="text-ink font-bold">
-                {cancellingAppointment.patient?.firstName} {cancellingAppointment.patient?.lastName}
+                {formatPatientFullName(cancellingAppointment.patient)}
               </strong>{' '}
               with Dr. {cancellingAppointment.doctor?.name}?
             </p>

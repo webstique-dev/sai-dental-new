@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Clock, Edit3, Trash2, CalendarDays, UserCheck, UserX, ChevronDown, ChevronUp } from 'lucide-react';
 import { TableSkeleton } from './TableSkeleton.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 const DEFAULT_STATUS_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -74,9 +75,7 @@ export default function AppointmentList({
           <tbody className="divide-y divide-border">
             {appointments.map((apt) => {
               const aptId = apt._id || apt.id;
-              const patientName = apt.patient
-                ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim()
-                : 'Unknown Patient';
+              const patientName = formatPatientFullName(apt.patient) || 'Unknown Patient';
               const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned';
               const isScheduled = apt.status === 'Scheduled';
               const isCanCheckIn = isScheduled && onCheckIn;
@@ -190,9 +189,7 @@ export default function AppointmentList({
       <div className="block md:hidden divide-y divide-border">
         {appointments.map((apt) => {
           const aptId = apt._id || apt.id;
-          const patientName = apt.patient
-            ? `${apt.patient.firstName || ''} ${apt.patient.lastName || ''}`.trim()
-            : 'Unknown Patient';
+          const patientName = formatPatientFullName(apt.patient) || 'Unknown Patient';
           const docName = apt.doctor ? `Dr. ${apt.doctor.name}` : 'Unassigned Doctor';
           const isScheduled = apt.status === 'Scheduled';
           const isCanCheckIn = isScheduled && onCheckIn;

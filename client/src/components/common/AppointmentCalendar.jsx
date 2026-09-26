@@ -11,6 +11,7 @@ import {
   FileText,
   X,
 } from 'lucide-react';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 const DEFAULT_STATUS_CLASSES = {
   Scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -161,8 +162,7 @@ export default function AppointmentCalendar({
                 ) : (
                   dayAppointments.map((apt) => {
                     const aptId = apt._id || apt.id;
-                    const patientName = [apt.patient?.firstName, apt.patient?.lastName].filter(Boolean).join(' ') ||
-                      (typeof apt.patient === 'string' ? apt.patient : 'Patient');
+                    const patientName = formatPatientFullName(apt.patient) || 'Patient';
                     const docName = apt.doctor?.name ? apt.doctor.name.split(' ')[0] : 'Dentist';
 
                     return (
@@ -277,8 +277,7 @@ export default function AppointmentCalendar({
                   <div>
                     <span className="text-[10px] uppercase font-bold text-ink-soft block">Full Name</span>
                     <span className="font-semibold text-ink">
-                      {[selectedAppointment.patient?.firstName, selectedAppointment.patient?.lastName].filter(Boolean).join(' ') ||
-                        (typeof selectedAppointment.patient === 'string' ? selectedAppointment.patient : 'Not recorded')}
+                      {formatPatientFullName(selectedAppointment.patient) || 'Not recorded'}
                     </span>
                   </div>
                   <div>

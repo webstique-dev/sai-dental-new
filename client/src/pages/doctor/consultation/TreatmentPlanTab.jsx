@@ -6,6 +6,7 @@ import api from '../../../api/axios.js';
 import DatePicker from '../../../components/common/DatePicker.jsx';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../../context/NotificationContext.jsx';
+import { capitalizeWords } from '../../../utils/formatters.js';
 
 const STATUS_BADGE_CLASSES = {
   Planned: 'bg-slate-100 text-slate-800 border-slate-200',
@@ -97,9 +98,9 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
       await api.post('/diagnoses', {
         consultation: consultationId,
         patient: patientId,
-        diagnosis: diagText.trim(),
+        diagnosis: capitalizeWords(diagText.trim()),
         severity: diagSeverity || undefined,
-        clinicalFindings: diagFindings ? diagFindings.trim() : '',
+        clinicalFindings: diagFindings ? capitalizeWords(diagFindings.trim()) : '',
       });
       showSuccess('Diagnosis added successfully!');
       setDiagText('');
@@ -140,11 +141,11 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
         patient: patientId,
         diagnosis: planDiagnosisId || undefined,
         tooth: planToothNumber ? Number(planToothNumber) : null,
-        treatment: planProcedure.trim(),
+        treatment: capitalizeWords(planProcedure.trim()),
         estimatedCost: Number(planEstimatedCost) || 0,
         estimatedDuration: planEstimatedDuration ? planEstimatedDuration.trim() : '1 sitting',
         priority: planPriority,
-        notes: planNotes ? planNotes.trim() : '',
+        notes: planNotes ? capitalizeWords(planNotes.trim()) : '',
         status: 'Planned',
       };
 
@@ -183,7 +184,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
         patient: patientId,
         date: recordDate ? new Date(recordDate) : new Date(),
         tooth: recordToothNumber ? Number(recordToothNumber) : null,
-        procedure: recordProcedure.trim(),
+        procedure: capitalizeWords(recordProcedure.trim()),
         charges: Number(recordCharges) || 0,
         actualDuration: recordActualDuration ? recordActualDuration.trim() : '30 mins',
         nextAppointment: recordNextAppointment ? new Date(recordNextAppointment) : null,
@@ -325,7 +326,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                   className="input-field py-1 text-xs"
                   placeholder="Diagnosis Title (e.g. Irreversible Pulpitis, Dental Caries)"
                   value={diagText}
-                  onChange={(e) => setDiagText(e.target.value)}
+                  onChange={(e) => setDiagText(capitalizeWords(e.target.value))}
                 />
               </div>
               <div>
@@ -434,7 +435,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                     className="input-field text-xs"
                     placeholder="e.g. Root Canal Therapy, Scaling, Crown Fit"
                     value={planProcedure}
-                    onChange={(e) => setPlanProcedure(e.target.value)}
+                    onChange={(e) => setPlanProcedure(capitalizeWords(e.target.value))}
                   />
                 </div>
 
@@ -476,7 +477,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                   className="input-field text-xs"
                   placeholder="Notes, procedure details, or instructions..."
                   value={planNotes}
-                  onChange={(e) => setPlanNotes(e.target.value)}
+                  onChange={(e) => setPlanNotes(capitalizeWords(e.target.value))}
                 />
               </div>
 
@@ -652,7 +653,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                     className="input-field text-xs"
                     placeholder="e.g. RCT Access & Preparation, Scaling"
                     value={recordProcedure}
-                    onChange={(e) => setRecordProcedure(e.target.value)}
+                    onChange={(e) => setRecordProcedure(capitalizeWords(e.target.value))}
                   />
                 </div>
 

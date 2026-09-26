@@ -3,6 +3,7 @@ import { Save, Check, FileHeart } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
+import { capitalizeWords } from '../../../utils/formatters.js';
 
 const EXTRAORAL_OPTIONS = ['Facial Symmetry', 'TMJ', 'Lymph Nodes', 'Swelling'];
 
@@ -114,7 +115,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
 
   const updateExtraoralNotes = (finding, notes) => {
     if (isReadOnly) return;
-    setExtraoral(extraoral.map((e) => (e.finding === finding ? { ...e, notes } : e)));
+    setExtraoral(extraoral.map((e) => (e.finding === finding ? { ...e, notes: capitalizeWords(notes) } : e)));
   };
 
   // Soft tissue handlers
@@ -131,7 +132,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
 
   const updateSoftTissueNotes = (area, notes) => {
     if (isReadOnly) return;
-    setSoftTissue(softTissue.map((s) => (s.area === area ? { ...s, notes } : s)));
+    setSoftTissue(softTissue.map((s) => (s.area === area ? { ...s, notes: capitalizeWords(notes) } : s)));
   };
 
   // Gingival findings handlers
@@ -153,22 +154,22 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
       const payload = {
         consultation: consultationId,
         patient: patientId,
-        chiefComplaints: chiefComplaints.trim(),
-        extraoral,
-        softTissue,
+        chiefComplaints: capitalizeWords(chiefComplaints.trim()),
+        extraoral: extraoral.map((eo) => ({ ...eo, notes: eo.notes ? capitalizeWords(eo.notes) : '' })),
+        softTissue: softTissue.map((st) => ({ ...st, notes: st.notes ? capitalizeWords(st.notes) : '' })),
         gingivalFindings,
-        periodontalDetails,
-        overallNotes,
+        periodontalDetails: capitalizeWords(periodontalDetails.trim()),
+        overallNotes: capitalizeWords(overallNotes.trim()),
       };
 
       await api.post('/examinations', payload);
       initialSnapshotRef.current = JSON.stringify({
-        chiefComplaints: chiefComplaints.trim(),
-        extraoral,
-        softTissue,
+        chiefComplaints: capitalizeWords(chiefComplaints.trim()),
+        extraoral: payload.extraoral,
+        softTissue: payload.softTissue,
         gingivalFindings,
-        periodontalDetails: periodontalDetails.trim(),
-        overallNotes: overallNotes.trim(),
+        periodontalDetails: capitalizeWords(periodontalDetails.trim()),
+        overallNotes: capitalizeWords(overallNotes.trim()),
       });
       showSuccess('Clinical examination findings saved successfully!');
     } catch (err) {
@@ -223,7 +224,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
           className="input-field text-xs"
           placeholder="Enter patient's chief complaints..."
           value={chiefComplaints}
-          onChange={(e) => setChiefComplaints(e.target.value)}
+          onChange={(e) => setChiefComplaints(capitalizeWords(e.target.value))}
         />
       </div>
 
@@ -388,7 +389,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
             className="input-field text-xs"
             placeholder="Additional periodontal observations..."
             value={periodontalDetails}
-            onChange={(e) => setPeriodontalDetails(e.target.value)}
+            onChange={(e) => setPeriodontalDetails(capitalizeWords(e.target.value))}
           />
         </div>
       </div>
@@ -412,7 +413,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
             className="input-field text-xs"
             placeholder="Enter additional clinical observations..."
             value={overallNotes}
-            onChange={(e) => setOverallNotes(e.target.value)}
+            onChange={(e) => setOverallNotes(capitalizeWords(e.target.value))}
           />
         </div>
       </div>

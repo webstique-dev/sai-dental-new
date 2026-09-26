@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const paymentStatusOptions = ['Pending', 'Partially Paid', 'Paid', 'Refunded'];
 const paymentMethodOptions = ['Cash', 'Card', 'UPI', 'Refund', 'Other'];
@@ -9,11 +10,13 @@ const invoiceItemSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     treatment: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     quantity: {
       type: Number,
@@ -48,6 +51,7 @@ const paymentRecordSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     date: {
       type: Date,

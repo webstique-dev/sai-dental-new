@@ -12,6 +12,7 @@ import EditableCombobox from '../../components/common/EditableCombobox.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
 import { TOOTH_CONDITIONS } from '../../constants/toothConditions.js';
 import { FOLLOW_UP_REASONS } from '../../constants/followUpOptions.js';
 
@@ -193,6 +194,8 @@ export default function FollowUps() {
       const payload = {
         patient: selectedPatient._id || selectedPatient.id,
         ...addFormData,
+        reason: capitalizeWords(addFormData.reason),
+        notes: addFormData.notes ? capitalizeWords(addFormData.notes) : '',
       };
 
       await api.post('/follow-ups', payload);
@@ -254,7 +257,10 @@ export default function FollowUps() {
     setSubmitting(true);
     try {
       const followUpId = schedulingFollowUp._id || schedulingFollowUp.id;
-      await api.post(`/follow-ups/${followUpId}/schedule`, scheduleFormData);
+      await api.post(`/follow-ups/${followUpId}/schedule`, {
+        ...scheduleFormData,
+        reason: capitalizeWords(scheduleFormData.reason),
+      });
 
       showSuccess('Appointment booked successfully and follow-up status updated to Scheduled!');
       setSchedulingFollowUp(null);
@@ -317,7 +323,7 @@ export default function FollowUps() {
       setCancelModalError('');
       const targetId = cancellingFollowUp._id || cancellingFollowUp.id;
       await api.post(`/follow-ups/${targetId}/cancel`, {
-        cancellationReason: reasonTrimmed,
+        cancellationReason: capitalizeWords(reasonTrimmed),
       });
 
       showSuccess('Follow-up cancelled successfully.');
@@ -566,7 +572,7 @@ export default function FollowUps() {
                     {followUps.map((item) => {
                       const itemId = item._id || item.id;
                       const patient = item.patient || {};
-                      const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                      const patientName = formatPatientFullName(patient) || 'Patient';
                       const isPending = item.status === 'Pending';
                       const docObj = item.doctor || item.scheduledAppointment?.doctor;
                       const recDateStr = item.recommendedDate
@@ -689,7 +695,7 @@ export default function FollowUps() {
                 {followUps.map((item) => {
                   const itemId = item._id || item.id;
                   const patient = item.patient || {};
-                  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const patientName = formatPatientFullName(patient) || 'Patient';
                   const isPending = item.status === 'Pending';
                   const docObj = item.doctor || item.scheduledAppointment?.doctor;
                   const isExpanded = expandedId === itemId;
@@ -898,7 +904,7 @@ export default function FollowUps() {
                     className="input-field text-xs"
                     placeholder="Additional notes for doctor or staff..."
                     value={addFormData.notes}
-                    onChange={(e) => setAddFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                    onChange={(e) => setAddFormData((prev) => ({ ...prev, notes: capitalizeWords(e.target.value) }))}
                   />
                 </div>
               </div>
@@ -942,7 +948,7 @@ export default function FollowUps() {
                 <div className="p-3 rounded-xl bg-bg border border-border space-y-1">
                   <span className="text-[10px] font-bold uppercase text-ink-soft block">Patient</span>
                   <span className="font-bold text-ink text-sm">
-                    {schedulingFollowUp.patient?.firstName} {schedulingFollowUp.patient?.lastName}
+                    {formatPatientFullName(schedulingFollowUp.patient)}
                   </span>
                   <span className="text-xs text-brand font-mono font-bold block">{schedulingFollowUp.patient?.opNumber}</span>
                 </div>
@@ -1058,7 +1064,7 @@ export default function FollowUps() {
                   placeholder="e.g. Patient called to cancel, patient rescheduled, symptoms resolved..."
                   value={cancellationReason}
                   onChange={(e) => {
-                    setCancellationReason(e.target.value);
+                    setCancellationReason(capitalizeWords(e.target.value));
                     if (cancelModalError) setCancelModalError('');
                   }}
                   autoFocus

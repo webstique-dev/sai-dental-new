@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const defaultWorkingHours = [
   { day: 'Monday', startTime: '09:00', endTime: '18:00', isAvailable: true },
@@ -22,11 +23,13 @@ const doctorProfileSchema = new mongoose.Schema(
       type: String,
       default: 'General Dentistry',
       trim: true,
+      set: capitalizeWords,
     },
     qualification: {
       type: String,
       default: 'BDS',
       trim: true,
+      set: capitalizeWords,
     },
     workingHours: [
       {

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const followUpStatusOptions = [
   'Pending',
@@ -35,21 +36,25 @@ const followUpSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     instructions: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     notes: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     treatmentStatus: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     scheduledAppointment: {
       type: mongoose.Schema.Types.ObjectId,
@@ -60,6 +65,7 @@ const followUpSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     status: {
       type: String,

@@ -7,7 +7,7 @@ import {
   Check, Lock, X, LogOut, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, HeartPulse, ShieldAlert, MapPin, Briefcase,
   Wallet, Receipt, Info, Edit3
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
@@ -120,7 +120,7 @@ export default function Consultation() {
 
     try {
       const payload = {
-        closeNotes: closeNotes.trim(),
+        closeNotes: capitalizeWords(closeNotes.trim()),
       };
 
       const res = await api.post(`/consultations/${consultationId}/close`, payload);
@@ -207,7 +207,7 @@ export default function Consultation() {
   }
 
   const patient = consultation.patient || {};
-  const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+  const fullName = formatPatientFullName(patient) || 'Patient';
   const isCompleted = consultation.status === 'Completed';
 
   const dobStr = patient.dateOfBirth || patient.dob
@@ -804,7 +804,7 @@ export default function Consultation() {
                     className="input-field text-xs py-2 min-h-[58px] resize-y"
                     placeholder="Enter optional clinical summary, post-op care advice, or final diagnosis notes..."
                     value={closeNotes}
-                    onChange={(e) => setCloseNotes(e.target.value)}
+                    onChange={(e) => setCloseNotes(capitalizeWords(e.target.value))}
                   />
                   <p className="text-[11px] text-ink-soft">
                     Closing this consultation will complete the visit and lock clinical records for editing.

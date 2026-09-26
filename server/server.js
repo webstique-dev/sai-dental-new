@@ -28,7 +28,8 @@ const backupRoutes = require('./routes/backupRoutes');
 const doctorProfileRoutes = require('./routes/doctorProfileRoutes');
 const treatmentRecordRoutes = require('./routes/treatmentRecordRoutes');
 const treatmentRoutes = require('./routes/treatmentRoutes');
-
+const medicineRoutes = require('./routes/medicineRoutes');
+const { seedInitialMedicines } = require('./utils/seedMedicines');
 
 const app = express();
 
@@ -90,6 +91,7 @@ app.use('/api/backup', backupRoutes);
 app.use('/api/doctor-profiles', doctorProfileRoutes);
 app.use('/api/treatments', treatmentRoutes);
 app.use('/api/treatment-records', treatmentRecordRoutes);
+app.use('/api/medicines', medicineRoutes);
 
 
 // Phase 2+ routes (patients, appointments, consultations, tooth chart,
@@ -121,6 +123,9 @@ const server = http.createServer(app);
 initSocket(server);
 
 connectDB().then(() => {
+  // Ensure medicine suggestions catalog is initialized with reference database
+  seedInitialMedicines().catch((err) => console.error('Error seeding medicines:', err));
+
   server.listen(PORT, () => {
     console.log(`Dental Clinic API & Socket.IO running on port ${PORT}`);
 

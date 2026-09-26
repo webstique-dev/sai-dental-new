@@ -6,6 +6,7 @@ import api from '../../api/axios.js';
 import StateDiffViewer from '../../components/common/StateDiffViewer.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 const ROLE_BADGES = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -320,7 +321,7 @@ export default function AuditLogs() {
                             {log.patient ? (
                               <div>
                                 <span className="font-semibold text-ink text-xs block">
-                                  {[log.patient.firstName, log.patient.lastName].filter(Boolean).join(' ') || 'Patient'}
+                                  {formatPatientFullName(log.patient) || 'Patient'}
                                 </span>
                                 {log.patient.opNumber && (
                                   <span className="text-[10px] font-mono text-brand font-bold">OP #{log.patient.opNumber}</span>
@@ -388,7 +389,7 @@ export default function AuditLogs() {
                         </span>
                         {log.patient && (
                           <span className="text-[11px] text-ink font-semibold">
-                            {[log.patient.firstName, log.patient.lastName].filter(Boolean).join(' ')} {log.patient.opNumber ? `(#${log.patient.opNumber})` : ''}
+                            {formatPatientFullName(log.patient)} {log.patient.opNumber ? `(#${log.patient.opNumber})` : ''}
                           </span>
                         )}
                       </div>

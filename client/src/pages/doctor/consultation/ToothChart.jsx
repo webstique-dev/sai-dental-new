@@ -23,6 +23,7 @@ import api from '../../../api/axios.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 import UnsavedChangesModal from '../../../components/common/UnsavedChangesModal.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
+import { capitalizeWords } from '../../../utils/formatters.js';
 
 // Permanent (Adult) Teeth Quadrants (32 teeth)
 const QUAD_UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -43,13 +44,17 @@ import {
   CONDITION_SVG_STYLES,
   getConditionCodeObj,
   sanitizeCondition,
+  sanitizeSingleCondition,
+  parseConditions,
 } from '../../../constants/toothConditions.js';
 
 const CUSTOM_SVG_STYLE = { fill: '#E0E7FF', stroke: '#6366F1' };
 
 function getToothSvgStyle(condition) {
   const parsed = sanitizeCondition(condition);
-  return CONDITION_SVG_STYLES[parsed.name] || CUSTOM_SVG_STYLE;
+  const nonHealthy = parsed.conditions?.find((c) => c.name.toLowerCase() !== 'healthy');
+  const target = nonHealthy || parsed.conditions?.[0] || parsed;
+  return CONDITION_SVG_STYLES[target.name] || CUSTOM_SVG_STYLE;
 }
 
 /**
@@ -121,7 +126,7 @@ function ConditionCombobox({ value, onChange, options, onDeleteCustomCondition }
             setSearchQuery(''); // Show ALL conditions on focus
           }}
           onChange={(e) => {
-            setSearchQuery(e.target.value);
+            setSearchQuery(capitalizeWords(e.target.value));
             setIsOpen(true);
           }}
         />
@@ -248,12 +253,13 @@ function getToothType(tNum) {
 function ToothSvg({ tNum, condition, isSelected }) {
   const toothType = getToothType(tNum);
   const isLowerArch = (tNum >= 31 && tNum <= 48) || (tNum >= 71 && tNum <= 85);
-  let baseName = condition || 'Healthy';
-  if (condition && condition.includes('[')) {
-    baseName = condition.split('[')[0].trim();
-  }
+  const parsed = sanitizeCondition(condition);
+  const conds = parsed.conditions || [parsed];
+  const names = conds.map((c) => c.name.toLowerCase());
   const cfg = getToothSvgStyle(condition);
-  const isMissing = baseName === 'Missing' || baseName === 'Extraction';
+
+  const hasCond = (name) => names.includes(name.toLowerCase());
+  const isMissing = hasCond('Missing') || hasCond('Extraction');
 
   return (
     <div className="relative flex items-center justify-center w-5 h-8 xs:w-6 xs:h-9 sm:w-8 sm:h-12 my-0.5 shrink-0">
@@ -343,11 +349,11 @@ function ToothSvg({ tNum, condition, isSelected }) {
         )}
 
         {/* SPECIAL CONDITION OVERLAYS */}
-        {(baseName === 'Caries' || baseName === 'Decayed') && (
+        {(hasCond('Caries') || hasCond('Decayed')) && (
           <circle cx="25" cy="62" r="6.5" fill="#F43F5E" stroke="#9F1239" strokeWidth="1.5" />
         )}
 
-        {baseName === 'Filling' && (
+        {hasCond('Filling') && (
           <path
             d="M 17 56 Q 25 51 33 56 Q 35 68 25 73 Q 15 68 17 56 Z"
             fill="#2563EB"
@@ -357,7 +363,7 @@ function ToothSvg({ tNum, condition, isSelected }) {
           />
         )}
 
-        {baseName === 'RCT' && (
+        {hasCond('RCT') && (
           <path
             d="M 25 8 L 25 65 M 19 12 L 25 45 M 31 12 L 25 45"
             fill="none"
@@ -367,7 +373,7 @@ function ToothSvg({ tNum, condition, isSelected }) {
           />
         )}
 
-        {(baseName === 'Crown' || baseName === 'Bridge') && (
+        {(hasCond('Crown') || hasCond('Bridge')) && (
           <path
             d="M 10 46 Q 25 40 40 46 L 38 76 Q 25 80 12 76 Z"
             fill="#F59E0B"
@@ -377,7 +383,7 @@ function ToothSvg({ tNum, condition, isSelected }) {
           />
         )}
 
-        {baseName === 'Implant' && (
+        {hasCond('Implant') && (
           <g stroke="#0891B2" strokeWidth="2.2" strokeLinecap="round">
             <line x1="16" y1="12" x2="34" y2="12" />
             <line x1="18" y1="20" x2="32" y2="20" />
@@ -386,7 +392,7 @@ function ToothSvg({ tNum, condition, isSelected }) {
           </g>
         )}
 
-        {baseName === 'Mobility' && (
+        {hasCond('Mobility') && (
           <g
             stroke="#C026D3"
             strokeWidth="2.2"
@@ -482,6 +488,8 @@ function CompactConditionPopup({
   onDeleteCustomCondition,
   isSaving,
 }) {
+  const [allowMultiple, setAllowMultiple] = useState(false);
+  const [selectedConditions, setSelectedConditions] = useState([]);
   const [pendingCondition, setPendingCondition] = useState(currentCondition || 'Healthy [H]');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customName, setCustomName] = useState('');
@@ -490,6 +498,8 @@ function CompactConditionPopup({
   const [notes, setNotes] = useState(initialNotes || '');
   const [isTreatmentOpen, setIsTreatmentOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isLocalSaving, setIsLocalSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [justSaved, setJustSaved] = useState(false);
   const popupRef = useRef(null);
 
@@ -510,7 +520,13 @@ function CompactConditionPopup({
   // Sync state when target teeth or condition changes
   useEffect(() => {
     if (isOpen) {
-      setPendingCondition(currentCondition || 'Healthy [H]');
+      const parsedList = parseConditions(currentCondition);
+      const formattedList = parsedList.map((c) => c.formatted);
+      const isMultiCond = parsedList.length > 1;
+
+      setAllowMultiple(isMultiCond);
+      setSelectedConditions(formattedList.length > 0 ? formattedList : ['Healthy [H]']);
+      setPendingCondition(formattedList.join(', ') || 'Healthy [H]');
       setShowCustomInput(false);
       setCustomName('');
       setCustomCode('');
@@ -518,12 +534,14 @@ function CompactConditionPopup({
       setNotes(initialNotes || '');
       setIsTreatmentOpen(Boolean(initialTreatment));
       setIsNotesOpen(Boolean(initialNotes));
+      setIsLocalSaving(false);
+      setSaveError('');
       resetDirty();
     }
   }, [isOpen, currentCondition, initialTreatment, initialNotes, targetTeeth]);
 
   // Viewport-aware position calculations: Right side of selected tooth
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 360, maxHeight: 480, isReady: false });
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 360, maxHeight: 520, isReady: false });
 
   useLayoutEffect(() => {
     if (!isOpen) {
@@ -545,9 +563,7 @@ function CompactConditionPopup({
 
       const isMobile = window.innerWidth < 640;
       const popupWidth = isMobile ? Math.min(360, window.innerWidth - 24) : 360;
-      const actualHeight = popupRef.current
-        ? Math.min(popupRef.current.offsetHeight, window.innerHeight - 32)
-        : 440;
+      const estimatedHeight = 460;
 
       let left = 0;
       let top = 0;
@@ -555,12 +571,12 @@ function CompactConditionPopup({
       if (isMobile) {
         // Mobile: center horizontally, place below or above clicked tooth
         left = Math.max(12, (window.innerWidth - popupWidth) / 2);
-        if (rect.bottom + actualHeight + 12 <= window.innerHeight) {
+        if (rect.bottom + estimatedHeight + 12 <= window.innerHeight) {
           top = rect.bottom + 8;
-        } else if (rect.top - actualHeight - 8 >= 10) {
-          top = rect.top - actualHeight - 8;
+        } else if (rect.top - estimatedHeight - 8 >= 10) {
+          top = rect.top - estimatedHeight - 8;
         } else {
-          top = Math.max(12, Math.min(window.innerHeight - actualHeight - 16, (window.innerHeight - actualHeight) / 2));
+          top = Math.max(12, Math.min(window.innerHeight - estimatedHeight - 16, (window.innerHeight - estimatedHeight) / 2));
         }
       } else {
         // Desktop / Tablet: Open on RIGHT side of selected tooth
@@ -579,8 +595,8 @@ function CompactConditionPopup({
         }
 
         // Align vertically around tooth center, clamped within viewport
-        top = rect.top + rect.height / 2 - actualHeight / 2;
-        top = Math.max(12, Math.min(window.innerHeight - actualHeight - 16, top));
+        top = rect.top + rect.height / 2 - estimatedHeight / 2;
+        top = Math.max(12, Math.min(window.innerHeight - estimatedHeight - 16, top));
       }
 
       const availableMaxHeight = Math.min(560, window.innerHeight - top - 16);
@@ -589,7 +605,7 @@ function CompactConditionPopup({
         top: Math.round(top),
         left: Math.round(left),
         width: Math.round(popupWidth),
-        maxHeight: Math.round(availableMaxHeight),
+        maxHeight: Math.round(Math.max(380, availableMaxHeight)),
         isReady: true,
       });
     }
@@ -633,61 +649,189 @@ function CompactConditionPopup({
 
   if (!isOpen || !coords.isReady) return null;
 
-  // Auto-save immediately when a condition is selected & expand both accordions
-  const handleSelectCondition = (cond) => {
-    const parsed = sanitizeCondition(cond);
-    // Prevent clicking same condition if already selected
-    if (pendingParsed.name.toLowerCase() === parsed.name.toLowerCase()) {
-      return;
+  // Toggle Multiple Conditions Option (Switches modes locally without auto-saving)
+  const handleToggleMultiple = (checked) => {
+    setAllowMultiple(checked);
+    setSaveError('');
+    if (!checked && selectedConditions.length > 1) {
+      // Revert locally to single condition: keep first non-healthy condition or selectedConditions[0]
+      const single = selectedConditions.find((c) => sanitizeCondition(c).name.toLowerCase() !== 'healthy') || selectedConditions[0] || 'Healthy [H]';
+      const formattedSingle = sanitizeCondition(single).formatted;
+      setSelectedConditions([formattedSingle]);
+      setPendingCondition(formattedSingle);
     }
-    setPendingCondition(parsed.formatted);
-    setJustSaved(true);
-    setIsTreatmentOpen(true);
-    setIsNotesOpen(true);
-    setTimeout(() => setJustSaved(false), 2000);
-
-    onSave({
-      condition: parsed.formatted,
-      treatment: treatment.trim(),
-      notes: notes.trim(),
-      teethList: targetTeeth,
-    });
   };
 
-  // Auto-save custom condition immediately on apply & expand accordions
-  const handleAddCustomCondition = (e) => {
+  // Condition Selection Handler
+  const handleSelectCondition = async (cond) => {
+    setSaveError('');
+    const parsed = sanitizeCondition(cond);
+
+    if (!allowMultiple) {
+      // Single condition mode: auto-save immediately and automatically close popup on success
+      setSelectedConditions([parsed.formatted]);
+      setPendingCondition(parsed.formatted);
+      setIsLocalSaving(true);
+
+      try {
+        await onSave({
+          condition: parsed.formatted,
+          treatment: treatment.trim(),
+          notes: notes.trim(),
+          teethList: targetTeeth,
+        });
+        onClose();
+      } catch (err) {
+        console.error('Failed to auto-save single condition:', err);
+        setSaveError(err.response?.data?.message || err.message || 'Failed to save condition. Please retry.');
+      } finally {
+        setIsLocalSaving(false);
+      }
+      return;
+    }
+
+    // Multiple conditions mode: select/deselect locally without triggering any save/API call
+    const isAlreadySelected = selectedConditions.some(
+      (c) => sanitizeCondition(c).name.toLowerCase() === parsed.name.toLowerCase()
+    );
+
+    let updated;
+    if (isAlreadySelected) {
+      // Toggle off / remove condition
+      updated = selectedConditions.filter(
+        (c) => sanitizeCondition(c).name.toLowerCase() !== parsed.name.toLowerCase()
+      );
+      if (updated.length === 0) {
+        updated = ['Healthy [H]'];
+      }
+    } else {
+      // Prevent duplicate conditions & add new condition
+      if (parsed.name.toLowerCase() === 'healthy') {
+        updated = ['Healthy [H]'];
+      } else {
+        const nonHealthy = selectedConditions.filter(
+          (c) => sanitizeCondition(c).name.toLowerCase() !== 'healthy'
+        );
+        updated = [...nonHealthy, parsed.formatted];
+      }
+    }
+
+    const combinedStr = updated.map((c) => sanitizeCondition(c).formatted).join(', ');
+    setSelectedConditions(updated);
+    setPendingCondition(combinedStr);
+  };
+
+  // Remove individual condition handler (Multi-condition mode: local removal only)
+  const handleRemoveCondition = (condToRemove) => {
+    setSaveError('');
+    const parsedTarget = sanitizeCondition(condToRemove);
+    let updated = selectedConditions.filter(
+      (c) => sanitizeCondition(c).name.toLowerCase() !== parsedTarget.name.toLowerCase()
+    );
+    if (updated.length === 0) {
+      updated = ['Healthy [H]'];
+    }
+
+    const combinedStr = updated.map((c) => sanitizeCondition(c).formatted).join(', ');
+    setSelectedConditions(updated);
+    setPendingCondition(combinedStr);
+  };
+
+  // Add custom condition handler
+  const handleAddCustomCondition = async (e) => {
     e.preventDefault();
     if (!customName.trim()) return;
+    setSaveError('');
     const cleanName = customName.replace(/[\[\]]/g, '').trim();
     const cleanCode = customCode.replace(/[\[\]]/g, '').trim().toUpperCase() || cleanName.slice(0, 3).toUpperCase();
     const parsed = sanitizeCondition(`${cleanName} [${cleanCode}]`);
-    setPendingCondition(parsed.formatted);
-    setShowCustomInput(false);
-    setJustSaved(true);
-    setIsTreatmentOpen(true);
-    setIsNotesOpen(true);
-    setTimeout(() => setJustSaved(false), 2000);
 
-    onSave({
-      condition: parsed.formatted,
-      treatment: treatment.trim(),
-      notes: notes.trim(),
-      teethList: targetTeeth,
-    });
+    if (!allowMultiple) {
+      // Single mode: auto-save immediately and close on success
+      setSelectedConditions([parsed.formatted]);
+      setPendingCondition(parsed.formatted);
+      setShowCustomInput(false);
+      setCustomName('');
+      setCustomCode('');
+      setIsLocalSaving(true);
+      try {
+        await onSave({
+          condition: parsed.formatted,
+          treatment: treatment.trim(),
+          notes: notes.trim(),
+          teethList: targetTeeth,
+        });
+        onClose();
+      } catch (err) {
+        console.error('Failed to save custom condition:', err);
+        setSaveError(err.response?.data?.message || err.message || 'Failed to save custom condition.');
+      } finally {
+        setIsLocalSaving(false);
+      }
+      return;
+    }
+
+    // Multiple mode: add locally without triggering save
+    const isAlreadySelected = selectedConditions.some(
+      (c) => sanitizeCondition(c).name.toLowerCase() === parsed.name.toLowerCase()
+    );
+    if (isAlreadySelected) {
+      setShowCustomInput(false);
+      return;
+    }
+
+    const nonHealthy = selectedConditions.filter(
+      (c) => sanitizeCondition(c).name.toLowerCase() !== 'healthy'
+    );
+    const updated = [...nonHealthy, parsed.formatted];
+    const combinedStr = updated.map((c) => sanitizeCondition(c).formatted).join(', ');
+    setSelectedConditions(updated);
+    setPendingCondition(combinedStr);
+    setShowCustomInput(false);
+    setCustomName('');
+    setCustomCode('');
   };
 
-  const handleSaveNotesAndTreatment = (e) => {
+  // Explicit Save handler for multiple conditions mode
+  const handleSaveMultipleConditions = async () => {
+    setIsLocalSaving(true);
+    setSaveError('');
+    try {
+      const combinedStr = selectedConditions.map((c) => sanitizeCondition(c).formatted).join(', ') || 'Healthy [H]';
+      await onSave({
+        condition: combinedStr,
+        treatment: treatment.trim(),
+        notes: notes.trim(),
+        teethList: targetTeeth,
+      });
+      onClose();
+    } catch (err) {
+      console.error('Failed to save multiple conditions:', err);
+      setSaveError(err.response?.data?.message || err.message || 'Failed to save conditions. Please retry.');
+    } finally {
+      setIsLocalSaving(false);
+    }
+  };
+
+  const handleSaveNotesAndTreatment = async (e) => {
     if (e) e.preventDefault();
     setJustSaved(true);
     resetDirty();
     setTimeout(() => setJustSaved(false), 2000);
 
-    onSave({
-      condition: pendingCondition,
-      treatment: treatment.trim(),
-      notes: notes.trim(),
-      teethList: targetTeeth,
-    });
+    if (!allowMultiple) {
+      const combinedStr = selectedConditions.map((c) => sanitizeCondition(c).formatted).join(', ') || pendingCondition;
+      try {
+        await onSave({
+          condition: combinedStr,
+          treatment: treatment.trim(),
+          notes: notes.trim(),
+          teethList: targetTeeth,
+        });
+      } catch (err) {
+        setSaveError(err.response?.data?.message || 'Failed to save treatment/notes.');
+      }
+    }
   };
 
   const isMulti = targetTeeth.length > 1;
@@ -729,14 +873,21 @@ function CompactConditionPopup({
             <span className="font-mono font-bold text-ink text-sm shrink-0">
               {isMulti ? `${targetTeeth.length} Teeth` : `Tooth #${targetTeeth[0]}`}
             </span>
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-bold border truncate ${currentCodeObj.color}`}
-            >
-              {pendingParsed.formatted}
-            </span>
+
+            {selectedConditions.length > 1 ? (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold border truncate bg-purple-100 text-purple-800 border-purple-300">
+                {selectedConditions.length} Conditions
+              </span>
+            ) : (
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold border truncate ${currentCodeObj.color}`}
+              >
+                {pendingParsed.formatted}
+              </span>
+            )}
 
             {/* Instant Saving / Saved Feedback */}
-            {isSaving ? (
+            {(isSaving || isLocalSaving) ? (
               <span className="text-[10px] text-brand flex items-center gap-1 font-bold animate-pulse">
                 <Loader2 size={11} className="animate-spin" /> Saving...
               </span>
@@ -751,7 +902,7 @@ function CompactConditionPopup({
             <button
               type="button"
               onClick={onClearSelection}
-              className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded transition-colors"
+              className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded transition-colors cursor-pointer"
               title="Deselect this tooth"
             >
               Clear Selection
@@ -767,34 +918,111 @@ function CompactConditionPopup({
           </div>
         </div>
 
+        {/* Save Error Alert if API call fails */}
+        {saveError && (
+          <div className="px-3 py-1.5 bg-rose-50 border-b border-rose-200 text-rose-700 text-[11px] font-semibold flex items-center justify-between gap-1 shrink-0 animate-fadeIn">
+            <span className="truncate">{saveError}</span>
+            <button
+              type="button"
+              onClick={() => setSaveError('')}
+              className="p-0.5 text-rose-500 hover:text-rose-700 cursor-pointer"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
+        {/* Options Bar: Allow Multiple Conditions Toggle */}
+        <div className="px-3 py-2 bg-bg/50 border-b border-border/70 flex items-center justify-between gap-2 shrink-0">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-[11px] font-bold text-ink">
+            <input
+              type="checkbox"
+              checked={allowMultiple}
+              onChange={(e) => handleToggleMultiple(e.target.checked)}
+              className="rounded border-border text-brand focus:ring-brand h-3.5 w-3.5 cursor-pointer accent-brand"
+            />
+            <span>Allow Multiple Conditions</span>
+          </label>
+          {allowMultiple && (
+            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200 shrink-0">
+              Multiple Mode Active
+            </span>
+          )}
+        </div>
+
+        {/* Clear List of Selected Conditions (shown in multi-condition mode) */}
+        {allowMultiple && (
+          <div className="px-3 py-2 bg-brand-light/15 border-b border-border/70 space-y-1.5 animate-fadeIn shrink-0">
+            <div className="flex items-center justify-between text-[10px] font-bold text-ink-soft">
+              <span>
+                Selected Conditions ({selectedConditions.filter((c) => sanitizeCondition(c).name.toLowerCase() !== 'healthy').length || selectedConditions.length}):
+              </span>
+              <span className="text-[9px] text-ink-soft/70">Click condition or ✕ to remove</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto scrollbar-none">
+              {selectedConditions.map((condStr) => {
+                const parsed = sanitizeCondition(condStr);
+                const codeObj = getConditionCodeObj(condStr);
+                return (
+                  <span
+                    key={parsed.name}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold shadow-2xs ${codeObj.color}`}
+                  >
+                    <span className="font-mono text-[9px] font-extrabold">[{codeObj.code}]</span>
+                    <span>{parsed.name}</span>
+                    {selectedConditions.length > 1 || parsed.name.toLowerCase() !== 'healthy' ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveCondition(condStr);
+                        }}
+                        className="hover:opacity-75 p-0.5 rounded-full hover:bg-black/10 transition-colors cursor-pointer ml-0.5"
+                        title={`Remove "${parsed.name}" condition`}
+                      >
+                        <X size={11} />
+                      </button>
+                    ) : null}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Content Body: Conditions Grid + Collapsible Details */}
         <div className="p-3 overflow-y-auto space-y-3 scrollbar-none flex-1">
-            <div className="grid grid-cols-2 xs:grid-cols-3 gap-1.5">
-              {allDisplayConditions.map((opt) => {
-                const parsed = sanitizeCondition(opt);
-                const codeObj = getConditionCodeObj(opt);
-                const isSelected =
-                  pendingParsed.name.toLowerCase() === parsed.name.toLowerCase();
+          <div className="grid grid-cols-2 xs:grid-cols-3 gap-1.5">
+            {allDisplayConditions.map((opt) => {
+              const parsed = sanitizeCondition(opt);
+              const codeObj = getConditionCodeObj(opt);
+              const isSelected = selectedConditions.some(
+                (c) => sanitizeCondition(c).name.toLowerCase() === parsed.name.toLowerCase()
+              );
 
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    data-condition-name={parsed.name}
-                    className={`relative group flex items-center justify-between px-2 py-2 rounded-xl border text-left font-semibold transition-all select-none min-h-[38px] ${isSelected
-                        ? 'bg-brand-light/60 border-brand ring-2 ring-brand text-brand font-bold shadow-sm scale-[1.02] cursor-default opacity-95'
-                        : 'bg-surface border-border hover:bg-bg/90 hover:border-brand/40 text-ink active:scale-95 cursor-pointer'
-                      }`}
-                    onClick={() => !isSelected && handleSelectCondition(parsed.formatted)}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span
-                        className={`w-4 h-4 rounded-md font-mono text-[9px] font-extrabold flex items-center justify-center shrink-0 border ${codeObj.color}`}
-                      >
-                        {codeObj.code}
-                      </span>
-                      <span className="text-[11px] truncate">{parsed.name}</span>
-                    </div>
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  data-condition-name={parsed.name}
+                  disabled={isLocalSaving || isSaving}
+                  className={`relative group flex items-center justify-between px-2 py-2 rounded-xl border text-left font-semibold transition-all select-none min-h-[38px] ${isSelected
+                      ? 'bg-brand-light/60 border-brand ring-2 ring-brand text-brand font-bold shadow-sm scale-[1.02] cursor-pointer opacity-95'
+                      : 'bg-surface border-border hover:bg-bg/90 hover:border-brand/40 text-ink active:scale-95 cursor-pointer'
+                    }`}
+                  onClick={() => handleSelectCondition(parsed.formatted)}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span
+                      className={`w-4 h-4 rounded-md font-mono text-[9px] font-extrabold flex items-center justify-center shrink-0 border ${codeObj.color}`}
+                    >
+                      {codeObj.code}
+                    </span>
+                    <span className="text-[11px] truncate">{parsed.name}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isSelected && <Check size={13} className="text-brand shrink-0" />}
 
                     {/* Soft delete condition */}
                     {onDeleteCustomCondition && (
@@ -812,61 +1040,63 @@ function CompactConditionPopup({
                         <Trash2 size={11} />
                       </span>
                     )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom Condition Form / Trigger */}
-            {!showCustomInput ? (
-              <button
-                type="button"
-                onClick={() => setShowCustomInput(true)}
-                className="w-full py-1.5 px-2 rounded-lg border border-dashed border-border hover:border-brand/60 text-ink-soft hover:text-brand font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-colors"
-              >
-                <Plus size={13} /> Add Custom Condition...
-              </button>
-            ) : (
-              <form
-                onSubmit={handleAddCustomCondition}
-                className="p-2.5 rounded-xl bg-brand-light/20 border border-brand/30 space-y-2"
-              >
-                <div className="flex items-center justify-between text-[11px] font-bold text-brand">
-                  <span>Add Custom Condition</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomInput(false)}
-                    className="text-ink-soft hover:text-ink"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <input
-                    type="text"
-                    placeholder="Name (e.g. Veneer)"
-                    className="col-span-2 input-field py-1 text-xs"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    autoFocus
-                  />
-                  <input
-                    type="text"
-                    placeholder="Code (VN)"
-                    maxLength={4}
-                    className="input-field uppercase font-mono py-1 text-xs"
-                    value={customCode}
-                    onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full btn-secondary py-1 text-xs font-bold text-brand hover:bg-brand-light/40"
-                >
-                  Apply & Save Selection
+                  </div>
                 </button>
-              </form>
-            )}
+              );
+            })}
+          </div>
+
+          {/* Custom Condition Form / Trigger */}
+          {!showCustomInput ? (
+            <button
+              type="button"
+              onClick={() => setShowCustomInput(true)}
+              className="w-full py-1.5 px-2 rounded-lg border border-dashed border-border hover:border-brand/60 text-ink-soft hover:text-brand font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Plus size={13} /> Add Custom Condition...
+            </button>
+          ) : (
+            <form
+              onSubmit={handleAddCustomCondition}
+              className="p-2.5 rounded-xl bg-brand-light/20 border border-brand/30 space-y-2"
+            >
+              <div className="flex items-center justify-between text-[11px] font-bold text-brand">
+                <span>Add Custom Condition</span>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomInput(false)}
+                  className="text-ink-soft hover:text-ink"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Name (e.g. Veneer)"
+                  className="col-span-2 input-field py-1 text-xs"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  placeholder="Code (VN)"
+                  maxLength={4}
+                  className="input-field uppercase font-mono py-1 text-xs"
+                  value={customCode}
+                  onChange={(e) => setCustomCode(e.target.value.toUpperCase())}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLocalSaving || isSaving}
+                className="w-full btn-secondary py-1 text-xs font-bold text-brand hover:bg-brand-light/40 cursor-pointer disabled:opacity-50"
+              >
+                {allowMultiple ? 'Add Condition' : 'Apply & Save Selection'}
+              </button>
+            </form>
+          )}
 
           {/* Collapsible Section 1: Treatment Performed / Planned (Collapsed by default) */}
           <div className="border border-border/80 rounded-xl overflow-hidden bg-bg/30 transition-all">
@@ -943,7 +1173,7 @@ function CompactConditionPopup({
                   placeholder="Add specific clinical notes or observations for this tooth..."
                   className="input-field py-1.5 text-xs resize-none"
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => setNotes(capitalizeWords(e.target.value))}
                   onBlur={handleSaveNotesAndTreatment}
                   autoFocus
                 />
@@ -959,18 +1189,48 @@ function CompactConditionPopup({
           </div>
         </div>
 
-        {/* Footer: Close / Done Button & Auto-Save Confirmation */}
+        {/* Footer: Single vs Multiple Mode */}
         <div className="p-2.5 bg-bg/90 border-t border-border flex items-center justify-between gap-2 shrink-0">
-          <span className="text-[10px] text-ink-soft flex items-center gap-1 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> Auto-saves on selection
-          </span>
-          <button
-            type="button"
-            onClick={handleRequestClose}
-            className="btn-secondary py-1 px-3.5 text-xs font-semibold cursor-pointer"
-          >
-            Done
-          </button>
+          {!allowMultiple ? (
+            <>
+              <span className="text-[10px] text-ink-soft flex items-center gap-1.5 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                Auto-saves on selection
+              </span>
+              <button
+                type="button"
+                onClick={handleRequestClose}
+                disabled={isLocalSaving || isSaving}
+                className="btn-secondary py-1 px-3.5 text-xs font-semibold cursor-pointer disabled:opacity-50"
+              >
+                Done
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-[10px] text-purple-700 font-semibold truncate">
+                {selectedConditions.filter((c) => sanitizeCondition(c).name.toLowerCase() !== 'healthy').length || selectedConditions.length} selected
+              </span>
+              <button
+                type="button"
+                onClick={handleSaveMultipleConditions}
+                disabled={isLocalSaving || isSaving}
+                className="btn-primary py-1 px-4 text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isLocalSaving || isSaving ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={12} />
+                    <span>Save Conditions</span>
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1101,10 +1361,10 @@ export default function ToothChart({
 
   const isNewCustomCondition = (cond) => {
     if (!cond || !cond.trim()) return false;
-    const parsed = sanitizeCondition(cond);
+    const parsed = sanitizeSingleCondition(cond);
     const targetName = parsed.name.toLowerCase();
     return !conditionOptions.some((opt) => {
-      const optParsed = sanitizeCondition(opt);
+      const optParsed = sanitizeSingleCondition(opt);
       return optParsed.name.toLowerCase() === targetName;
     });
   };
@@ -1259,8 +1519,8 @@ export default function ToothChart({
     setIsPopupOpen(true);
   };
 
-  // Save handler for the compact condition picker popup (Auto-saves on selection)
-  const handleSavePopupCondition = (payload) => {
+  // Save handler for the compact condition picker popup
+  const handleSavePopupCondition = async (payload) => {
     if (isReadOnly) return;
     const targetList = [
       ...(payload?.teethList && payload.teethList.length > 0
@@ -1330,83 +1590,86 @@ export default function ToothChart({
       currentVersions[tNum] = nextVer;
     });
 
-    // 3. Non-blocking Background Autosave
+    // 3. Save Request
     activeSavesCountRef.current += 1;
     setSaveStatus('saving');
     if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
 
-    (async () => {
-      try {
-        if (isNewCustomCondition(parsed.name)) {
+    try {
+      const condListToSave = parsed.conditions || [parsed];
+      for (const singleCond of condListToSave) {
+        if (isNewCustomCondition(singleCond.name)) {
           try {
             await api.post('/tooth-chart/conditions', {
-              name: parsed.name,
-              code: parsed.code,
+              name: singleCond.name,
+              code: singleCond.code,
             });
           } catch (e) {
             console.warn('Condition already exists or failed to save to conditions collection:', e);
           }
         }
-
-        let saveResponse;
-        if (targetList.length === 1) {
-          const tNum = targetList[0];
-          saveResponse = await api.patch(`/tooth-chart/${patientId}/${tNum}`, {
-            condition: saveCondition,
-            treatment: chosenTreatment,
-            notes: chosenNotes,
-            consultationId,
-          });
-
-          // Only update if no newer save was triggered for this tooth while in-flight
-          if (saveVersionMapRef.current.get(tNum) === currentVersions[tNum] && saveResponse.data?.record) {
-            setTeethMap((prev) => ({
-              ...prev,
-              [tNum]: saveResponse.data.record,
-            }));
-          }
-        } else {
-          saveResponse = await api.post(`/tooth-chart/${patientId}/bulk`, {
-            teeth: targetList,
-            condition: saveCondition,
-            treatment: chosenTreatment,
-            notes: chosenNotes,
-            consultationId,
-          });
-        }
-
-        // Remove resolved items from failed saves
-        setFailedSaves((prev) => prev.filter((item) => !targetList.some((t) => item.targetList?.includes(t))));
-
-        activeSavesCountRef.current = Math.max(0, activeSavesCountRef.current - 1);
-        if (activeSavesCountRef.current === 0) {
-          setSaveStatus('saved');
-          savedTimeoutRef.current = setTimeout(() => {
-            setSaveStatus('idle');
-          }, 2500);
-        }
-
-        // Silent background sync
-        syncToothChart();
-        fetchConditions();
-      } catch (err) {
-        console.error('Background autosave failed for tooth chart:', err);
-        activeSavesCountRef.current = Math.max(0, activeSavesCountRef.current - 1);
-        setSaveStatus('error');
-        // Preserve optimistic changes locally and enqueue for retry
-        setFailedSaves((prev) => [
-          ...prev.filter((item) => !targetList.some((t) => item.targetList?.includes(t))),
-          {
-            targetList,
-            condition: saveCondition,
-            treatment: chosenTreatment,
-            notes: chosenNotes,
-            errorMsg: err.response?.data?.message || 'Failed to update tooth condition.',
-            timestamp: Date.now(),
-          },
-        ]);
       }
-    })();
+
+      let saveResponse;
+      if (targetList.length === 1) {
+        const tNum = targetList[0];
+        saveResponse = await api.patch(`/tooth-chart/${patientId}/${tNum}`, {
+          condition: saveCondition,
+          treatment: chosenTreatment,
+          notes: chosenNotes,
+          consultationId,
+        });
+
+        // Only update if no newer save was triggered for this tooth while in-flight
+        if (saveVersionMapRef.current.get(tNum) === currentVersions[tNum] && saveResponse.data?.record) {
+          setTeethMap((prev) => ({
+            ...prev,
+            [tNum]: saveResponse.data.record,
+          }));
+        }
+      } else {
+        saveResponse = await api.post(`/tooth-chart/${patientId}/bulk`, {
+          teeth: targetList,
+          condition: saveCondition,
+          treatment: chosenTreatment,
+          notes: chosenNotes,
+          consultationId,
+        });
+      }
+
+      // Remove resolved items from failed saves
+      setFailedSaves((prev) => prev.filter((item) => !targetList.some((t) => item.targetList?.includes(t))));
+
+      activeSavesCountRef.current = Math.max(0, activeSavesCountRef.current - 1);
+      if (activeSavesCountRef.current === 0) {
+        setSaveStatus('saved');
+        savedTimeoutRef.current = setTimeout(() => {
+          setSaveStatus('idle');
+        }, 2500);
+      }
+
+      // Silent background sync
+      syncToothChart();
+      fetchConditions();
+      return saveResponse?.data;
+    } catch (err) {
+      console.error('Save failed for tooth chart:', err);
+      activeSavesCountRef.current = Math.max(0, activeSavesCountRef.current - 1);
+      setSaveStatus('error');
+      // Preserve optimistic changes locally and enqueue for retry
+      setFailedSaves((prev) => [
+        ...prev.filter((item) => !targetList.some((t) => item.targetList?.includes(t))),
+        {
+          targetList,
+          condition: saveCondition,
+          treatment: chosenTreatment,
+          notes: chosenNotes,
+          errorMsg: err.response?.data?.message || 'Failed to update tooth condition.',
+          timestamp: Date.now(),
+        },
+      ]);
+      throw err;
+    }
   };
 
   // Retry all failed autosaves
@@ -1462,11 +1725,29 @@ export default function ToothChart({
   const renderToothCard = (tNum) => {
     const record = teethMap[tNum] || {};
     const cond = record.currentCondition || 'Healthy [H]';
-    const codeCfg = getConditionCodeObj(cond);
+    const condParsed = sanitizeCondition(cond);
+    const condList = condParsed.conditions || [condParsed];
     const isSelected = selectedTeeth.includes(tNum) || inspectedTeeth.includes(tNum);
     const activeHistoryCount = (record.history || []).filter((h) => !h.deleted).length;
     const hasHistory = activeHistoryCount > 0;
     const isLowerArch = (tNum >= 31 && tNum <= 48) || (tNum >= 71 && tNum <= 85);
+
+    const renderBadges = () => (
+      <div className="flex flex-wrap items-center justify-center gap-0.5 w-full min-w-0">
+        {condList.map((c, i) => {
+          const codeCfg = getConditionCodeObj(c.formatted);
+          return (
+            <span
+              key={i}
+              title={c.name}
+              className={`px-1 py-0.2 rounded text-[7px] xs:text-[8px] sm:text-[9px] font-extrabold uppercase leading-tight border ${codeCfg.color}`}
+            >
+              {codeCfg.code}
+            </span>
+          );
+        })}
+      </div>
+    );
 
     return (
       <button
@@ -1491,11 +1772,7 @@ export default function ToothChart({
             <ToothSvg tNum={tNum} condition={cond} isSelected={isSelected} />
 
             <div className="flex flex-col items-center gap-0.5 w-full min-w-0">
-              <span
-                className={`px-1 py-0.2 rounded text-[7px] xs:text-[8px] sm:text-[9px] font-extrabold uppercase leading-tight border ${codeCfg.color}`}
-              >
-                {codeCfg.code}
-              </span>
+              {renderBadges()}
               {hasHistory ? (
                 <span className="text-[7px] sm:text-[8px] font-bold text-brand flex items-center justify-center gap-0.5 w-full">
                   <History size={8} /> {activeHistoryCount}
@@ -1516,11 +1793,7 @@ export default function ToothChart({
               ) : (
                 <span className="text-[7px] text-ink-soft/30">—</span>
               )}
-              <span
-                className={`px-1 py-0.2 rounded text-[7px] xs:text-[8px] sm:text-[9px] font-extrabold uppercase leading-tight border ${codeCfg.color}`}
-              >
-                {codeCfg.code}
-              </span>
+              {renderBadges()}
             </div>
 
             <ToothSvg tNum={tNum} condition={cond} isSelected={isSelected} />
@@ -2039,7 +2312,7 @@ export default function ToothChart({
                       className="input-field py-1.5 text-xs resize-none"
                       placeholder="Diagnostic observations, surface details (MO, DO, MOD)..."
                       value={formNotes}
-                      onChange={(e) => setFormNotes(e.target.value)}
+                      onChange={(e) => setFormNotes(capitalizeWords(e.target.value))}
                     />
                   </div>
                 )}
@@ -2153,15 +2426,22 @@ export default function ToothChart({
                           </span>
 
                           {/* Condition Code & Name */}
-                          <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
-                            <span
-                              className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
-                            >
-                              {condObj.code}
-                            </span>
-                            <span className="font-bold text-ink text-xs whitespace-nowrap">
-                              {parsedCond.name}
-                            </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {(sanitizeCondition(h.condition).conditions || [sanitizeCondition(h.condition)]).map((c, i) => {
+                              const condObj = getConditionCodeObj(c.formatted);
+                              return (
+                                <div key={i} className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
+                                  <span
+                                    className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
+                                  >
+                                    {condObj.code}
+                                  </span>
+                                  <span className="font-bold text-ink text-xs whitespace-nowrap">
+                                    {c.name}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
 
                           {/* Relative & Exact Timestamp */}
@@ -2260,15 +2540,22 @@ export default function ToothChart({
                       >
                         <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                           <div className="flex items-center gap-2 flex-wrap min-w-0">
-                            <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
-                              <span
-                                className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
-                              >
-                                {condObj.code}
-                              </span>
-                              <span className="font-bold text-ink text-xs whitespace-nowrap">
-                                {parsedCond.name}
-                              </span>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {(parsedCond.conditions || [parsedCond]).map((c, i) => {
+                                const singleCondObj = getConditionCodeObj(c.formatted);
+                                return (
+                                  <div key={i} className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
+                                    <span
+                                      className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${singleCondObj.color}`}
+                                    >
+                                      {singleCondObj.code}
+                                    </span>
+                                    <span className="font-bold text-ink text-xs whitespace-nowrap">
+                                      {c.name}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                             {isMostRecent && (
                               <span className="text-[10px] bg-brand-light/60 text-brand px-2 py-0.5 rounded-md font-bold border border-brand/20 whitespace-nowrap">
@@ -2382,15 +2669,22 @@ export default function ToothChart({
                               >
                                 <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                                   <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                    <div className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
-                                      <span
-                                        className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${condObj.color}`}
-                                      >
-                                        {condObj.code}
-                                      </span>
-                                      <span className="font-bold text-ink text-xs whitespace-nowrap">
-                                        {parsedCond.name}
-                                      </span>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {(parsedCond.conditions || [parsedCond]).map((c, i) => {
+                                        const singleCondObj = getConditionCodeObj(c.formatted);
+                                        return (
+                                          <div key={i} className="inline-flex items-center gap-1.5 bg-bg/80 border border-border/80 px-2 py-0.5 rounded-lg shadow-xs shrink-0">
+                                            <span
+                                              className={`w-4 h-4 rounded text-[9px] font-mono font-extrabold flex items-center justify-center shrink-0 border ${singleCondObj.color}`}
+                                            >
+                                              {singleCondObj.code}
+                                            </span>
+                                            <span className="font-bold text-ink text-xs whitespace-nowrap">
+                                              {c.name}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                     {isMostRecent && (
                                       <span className="text-[10px] bg-brand-light/60 text-brand px-2 py-0.5 rounded-md font-bold border border-brand/20 whitespace-nowrap">

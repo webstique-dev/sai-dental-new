@@ -6,6 +6,7 @@ import api from '../../api/axios.js';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 export default function AdminTreatments() {
   const { showSuccess, showError } = useNotification();
@@ -116,12 +117,19 @@ export default function AdminTreatments() {
 
     setSaving(true);
     try {
+      const payload = {
+        ...formData,
+        name: capitalizeWords(formData.name.trim()),
+        category: capitalizeWords(formData.category.trim()),
+        description: formData.description ? capitalizeWords(formData.description.trim()) : '',
+      };
+
       if (editingTreatment) {
         const tId = editingTreatment._id || editingTreatment.id;
-        await api.patch(`/treatments/${tId}`, formData);
+        await api.patch(`/treatments/${tId}`, payload);
         showSuccess('Treatment catalog item updated.');
       } else {
-        await api.post('/treatments', formData);
+        await api.post('/treatments', payload);
         showSuccess('New treatment catalog item added.');
       }
 
@@ -502,7 +510,7 @@ export default function AdminTreatments() {
                     className="input-field py-1.5"
                     placeholder="e.g. Root Canal Treatment"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, name: capitalizeWords(e.target.value) })}
                   />
                 </div>
 
@@ -524,7 +532,7 @@ export default function AdminTreatments() {
                       className="input-field py-1.5"
                       placeholder="e.g. Endodontics, Surgical"
                       value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, category: capitalizeWords(e.target.value) })}
                     />
                   </div>
                 </div>
@@ -563,7 +571,7 @@ export default function AdminTreatments() {
                     className="input-field py-1.5"
                     placeholder="Brief procedure scope..."
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, description: capitalizeWords(e.target.value) })}
                   />
                 </div>
 

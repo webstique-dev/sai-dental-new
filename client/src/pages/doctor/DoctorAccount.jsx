@@ -4,6 +4,7 @@ import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { DoctorAccountSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 export default function DoctorAccount() {
   const { user } = useAuth();
@@ -72,10 +73,10 @@ export default function DoctorAccount() {
     try {
       setSubmitting(true);
       await api.patch(`/doctor-profiles/${userId}`, {
-        name: formData.name,
+        name: capitalizeWords(formData.name.trim()),
         phone: formData.phone,
-        specialization: formData.specialization,
-        qualification: formData.qualification,
+        specialization: capitalizeWords(formData.specialization.trim()),
+        qualification: capitalizeWords(formData.qualification.trim()),
         consultationFee: Number(formData.consultationFee),
       });
 
@@ -140,7 +141,7 @@ export default function DoctorAccount() {
                   className="input-field font-semibold"
                   placeholder="e.g. Dr. John Doe"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, name: capitalizeWords(e.target.value) })}
                 />
                 <p className="text-[11px] text-ink-soft mt-1">Include "Dr." title if desired.</p>
               </div>
@@ -198,7 +199,7 @@ export default function DoctorAccount() {
                   className="input-field font-semibold"
                   placeholder="e.g. General Dentistry, Orthodontics & Oral Surgery"
                   value={formData.specialization}
-                  onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, specialization: capitalizeWords(e.target.value) })}
                 />
               </div>
 
@@ -212,7 +213,7 @@ export default function DoctorAccount() {
                   className="input-field font-semibold"
                   placeholder="e.g. BDS, MDS - Oral & Maxillofacial Surgeon"
                   value={formData.qualification}
-                  onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, qualification: capitalizeWords(e.target.value) })}
                 />
                 <p className="text-[11px] text-ink-soft mt-1">
                   This degree string will appear below your name on official printed prescription PDFs.

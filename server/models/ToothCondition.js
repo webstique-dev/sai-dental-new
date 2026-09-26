@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const toothConditionSchema = new mongoose.Schema(
   {
@@ -6,6 +7,7 @@ const toothConditionSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      set: capitalizeWords,
     },
     code: {
       type: String,

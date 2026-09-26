@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Receipt, Plus, Trash2, Save, RefreshCw, Tag, History,
-  Eye, X, Stethoscope, Clock, CreditCard, UserSquare2, ChevronRight
+  Eye, X, Stethoscope, Clock, CreditCard, UserSquare2, ChevronRight, Printer, Edit3
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
-import { formatAge } from '../../../utils/formatters.js';
+import { formatAge, capitalizeWords } from '../../../utils/formatters.js';
+import { openBillPrintWindow } from '../../../utils/billPdfGenerator.js';
+import InvoiceEditModal from '../../../components/common/InvoiceEditModal.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Paid: 'bg-emerald-50 text-emerald-800 border-emerald-200',
@@ -52,6 +54,8 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
   const [historyInvoices, setHistoryInvoices] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedHistoryInvoice, setSelectedHistoryInvoice] = useState(null);
+  const [selectedInvoiceForEdit, setSelectedInvoiceForEdit] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const isDirty = useMemo(() => {
     if (loading || isReadOnly || !initialSnapshotRef.current) return false;
@@ -237,7 +241,10 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
   const handleItemChange = (index, field, value) => {
     setItems((prev) => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      updated[index] = {
+        ...updated[index],
+        [field]: (field === 'service' || field === 'treatment') ? capitalizeWords(value) : value,
+      };
       return updated;
     });
   };
@@ -286,8 +293,8 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
     // Filter valid items
     const validItems = items
       .map((it) => ({
-        service: (it.service || '').trim(),
-        treatment: (it.treatment || '').trim(),
+        service: capitalizeWords((it.service || '').trim()),
+        treatment: it.treatment ? capitalizeWords((it.treatment || '').trim()) : '',
         quantity: Math.max(1, Number(it.quantity) || 1),
         unitPrice: Math.max(0, Number(it.unitPrice) || 0),
       }))
@@ -787,8 +794,39 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
           </div>
 
           {/* Bottom Save Action Bar */}
-          {!isReadOnly && (
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-border">
+            {invoiceId && (
+              <button
+                type="button"
+                onClick={() => openBillPrintWindow({
+                  invoice: {
+                    _id: invoiceId,
+                    patient: consultation?.patient,
+                    doctor: consultation?.doctor,
+                    opNumber: consultation?.patient?.opNumber,
+                    items: items.map((it) => ({
+                      service: it.service,
+                      treatment: it.treatment,
+                      quantity: Number(it.quantity) || 1,
+                      unitPrice: Number(it.unitPrice) || 0,
+                    })),
+                    discount: numDiscount,
+                    tax: numTax,
+                    total,
+                    amountPaid: numAmountPaid,
+                    balance: liveBalance,
+                    paymentStatus: statusToDisplay,
+                    createdAt: lastSavedAt || new Date(),
+                  }
+                }, true)}
+                className="btn-secondary w-full sm:w-auto py-2.5 px-5 text-xs font-bold inline-flex items-center justify-center gap-2 hover:border-brand/50 hover:text-brand cursor-pointer"
+              >
+                <Printer size={15} />
+                <span>Print Bill</span>
+              </button>
+            )}
+
+            {!isReadOnly && (
               <button
                 type="button"
                 onClick={handleSaveInvoice}
@@ -798,8 +836,8 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                 {saving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
                 <span>{saving ? 'Saving Invoice...' : invoiceId ? 'Update Invoice & Balance' : 'Save Invoice & Record'}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -902,15 +940,38 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                           </td>
 
                           <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedHistoryInvoice(inv)}
-                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-brand hover:underline cursor-pointer"
-                              title="View Invoice Details"
-                            >
-                              <Eye size={13} />
-                              <span>View</span>
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                                className="btn-secondary py-1 px-2 text-xs font-semibold inline-flex items-center gap-1 text-ink hover:text-brand hover:border-brand/40 shadow-2xs cursor-pointer"
+                                title="Print Bill / Invoice"
+                              >
+                                <Printer size={13} />
+                                <span>Print</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedInvoiceForEdit(inv);
+                                  setIsEditModalOpen(true);
+                                }}
+                                className="btn-secondary py-1 px-2 text-xs font-semibold inline-flex items-center gap-1 text-brand hover:underline cursor-pointer"
+                                title="Edit Invoice Details"
+                              >
+                                <Edit3 size={13} />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedHistoryInvoice(inv)}
+                                className="btn-secondary py-1 px-2 text-xs font-semibold inline-flex items-center gap-1 text-ink-soft hover:text-ink cursor-pointer"
+                                title="View Invoice Details"
+                              >
+                                <Eye size={13} />
+                                <span>View</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -974,14 +1035,33 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                       </div>
                     </div>
 
-                    <div className="flex justify-end pt-1">
+                    <div className="flex items-center justify-end gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold text-ink hover:text-brand inline-flex items-center gap-1"
+                      >
+                        <Printer size={13} />
+                        <span>Print</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedInvoiceForEdit(inv);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold text-brand inline-flex items-center gap-1"
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => setSelectedHistoryInvoice(inv)}
-                        className="btn-secondary py-1 px-3 text-xs font-bold text-brand inline-flex items-center gap-1"
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold text-ink-soft hover:text-ink inline-flex items-center gap-1"
                       >
                         <Eye size={13} />
-                        <span>View Details</span>
+                        <span>View</span>
                       </button>
                     </div>
                   </div>
@@ -1137,7 +1217,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end px-5 py-3 border-t border-border bg-bg/40 shrink-0">
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border bg-bg/40 shrink-0">
               <button
                 type="button"
                 className="btn-secondary py-1.5 px-4 text-xs font-bold cursor-pointer"
@@ -1145,10 +1225,46 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
               >
                 Close
               </button>
+              <button
+                type="button"
+                className="btn-secondary py-1.5 px-4 text-xs font-bold inline-flex items-center gap-1.5 hover:border-brand/50 hover:text-brand cursor-pointer"
+                onClick={() => openBillPrintWindow({ invoice: selectedHistoryInvoice }, true)}
+              >
+                <Printer size={14} />
+                <span>Print Bill</span>
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* EDIT INVOICE MODAL */}
+      <InvoiceEditModal
+        isOpen={isEditModalOpen}
+        invoice={selectedInvoiceForEdit}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedInvoiceForEdit(null);
+        }}
+        onSuccess={(updated) => {
+          fetchPatientBillingHistory();
+          const targetId = updated._id || updated.id;
+          if (targetId === invoiceId) {
+            setInvoiceStatus(updated.paymentStatus || 'Pending');
+            setDiscount(updated.discount ? String(updated.discount) : '');
+            setTax(updated.tax ? String(updated.tax) : '');
+            setAmountPaid(updated.amountPaid ? String(updated.amountPaid) : '');
+            if (updated.items) {
+              setItems(updated.items.map((it) => ({
+                service: it.service || it.treatment || '',
+                treatment: it.treatment && it.treatment !== it.service ? it.treatment : '',
+                quantity: Math.max(1, Number(it.quantity) || 1),
+                unitPrice: String(it.unitPrice || ''),
+              })));
+            }
+          }
+        }}
+      />
     </div>
   );
 }

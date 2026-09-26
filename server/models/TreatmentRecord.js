@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const treatmentRecordSchema = new mongoose.Schema(
   {
@@ -24,6 +25,7 @@ const treatmentRecordSchema = new mongoose.Schema(
       type: String,
       trim: true,
       required: true,
+      set: capitalizeWords,
     },
     charges: {
       type: Number,
@@ -43,6 +45,7 @@ const treatmentRecordSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,

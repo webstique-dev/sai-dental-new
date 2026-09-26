@@ -21,6 +21,10 @@ import UnsavedChangesModal from './UnsavedChangesModal.jsx';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { validateName, validatePhone, validateAge, validateDOB } from '../../utils/validators.js';
+import { capitalizeName, capitalizeWords } from '../../utils/formatters.js';
+
+
+
 
 const MEDICAL_HISTORY_OPTIONS = [
   'Diabetes Mellitus',
@@ -159,7 +163,13 @@ export default function PatientSectionEditModal({
   if (!isOpen || !patient) return null;
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    let formattedVal = value;
+    if (['firstName', 'lastName'].includes(field)) {
+      formattedVal = capitalizeWords(value.replace(/[^a-zA-Z\s'-]/g, ''));
+    } else if (['occupation', 'address', 'allergies', 'currentMedications', 'dentalHistory'].includes(field)) {
+      formattedVal = capitalizeWords(value);
+    }
+    setFormData((prev) => ({ ...prev, [field]: formattedVal }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: null }));
     }
@@ -184,7 +194,7 @@ export default function PatientSectionEditModal({
   };
 
   const handleAddCustomVital = () => {
-    const labelTrimmed = customVitalLabel.trim();
+    const labelTrimmed = capitalizeWords(customVitalLabel.trim());
     const valueTrimmed = customVitalValue.trim();
     if (!labelTrimmed) return;
     setFormData((prev) => ({
@@ -207,7 +217,7 @@ export default function PatientSectionEditModal({
   };
 
   const handleAddCustomMedicalHistory = () => {
-    const trimmed = customMedicalInput.trim();
+    const trimmed = capitalizeWords(customMedicalInput.trim());
     if (!trimmed) return;
     if (!formData.medicalHistory.includes(trimmed)) {
       setFormData((prev) => ({
@@ -219,7 +229,7 @@ export default function PatientSectionEditModal({
   };
 
   const handleAddCustomHabit = () => {
-    const trimmed = customHabitInput.trim();
+    const trimmed = capitalizeWords(customHabitInput.trim());
     if (!trimmed) return;
     if (!formData.habits.includes(trimmed)) {
       setFormData((prev) => ({
@@ -277,9 +287,10 @@ export default function PatientSectionEditModal({
       const payload = {};
 
       if (section === 'details') {
-        payload.firstName = formData.firstName.trim();
-        payload.lastName = formData.lastName ? formData.lastName.trim() : '';
+        payload.firstName = capitalizeName(formData.firstName.trim());
+        payload.lastName = formData.lastName ? capitalizeName(formData.lastName.trim()) : '';
         payload.sex = formData.sex;
+
         payload.patientType = formData.patientType;
         payload.dateOfBirth = formData.dateOfBirth || null;
         payload.age = formData.age !== '' && !isNaN(formData.age) ? parseFloat(formData.age) : null;
@@ -287,8 +298,8 @@ export default function PatientSectionEditModal({
         payload.primaryPhone = formData.primaryPhone ? formData.primaryPhone.trim() : '';
         payload.phone = formData.primaryPhone ? formData.primaryPhone.trim() : '';
         payload.secondaryPhone = formData.secondaryPhone ? formData.secondaryPhone.trim() : '';
-        payload.occupation = formData.occupation ? formData.occupation.trim() : '';
-        payload.address = formData.address ? formData.address.trim() : '';
+        payload.occupation = formData.occupation ? capitalizeWords(formData.occupation.trim()) : '';
+        payload.address = formData.address ? capitalizeWords(formData.address.trim()) : '';
       } else if (section === 'vitals') {
         const cleanedVitals = {};
         Object.entries(formData.vitals || {}).forEach(([k, v]) => {
@@ -301,10 +312,10 @@ export default function PatientSectionEditModal({
         payload.vitals = cleanedVitals;
       } else if (section === 'medical') {
         payload.medicalHistory = formData.medicalHistory;
-        payload.currentMedications = formData.currentMedications ? formData.currentMedications.trim() : '';
-        payload.allergies = formData.allergies ? formData.allergies.trim() : '';
+        payload.currentMedications = formData.currentMedications ? capitalizeWords(formData.currentMedications.trim()) : '';
+        payload.allergies = formData.allergies ? capitalizeWords(formData.allergies.trim()) : '';
       } else if (section === 'dental') {
-        payload.dentalHistory = formData.dentalHistory ? formData.dentalHistory.trim() : '';
+        payload.dentalHistory = formData.dentalHistory ? capitalizeWords(formData.dentalHistory.trim()) : '';
         payload.habits = formData.habits;
       }
 
@@ -449,12 +460,13 @@ export default function PatientSectionEditModal({
                     </label>
                     <input
                       type="text"
+                      autoCapitalize="words"
                       className={`input-field text-xs ${
                         errors.firstName ? 'border-rose-500 bg-rose-50/40 text-rose-900' : ''
                       }`}
                       placeholder="First Name"
                       value={formData.firstName}
-                      onChange={(e) => handleChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                      onChange={(e) => handleChange('firstName', capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')))}
                     />
                     {errors.firstName && (
                       <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
@@ -467,12 +479,13 @@ export default function PatientSectionEditModal({
                     <label className="block text-xs font-semibold text-ink-soft mb-1">Last Name</label>
                     <input
                       type="text"
+                      autoCapitalize="words"
                       className={`input-field text-xs ${
                         errors.lastName ? 'border-rose-500 bg-rose-50/40 text-rose-900' : ''
                       }`}
                       placeholder="Last Name"
                       value={formData.lastName}
-                      onChange={(e) => handleChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                      onChange={(e) => handleChange('lastName', capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')))}
                     />
                     {errors.lastName && (
                       <p className="text-[11px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
@@ -480,6 +493,7 @@ export default function PatientSectionEditModal({
                       </p>
                     )}
                   </div>
+
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -845,7 +859,7 @@ export default function PatientSectionEditModal({
                       className="input-field text-xs py-1.5 flex-1"
                       placeholder="Other medical condition..."
                       value={customMedicalInput}
-                      onChange={(e) => setCustomMedicalInput(e.target.value)}
+                      onChange={(e) => setCustomMedicalInput(capitalizeWords(e.target.value))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -971,7 +985,7 @@ export default function PatientSectionEditModal({
                       className="input-field text-xs py-1.5 flex-1"
                       placeholder="e.g. Vaping, Betel nut..."
                       value={customHabitInput}
-                      onChange={(e) => setCustomHabitInput(e.target.value)}
+                      onChange={(e) => setCustomHabitInput(capitalizeWords(e.target.value))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();

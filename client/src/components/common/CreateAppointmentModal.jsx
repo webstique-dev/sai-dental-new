@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
 import DatePicker from './DatePicker.jsx';
 import SplitTimeInput from './SplitTimeInput.jsx';
 import PatientSearchInput from './PatientSearchInput.jsx';
@@ -209,7 +209,7 @@ export default function CreateAppointmentModal({
         patient: patientId,
         doctor: docId,
         type: formData.type || 'Walk-In',
-        reason: formData.reason || '',
+        reason: capitalizeWords(formData.reason || ''),
         status: isSchedule ? 'Scheduled' : 'Checked-In',
         date: isSchedule ? formData.date : dateStr,
         time: isSchedule ? formData.time : timeStr,
@@ -295,7 +295,7 @@ export default function CreateAppointmentModal({
               <div className="p-3 rounded-xl bg-bg/50 border border-border text-xs space-y-1.5">
                 <div className="flex items-center justify-between text-ink">
                   <span className="font-bold">
-                    {selectedPatient.firstName} {selectedPatient.lastName}
+                    {formatPatientFullName(selectedPatient)}
                   </span>
                   <span className="badge bg-brand/10 text-brand font-mono font-bold text-[10px]">
                     OP #{selectedPatient.opNumber}
@@ -476,7 +476,7 @@ export default function CreateAppointmentModal({
                 options={TOOTH_CONDITIONS}
                 placeholder="e.g. Toothache, Scaling, Root Canal follow-up, Mobility..."
                 value={formData.reason}
-                onChange={(val) => setFormData((prev) => ({ ...prev, reason: val }))}
+                onChange={(val) => setFormData((prev) => ({ ...prev, reason: capitalizeWords(val) }))}
                 inputClassName="text-xs"
               />
             </div>

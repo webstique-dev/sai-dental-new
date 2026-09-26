@@ -42,7 +42,9 @@ export const INITIAL_CONDITION_OPTIONS = TOOTH_CONDITIONS.map((c) => {
   return `${c} [${code}]`;
 });
 
-export function sanitizeCondition(cond) {
+import { capitalizeWords } from '../utils/formatters.js';
+
+export function sanitizeSingleCondition(cond) {
   if (!cond || typeof cond !== 'string') {
     return { name: 'Healthy', code: 'H', formatted: 'Healthy [H]' };
   }
@@ -51,7 +53,7 @@ export function sanitizeCondition(cond) {
   if (bracketMatches && bracketMatches.length > 0) {
     code = bracketMatches[0].replace(/[\[\]]/g, '').trim().toUpperCase();
   }
-  const cleanName = cond.replace(/\[.*?\]/g, '').trim() || 'Healthy';
+  const cleanName = capitalizeWords(cond.replace(/\[.*?\]/g, '').trim()) || 'Healthy';
   if (!code) {
     if (CONDITION_CODES[cleanName]) {
       code = CONDITION_CODES[cleanName].code;
@@ -66,12 +68,62 @@ export function sanitizeCondition(cond) {
   };
 }
 
+export function parseConditions(cond) {
+  if (!cond) return [sanitizeSingleCondition('Healthy [H]')];
+  if (Array.isArray(cond)) {
+    return cond.map((c) => sanitizeSingleCondition(c));
+  }
+  if (typeof cond === 'string' && cond.includes(',')) {
+    const parts = cond.split(',').map((s) => s.trim()).filter(Boolean);
+    const unique = [];
+    const seen = new Set();
+    for (const p of parts) {
+      const parsed = sanitizeSingleCondition(p);
+      const key = parsed.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(parsed);
+      }
+    }
+    return unique.length > 0 ? unique : [sanitizeSingleCondition('Healthy [H]')];
+  }
+  return [sanitizeSingleCondition(cond)];
+}
+
+export function sanitizeCondition(cond) {
+  if (!cond) {
+    const defaultObj = sanitizeSingleCondition('Healthy [H]');
+    return {
+      ...defaultObj,
+      isMultiple: false,
+      conditions: [defaultObj],
+    };
+  }
+
+  const conds = parseConditions(cond);
+  if (conds.length === 1) {
+    return {
+      ...conds[0],
+      isMultiple: false,
+      conditions: conds,
+    };
+  }
+
+  return {
+    name: conds.map((c) => c.name).join(', '),
+    code: conds.map((c) => c.code).join(', '),
+    formatted: conds.map((c) => c.formatted).join(', '),
+    isMultiple: true,
+    conditions: conds,
+  };
+}
+
 export function getConditionCodeObj(cond) {
   if (!cond) return { code: 'H', color: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' };
 
   const sanitized = sanitizeCondition(cond);
-  const baseName = sanitized.name;
-  const code = sanitized.code;
+  const baseName = sanitized.conditions?.[0]?.name || sanitized.name;
+  const code = sanitized.conditions?.[0]?.code || sanitized.code;
 
   if (CONDITION_CODES[baseName]) {
     return {

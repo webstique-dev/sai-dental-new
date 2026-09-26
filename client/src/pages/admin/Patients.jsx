@@ -3,7 +3,7 @@ import {
   Users, Search, Filter, Edit3, ArrowUpDown, ChevronLeft, ChevronRight,
   ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye, History, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, capitalizeName, formatPatientFullName } from '../../utils/formatters.js';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
@@ -175,8 +175,8 @@ export default function AdminPatients() {
 
     try {
       const payload = {
-        firstName: editForm.firstName.trim(),
-        lastName: editForm.lastName.trim(),
+        firstName: editForm.firstName ? capitalizeName(editForm.firstName.trim()) : '',
+        lastName: editForm.lastName ? capitalizeName(editForm.lastName.trim()) : '',
         primaryPhone: editForm.primaryPhone.trim(),
         secondaryPhone: editForm.secondaryPhone.trim(),
         age: editForm.age !== '' && editForm.age !== null && editForm.age !== undefined && !isNaN(editForm.age) ? parseFloat(editForm.age) : undefined,
@@ -390,7 +390,7 @@ export default function AdminPatients() {
                     </tr>
                   ) : (
                     patients.map((p) => {
-                      const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+                      const pName = formatPatientFullName(p) || 'Unnamed Patient';
                       const regDateStr = p.registrationDate || p.createdAt
                         ? new Date(p.registrationDate || p.createdAt).toLocaleDateString(undefined, {
                           month: 'short',
@@ -486,7 +486,7 @@ export default function AdminPatients() {
                 </div>
               ) : (
                 patients.map((p) => {
-                  const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+                  const pName = formatPatientFullName(p) || 'Unnamed Patient';
                   const regDateStr = p.registrationDate || p.createdAt
                     ? new Date(p.registrationDate || p.createdAt).toLocaleDateString(undefined, {
                       month: 'short',
@@ -610,7 +610,7 @@ export default function AdminPatients() {
                   OP #{selectedPatient.opNumber}
                 </span>
                 <h2 className="font-display text-lg sm:text-xl font-bold text-ink">
-                  {selectedPatient.firstName} {selectedPatient.lastName}
+                  {formatPatientFullName(selectedPatient)}
                 </h2>
                 <p className="text-xs text-ink-soft">Registered Patient Overview</p>
               </div>
@@ -787,8 +787,9 @@ export default function AdminPatients() {
                       type="text"
                       required
                       className="input-field py-1.5"
+                      autoCapitalize="words"
                       value={editForm.firstName}
-                      onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
+                      onChange={(e) => setEditForm({ ...editForm, firstName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                     />
                   </div>
                   <div>
@@ -796,8 +797,9 @@ export default function AdminPatients() {
                     <input
                       type="text"
                       className="input-field py-1.5"
+                      autoCapitalize="words"
                       value={editForm.lastName}
-                      onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value.replace(/[^a-zA-Z\s'-]/g, '') })}
+                      onChange={(e) => setEditForm({ ...editForm, lastName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                     />
                   </div>
                 </div>

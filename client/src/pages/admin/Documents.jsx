@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import DocumentsPanel from '../../components/common/DocumentsPanel.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 export default function AdminDocuments() {
   const [patients, setPatients] = useState([]);
@@ -55,7 +56,7 @@ export default function AdminDocuments() {
               const pId = p._id || p.id;
               return (
                 <option key={pId} value={pId}>
-                  {p.firstName} {p.lastName} (OP: {p.opNumber || 'N/A'})
+                  {formatPatientFullName(p)} (OP: {p.opNumber || 'N/A'})
                 </option>
               );
             })}

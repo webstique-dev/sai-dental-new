@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 import api from '../../api/axios.js';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 const TYPE_BADGES = {
   'X-Ray': 'bg-blue-100 text-blue-800 border-blue-200',
@@ -66,7 +67,7 @@ export default function DocumentsPanel({ patientId, consultationId, title = 'Pat
       formData.append('patientId', patientId);
       if (consultationId) formData.append('consultationId', consultationId);
       formData.append('documentType', docType);
-      if (customName) formData.append('customName', customName);
+      if (customName) formData.append('customName', capitalizeWords(customName.trim()));
 
       await api.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -298,7 +299,7 @@ export default function DocumentsPanel({ patientId, consultationId, title = 'Pat
                     className="input-field"
                     placeholder="e.g. IOPAR wrt #16 Upper Right"
                     value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
+                    onChange={(e) => setCustomName(capitalizeWords(e.target.value))}
                   />
                 </div>
               </div>

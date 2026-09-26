@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, UserPlus, ChevronLeft, ChevronRight, Eye, UserSquare2, Phone, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
+
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { PatientDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 
@@ -114,7 +115,7 @@ export default function Patients() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {patients.map((p) => {
-                    const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unnamed Patient';
+                    const fullName = formatPatientFullName(p) || 'Unnamed Patient';
                     const regDate = p.registrationDate
                       ? new Date(p.registrationDate).toLocaleDateString()
                       : 'N/A';
@@ -174,7 +175,8 @@ export default function Patients() {
             {/* Mobile Accordion Cards View (<768px down to 320px) */}
             <div className="block md:hidden divide-y divide-border">
               {patients.map((p) => {
-                const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unnamed Patient';
+                const fullName = formatPatientFullName(p) || 'Unnamed Patient';
+
                 const regDate = p.registrationDate
                   ? new Date(p.registrationDate).toLocaleDateString()
                   : 'N/A';

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 // The three operational roles defined by the PRD. Every route in this
 // system authorizes against this exact set — do not add roles here
@@ -12,6 +13,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Name is required'],
       trim: true,
+      set: capitalizeWords,
     },
     email: {
       type: String,

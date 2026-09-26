@@ -7,6 +7,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 const STATUS_BADGES = {
   Planned: 'bg-slate-100 text-slate-800 border-slate-200',
@@ -61,7 +62,7 @@ export default function TreatmentPlansPage() {
   // If a record is selected for Viewing/Editing
   if (selectedConsultation) {
     const p = selectedConsultation.patient || {};
-    const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+    const patientName = formatPatientFullName(p) || 'Patient';
     const isCompleted = selectedConsultation.status === 'Completed';
 
     return (
@@ -203,7 +204,7 @@ export default function TreatmentPlansPage() {
                 {consultations.map((c) => {
                   const cId = c._id || c.id;
                   const p = c.patient || {};
-                  const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const patientName = formatPatientFullName(p) || 'Patient';
                   const planDateStr = c.startedAt || c.visitDate || c.createdAt
                     ? new Date(c.startedAt || c.visitDate || c.createdAt).toLocaleDateString(undefined, {
                         month: 'short', day: 'numeric', year: 'numeric',

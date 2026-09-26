@@ -6,6 +6,7 @@ import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validateEmail, validatePhone } from '../../utils/validators.js';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 const ROLE_BADGE = {
   admin: 'bg-role-adminSoft text-role-admin',
@@ -93,11 +94,11 @@ export default function AdminUsers() {
     try {
       await api.post('/users', {
         ...form,
-        name: form.name.trim(),
+        name: capitalizeWords(form.name.trim()),
         email: form.email.trim(),
         phone: form.phone ? form.phone.trim() : '',
       });
-      showSuccess(`User ${form.name} created successfully.`);
+      showSuccess(`User ${capitalizeWords(form.name.trim())} created successfully.`);
       setForm({ name: '', email: '', phone: '', password: '', role: 'receptionist' });
       setShowForm(false);
       fetchUsers();
@@ -169,7 +170,7 @@ export default function AdminUsers() {
       // Show confirmation dialog before changing role
       setPendingRoleChange({
         id: userId,
-        name: editForm.name.trim(),
+        name: capitalizeWords(editForm.name.trim()),
         oldRole: editingUser.role,
         newRole: editForm.role,
       });
@@ -177,7 +178,7 @@ export default function AdminUsers() {
     }
 
     submitUserUpdate(userId, {
-      name: editForm.name.trim(),
+      name: capitalizeWords(editForm.name.trim()),
       phone: editForm.phone ? editForm.phone.trim() : '',
       role: editForm.role,
     });
@@ -292,7 +293,7 @@ export default function AdminUsers() {
                 className="input-field mt-1 text-xs"
                 placeholder="Dr. Jane Smith"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value.replace(/[^a-zA-Z\s'.-]/g, '') })}
+                onChange={(e) => setForm({ ...form, name: capitalizeWords(e.target.value.replace(/[^a-zA-Z\s'.-]/g, '')) })}
               />
             </div>
             <div>
@@ -665,7 +666,7 @@ export default function AdminUsers() {
                   required
                   className="input-field py-1.5"
                   value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  onChange={(e) => setEditForm({ ...editForm, name: capitalizeWords(e.target.value) })}
                 />
               </div>
 

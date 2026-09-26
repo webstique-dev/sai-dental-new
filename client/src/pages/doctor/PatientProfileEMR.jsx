@@ -7,8 +7,9 @@ import {
   CheckCircle, XCircle, AlertCircle, Sparkles, ExternalLink, ArrowRight, X,
   Receipt, Wallet, CreditCard
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
+
 import ToothChart from './consultation/ToothChart.jsx';
 import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistoryPanel.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
@@ -17,6 +18,7 @@ import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import ExaminationEditModal from '../../components/common/ExaminationEditModal.jsx';
+import FollowUpEditModal from '../../components/common/FollowUpEditModal.jsx';
 
 const PROFILE_TABS = [
   { id: 'examination', label: 'Doctor Examination History', icon: Stethoscope },
@@ -155,6 +157,7 @@ export default function PatientProfileEMR() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedConsultationForExamEdit, setSelectedConsultationForExamEdit] = useState(null);
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+  const [editingFollowUp, setEditingFollowUp] = useState(null);
   const [activeTab, setActiveTab] = useState('examination');
 
   // Accordion state: all accordions closed by default
@@ -347,7 +350,7 @@ export default function PatientProfileEMR() {
     );
   }
 
-  const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+  const fullName = formatPatientFullName(patient) || 'Patient';
   const dobStr = patient.dateOfBirth || patient.dob
     ? new Date(patient.dateOfBirth || patient.dob).toLocaleDateString(undefined, {
       month: 'short', day: 'numeric', year: 'numeric',
@@ -1338,7 +1341,16 @@ export default function PatientProfileEMR() {
                       );
                     })()}
 
-                    {/* Action Buttons: Check-In & Cancel */}
+                    {/* Action Buttons: Edit, Check-In & Cancel */}
+                    <button
+                      type="button"
+                      onClick={() => setEditingFollowUp(primaryFollowUp)}
+                      className="btn-secondary py-1 px-2.5 text-xs font-bold text-purple-800 hover:text-purple-900 hover:bg-purple-100 border-purple-300 flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                      title="Edit this follow-up record"
+                    >
+                      <Edit3 size={13} />
+                      <span>Edit</span>
+                    </button>
                     {['Scheduled', 'Pending'].includes(primaryFollowUp.status) && (
                       <button
                         type="button"
@@ -1463,9 +1475,20 @@ export default function PatientProfileEMR() {
 
                           <div className="flex items-center gap-1.5">
                             {item.isFollowUp && (
-                              <span className="badge bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold py-0.5 px-1.5">
-                                Follow-Up
-                              </span>
+                              <>
+                                <span className="badge bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold py-0.5 px-1.5">
+                                  Follow-Up
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingFollowUp(item)}
+                                  className="btn-secondary py-0.5 px-2 text-[10px] font-bold text-purple-700 hover:text-purple-900 border-purple-200 inline-flex items-center gap-1 cursor-pointer"
+                                  title="Edit Follow-Up Details"
+                                >
+                                  <Edit3 size={11} />
+                                  <span>Edit</span>
+                                </button>
+                              </>
                             )}
                             <span className={`badge border text-[10px] font-bold uppercase py-0.5 px-2 ${statusObj.color}`}>
                               {statusObj.label}
@@ -1542,7 +1565,7 @@ export default function PatientProfileEMR() {
 
           {/* TAB 6: BILLING SUMMARY (READ-ONLY) */}
           <div className={activeTab === 'billing' ? 'block space-y-6 animate-fadeIn' : 'hidden'}>
-            <PatientBillingSummary billing={billing} showHeader={true} />
+            <PatientBillingSummary billing={billing} patientId={patientId} showHeader={true} onInvoiceUpdated={() => fetchEMR()} />
           </div>
         </div>
 
@@ -1565,6 +1588,18 @@ export default function PatientProfileEMR() {
           setSelectedConsultationForExamEdit(null);
         }}
         onSuccess={() => fetchEMR()}
+      />
+
+      {/* EDIT FOLLOW-UP MODAL */}
+      <FollowUpEditModal
+        isOpen={Boolean(editingFollowUp)}
+        followUp={editingFollowUp}
+        patient={patient}
+        onClose={() => setEditingFollowUp(null)}
+        onSuccess={() => {
+          setEditingFollowUp(null);
+          fetchEMR();
+        }}
       />
 
       {/* CANCELLATION CONFIRMATION MODAL POPUP */}
@@ -1611,7 +1646,7 @@ export default function PatientProfileEMR() {
                   placeholder="e.g. Patient called to cancel, patient relocated, condition resolved..."
                   value={cancellationReason}
                   onChange={(e) => {
-                    setCancellationReason(e.target.value);
+                    setCancellationReason(capitalizeWords(e.target.value));
                     if (cancelModalError) setCancelModalError('');
                   }}
                   autoFocus

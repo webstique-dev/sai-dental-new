@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Wallet, CreditCard, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import { Receipt, CreditCard, CheckCircle2, AlertCircle, Calendar, Printer, Edit3 } from 'lucide-react';
 import StatCard from './StatCard.jsx';
 import api from '../../api/axios.js';
+import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
+import InvoiceEditModal from './InvoiceEditModal.jsx';
 
 function getInvoiceStatusBadge(status) {
   switch (status) {
@@ -35,46 +37,41 @@ export default function PatientBillingSummary({
   billing: directBilling,
   showHeader = true,
   className = '',
+  onInvoiceUpdated,
 }) {
   const [fetchedBilling, setFetchedBilling] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedInvoiceForEdit, setSelectedInvoiceForEdit] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Fetch billing data if not directly provided via props
+  // Fetch billing data if not directly provided via props or when refreshed
+  const loadBilling = async () => {
+    if (!patientId) return;
+
+    try {
+      setLoading(true);
+      setError('');
+      const res = await api.get(`/patients/${patientId}/emr`);
+      setFetchedBilling(res.data?.billing || {
+        totalCharges: 0,
+        totalPaid: 0,
+        totalBalance: 0,
+        invoices: [],
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load billing summary.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (directBilling) {
       setFetchedBilling(null);
       return;
     }
-    if (!patientId) return;
-
-    let isMounted = true;
-    async function loadBilling() {
-      try {
-        setLoading(true);
-        setError('');
-        const res = await api.get(`/patients/${patientId}/emr`);
-        if (isMounted) {
-          setFetchedBilling(res.data?.billing || {
-            totalCharges: 0,
-            totalPaid: 0,
-            totalBalance: 0,
-            invoices: [],
-          });
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.response?.data?.message || 'Failed to load billing summary.');
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
     loadBilling();
-    return () => {
-      isMounted = false;
-    };
   }, [patientId, directBilling]);
 
   const billing = directBilling || fetchedBilling || {
@@ -85,6 +82,24 @@ export default function PatientBillingSummary({
   };
 
   const invoices = billing.invoices || [];
+
+  const handleOpenEdit = (inv) => {
+    setSelectedInvoiceForEdit(inv);
+    setIsEditModalOpen(true);
+  };
+
+  const handlePrintBill = (inv) => {
+    openBillPrintWindow({ invoice: inv }, true);
+  };
+
+  const handleInvoiceSaved = async (updated) => {
+    if (patientId) {
+      await loadBilling();
+    }
+    if (onInvoiceUpdated) {
+      onInvoiceUpdated(updated);
+    }
+  };
 
   if (loading) {
     return (
@@ -172,6 +187,7 @@ export default function PatientBillingSummary({
                     <th className="py-2.5 px-4 text-right">Paid</th>
                     <th className="py-2.5 px-4 text-right">Balance</th>
                     <th className="py-2.5 px-4 text-center">Status</th>
+                    <th className="py-2.5 px-4 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -180,10 +196,10 @@ export default function PatientBillingSummary({
                     return (
                       <tr key={inv._id || idx} className="hover:bg-bg/30 transition-colors">
                         <td className="py-3 px-4 font-medium text-ink whitespace-nowrap">
-                          {formatReadableDate(inv.date)}
+                          {formatReadableDate(inv.date || inv.createdAt)}
                         </td>
                         <td className="py-3 px-4 text-ink-soft max-w-xs truncate" title={inv.itemsSummary}>
-                          <span className="text-ink font-medium">{inv.itemsSummary}</span>
+                          <span className="text-ink font-medium">{inv.itemsSummary || 'General Dental Treatment'}</span>
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-bold text-ink">
                           ₹{(inv.total || 0).toLocaleString()}
@@ -201,6 +217,28 @@ export default function PatientBillingSummary({
                             {statusBadge.label}
                           </span>
                         </td>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handlePrintBill(inv)}
+                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-ink hover:text-brand hover:border-brand/40 shadow-2xs cursor-pointer"
+                              title="Print Bill / Invoice"
+                            >
+                              <Printer size={13} />
+                              <span>Print Bill</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(inv)}
+                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-brand hover:underline cursor-pointer"
+                              title="Edit Bill Details"
+                            >
+                              <Edit3 size={13} />
+                              <span>Edit</span>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -216,9 +254,9 @@ export default function PatientBillingSummary({
                   <div key={inv._id || idx} className="p-4 space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="font-semibold text-xs text-ink block">{inv.itemsSummary}</span>
+                        <span className="font-semibold text-xs text-ink block">{inv.itemsSummary || 'General Dental Treatment'}</span>
                         <span className="text-[11px] text-ink-soft flex items-center gap-1 mt-0.5">
-                          <Calendar size={12} /> {formatReadableDate(inv.date)}
+                          <Calendar size={12} /> {formatReadableDate(inv.date || inv.createdAt)}
                         </span>
                       </div>
                       <span className={`badge border text-[10px] font-bold py-0.5 px-2 shrink-0 ${statusBadge.color}`}>
@@ -241,6 +279,24 @@ export default function PatientBillingSummary({
                         </span>
                       </div>
                     </div>
+                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+                      <button
+                        type="button"
+                        onClick={() => handlePrintBill(inv)}
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-ink hover:text-brand"
+                      >
+                        <Printer size={13} />
+                        <span>Print Bill</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(inv)}
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-brand"
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -254,6 +310,17 @@ export default function PatientBillingSummary({
           </div>
         )}
       </div>
+
+      {/* INVOICE EDIT MODAL */}
+      <InvoiceEditModal
+        isOpen={isEditModalOpen}
+        invoice={selectedInvoiceForEdit}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedInvoiceForEdit(null);
+        }}
+        onSuccess={handleInvoiceSaved}
+      />
     </div>
   );
 }

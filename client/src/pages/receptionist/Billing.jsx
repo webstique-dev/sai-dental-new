@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import {
   Wallet, Plus, Search, Trash2, X, Clock, Calendar,
   FileText, DollarSign, CreditCard, ChevronRight, User, Stethoscope, Eye, Filter, RefreshCw,
-  Banknote, QrCode, Building2, Tag, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp
+  Banknote, QrCode, Building2, Tag, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Printer
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
-import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 
 const STATUS_BADGE_CLASSES = {
   Paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -159,7 +160,7 @@ export default function Billing() {
 
   const handleItemChange = (index, field, value) => {
     const updated = [...items];
-    updated[index][field] = value;
+    updated[index][field] = (field === 'service' || field === 'treatment') ? capitalizeWords(value) : value;
     setItems(updated);
   };
 
@@ -199,7 +200,11 @@ export default function Billing() {
         patient: selectedPatient._id || selectedPatient.id,
         doctor: selectedDoctorId || undefined,
         opNumber: selectedPatient.opNumber || '',
-        items: validItems,
+        items: validItems.map((i) => ({
+          ...i,
+          service: capitalizeWords(i.service),
+          treatment: i.treatment ? capitalizeWords(i.treatment) : undefined,
+        })),
         discount: Number(discount) || 0,
         tax: Number(tax) || 0,
       };
@@ -449,7 +454,7 @@ export default function Billing() {
                     {invoices.map((inv) => {
                       const invId = inv._id || inv.id;
                       const patient = inv.patient || {};
-                      const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                      const patientName = formatPatientFullName(patient) || 'Patient';
                       const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
                       const visitDateStr = inv.createdAt
                         ? new Date(inv.createdAt).toLocaleDateString(undefined, {
@@ -511,6 +516,14 @@ export default function Billing() {
                                 <Eye size={14} /> View
                               </button>
 
+                              <button
+                                onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                                title="Print Bill / Invoice"
+                                className="btn-secondary text-xs py-1.5 px-2.5 hover:border-brand/50 hover:text-brand"
+                              >
+                                <Printer size={14} /> Print Bill
+                              </button>
+
                               {inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && (
                                 <button
                                   onClick={() => openPaymentModal(inv)}
@@ -533,7 +546,7 @@ export default function Billing() {
                 {invoices.map((inv) => {
                   const invId = inv._id || inv.id;
                   const patient = inv.patient || {};
-                  const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const patientName = formatPatientFullName(patient) || 'Patient';
                   const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
                   const visitDateStr = inv.createdAt
                     ? new Date(inv.createdAt).toLocaleDateString(undefined, {
@@ -605,6 +618,13 @@ export default function Billing() {
                               <Eye size={14} /> View Details
                             </button>
 
+                            <button
+                              onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                              className="btn-secondary py-1.5 px-3 text-xs flex-1 justify-center font-semibold hover:border-brand/50 hover:text-brand"
+                            >
+                              <Printer size={14} /> Print Bill
+                            </button>
+
                             {inv.paymentStatus !== 'Paid' && inv.paymentStatus !== 'Refunded' && (
                               <button
                                 onClick={() => openPaymentModal(inv)}
@@ -643,7 +663,7 @@ export default function Billing() {
                 <div>
                   <span className="text-[10px] font-bold uppercase text-ink-soft block">Patient</span>
                   <span className="font-bold text-ink">
-                    {selectedInvoiceDetail.patient?.firstName} {selectedInvoiceDetail.patient?.lastName}
+                    {formatPatientFullName(selectedInvoiceDetail.patient)}
                   </span>
                   <span className="text-xs text-brand font-mono font-bold block">{selectedInvoiceDetail.opNumber || selectedInvoiceDetail.patient?.opNumber}</span>
                 </div>
@@ -759,6 +779,13 @@ export default function Billing() {
                 onClick={() => setSelectedInvoiceDetail(null)}
               >
                 Close
+              </button>
+              <button
+                type="button"
+                className="btn-secondary text-xs inline-flex items-center gap-1.5 hover:border-brand/50 hover:text-brand"
+                onClick={() => openBillPrintWindow({ invoice: selectedInvoiceDetail }, true)}
+              >
+                <Printer size={14} /> Print Bill
               </button>
               {selectedInvoiceDetail.paymentStatus !== 'Paid' && selectedInvoiceDetail.paymentStatus !== 'Refunded' && (
                 <button
@@ -932,7 +959,7 @@ export default function Billing() {
                   <div>
                     <span className="text-[10px] font-bold uppercase text-ink-soft block">Patient</span>
                     <span className="font-bold text-ink text-sm">
-                      {activePaymentInvoice.patient?.firstName} {activePaymentInvoice.patient?.lastName}
+                      {formatPatientFullName(activePaymentInvoice.patient)}
                     </span>
                     <span className="text-xs text-brand font-mono font-bold block">{activePaymentInvoice.opNumber || activePaymentInvoice.patient?.opNumber}</span>
                   </div>

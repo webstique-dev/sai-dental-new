@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { capitalizeWords } = require('../utils/formatters.js');
 
-const treatmentSchema = new mongoose.Schema(
+const medicineSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -9,10 +9,11 @@ const treatmentSchema = new mongoose.Schema(
       trim: true,
       set: capitalizeWords,
     },
-    code: {
+    dosage: {
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     category: {
       type: String,
@@ -20,20 +21,30 @@ const treatmentSchema = new mongoose.Schema(
       default: 'General',
       set: capitalizeWords,
     },
-    description: {
+    defaultFrequency: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    defaultDuration: {
       type: String,
       trim: true,
       default: '',
       set: capitalizeWords,
     },
-    defaultCost: {
-      type: Number,
-      default: 0,
-      min: 0,
+    defaultInstructions: {
+      type: String,
+      trim: true,
+      default: '',
+      set: capitalizeWords,
     },
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isCustom: {
+      type: Boolean,
+      default: false,
     },
   },
   {
@@ -41,4 +52,7 @@ const treatmentSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('Treatment', treatmentSchema);
+// Compound index on normalized name and dosage to aid fast lookup & unique checks
+medicineSchema.index({ name: 1, dosage: 1 });
+
+module.exports = mongoose.model('Medicine', medicineSchema);

@@ -5,6 +5,7 @@ import {
 import api from '../../../api/axios.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../../context/NotificationContext.jsx';
+import { capitalizeWords } from '../../../utils/formatters.js';
 
 const ALL_FDI_TEETH = [
   18, 17, 16, 15, 14, 13, 12, 11,
@@ -94,9 +95,9 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
       const payload = {
         consultation: consultationId,
         patient: patientId,
-        diagnosis: diagnosisText.trim(),
-        clinicalFindings: clinicalFindings ? clinicalFindings.trim() : '',
-        notes: notes ? notes.trim() : '',
+        diagnosis: capitalizeWords(diagnosisText.trim()),
+        clinicalFindings: clinicalFindings ? capitalizeWords(clinicalFindings.trim()) : '',
+        notes: notes ? capitalizeWords(notes.trim()) : '',
         severity: severity || undefined,
         relatedTeeth,
       };
@@ -140,9 +141,9 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
     try {
       const diagId = editingItem._id || editingItem.id;
       await api.patch(`/diagnoses/${diagId}`, {
-        diagnosis: editDiagnosisText.trim(),
-        clinicalFindings: editClinicalFindings ? editClinicalFindings.trim() : '',
-        notes: editNotes ? editNotes.trim() : '',
+        diagnosis: capitalizeWords(editDiagnosisText.trim()),
+        clinicalFindings: editClinicalFindings ? capitalizeWords(editClinicalFindings.trim()) : '',
+        notes: editNotes ? capitalizeWords(editNotes.trim()) : '',
         severity: editSeverity || undefined,
         relatedTeeth: editRelatedTeeth,
       });
@@ -198,7 +199,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                   className="input-field"
                   placeholder="e.g. Irreversible Pulpitis, Dental Caries, Chronic Periodontitis"
                   value={diagnosisText}
-                  onChange={(e) => setDiagnosisText(e.target.value)}
+                  onChange={(e) => setDiagnosisText(capitalizeWords(e.target.value))}
                 />
               </div>
 
@@ -225,7 +226,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                   className="input-field"
                   placeholder="e.g. Deep occlusal cavity, tenderness on percussion"
                   value={clinicalFindings}
-                  onChange={(e) => setClinicalFindings(e.target.value)}
+                  onChange={(e) => setClinicalFindings(capitalizeWords(e.target.value))}
                 />
               </div>
 
@@ -236,7 +237,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                   className="input-field"
                   placeholder="Additional notes for treatment planning..."
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => setNotes(capitalizeWords(e.target.value))}
                 />
               </div>
             </div>
@@ -406,7 +407,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                     type="text"
                     className="input-field"
                     value={editDiagnosisText}
-                    onChange={(e) => setEditDiagnosisText(e.target.value)}
+                    onChange={(e) => setEditDiagnosisText(capitalizeWords(e.target.value))}
                   />
                 </div>
 
@@ -430,7 +431,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                     type="text"
                     className="input-field"
                     value={editClinicalFindings}
-                    onChange={(e) => setEditClinicalFindings(e.target.value)}
+                    onChange={(e) => setEditClinicalFindings(capitalizeWords(e.target.value))}
                   />
                 </div>
 
@@ -440,7 +441,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                     type="text"
                     className="input-field"
                     value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
+                    onChange={(e) => setEditNotes(capitalizeWords(e.target.value))}
                   />
                 </div>
 

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
   Wallet, Search, RefreshCcw, DollarSign, X,
-  CreditCard, ShieldAlert, Filter, ChevronDown, ChevronUp
+  CreditCard, ShieldAlert, Filter, ChevronDown, ChevronUp, Printer
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import InvoiceList from '../../components/common/InvoiceList.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 
 export default function AdminBilling() {
   const { showSuccess, showError } = useNotification();
@@ -98,7 +100,7 @@ export default function AdminBilling() {
       const invId = refundingInvoice._id || refundingInvoice.id;
       await api.post(`/invoices/${invId}/refund`, {
         amount: amt,
-        reason: refundForm.reason.trim(),
+        reason: capitalizeWords(refundForm.reason.trim()),
       });
 
       showSuccess('Invoice refund processed successfully and status set to Refunded.');
@@ -398,7 +400,7 @@ export default function AdminBilling() {
                     className="input-field py-1.5"
                     placeholder="State reason (e.g. Service cancellation, billing correction)..."
                     value={refundForm.reason}
-                    onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })}
+                    onChange={(e) => setRefundForm({ ...refundForm, reason: capitalizeWords(e.target.value) })}
                   />
                 </div>
 
@@ -447,7 +449,7 @@ export default function AdminBilling() {
                 <div className="flex justify-between border-b border-border/60 pb-2">
                   <span className="text-ink-soft font-semibold">Patient Name:</span>
                   <span className="font-bold text-ink">
-                    {selectedInvoiceDetail.patient?.firstName} {selectedInvoiceDetail.patient?.lastName}
+                    {formatPatientFullName(selectedInvoiceDetail.patient)}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-border/60 pb-2">
@@ -538,12 +540,18 @@ export default function AdminBilling() {
               </div>
             </div>
 
-            <div className="flex justify-end px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
+            <div className="flex items-center justify-end gap-2 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-bg/50 shrink-0">
               <button
                 onClick={() => setSelectedInvoiceDetail(null)}
                 className="btn-secondary py-1.5 px-3 text-xs"
               >
                 Close Breakdown
+              </button>
+              <button
+                onClick={() => openBillPrintWindow({ invoice: selectedInvoiceDetail }, true)}
+                className="btn-secondary py-1.5 px-3 text-xs inline-flex items-center gap-1.5 hover:border-brand/50 hover:text-brand"
+              >
+                <Printer size={14} /> Print Bill
               </button>
             </div>
           </div>

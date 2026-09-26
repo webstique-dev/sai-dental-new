@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Stethoscope, Plus, Trash2, Save, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
+import { capitalizeWords } from '../../utils/formatters.js';
 
 const EXTRAORAL_OPTIONS = ['Facial Symmetry', 'TMJ', 'Lymph Nodes', 'Swelling', 'Muscle Tenderness'];
 const SOFT_TISSUE_OPTIONS = ['Labial/Buccal Mucosa', 'Tongue', 'Floor of Mouth', 'Gingiva', 'Hard Palate', 'Soft Palate', 'Tonsillar Area'];
@@ -57,7 +58,7 @@ export default function ExaminationEditModal({
     if (!newExtraoralFinding.trim()) return;
     setFormData((prev) => ({
       ...prev,
-      extraoral: [...prev.extraoral, { finding: newExtraoralFinding.trim(), notes: newExtraoralNotes.trim() }],
+      extraoral: [...prev.extraoral, { finding: capitalizeWords(newExtraoralFinding.trim()), notes: capitalizeWords(newExtraoralNotes.trim()) }],
     }));
     setNewExtraoralFinding('');
     setNewExtraoralNotes('');
@@ -74,7 +75,7 @@ export default function ExaminationEditModal({
     if (!newSoftTissueArea.trim()) return;
     setFormData((prev) => ({
       ...prev,
-      softTissue: [...prev.softTissue, { area: newSoftTissueArea.trim(), notes: newSoftTissueNotes.trim() }],
+      softTissue: [...prev.softTissue, { area: capitalizeWords(newSoftTissueArea.trim()), notes: capitalizeWords(newSoftTissueNotes.trim()) }],
     }));
     setNewSoftTissueArea('');
     setNewSoftTissueNotes('');
@@ -107,12 +108,12 @@ export default function ExaminationEditModal({
       const payload = {
         consultation: consultationId,
         patient: targetPatientId || undefined,
-        chiefComplaints: formData.chiefComplaints.trim(),
+        chiefComplaints: capitalizeWords(formData.chiefComplaints.trim()),
         extraoral: formData.extraoral,
         softTissue: formData.softTissue,
         gingivalFindings: formData.gingivalFindings,
-        periodontalDetails: formData.periodontalDetails.trim(),
-        overallNotes: formData.overallNotes.trim(),
+        periodontalDetails: capitalizeWords(formData.periodontalDetails.trim()),
+        overallNotes: capitalizeWords(formData.overallNotes.trim()),
       };
 
       let res;
@@ -185,7 +186,7 @@ export default function ExaminationEditModal({
                 className="input-field text-xs"
                 placeholder="Patient's primary concerns and reported symptoms..."
                 value={formData.chiefComplaints}
-                onChange={(e) => setFormData({ ...formData, chiefComplaints: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, chiefComplaints: capitalizeWords(e.target.value) })}
               />
             </div>
 
@@ -230,7 +231,7 @@ export default function ExaminationEditModal({
                     className="input-field text-xs py-1.5"
                     placeholder="Finding (e.g. Swelling, TMJ)..."
                     value={newExtraoralFinding}
-                    onChange={(e) => setNewExtraoralFinding(e.target.value)}
+                    onChange={(e) => setNewExtraoralFinding(capitalizeWords(e.target.value))}
                   />
                   <datalist id="extraoral-options">
                     {EXTRAORAL_OPTIONS.map((opt) => (
@@ -244,7 +245,7 @@ export default function ExaminationEditModal({
                     className="input-field text-xs py-1.5"
                     placeholder="Clinical notes / observations..."
                     value={newExtraoralNotes}
-                    onChange={(e) => setNewExtraoralNotes(e.target.value)}
+                    onChange={(e) => setNewExtraoralNotes(capitalizeWords(e.target.value))}
                   />
                 </div>
                 <div className="sm:col-span-2">
@@ -301,7 +302,7 @@ export default function ExaminationEditModal({
                     className="input-field text-xs py-1.5"
                     placeholder="Area (e.g. Labial Mucosa, Tongue)..."
                     value={newSoftTissueArea}
-                    onChange={(e) => setNewSoftTissueArea(e.target.value)}
+                    onChange={(e) => setNewSoftTissueArea(capitalizeWords(e.target.value))}
                   />
                   <datalist id="soft-tissue-options">
                     {SOFT_TISSUE_OPTIONS.map((opt) => (
@@ -315,7 +316,7 @@ export default function ExaminationEditModal({
                     className="input-field text-xs py-1.5"
                     placeholder="Clinical findings / observations..."
                     value={newSoftTissueNotes}
-                    onChange={(e) => setNewSoftTissueNotes(e.target.value)}
+                    onChange={(e) => setNewSoftTissueNotes(capitalizeWords(e.target.value))}
                   />
                 </div>
                 <div className="sm:col-span-2">
@@ -370,7 +371,7 @@ export default function ExaminationEditModal({
                   className="input-field text-xs"
                   placeholder="Pocket depths, calculus index, bleeding index details..."
                   value={formData.periodontalDetails}
-                  onChange={(e) => setFormData({ ...formData, periodontalDetails: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, periodontalDetails: capitalizeWords(e.target.value) })}
                 />
               </div>
             </div>
@@ -385,7 +386,7 @@ export default function ExaminationEditModal({
                 className="input-field text-xs"
                 placeholder="Comprehensive diagnosis notes, prognosis, and treatment recommendations..."
                 value={formData.overallNotes}
-                onChange={(e) => setFormData({ ...formData, overallNotes: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, overallNotes: capitalizeWords(e.target.value) })}
               />
             </div>
           </div>

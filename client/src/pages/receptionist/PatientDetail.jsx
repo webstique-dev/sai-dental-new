@@ -7,8 +7,9 @@ import {
   ArrowLeft, Heart, HeartPulse, Activity, ShieldAlert, FileHeart, RefreshCw,
   UserSquare2, Hash, Pill, Stethoscope
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, capitalizeName, capitalizeWords } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
+
 import DatePicker from '../../components/common/DatePicker.jsx';
 import UnsavedChangesModal from '../../components/common/UnsavedChangesModal.jsx';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges.js';
@@ -87,7 +88,7 @@ export default function PatientDetail() {
   };
 
   const handleAddEditCustomMedicalHistory = () => {
-    const trimmed = editCustomMedicalInput.trim();
+    const trimmed = capitalizeWords(editCustomMedicalInput.trim());
     if (!trimmed) return;
     if (!editForm.medicalHistory.includes(trimmed)) {
       setEditForm((prev) => ({
@@ -99,7 +100,7 @@ export default function PatientDetail() {
   };
 
   const handleAddEditCustomHabit = () => {
-    const trimmed = editCustomHabitInput.trim();
+    const trimmed = capitalizeWords(editCustomHabitInput.trim());
     if (!trimmed) return;
     if (!editForm.habits.includes(trimmed)) {
       setEditForm((prev) => ({
@@ -111,7 +112,7 @@ export default function PatientDetail() {
   };
 
   const handleAddEditCustomVital = () => {
-    const labelTrimmed = editCustomVitalLabel.trim();
+    const labelTrimmed = capitalizeWords(editCustomVitalLabel.trim());
     const valueTrimmed = editCustomVitalValue.trim();
     if (!labelTrimmed) return;
     setEditForm((prev) => ({
@@ -179,7 +180,13 @@ export default function PatientDetail() {
   };
 
   const handleEditChange = (field, value) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
+    let formattedVal = value;
+    if (['firstName', 'lastName'].includes(field)) {
+      formattedVal = capitalizeWords(value.replace(/[^a-zA-Z\s'-]/g, ''));
+    } else if (['occupation', 'address', 'currentMedications', 'dentalHistory'].includes(field)) {
+      formattedVal = capitalizeWords(value);
+    }
+    setEditForm((prev) => ({ ...prev, [field]: formattedVal }));
   };
 
   const handleVitalsChange = (field, value) => {
@@ -273,12 +280,15 @@ export default function PatientDetail() {
 
       const payload = {
         ...editForm,
-        firstName: editForm.firstName ? editForm.firstName.trim() : '',
-        lastName: editForm.lastName ? editForm.lastName.trim() : '',
+        firstName: editForm.firstName ? capitalizeName(editForm.firstName.trim()) : '',
+        lastName: editForm.lastName ? capitalizeName(editForm.lastName.trim()) : '',
         primaryPhone: editForm.primaryPhone ? editForm.primaryPhone.trim() : '',
+
         secondaryPhone: editForm.secondaryPhone ? editForm.secondaryPhone.trim() : '',
-        occupation: editForm.occupation ? editForm.occupation.trim() : '',
-        address: editForm.address ? editForm.address.trim() : '',
+        occupation: editForm.occupation ? capitalizeWords(editForm.occupation.trim()) : '',
+        address: editForm.address ? capitalizeWords(editForm.address.trim()) : '',
+        currentMedications: editForm.currentMedications ? capitalizeWords(editForm.currentMedications.trim()) : '',
+        dentalHistory: editForm.dentalHistory ? capitalizeWords(editForm.dentalHistory.trim()) : '',
         age: editForm.age !== '' && editForm.age !== undefined && !isNaN(editForm.age) ? parseFloat(editForm.age) : undefined,
         dateOfBirth: editForm.dateOfBirth ? editForm.dateOfBirth : null,
         vitals: cleanedVitals,
@@ -327,7 +337,7 @@ export default function PatientDetail() {
     );
   }
 
-  const fullName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unnamed Patient';
+  const fullName = [capitalizeName(patient.firstName), capitalizeName(patient.lastName)].filter(Boolean).join(' ') || 'Unnamed Patient';
   const regDate = patient.registrationDate || patient.createdAt
     ? new Date(patient.registrationDate || patient.createdAt).toLocaleDateString(undefined, {
       year: 'numeric',
@@ -612,20 +622,23 @@ export default function PatientDetail() {
                       <input
                         type="text"
                         required
+                        autoCapitalize="words"
                         className="input-field py-1.5"
                         value={editForm.firstName}
-                        onChange={(e) => handleEditChange('firstName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                        onChange={(e) => handleEditChange('firstName', capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')))}
                       />
                     </div>
                     <div>
                       <label className="block font-semibold text-ink-soft mb-1">Last Name</label>
                       <input
                         type="text"
+                        autoCapitalize="words"
                         className="input-field py-1.5"
                         value={editForm.lastName}
-                        onChange={(e) => handleEditChange('lastName', e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
+                        onChange={(e) => handleEditChange('lastName', capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')))}
                       />
                     </div>
+
                     <div>
                       <label className="block font-semibold text-ink-soft mb-1">Primary Phone</label>
                       <input
@@ -931,7 +944,7 @@ export default function PatientDetail() {
                         className="input-field py-1.5 text-xs flex-1"
                         placeholder="Enter additional habit (e.g. Vaping, Betel Nut)..."
                         value={editCustomHabitInput}
-                        onChange={(e) => setEditCustomHabitInput(e.target.value)}
+                        onChange={(e) => setEditCustomHabitInput(capitalizeWords(e.target.value))}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();

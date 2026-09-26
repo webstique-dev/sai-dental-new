@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const defaultWorkingHours = [
   { day: 'Monday', open: '09:00', close: '18:00', isOpen: true },
@@ -17,10 +18,12 @@ const clinicSettingsSchema = new mongoose.Schema(
       required: true,
       default: 'Sai Dental Clinic – Digital Platform',
       trim: true,
+      set: capitalizeWords,
     },
     address: {
       type: String,
       default: '123 Healthcare Avenue, Medical District, City',
+      set: capitalizeWords,
     },
     phone: {
       type: String,

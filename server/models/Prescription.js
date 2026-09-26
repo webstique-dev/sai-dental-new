@@ -1,12 +1,13 @@
 const mongoose = require('mongoose');
+const { capitalizeWords } = require('../utils/formatters.js');
 
 const medicineItemSchema = new mongoose.Schema(
   {
-    medicine: { type: String, trim: true, required: true },
-    dosage: { type: String, trim: true, default: '' },
+    medicine: { type: String, trim: true, required: true, set: capitalizeWords },
+    dosage: { type: String, trim: true, default: '', set: capitalizeWords },
     frequency: { type: String, trim: true, default: '' },
-    duration: { type: String, trim: true, default: '' },
-    instructions: { type: String, trim: true, default: '' },
+    duration: { type: String, trim: true, default: '', set: capitalizeWords },
+    instructions: { type: String, trim: true, default: '', set: capitalizeWords },
   },
   { _id: true }
 );
@@ -26,6 +27,7 @@ const prescriptionSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      set: capitalizeWords,
     },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,

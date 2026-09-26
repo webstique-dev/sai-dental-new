@@ -5,8 +5,9 @@ import {
   FileHeart, Filter, FileText, RefreshCw, X, Eye, Clock, CheckCircle2,
   Printer, ChevronRight, User, ChevronDown, ChevronUp, ArrowLeft, AlertTriangle, Shield
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
+
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
@@ -153,6 +154,14 @@ export default function PatientHistory() {
       if (tr.tooth) {
         if (!map[tr.tooth]) map[tr.tooth] = [];
         map[tr.tooth].push(`Record: ${tr.procedure}`);
+      }
+    });
+
+    // Collect teeth from tooth findings
+    (selectedVisit.toothFindings || []).forEach((tf) => {
+      if (tf.toothNumber) {
+        if (!map[tf.toothNumber]) map[tf.toothNumber] = [];
+        map[tf.toothNumber].push(`Condition: ${tf.condition}`);
       }
     });
 
@@ -341,8 +350,9 @@ export default function PatientHistory() {
                     const visitId = visit._id || visit.id;
                     const patient = visit.patient || {};
                     const doctor = visit.doctor || {};
-                    const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                    const patientName = formatPatientFullName(patient) || 'Patient';
                     const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
+
 
                     const dateStr = visit.visitDate
                       ? new Date(visit.visitDate).toLocaleDateString(undefined, {
@@ -457,8 +467,9 @@ export default function PatientHistory() {
                 const visitId = visit._id || visit.id;
                 const patient = visit.patient || {};
                 const doctor = visit.doctor || {};
-                const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                const patientName = formatPatientFullName(patient) || 'Patient';
                 const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
+
                 const dateStr = visit.visitDate
                   ? new Date(visit.visitDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
                   : 'N/A';
@@ -585,8 +596,9 @@ export default function PatientHistory() {
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block mb-1">Patient Details</span>
                   <div className="font-display text-sm font-bold text-ink">
-                    {[selectedVisit.patient?.firstName, selectedVisit.patient?.lastName].filter(Boolean).join(' ') || 'Patient'}
+                    {formatPatientFullName(selectedVisit.patient) || 'Patient'}
                   </div>
+
                   <div className="text-xs text-ink-soft mt-0.5">
                     OP Number: <strong className="font-mono text-brand font-bold">#{selectedVisit.patient?.opNumber || 'N/A'}</strong>
                     {selectedVisit.patient?.age !== undefined && selectedVisit.patient?.age !== null && selectedVisit.patient?.age !== '' ? ` • Age: ${formatAge(selectedVisit.patient.age)}y` : ''}

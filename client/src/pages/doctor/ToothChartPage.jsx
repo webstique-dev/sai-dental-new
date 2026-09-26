@@ -2,12 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Grid3x3, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Plus, Calendar, Activity
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import ToothChart from './consultation/ToothChart.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { sanitizeCondition } from '../../constants/toothConditions.js';
 
 export default function ToothChartPage() {
   const [patients, setPatients] = useState([]);
@@ -39,7 +40,7 @@ export default function ToothChartPage() {
             const teeth = chartRes.data?.teeth || [];
 
             // Filter non-healthy teeth to list affected teeth
-            const affected = teeth.filter((t) => t.currentCondition && t.currentCondition !== 'Healthy');
+            const affected = teeth.filter((t) => t.currentCondition && !t.currentCondition.toLowerCase().startsWith('healthy'));
             const lastUpdated = teeth.reduce((latest, t) => {
               const d = t.updatedAt ? new Date(t.updatedAt) : null;
               return d && (!latest || d > latest) ? d : latest;
@@ -95,7 +96,7 @@ export default function ToothChartPage() {
   // If a patient is selected for Viewing/Editing Tooth Chart
   if (selectedPatient) {
     const pId = selectedPatient._id || selectedPatient.id;
-    const patientName = [selectedPatient.firstName, selectedPatient.lastName].filter(Boolean).join(' ') || 'Patient';
+    const patientName = formatPatientFullName(selectedPatient) || 'Patient';
 
     return (
       <div className="space-y-6 max-w-6xl">
@@ -233,7 +234,7 @@ export default function ToothChartPage() {
               <tbody className="divide-y divide-border">
                 {patients.map((p) => {
                   const pId = p._id || p.id;
-                  const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const fullName = formatPatientFullName(p) || 'Patient';
                   const updatedStr = p.lastUpdated
                     ? new Date(p.lastUpdated).toLocaleDateString(undefined, {
                         month: 'short', day: 'numeric', year: 'numeric',
@@ -271,7 +272,7 @@ export default function ToothChartPage() {
                                 key={t.toothNumber}
                                 className="px-1.5 py-0.5 rounded bg-brand-light/30 text-brand-dark font-mono font-bold text-[10px] border border-brand/20"
                               >
-                                #{t.toothNumber} ({t.currentCondition})
+                                #{t.toothNumber} ({sanitizeCondition(t.currentCondition).name})
                               </span>
                             ))}
                             {affected.length > 4 && (

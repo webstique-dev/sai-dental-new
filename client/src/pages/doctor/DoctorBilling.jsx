@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Wallet, Search, Eye, Filter, Calendar, X,
   CheckCircle2, AlertCircle, CreditCard, Clock, UserSquare2,
-  ChevronDown, ChevronUp, Stethoscope
+  ChevronDown, ChevronUp, Stethoscope, Printer
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -309,7 +310,7 @@ export default function DoctorBilling() {
                   {invoices.map((inv, idx) => {
                     const invId = inv._id || inv.id || idx;
                     const patient = inv.patient || {};
-                    const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unknown Patient';
+                    const patientName = formatPatientFullName(patient) || 'Unknown Patient';
                     const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
                     const itemsSummary = (inv.items || [])
                       .map((item) => (item.service || item.treatment || '').trim())
@@ -363,15 +364,27 @@ export default function DoctorBilling() {
                         </td>
 
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedInvoice(inv)}
-                            className="btn-secondary py-1.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 text-brand hover:underline shadow-2xs cursor-pointer"
-                            title="View Complete Billing Details"
-                          >
-                            <Eye size={13} />
-                            <span>View</span>
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedInvoice(inv)}
+                              className="btn-secondary py-1.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 text-brand hover:underline shadow-2xs cursor-pointer"
+                              title="View Complete Billing Details"
+                            >
+                              <Eye size={13} />
+                              <span>View</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                              className="btn-secondary py-1.5 px-3 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-brand/50 hover:text-brand shadow-2xs cursor-pointer"
+                              title="Print Bill / Invoice"
+                            >
+                              <Printer size={13} />
+                              <span>Print</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -385,7 +398,7 @@ export default function DoctorBilling() {
               {invoices.map((inv, idx) => {
                 const invId = inv._id || inv.id || idx;
                 const patient = inv.patient || {};
-                const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unknown Patient';
+                const patientName = formatPatientFullName(patient) || 'Unknown Patient';
                 const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
                 const itemsSummary = (inv.items || [])
                   .map((item) => (item.service || item.treatment || '').trim())
@@ -440,14 +453,23 @@ export default function DoctorBilling() {
                     </div>
 
                     {/* Action Button */}
-                    <div className="flex justify-end pt-1">
+                    <div className="flex items-center justify-end gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => setSelectedInvoice(inv)}
-                        className="btn-secondary py-1.5 px-3.5 text-xs font-bold w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-brand"
+                        className="btn-secondary py-1.5 px-3.5 text-xs font-bold flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 text-brand"
                       >
                         <Eye size={14} />
-                        <span>View Details</span>
+                        <span>View</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                        className="btn-secondary py-1.5 px-3.5 text-xs font-bold flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 hover:border-brand/50 hover:text-brand"
+                      >
+                        <Printer size={14} />
+                        <span>Print Bill</span>
                       </button>
                     </div>
                   </div>
@@ -508,7 +530,7 @@ export default function DoctorBilling() {
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block">Patient Information</span>
                   <div className="font-bold text-ink text-sm">
-                    {selectedInvoice.patient?.firstName} {selectedInvoice.patient?.lastName}
+                    {formatPatientFullName(selectedInvoice.patient)}
                   </div>
                   <div className="font-mono text-xs text-brand font-bold">
                     OP #{selectedInvoice.opNumber || selectedInvoice.patient?.opNumber || 'N/A'}
@@ -663,13 +685,23 @@ export default function DoctorBilling() {
                 </Link>
               ) : <div />}
 
-              <button
-                type="button"
-                className="btn-secondary py-2 px-4 text-xs font-bold cursor-pointer"
-                onClick={() => setSelectedInvoice(null)}
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary py-2 px-4 text-xs font-bold inline-flex items-center gap-1.5 hover:border-brand/50 hover:text-brand cursor-pointer"
+                  onClick={() => openBillPrintWindow({ invoice: selectedInvoice }, true)}
+                >
+                  <Printer size={14} />
+                  <span>Print Bill</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary py-2 px-4 text-xs font-bold cursor-pointer"
+                  onClick={() => setSelectedInvoice(null)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

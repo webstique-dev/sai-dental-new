@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp, Plus, UserPlus, Loader2, Edit3
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
@@ -1041,9 +1042,7 @@ export default function DoctorQueue() {
                         <tbody className="divide-y divide-border">
                           {filteredTodayEntries.map((entry) => {
                             const entryId = entry._id || entry.id;
-                            const patientName = entry.patient
-                              ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
-                              : 'Patient';
+                            const patientName = formatPatientFullName(entry.patient) || 'Patient';
                             const timeDisplay = entry.checkInTime
                               ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                               : (entry.appointment?.time || 'Today');
@@ -1114,9 +1113,7 @@ export default function DoctorQueue() {
                     <div className="block md:hidden divide-y divide-border">
                       {filteredTodayEntries.map((entry) => {
                         const entryId = entry._id || entry.id;
-                        const patientName = entry.patient
-                          ? `${entry.patient.firstName} ${entry.patient.lastName}`.trim()
-                          : 'Patient';
+                        const patientName = formatPatientFullName(entry.patient) || 'Patient';
                         const timeDisplay = entry.checkInTime
                           ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : (entry.appointment?.time || 'Today');
@@ -1387,9 +1384,7 @@ export default function DoctorQueue() {
                         <tbody className="divide-y divide-border">
                           {filteredUpcomingEntries.map((apt) => {
                             const aptId = apt._id || apt.id;
-                            const patientName = apt.patient
-                              ? `${apt.patient.firstName} ${apt.patient.lastName}`.trim()
-                              : 'Patient';
+                            const patientName = formatPatientFullName(apt.patient) || 'Patient';
                             const pType = apt.patient?.patientType || (apt.patient?.age !== undefined && apt.patient?.age !== null && Number(apt.patient.age) < 12 ? 'child' : 'adult');
                             const dateStr = apt.date
                               ? new Date(apt.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -1447,9 +1442,7 @@ export default function DoctorQueue() {
                     <div className="block md:hidden divide-y divide-border">
                       {filteredUpcomingEntries.map((apt) => {
                         const aptId = apt._id || apt.id;
-                        const patientName = apt.patient
-                          ? `${apt.patient.firstName} ${apt.patient.lastName}`.trim()
-                          : 'Patient';
+                        const patientName = formatPatientFullName(apt.patient) || 'Patient';
                         const pType = apt.patient?.patientType || (apt.patient?.age !== undefined && apt.patient?.age !== null && Number(apt.patient.age) < 12 ? 'child' : 'adult');
                         const dateStr = apt.date
                           ? new Date(apt.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
@@ -1692,7 +1685,7 @@ export default function DoctorQueue() {
                         <tbody className="divide-y divide-border">
                           {filteredCompletedTodayItems.map((item) => {
                             const patient = item.patient || {};
-                            const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                            const patientName = formatPatientFullName(patient) || 'Patient';
                             const pType = patient.patientType || (patient.age !== undefined && Number(patient.age) < 12 ? 'child' : 'adult');
 
                             const dateStr = item.date
@@ -1764,7 +1757,7 @@ export default function DoctorQueue() {
                     <div className="block md:hidden divide-y divide-border">
                       {filteredCompletedTodayItems.map((item) => {
                         const patient = item.patient || {};
-                        const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Patient';
+                        const patientName = formatPatientFullName(patient) || 'Patient';
                         
                         const formatTimingVal = (d) => {
                           if (!d) return '—';
@@ -2093,7 +2086,7 @@ export default function DoctorQueue() {
                         <tbody className="divide-y divide-border">
                           {filteredHistoryItems.map((item) => {
                             const p = item.patient || {};
-                            const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                            const patientName = formatPatientFullName(p) || 'Patient';
                             const pType = p.patientType || (p.age !== undefined && p.age !== null && Number(p.age) < 12 ? 'child' : 'adult');
 
                             const docObj = item.doctor || item.appointment?.doctor;
@@ -2182,7 +2175,7 @@ export default function DoctorQueue() {
                     <div className="block md:hidden divide-y divide-border">
                       {filteredHistoryItems.map((item) => {
                         const p = item.patient || {};
-                        const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                        const patientName = formatPatientFullName(p) || 'Patient';
                         const docObj = item.doctor || item.appointment?.doctor;
                         const docName = docObj?.name ? `Dr. ${docObj.name}` : 'Unassigned';
                         const dateStr = item.date
@@ -2272,7 +2265,7 @@ export default function DoctorQueue() {
             <p className="text-xs text-ink-soft leading-relaxed">
               Are you sure you want to cancel the appointment for{' '}
               <strong className="text-ink">
-                {[cancellingAppointment.patient?.firstName, cancellingAppointment.patient?.lastName].filter(Boolean).join(' ') || 'this patient'}
+                {formatPatientFullName(cancellingAppointment.patient) || 'this patient'}
               </strong>
               ? This action will mark the appointment as cancelled.
             </p>
@@ -2315,7 +2308,7 @@ export default function DoctorQueue() {
             <p className="text-xs text-ink-soft leading-relaxed">
               Mark appointment for{' '}
               <strong className="text-ink">
-                {[noShowAppointment.patient?.firstName, noShowAppointment.patient?.lastName].filter(Boolean).join(' ') || 'this patient'}
+                {formatPatientFullName(noShowAppointment.patient) || 'this patient'}
               </strong>{' '}
               as <strong className="text-amber-700">No Show</strong>?
             </p>
@@ -2374,7 +2367,7 @@ export default function DoctorQueue() {
             <span>
               Are you sure you want to mark the appointment for{' '}
               <strong className="text-ink font-bold">
-                {[noShowAppointment.patient?.firstName, noShowAppointment.patient?.lastName].filter(Boolean).join(' ') || 'this patient'}
+                {formatPatientFullName(noShowAppointment.patient) || 'this patient'}
               </strong>{' '}
               as <strong className="text-amber-700 font-bold">No Show</strong>? Non-applicable actions will be disabled after updating.
             </span>
@@ -2397,7 +2390,7 @@ export default function DoctorQueue() {
             <span>
               Are you sure you want to cancel the appointment for{' '}
               <strong className="text-ink font-bold">
-                {[cancellingAppointment.patient?.firstName, cancellingAppointment.patient?.lastName].filter(Boolean).join(' ') || 'this patient'}
+                {formatPatientFullName(cancellingAppointment.patient) || 'this patient'}
               </strong>?
             </span>
           ) : ''

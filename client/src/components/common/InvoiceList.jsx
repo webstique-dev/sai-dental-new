@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Wallet, DollarSign, Eye, RefreshCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Wallet, DollarSign, Eye, RefreshCcw, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { TableSkeleton } from './TableSkeleton.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
+import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 
 const DEFAULT_STATUS_CLASSES = {
   Paid: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -56,9 +58,7 @@ export default function InvoiceList({
           <tbody className="divide-y divide-border">
             {invoices.map((inv) => {
               const invId = inv._id || inv.id;
-              const patientName = inv.patient
-                ? `${inv.patient.firstName || ''} ${inv.patient.lastName || ''}`.trim()
-                : 'Unknown Patient';
+              const patientName = formatPatientFullName(inv.patient) || 'Unknown Patient';
               const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
               const dateStr = inv.createdAt
                 ? new Date(inv.createdAt).toLocaleDateString(undefined, {
@@ -120,6 +120,14 @@ export default function InvoiceList({
                       <Eye size={13} /> View
                     </button>
 
+                    <button
+                      onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                      title="Print Bill / Invoice"
+                      className="inline-flex items-center gap-1 rounded-xl border border-border px-2.5 py-1 text-[11px] font-semibold text-ink-soft hover:border-brand/50 hover:text-brand hover:bg-bg"
+                    >
+                      <Printer size={13} /> Print
+                    </button>
+
                     {canPay && (
                       <button
                         onClick={() => onRecordPayment(inv)}
@@ -151,9 +159,7 @@ export default function InvoiceList({
       <div className="block md:hidden divide-y divide-border">
         {invoices.map((inv) => {
           const invId = inv._id || inv.id;
-          const patientName = inv.patient
-            ? `${inv.patient.firstName || ''} ${inv.patient.lastName || ''}`.trim()
-            : 'Unknown Patient';
+          const patientName = formatPatientFullName(inv.patient) || 'Unknown Patient';
           const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
           const dateStr = inv.createdAt
             ? new Date(inv.createdAt).toLocaleDateString(undefined, {
@@ -223,6 +229,13 @@ export default function InvoiceList({
                       className="inline-flex items-center gap-1 rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink-soft hover:bg-bg hover:text-ink"
                     >
                       <Eye size={14} /> Details
+                    </button>
+
+                    <button
+                      onClick={() => openBillPrintWindow({ invoice: inv }, true)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink-soft hover:border-brand/50 hover:text-brand hover:bg-bg"
+                    >
+                      <Printer size={14} /> Print Bill
                     </button>
 
                     {canPay && (

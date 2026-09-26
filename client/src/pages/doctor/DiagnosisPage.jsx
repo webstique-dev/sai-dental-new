@@ -7,6 +7,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
+import { formatPatientFullName } from '../../utils/formatters.js';
 
 export default function DiagnosisPage() {
   const [consultations, setConsultations] = useState([]);
@@ -54,7 +55,7 @@ export default function DiagnosisPage() {
   // If a record is selected for Viewing/Editing
   if (selectedConsultation) {
     const p = selectedConsultation.patient || {};
-    const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+    const patientName = formatPatientFullName(p) || 'Patient';
     const isCompleted = selectedConsultation.status === 'Completed';
 
     return (
@@ -196,7 +197,7 @@ export default function DiagnosisPage() {
                 {consultations.map((c) => {
                   const cId = c._id || c.id;
                   const p = c.patient || {};
-                  const patientName = [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Patient';
+                  const patientName = formatPatientFullName(p) || 'Patient';
                   const diagDateStr = c.startedAt || c.visitDate || c.createdAt
                     ? new Date(c.startedAt || c.visitDate || c.createdAt).toLocaleDateString(undefined, {
                         month: 'short', day: 'numeric', year: 'numeric',

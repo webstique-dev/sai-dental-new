@@ -4,8 +4,9 @@ import {
   UserSquare2, Search, Filter, Calendar, Eye, ArrowUpDown, ChevronLeft, ChevronRight,
   RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3, UserPlus
 } from 'lucide-react';
-import { formatAge } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
+
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -310,8 +311,9 @@ export default function DoctorPatients() {
               ) : (
                 patients.map((p) => {
                   const pId = p._id || p.id;
-                  const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+                  const pName = formatPatientFullName(p) || 'Unnamed Patient';
                   const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
+
                   const lastVisitStr = p.lastVisitDate
                     ? new Date(p.lastVisitDate).toLocaleDateString(undefined, {
                       month: 'short',
@@ -425,8 +427,9 @@ export default function DoctorPatients() {
           ) : (
             patients.map((p) => {
               const pId = p._id || p.id;
-              const pName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient';
+              const pName = formatPatientFullName(p) || 'Unnamed Patient';
               const isChild = p.patientType === 'child' || (p.age !== undefined && p.age !== null && Number(p.age) < 12);
+
               const lastVisitStr = p.lastVisitDate
                 ? new Date(p.lastVisitDate).toLocaleDateString(undefined, {
                   month: 'short',

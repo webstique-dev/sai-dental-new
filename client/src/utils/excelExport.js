@@ -1,4 +1,6 @@
 import ExcelJS from 'exceljs';
+import { capitalizeName } from './formatters.js';
+
 
 // Primary styling definitions
 const HEADER_FILL = {
@@ -176,7 +178,7 @@ export async function exportReportsToExcel({
     styleWorksheet(aptSheet, aptCols);
 
     const aptRows = (appointmentsData.appointments || []).map((apt) => ({
-      patientName: apt.patientName || 'Patient',
+      patientName: capitalizeName(apt.patientName) || 'Patient',
       opNumber: apt.opNumber ? `#${apt.opNumber}` : '—',
       phone: apt.phone || '—',
       patientType: apt.patientType === 'child' ? 'Child' : 'Adult',
@@ -211,7 +213,7 @@ export async function exportReportsToExcel({
     styleWorksheet(fSheet, fCols);
 
     const fRows = (followUpsData.followUps || []).map((f) => ({
-      patientName: f.patientName || 'Patient',
+      patientName: capitalizeName(f.patientName) || 'Patient',
       opNumber: f.opNumber ? `#${f.opNumber}` : '—',
       phone: f.phone || '—',
       doctorName: f.doctorName || '—',
@@ -259,7 +261,8 @@ export async function exportReportsToExcel({
       styleWorksheet(pSheet, pCols);
 
       const pRows = financialData.pendingInvoicesList.map((inv) => ({
-        patientName: inv.patientName || 'Patient',
+        patientName: capitalizeName(inv.patientName) || 'Patient',
+
         opNumber: inv.opNumber ? `#${inv.opNumber}` : '—',
         doctorName: inv.doctorName || '—',
         total: Number(inv.total || 0),
