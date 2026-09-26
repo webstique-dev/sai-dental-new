@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Calendar, Clock, UserCheck, Stethoscope, FileText, Save, X, RefreshCw, AlertCircle, CalendarCheck
+  Calendar, Clock, Stethoscope, FileText, Save, X, RefreshCw, AlertCircle, CalendarCheck, Tag, StickyNote
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
@@ -20,33 +20,17 @@ export default function FollowUpEditModal({
 }) {
   const { showSuccess, showError } = useNotification();
 
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     recommendedDate: '',
     time: '10:00 AM',
-    doctor: '',
     reason: '',
     instructions: '',
     treatmentStatus: '',
     notes: '',
   });
-
-  // Fetch doctors list
-  useEffect(() => {
-    async function fetchDoctors() {
-      try {
-        const res = await api.get('/users?role=doctor');
-        setDoctors(res.data?.users || []);
-      } catch (err) {
-        console.error('Failed to load doctors:', err);
-      }
-    }
-    fetchDoctors();
-  }, []);
 
   // Initialize form data
   useEffect(() => {
@@ -60,12 +44,10 @@ export default function FollowUpEditModal({
     }
 
     const timeVal = followUp.time || followUp.scheduledAppointment?.time || '10:00 AM';
-    const docId = followUp.doctor?._id || followUp.doctor?.id || followUp.doctor || '';
 
     setFormData({
       recommendedDate: dateVal,
       time: timeVal,
-      doctor: docId,
       reason: followUp.reason || followUp.procedure || '',
       instructions: followUp.instructions || '',
       treatmentStatus: followUp.treatmentStatus || '',
@@ -91,7 +73,7 @@ export default function FollowUpEditModal({
       const payload = {
         recommendedDate: formData.recommendedDate,
         time: formData.time,
-        doctor: formData.doctor || undefined,
+        doctor: followUp.doctor?._id || followUp.doctor?.id || followUp.doctor || undefined,
         reason: capitalizeWords((formData.reason || '').trim()),
         instructions: capitalizeWords((formData.instructions || '').trim()),
         treatmentStatus: formData.treatmentStatus || '',
@@ -124,22 +106,22 @@ export default function FollowUpEditModal({
   const opNo = targetPatient?.opNumber || followUp?.opNumber || 'N/A';
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-2 sm:p-4 backdrop-blur-xs animate-fadeIn overflow-hidden">
-      <div className="card w-full max-w-xl max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border shadow-2xl rounded-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-3 sm:p-4 backdrop-blur-xs animate-fadeIn overflow-hidden">
+      <div className="card w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border shadow-2xl rounded-2xl overflow-hidden animate-scaleIn">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-surface shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-sm">
-              <CalendarCheck size={18} />
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
+              <CalendarCheck size={20} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-display text-base font-bold text-ink">Edit Follow-Up Record</h3>
-                <span className="badge bg-purple-100 text-purple-900 font-mono font-bold text-[10px]">
+                <h3 className="font-display text-base font-bold text-ink truncate">Edit Follow-Up Record</h3>
+                <span className="badge bg-purple-100 text-purple-900 border border-purple-200 font-mono font-bold text-[10px] shrink-0">
                   OP #{opNo}
                 </span>
               </div>
-              <p className="text-xs text-ink-soft">
+              <p className="text-xs text-ink-soft truncate mt-0.5">
                 Patient: <span className="font-bold text-ink">{patientDisplayName}</span>
               </p>
             </div>
@@ -147,7 +129,8 @@ export default function FollowUpEditModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-ink-soft hover:text-ink hover:bg-bg transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-ink-soft hover:text-ink hover:bg-bg transition-colors cursor-pointer shrink-0 ml-2"
+            title="Close modal"
           >
             <X size={18} />
           </button>
@@ -156,81 +139,68 @@ export default function FollowUpEditModal({
         {/* Form Body */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-5 space-y-4 text-xs scrollbar-none no-scrollbar">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold flex items-center gap-2 animate-fadeIn">
               <AlertCircle size={15} className="text-rose-600 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Date & Time */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Date & Time Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">
-                Follow-Up Date <span className="text-rose-600">*</span>
+              <label className="block text-xs font-semibold text-ink-soft mb-1.5 flex items-center gap-1.5">
+                <Calendar size={13} className="text-brand" />
+                <span>Follow-Up Date</span>
+                <span className="text-rose-600 font-bold">*</span>
               </label>
               <DatePicker
                 required
                 value={formData.recommendedDate}
                 onChange={(d, dStr) => setFormData((prev) => ({ ...prev, recommendedDate: dStr }))}
-                inputClassName="py-1.5 text-xs"
+                inputClassName="py-1.5 text-xs h-[38px]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">
-                Time Slot
+              <label className="block text-xs font-semibold text-ink-soft mb-1.5 flex items-center gap-1.5">
+                <Clock size={13} className="text-brand" />
+                <span>Time Slot</span>
               </label>
               <SplitTimeInput
+                label=""
                 value={formData.time}
                 onChange={(newTime) => setFormData((prev) => ({ ...prev, time: newTime }))}
               />
             </div>
           </div>
 
-          {/* Assigned Doctor */}
+          {/* Reason / Recommended Procedure */}
           <div>
-            <label className="block text-xs font-semibold text-ink-soft mb-1">
-              Assigned Doctor
-            </label>
-            <select
-              value={formData.doctor}
-              onChange={(e) => setFormData((prev) => ({ ...prev, doctor: e.target.value }))}
-              className="input-field py-1.5 text-xs"
-            >
-              <option value="">Select Doctor...</option>
-              {doctors.map((doc) => (
-                <option key={doc._id || doc.id} value={doc._id || doc.id}>
-                  Dr. {doc.name} {doc.specialization ? `(${doc.specialization})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Reason / Procedure */}
-          <div>
-            <label className="block text-xs font-semibold text-ink-soft mb-1">
-              Reason / Recommended Procedure
+            <label className="block text-xs font-semibold text-ink-soft mb-1.5 flex items-center gap-1.5">
+              <Stethoscope size={13} className="text-brand" />
+              <span>Reason / Recommended Procedure</span>
             </label>
             <EditableCombobox
               options={FOLLOW_UP_REASONS}
               value={formData.reason}
               onChange={(val) => setFormData((prev) => ({ ...prev, reason: capitalizeWords(val) }))}
-              placeholder="e.g. Suture Removal, Crown Fitting, Review..."
+              placeholder="e.g. Suture Removal, Crown Fitting, Routine Review..."
               inputClassName="py-1.5 text-xs"
             />
           </div>
 
-          {/* Treatment Status Tag */}
+          {/* Treatment Stage / Status */}
           <div>
-            <label className="block text-xs font-semibold text-ink-soft mb-1">
-              Treatment Stage / Status
+            <label className="block text-xs font-semibold text-ink-soft mb-1.5 flex items-center gap-1.5">
+              <Tag size={13} className="text-brand" />
+              <span>Treatment Stage / Status</span>
             </label>
             <select
               value={formData.treatmentStatus}
               onChange={(e) => setFormData((prev) => ({ ...prev, treatmentStatus: e.target.value }))}
-              className="input-field py-1.5 text-xs"
+              className="input-field py-2 text-xs"
             >
-              <option value="">Select Stage...</option>
+              <option value="">Select Stage / Status (Optional)...</option>
               {PROCEDURE_TREATMENT_STATUSES.map((st) => (
                 <option key={st} value={st}>
                   {st}
@@ -241,35 +211,37 @@ export default function FollowUpEditModal({
 
           {/* Clinical Instructions */}
           <div>
-            <label className="block text-xs font-semibold text-ink-soft mb-1">
-              Clinical Instructions
+            <label className="block text-xs font-semibold text-ink-soft mb-1.5 flex items-center gap-1.5">
+              <FileText size={13} className="text-brand" />
+              <span>Clinical Instructions</span>
             </label>
             <textarea
               rows={2}
               value={formData.instructions}
               onChange={(e) => setFormData((prev) => ({ ...prev, instructions: capitalizeWords(e.target.value) }))}
-              placeholder="Instructions for patient or receptionist..."
-              className="input-field text-xs py-1.5"
+              placeholder="Instructions for patient care or receptionist booking notes..."
+              className="input-field text-xs py-2 resize-none"
             />
           </div>
 
-          {/* Notes */}
+          {/* Internal Notes */}
           <div>
-            <label className="block text-xs font-semibold text-ink-soft mb-1">
-              Internal Clinical Notes
+            <label className="block text-xs font-semibold text-ink-soft mb-1.5 flex items-center gap-1.5">
+              <StickyNote size={13} className="text-brand" />
+              <span>Internal Clinical Notes</span>
             </label>
             <textarea
               rows={2}
               value={formData.notes}
               onChange={(e) => setFormData((prev) => ({ ...prev, notes: capitalizeWords(e.target.value) }))}
-              placeholder="Additional internal notes..."
-              className="input-field text-xs py-1.5"
+              placeholder="Additional private notes for the clinical team..."
+              className="input-field text-xs py-2 resize-none"
             />
           </div>
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border bg-bg/40 shrink-0">
+        <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-border bg-bg/50 shrink-0">
           <button
             type="button"
             className="btn-secondary py-1.5 px-4 text-xs font-bold cursor-pointer"
@@ -282,7 +254,7 @@ export default function FollowUpEditModal({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="btn-primary py-1.5 px-5 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+            className="btn-primary py-1.5 px-5 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
           >
             {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
             <span>{saving ? 'Saving...' : 'Update Follow-Up'}</span>
