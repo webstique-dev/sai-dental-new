@@ -129,7 +129,7 @@ export function generateBillHTML(params = {}) {
       <style>
         @page {
           size: A4 portrait;
-          margin: 10mm;
+          margin: 0;
         }
         * {
           box-sizing: border-box;
@@ -193,20 +193,29 @@ export function generateBillHTML(params = {}) {
           padding: 32px 36px;
         }
         @media print {
-          body {
-            background: #ffffff;
-            color: #000000;
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
           }
           .screen-toolbar, .no-print {
             display: none !important;
           }
           .invoice-container {
-            border: none;
-            box-shadow: none;
-            padding: 0;
-            margin: 0;
-            max-width: 100%;
-            border-radius: 0;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 12mm 14mm !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
           }
         }
       </style>
