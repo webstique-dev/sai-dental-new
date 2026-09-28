@@ -698,16 +698,14 @@ export function generatePrescriptionHTML(params = {}) {
 export async function openPrescriptionPDFWindow(params = {}, autoPrint = false) {
   let { rx = {}, consultation = {}, clinicSettings = {}, doctor = null, diagnoses = [] } = params || {};
 
-  // Fetch clinic settings dynamically if not passed
-  if (!clinicSettings || !clinicSettings.clinicName || clinicSettings.clinicName.includes('Digital Platform')) {
-    try {
-      const res = await api.get('/settings');
-      if (res.data?.settings) {
-        clinicSettings = { ...clinicSettings, ...res.data.settings };
-      }
-    } catch (err) {
-      console.warn('Clinic settings fetch warning:', err);
+  // Fetch clinic settings dynamically from admin clinic settings
+  try {
+    const res = await api.get('/settings');
+    if (res.data?.settings) {
+      clinicSettings = { ...clinicSettings, ...res.data.settings };
     }
+  } catch (err) {
+    console.warn('Clinic settings fetch warning:', err);
   }
 
   // Determine doctor object

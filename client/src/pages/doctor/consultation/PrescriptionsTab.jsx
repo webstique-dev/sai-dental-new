@@ -28,12 +28,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
 
   const [prescriptions, setPrescriptions] = useState([]);
   const [diagnoses, setDiagnoses] = useState([]);
-  const [clinicSettings, setClinicSettings] = useState({
-    clinicName: 'Sai Dental Clinic & Super-Specialty Center',
-    address: '123 Healthcare Avenue, Medical District, City',
-    phone: '+91 98765 43210',
-    email: 'contact@sai-dentalclinic.com',
-  });
+  const [clinicSettings, setClinicSettings] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +81,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
       const [rxRes, diagRes, settingsRes, fuRes] = await Promise.all([
         api.get(`/prescriptions?consultation=${consultationId}`),
         api.get(`/diagnoses?consultation=${consultationId}`).catch(() => ({ data: { diagnoses: [] } })),
-        api.get('/clinic-settings').catch(() => ({ data: {} })),
+        api.get('/settings').catch(() => ({ data: {} })),
         api.get(`/follow-ups?consultation=${consultationId}`).catch(() => ({ data: { followUps: [] } })),
       ]);
 
