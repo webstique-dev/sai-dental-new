@@ -54,9 +54,21 @@ export default function PrescriptionEditModal({
     handleMedicineChange(idx, 'frequency', newFreqStr);
   };
 
-  const handleToggleSyrupFreqSlot = (idx, slotIndex) => {
-    const current = parseFrequencyPattern(syrups[idx]?.frequency);
-    current[slotIndex] = current[slotIndex] === 1 ? 0 : 1;
+  const parseSyrupFrequencyPattern = (freqStr) => {
+    if (!freqStr || typeof freqStr !== 'string') return ['5ml', '0', '5ml'];
+    const parts = freqStr.split('-');
+    if (parts.length === 3) {
+      return [parts[0].trim(), parts[1].trim(), parts[2].trim()];
+    }
+    if (parts.length === 2) {
+      return [parts[0].trim(), '0', parts[1].trim()];
+    }
+    return [freqStr.trim(), '0', '0'];
+  };
+
+  const handleSyrupFreqSlotChange = (idx, slotIndex, val) => {
+    const current = parseSyrupFrequencyPattern(syrups[idx]?.frequency);
+    current[slotIndex] = val;
     const newFreqStr = `${current[0]}-${current[1]}-${current[2]}`;
     handleSyrupChange(idx, 'frequency', newFreqStr);
   };
@@ -388,9 +400,9 @@ export default function PrescriptionEditModal({
                         </div>
 
                         {/* Single Row on md/lg, responsive stack on mobile */}
-                        <div className="flex flex-col md:flex-row md:items-end gap-2.5">
+                        <div className="flex flex-col md:flex-row md:items-start gap-2.5">
                           {/* Medicine Name */}
-                          <div className="flex-1 min-w-[150px]">
+                          <div className="flex-1 min-w-[140px]">
                             <label className="block text-[10px] font-bold text-ink-soft uppercase mb-0.5">
                               Medicine Name <span className="text-rose-600">*</span>
                             </label>
@@ -420,19 +432,19 @@ export default function PrescriptionEditModal({
                             />
                           </div>
 
-                          {/* Frequency (Interactive toggle + Quick presets inline on the same line) */}
-                          <div className="w-full md:w-auto shrink-0">
+                          {/* Frequency (Interactive toggle + Quick presets below) */}
+                          <div className="w-full md:w-[155px] shrink-0">
                             <label className="block text-[10px] font-bold text-ink-soft uppercase mb-0.5">
                               Frequency (1 - 0 - 1)
                             </label>
-                            <div className="flex items-center gap-1.5 flex-nowrap h-[34px]">
+                            <div className="flex flex-col gap-1">
                               {/* 3-Slot Interactive Toggle */}
-                              <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1.5 py-1 text-xs font-bold shadow-2xs shrink-0 h-full">
+                              <div className="inline-flex items-center justify-center gap-1 rounded-xl border border-border bg-surface px-2 py-1 text-xs font-bold shadow-2xs h-[34px] w-full">
                                 <button
                                   type="button"
                                   onClick={() => handleToggleFreqSlot(idx, 0)}
                                   title="Morning Slot (1 or 0)"
-                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-[11px] transition-all duration-150 ${
+                                  className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs transition-all ${
                                     freqPattern[0] === 1
                                       ? 'bg-brand text-white shadow-xs'
                                       : 'text-ink-soft hover:text-ink bg-bg'
@@ -440,12 +452,12 @@ export default function PrescriptionEditModal({
                                 >
                                   {freqPattern[0]}
                                 </button>
-                                <span className="text-ink-soft/40 font-mono text-[10px] select-none font-bold">-</span>
+                                <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
                                 <button
                                   type="button"
                                   onClick={() => handleToggleFreqSlot(idx, 1)}
                                   title="Afternoon Slot (1 or 0)"
-                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-[11px] transition-all duration-150 ${
+                                  className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs transition-all ${
                                     freqPattern[1] === 1
                                       ? 'bg-brand text-white shadow-xs'
                                       : 'text-ink-soft hover:text-ink bg-bg'
@@ -453,12 +465,12 @@ export default function PrescriptionEditModal({
                                 >
                                   {freqPattern[1]}
                                 </button>
-                                <span className="text-ink-soft/40 font-mono text-[10px] select-none font-bold">-</span>
+                                <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
                                 <button
                                   type="button"
                                   onClick={() => handleToggleFreqSlot(idx, 2)}
                                   title="Night Slot (1 or 0)"
-                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-[11px] transition-all duration-150 ${
+                                  className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs transition-all ${
                                     freqPattern[2] === 1
                                       ? 'bg-brand text-white shadow-xs'
                                       : 'text-ink-soft hover:text-ink bg-bg'
@@ -468,14 +480,14 @@ export default function PrescriptionEditModal({
                                 </button>
                               </div>
 
-                              {/* Quick Preset Buttons (SOS hidden) */}
-                              <div className="flex items-center gap-1 shrink-0 h-full">
+                              {/* Quick Preset Buttons Below */}
+                              <div className="flex items-center justify-center flex-nowrap gap-0.5 max-w-full overflow-x-auto scrollbar-none no-scrollbar py-0.5">
                                 {['1-0-1', '1-1-1', '1-0-0', '0-0-1'].map((preset) => (
                                   <button
                                     key={preset}
                                     type="button"
                                     onClick={() => handleMedicineChange(idx, 'frequency', preset)}
-                                    className={`px-1.5 h-full rounded text-[10px] font-mono font-bold border transition-colors whitespace-nowrap flex items-center justify-center ${
+                                    className={`px-1 py-0.5 rounded text-[8.5px] font-mono font-bold border transition-colors whitespace-nowrap shrink-0 shadow-2xs ${
                                       item.frequency === preset
                                         ? 'bg-brand-light text-brand border-brand font-extrabold shadow-2xs'
                                         : 'bg-surface text-ink-soft border-border hover:border-brand/40 hover:bg-bg'
@@ -575,8 +587,7 @@ export default function PrescriptionEditModal({
               ) : (
                 <div className="space-y-2.5">
                   {syrups.map((item, idx) => {
-                    const freqPattern = parseFrequencyPattern(item.frequency);
-
+                    const syrupFreq = parseSyrupFrequencyPattern(item.frequency);
                     return (
                       <div key={idx} className="card p-2.5 sm:p-3 bg-teal-50/20 border border-teal-200 space-y-2 relative transition-all">
                         <div className="flex items-center justify-between">
@@ -598,9 +609,9 @@ export default function PrescriptionEditModal({
                         </div>
 
                         {/* Single Row on md/lg, responsive stack on mobile */}
-                        <div className="flex flex-col md:flex-row md:items-end gap-2.5">
+                        <div className="flex flex-col md:flex-row md:items-start gap-2.5">
                           {/* Syrup Name */}
-                          <div className="flex-1 min-w-[150px]">
+                          <div className="flex-1 min-w-[140px]">
                             <label className="block text-[10px] font-bold text-teal-900 uppercase mb-0.5">
                               Syrup Name <span className="text-rose-600">*</span>
                             </label>
@@ -631,63 +642,52 @@ export default function PrescriptionEditModal({
                             />
                           </div>
 
-                          {/* Frequency */}
-                          <div className="w-full md:w-auto shrink-0">
+                          {/* Frequency (M - A - N) */}
+                          <div className="w-full md:w-44 shrink-0">
                             <label className="block text-[10px] font-bold text-teal-900 uppercase mb-0.5">
-                              Frequency (1 - 0 - 1)
+                              Frequency (M - A - N)
                             </label>
-                            <div className="flex items-center gap-1.5 flex-nowrap h-[34px]">
-                              <div className="inline-flex items-center gap-0.5 rounded-lg border border-teal-200 bg-surface px-1.5 py-1 text-xs font-bold shadow-2xs shrink-0 h-full">
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleSyrupFreqSlot(idx, 0)}
-                                  title="Morning Slot (1 or 0)"
-                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-[11px] transition-all duration-150 ${
-                                    freqPattern[0] === 1
-                                      ? 'bg-teal-600 text-white shadow-xs'
-                                      : 'text-ink-soft hover:text-ink bg-bg'
-                                  }`}
-                                >
-                                  {freqPattern[0]}
-                                </button>
-                                <span className="text-ink-soft/40 font-mono text-[10px] select-none font-bold">-</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleSyrupFreqSlot(idx, 1)}
-                                  title="Afternoon Slot (1 or 0)"
-                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-[11px] transition-all duration-150 ${
-                                    freqPattern[1] === 1
-                                      ? 'bg-teal-600 text-white shadow-xs'
-                                      : 'text-ink-soft hover:text-ink bg-bg'
-                                  }`}
-                                >
-                                  {freqPattern[1]}
-                                </button>
-                                <span className="text-ink-soft/40 font-mono text-[10px] select-none font-bold">-</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleSyrupFreqSlot(idx, 2)}
-                                  title="Night Slot (1 or 0)"
-                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-[11px] transition-all duration-150 ${
-                                    freqPattern[2] === 1
-                                      ? 'bg-teal-600 text-white shadow-xs'
-                                      : 'text-ink-soft hover:text-ink bg-bg'
-                                  }`}
-                                >
-                                  {freqPattern[2]}
-                                </button>
+                            <div className="flex flex-col gap-1">
+                              <div className="inline-flex items-center justify-center gap-1 rounded-xl border border-teal-300/80 bg-teal-50/30 px-1.5 py-0.5 shadow-2xs w-full">
+                                <input
+                                  type="text"
+                                  placeholder="M"
+                                  title="Morning (e.g. 5ml, 10ml, 1)"
+                                  className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
+                                  value={syrupFreq[0]}
+                                  onChange={(e) => handleSyrupFreqSlotChange(idx, 0, e.target.value)}
+                                />
+                                <span className="text-teal-400 font-mono text-xs select-none font-bold px-0.5">-</span>
+                                <input
+                                  type="text"
+                                  placeholder="A"
+                                  title="Afternoon (e.g. 0, 5ml, 10ml)"
+                                  className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
+                                  value={syrupFreq[1]}
+                                  onChange={(e) => handleSyrupFreqSlotChange(idx, 1, e.target.value)}
+                                />
+                                <span className="text-teal-400 font-mono text-xs select-none font-bold px-0.5">-</span>
+                                <input
+                                  type="text"
+                                  placeholder="N"
+                                  title="Night (e.g. 5ml, 10ml, 1)"
+                                  className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
+                                  value={syrupFreq[2]}
+                                  onChange={(e) => handleSyrupFreqSlotChange(idx, 2, e.target.value)}
+                                />
                               </div>
 
-                              <div className="flex items-center gap-1 shrink-0 h-full">
-                                {['1-0-1', '1-1-1', '1-0-0', '0-0-1'].map((preset) => (
+                              {/* Quick Presets Below */}
+                              <div className="flex items-center justify-center flex-nowrap gap-0.5 max-w-full overflow-x-auto scrollbar-none no-scrollbar py-0.5">
+                                {['5ml-0-5ml', '5ml-5ml-5ml', '10ml-0-10ml', '1-0-1'].map((preset) => (
                                   <button
                                     key={preset}
                                     type="button"
                                     onClick={() => handleSyrupChange(idx, 'frequency', preset)}
-                                    className={`px-1.5 h-full rounded text-[10px] font-mono font-bold border transition-colors whitespace-nowrap flex items-center justify-center ${
+                                    className={`px-1 py-0.5 rounded text-[8.5px] font-mono font-bold border transition-all whitespace-nowrap shrink-0 shadow-2xs ${
                                       item.frequency === preset
-                                        ? 'bg-teal-100 text-teal-800 border-teal-300 font-extrabold shadow-2xs'
-                                        : 'bg-surface text-ink-soft border-border hover:border-teal-400 hover:bg-bg'
+                                        ? 'bg-teal-100/90 text-teal-800 border-teal-400 font-extrabold ring-1 ring-teal-300/60'
+                                        : 'bg-white/80 text-ink-soft/80 border-teal-200/60 hover:border-teal-400 hover:text-teal-800 hover:bg-teal-50/50'
                                     }`}
                                   >
                                     {preset}
@@ -745,6 +745,18 @@ export default function PrescriptionEditModal({
                 <option value="7.5 ml" />
                 <option value="10 ml" />
                 <option value="15 ml" />
+              </datalist>
+              <datalist id="syrup-edit-frequency-options">
+                <option value="1-0-1" />
+                <option value="1-1-1" />
+                <option value="1-0-0" />
+                <option value="0-0-1" />
+                <option value="Twice daily" />
+                <option value="Thrice daily" />
+                <option value="Once daily" />
+                <option value="Every 8 hours" />
+                <option value="Every 6 hours" />
+                <option value="SOS (As needed)" />
               </datalist>
             </div>
 

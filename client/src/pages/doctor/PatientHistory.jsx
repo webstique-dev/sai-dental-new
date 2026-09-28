@@ -823,22 +823,22 @@ export default function PatientHistory() {
                                 <table className="w-full text-left text-xs">
                                   <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
                                     <tr>
-                                      <th className="py-1.5 px-2">#</th>
-                                      <th className="py-1.5 px-2">Medicine Name</th>
-                                      <th className="py-1.5 px-2">Dosage</th>
-                                      <th className="py-1.5 px-2">Frequency</th>
-                                      <th className="py-1.5 px-2">Duration</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">#</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Medicine Name</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Dosage</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Frequency</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Duration</th>
                                       <th className="py-1.5 px-2">Instructions</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border">
                                     {regularMeds.map((m, mIdx) => (
                                       <tr key={mIdx}>
-                                        <td className="py-1.5 px-2 font-bold text-ink-soft">{mIdx + 1}</td>
+                                        <td className="py-1.5 px-2 font-bold text-ink-soft whitespace-nowrap">{mIdx + 1}</td>
                                         <td className="py-1.5 px-2 font-bold text-brand">{m.medicine}</td>
-                                        <td className="py-1.5 px-2">{m.dosage || '—'}</td>
-                                        <td className="py-1.5 px-2 font-mono font-bold text-ink">{m.frequency || '—'}</td>
-                                        <td className="py-1.5 px-2">{m.duration || '—'}</td>
+                                        <td className="py-1.5 px-2 whitespace-nowrap">{m.dosage || '—'}</td>
+                                        <td className="py-1.5 px-2 font-mono font-bold text-ink whitespace-nowrap">{m.frequency || '—'}</td>
+                                        <td className="py-1.5 px-2 whitespace-nowrap">{m.duration || '—'}</td>
                                         <td className="py-1.5 px-2 text-ink-soft italic">{m.instructions || '—'}</td>
                                       </tr>
                                     ))}
@@ -857,22 +857,22 @@ export default function PatientHistory() {
                                 <table className="w-full text-left text-xs">
                                   <thead className="bg-teal-50/50 font-semibold text-teal-900 border-b border-teal-100">
                                     <tr>
-                                      <th className="py-1.5 px-2">#</th>
-                                      <th className="py-1.5 px-2">Syrup Name</th>
-                                      <th className="py-1.5 px-2">Dose (ML)</th>
-                                      <th className="py-1.5 px-2">Frequency</th>
-                                      <th className="py-1.5 px-2">Duration</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">#</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Syrup Name</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Dose (ML)</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Frequency</th>
+                                      <th className="py-1.5 px-2 whitespace-nowrap">Duration</th>
                                       <th className="py-1.5 px-2">Instructions</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-teal-50">
                                     {syrupMeds.map((m, mIdx) => (
                                       <tr key={mIdx}>
-                                        <td className="py-1.5 px-2 font-bold text-teal-700">S{mIdx + 1}</td>
+                                        <td className="py-1.5 px-2 font-bold text-teal-700 whitespace-nowrap">S{mIdx + 1}</td>
                                         <td className="py-1.5 px-2 font-bold text-ink">{m.medicine}</td>
-                                        <td className="py-1.5 px-2 font-semibold text-teal-800">{m.dosage || '—'}</td>
-                                        <td className="py-1.5 px-2 font-mono font-bold text-teal-700">{m.frequency || '—'}</td>
-                                        <td className="py-1.5 px-2 text-ink-soft">{m.duration || '—'}</td>
+                                        <td className="py-1.5 px-2 font-semibold text-teal-800 whitespace-nowrap">{m.dosage || '—'}</td>
+                                        <td className="py-1.5 px-2 font-mono font-bold text-teal-700 whitespace-nowrap">{m.frequency || '—'}</td>
+                                        <td className="py-1.5 px-2 text-ink-soft whitespace-nowrap">{m.duration || '—'}</td>
                                         <td className="py-1.5 px-2 text-ink-soft italic">{m.instructions || '—'}</td>
                                       </tr>
                                     ))}
