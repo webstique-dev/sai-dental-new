@@ -18,7 +18,10 @@ async function listInvoices(req, res, next) {
       filter.patient = patient;
     }
 
-    if (doctor) {
+    // Role-based doctor restriction: Doctor role can only view their own invoices
+    if (req.user && req.user.role === 'doctor') {
+      filter.doctor = req.user._id;
+    } else if (doctor) {
       filter.doctor = doctor;
     }
 
@@ -78,6 +81,14 @@ async function getInvoiceById(req, res, next) {
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found.' });
+    }
+
+    if (req.user && req.user.role === 'doctor') {
+      const invoiceDoctorId = invoice.doctor?._id?.toString() || invoice.doctor?.toString();
+      const userDoctorId = req.user._id ? req.user._id.toString() : req.user.id?.toString();
+      if (invoiceDoctorId && userDoctorId && invoiceDoctorId !== userDoctorId) {
+        return res.status(403).json({ message: 'Access denied: You cannot view invoices belonging to other doctors.' });
+      }
     }
 
     return res.json({ invoice });

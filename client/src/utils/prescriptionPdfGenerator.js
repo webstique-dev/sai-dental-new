@@ -36,10 +36,8 @@ export function generatePrescriptionHTML(params = {}) {
   const safeEmail = clinicSettings?.email || 'contact@sai-dentalclinic.com';
 
   const allMeds = rx?.medicines || [];
-  const regularMeds = allMeds.filter((m) => m.type !== 'syrup');
-  const syrupMeds = allMeds.filter((m) => m.type === 'syrup');
 
-  const regularRows = regularMeds.map((m, idx) => `
+  const medicineRows = allMeds.map((m, idx) => `
     <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
       <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-weight: 700; text-align: center; color: #64748b; font-size: 11px; white-space: nowrap;">${idx + 1}</td>
       <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #0f172a; font-size: 12px; word-wrap: break-word;">${capitalizeWords(m.medicine || '')}</td>
@@ -47,17 +45,6 @@ export function generatePrescriptionHTML(params = {}) {
       <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: 700; color: #0d9488; font-size: 11.5px; white-space: nowrap;">${m.frequency || '—'}</td>
       <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 11px; white-space: nowrap;">${capitalizeWords(m.duration || '—')}</td>
       <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; color: #475569; font-style: italic; font-size: 11px; word-wrap: break-word;">${capitalizeWords(m.instructions || '—')}</td>
-    </tr>
-  `).join('');
-
-  const syrupRows = syrupMeds.map((m, idx) => `
-    <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f0fdfa'};">
-      <td style="padding: 6px 8px; border-bottom: 1px solid #ccfbf1; font-weight: 700; text-align: center; color: #0f766e; font-size: 11px; white-space: nowrap;">S${idx + 1}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #ccfbf1; font-weight: 700; color: #0f172a; font-size: 12px; word-wrap: break-word;">${capitalizeWords(m.medicine || '')}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #ccfbf1; font-weight: 700; color: #0f766e; font-size: 11px; white-space: nowrap;">${capitalizeWords(m.dosage || '—')}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #ccfbf1; font-family: monospace; font-weight: 700; color: #0d9488; font-size: 11.5px; white-space: nowrap;">${m.frequency || '—'}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #ccfbf1; color: #334155; font-size: 11px; white-space: nowrap;">${capitalizeWords(m.duration || '—')}</td>
-      <td style="padding: 6px 8px; border-bottom: 1px solid #ccfbf1; color: #475569; font-style: italic; font-size: 11px; word-wrap: break-word;">${capitalizeWords(m.instructions || '—')}</td>
     </tr>
   `).join('');
 
@@ -520,8 +507,7 @@ export function generatePrescriptionHTML(params = {}) {
               <span style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b;">Prescribed Medications</span>
             </div>
 
-            ${regularMeds.length > 0 ? `
-              ${syrupMeds.length > 0 ? `<div style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #1E64EA; margin-bottom: 4px; letter-spacing: 0.5px;">Tablets / Capsules / Regular Medications:</div>` : ''}
+            ${allMeds.length > 0 ? `
               <table class="med-table">
                 <thead>
                   <tr>
@@ -534,26 +520,7 @@ export function generatePrescriptionHTML(params = {}) {
                   </tr>
                 </thead>
                 <tbody>
-                  ${regularRows}
-                </tbody>
-              </table>
-            ` : ''}
-
-            ${syrupMeds.length > 0 ? `
-              <div style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: #0f766e; margin-top: ${regularMeds.length > 0 ? '8px' : '3px'}; margin-bottom: 4px; letter-spacing: 0.5px;">Oral Syrups & Suspensions (Liquid Medications):</div>
-              <table class="med-table" style="border-color: #99f6e4;">
-                <thead>
-                  <tr style="background: #f0fdfa;">
-                    <th style="width: 32px; text-align: center; background: #ccfbf1; color: #115e59; white-space: nowrap;">#</th>
-                    <th style="background: #f0fdfa; color: #115e59; white-space: nowrap;">Syrup Name</th>
-                    <th style="width: 85px; background: #f0fdfa; color: #115e59; white-space: nowrap;">Dose (ML)</th>
-                    <th style="width: 130px; background: #f0fdfa; color: #115e59; white-space: nowrap;">Frequency</th>
-                    <th style="width: 85px; background: #f0fdfa; color: #115e59; white-space: nowrap;">Duration</th>
-                    <th style="background: #f0fdfa; color: #115e59; white-space: nowrap;">Instructions & Remarks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${syrupRows}
+                  ${medicineRows}
                 </tbody>
               </table>
             ` : ''}

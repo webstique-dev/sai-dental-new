@@ -217,93 +217,39 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="p-4 border-t border-border bg-surface space-y-3.5 text-xs">
-                    {/* Medicines & Syrups Tables */}
-                    {(() => {
-                      const regularMeds = medicines.filter((m) => m.type !== 'syrup');
-                      const syrupMeds = medicines.filter((m) => m.type === 'syrup');
-
-                      return (
-                        <div className="space-y-3">
-                          {regularMeds.length > 0 && (
-                            <div className="space-y-1.5">
-                              {syrupMeds.length > 0 && (
-                                <div className="text-[11px] font-bold text-brand uppercase tracking-wider flex items-center gap-1">
-                                  <Pill size={12} /> Tablets / Regular Medicines ({regularMeds.length})
-                                </div>
-                              )}
-                              <div className="overflow-x-auto rounded-lg border border-border">
-                                <table className="w-full text-left text-xs">
-                                  <thead className="bg-bg/60 border-b border-border text-[10px] font-bold text-ink-soft uppercase">
-                                    <tr>
-                                      <th className="px-3 py-2 text-center w-10">#</th>
-                                      <th className="px-3 py-2">Medicine Name</th>
-                                      <th className="px-3 py-2">Dosage</th>
-                                      <th className="px-3 py-2">Frequency</th>
-                                      <th className="px-3 py-2">Duration</th>
-                                      <th className="px-3 py-2">Instructions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-border">
-                                    {regularMeds.map((m, mIdx) => (
-                                      <tr key={mIdx} className="hover:bg-bg/30">
-                                        <td className="px-3 py-2.5 font-bold text-ink-soft text-center">{mIdx + 1}</td>
-                                        <td className="px-3 py-2.5 font-bold text-ink">{m.medicine || '—'}</td>
-                                        <td className="px-3 py-2.5 text-ink-soft font-medium">{m.dosage || '—'}</td>
-                                        <td className="px-3 py-2.5 font-mono text-brand font-bold">
-                                          <span className="inline-flex items-center gap-1 rounded-md bg-brand-light/50 border border-brand/20 px-2 py-0.5 text-[11px]">
-                                            {m.frequency || '—'}
-                                          </span>
-                                        </td>
-                                        <td className="px-3 py-2.5 text-ink-soft">{m.duration || '—'}</td>
-                                        <td className="px-3 py-2.5 text-ink-soft italic">{m.instructions || '—'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-
-                          {syrupMeds.length > 0 && (
-                            <div className="space-y-1.5 rounded-xl border border-teal-200 bg-teal-50/20 p-2.5">
-                              <div className="text-[11px] font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1">
-                                <Droplets size={12} className="text-teal-600" /> Syrup Medications ({syrupMeds.length})
-                              </div>
-                              <div className="overflow-x-auto rounded-lg border border-teal-200/60 bg-surface">
-                                <table className="w-full text-left text-xs">
-                                  <thead className="bg-teal-50/60 border-b border-teal-200/60 text-[10px] font-bold text-teal-900 uppercase">
-                                    <tr>
-                                      <th className="px-3 py-2 text-center w-10">#</th>
-                                      <th className="px-3 py-2">Syrup Name</th>
-                                      <th className="px-3 py-2">Dose (ML)</th>
-                                      <th className="px-3 py-2">Frequency</th>
-                                      <th className="px-3 py-2">Duration</th>
-                                      <th className="px-3 py-2">Instructions</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-teal-100">
-                                    {syrupMeds.map((m, mIdx) => (
-                                      <tr key={mIdx} className="hover:bg-teal-50/30">
-                                        <td className="px-3 py-2.5 font-bold text-teal-700 text-center">S{mIdx + 1}</td>
-                                        <td className="px-3 py-2.5 font-bold text-ink">{m.medicine || '—'}</td>
-                                        <td className="px-3 py-2.5 text-teal-800 font-semibold">{m.dosage || '—'}</td>
-                                        <td className="px-3 py-2.5 font-mono text-teal-700 font-bold">
-                                          <span className="inline-flex items-center gap-1 rounded-md bg-teal-100/60 border border-teal-300 px-2 py-0.5 text-[11px]">
-                                            {m.frequency || '—'}
-                                          </span>
-                                        </td>
-                                        <td className="px-3 py-2.5 text-ink-soft">{m.duration || '—'}</td>
-                                        <td className="px-3 py-2.5 text-ink-soft italic">{m.instructions || '—'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {/* Unified Medicines Table */}
+                    {medicines.length > 0 && (
+                      <div className="overflow-x-auto rounded-lg border border-border">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-bg/60 border-b border-border text-[10px] font-bold text-ink-soft uppercase">
+                            <tr>
+                              <th className="px-3 py-2 text-center w-10">#</th>
+                              <th className="px-3 py-2">Medicine Name</th>
+                              <th className="px-3 py-2">Dosage</th>
+                              <th className="px-3 py-2">Frequency</th>
+                              <th className="px-3 py-2">Duration</th>
+                              <th className="px-3 py-2">Instructions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {medicines.map((m, mIdx) => (
+                              <tr key={mIdx} className="hover:bg-bg/30">
+                                <td className="px-3 py-2.5 font-bold text-ink-soft text-center">{mIdx + 1}</td>
+                                <td className="px-3 py-2.5 font-bold text-ink">{m.medicine || '—'}</td>
+                                <td className="px-3 py-2.5 text-ink-soft font-medium">{m.dosage || '—'}</td>
+                                <td className="px-3 py-2.5 font-mono text-brand font-bold">
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-brand-light/50 border border-brand/20 px-2 py-0.5 text-[11px]">
+                                    {m.frequency || '—'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-ink-soft">{m.duration || '—'}</td>
+                                <td className="px-3 py-2.5 text-ink-soft italic">{m.instructions || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
                     {/* Notes */}
                     {rx.notes && (

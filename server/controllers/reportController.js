@@ -798,21 +798,27 @@ async function getAppointmentsReport(req, res, next) {
     if (status) {
       aptFilter.status = status;
     }
+    const consultFilter = {
+      $or: [
+        { visitDate: { $gte: start, $lte: end } },
+        { createdAt: { $gte: start, $lte: end } },
+      ],
+    };
+    const queueFilter = {
+      date: { $gte: start, $lte: end },
+    };
+    if (effectiveDoctorId) {
+      consultFilter.doctor = effectiveDoctorId;
+      queueFilter.doctor = effectiveDoctorId;
+    }
 
     const [appointments, consultations, queueEntries] = await Promise.all([
       Appointment.find(aptFilter)
         .populate('patient', 'firstName lastName opNumber primaryPhone phone age sex patientType')
         .populate('doctor', 'name specialization')
         .sort({ date: -1, createdAt: -1 }),
-      Consultation.find({
-        $or: [
-          { visitDate: { $gte: start, $lte: end } },
-          { createdAt: { $gte: start, $lte: end } },
-        ],
-      }),
-      QueueEntry.find({
-        date: { $gte: start, $lte: end },
-      }),
+      Consultation.find(consultFilter),
+      QueueEntry.find(queueFilter),
     ]);
 
     const consultByAptId = new Map();

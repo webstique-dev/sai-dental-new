@@ -103,10 +103,10 @@ export default function DoctorBilling() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink flex items-center gap-2">
-            <Wallet size={26} className="text-brand" /> Clinic Billing & Invoices
+            <Wallet size={26} className="text-brand" /> My Billing & Invoices
           </h1>
           <p className="text-xs text-ink-soft mt-0.5">
-            Read-only financial records, invoice summaries, and payment statuses for clinical reference.
+            Read-only financial records, invoice summaries, and payment statuses for your patients.
           </p>
         </div>
       </div>

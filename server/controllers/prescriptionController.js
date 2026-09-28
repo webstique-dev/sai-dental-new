@@ -11,6 +11,11 @@ async function listPrescriptions(req, res, next) {
     if (consultation) filter.consultation = consultation;
     if (patient) filter.patient = patient;
 
+    // Doctor role sees only prescriptions they recorded; Admin/Receptionist can view across doctors
+    if (req.user && req.user.role === 'doctor') {
+      filter.recordedBy = req.user._id;
+    }
+
     const prescriptions = await Prescription.find(filter)
       .sort({ createdAt: -1 })
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
@@ -95,6 +100,14 @@ async function updatePrescription(req, res, next) {
       return res.status(404).json({ message: 'Prescription not found.' });
     }
 
+    if (req.user && req.user.role === 'doctor') {
+      const rxRecordedById = rx.recordedBy?._id?.toString() || rx.recordedBy?.toString();
+      const userDoctorId = req.user._id ? req.user._id.toString() : req.user.id?.toString();
+      if (rxRecordedById && userDoctorId && rxRecordedById !== userDoctorId) {
+        return res.status(403).json({ message: 'Access denied: You cannot edit prescriptions created by other doctors.' });
+      }
+    }
+
     if (Array.isArray(medicines)) {
       if (medicines.length === 0) {
         return res.status(400).json({ message: 'At least one medicine is required.' });
@@ -142,6 +155,14 @@ async function deletePrescription(req, res, next) {
     const rx = await Prescription.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!rx) {
       return res.status(404).json({ message: 'Prescription not found.' });
+    }
+
+    if (req.user && req.user.role === 'doctor') {
+      const rxRecordedById = rx.recordedBy?._id?.toString() || rx.recordedBy?.toString();
+      const userDoctorId = req.user._id ? req.user._id.toString() : req.user.id?.toString();
+      if (rxRecordedById && userDoctorId && rxRecordedById !== userDoctorId) {
+        return res.status(403).json({ message: 'Access denied: You cannot delete prescriptions created by other doctors.' });
+      }
     }
 
     rx.isDeleted = true;
