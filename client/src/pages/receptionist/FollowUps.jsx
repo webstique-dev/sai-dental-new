@@ -12,7 +12,7 @@ import EditableCombobox from '../../components/common/EditableCombobox.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
-import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName, capitalizeWords } from '../../utils/formatters.js';
 import { TOOTH_CONDITIONS } from '../../constants/toothConditions.js';
 import { FOLLOW_UP_REASONS } from '../../constants/followUpOptions.js';
 
@@ -609,7 +609,7 @@ export default function FollowUps() {
 
                           <td className="px-5 py-4 whitespace-nowrap">
                             {docObj ? (
-                              <span className="font-medium text-ink">Dr. {docObj.name}</span>
+                              <span className="font-medium text-ink">{formatDoctorName(docObj.name)}</span>
                             ) : (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                 Unassigned
@@ -636,7 +636,7 @@ export default function FollowUps() {
                                 </span>
                                 {item.scheduledAppointment.doctor && (
                                   <span className="text-[10px] block">
-                                    Dr. {item.scheduledAppointment.doctor.name}
+                                    {formatDoctorName(item.scheduledAppointment.doctor.name)}
                                   </span>
                                 )}
                               </div>
@@ -742,7 +742,7 @@ export default function FollowUps() {
                           <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
                             <div>
                               <span className="block text-[10px] font-semibold text-ink-soft uppercase">Assigned Doctor</span>
-                              <span className="font-semibold text-ink">{docObj ? `Dr. ${docObj.name}` : 'Unassigned'}</span>
+                              <span className="font-semibold text-ink">{docObj ? formatDoctorName(docObj.name) : 'Unassigned'}</span>
                             </div>
                             <div>
                               <span className="block text-[10px] font-semibold text-ink-soft uppercase">Phone</span>
@@ -853,7 +853,7 @@ export default function FollowUps() {
                     <option value="">Select Doctor *</option>
                     {doctors.map((d) => (
                       <option key={d._id || d.id} value={d._id || d.id}>
-                        Dr. {d.name} ({d.specialization || 'Dental Specialist'})
+                        {formatDoctorName(d.name)} ({d.specialization || 'Dental Specialist'})
                       </option>
                     ))}
                   </select>
@@ -966,7 +966,7 @@ export default function FollowUps() {
                     <option value="">Select Doctor *</option>
                     {doctors.map((d) => (
                       <option key={d._id || d.id} value={d._id || d.id}>
-                        Dr. {d.name} ({d.specialization || 'Dental Specialist'})
+                        {formatDoctorName(d.name)} ({d.specialization || 'Dental Specialist'})
                       </option>
                     ))}
                   </select>

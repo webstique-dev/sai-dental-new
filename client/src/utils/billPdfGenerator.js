@@ -1,5 +1,5 @@
 import api from '../api/axios.js';
-import { formatAge, formatPatientFullName, capitalizeWords } from './formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName, capitalizeWords } from './formatters.js';
 
 export function generateBillHTML(params = {}) {
   const { invoice = {}, clinicSettings = {}, doctor = null } = params || {};
@@ -8,14 +8,6 @@ export function generateBillHTML(params = {}) {
   const docObj = doctor || invoice?.doctor || {};
 
   const patientName = formatPatientFullName(patient) || 'Patient';
-
-  let rawDocName = docObj?.name || 'Doctor';
-  if (rawDocName !== 'Doctor' && !rawDocName.startsWith('Dr.')) {
-    rawDocName = `Dr. ${rawDocName}`;
-  }
-  const doctorName = capitalizeWords(rawDocName);
-  const doctorQual = capitalizeWords(docObj?.qualification || docObj?.doctorProfile?.qualification || 'BDS, MDS');
-  const doctorSpec = capitalizeWords(docObj?.specialization || docObj?.doctorProfile?.specialization || 'Dental Specialist & Surgeon');
 
   const billDate = new Date(invoice?.createdAt || invoice?.date || Date.now()).toLocaleDateString('en-IN', {
     day: 'numeric',
@@ -78,40 +70,40 @@ export function generateBillHTML(params = {}) {
     const isEven = idx % 2 === 0;
     return `
       <tr style="background-color: ${isEven ? '#ffffff' : '#f8fafc'};">
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 700; text-align: center; color: #64748b; font-size: 11px;">${idx + 1}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #0f172a;">
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-weight: 700; text-align: center; color: #64748b; font-size: 10.5px;">${idx + 1}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #0B1A2E;">
           <div style="font-weight: 700;">${item.name}</div>
-          ${item.details ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">${item.details}</div>` : ''}
+          ${item.details ? `<div style="font-size: 9.5px; color: #64748b; margin-top: 1px;">${item.details}</div>` : ''}
         </td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-size: 12px; color: #334155;">${item.quantity}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; font-size: 12px; color: #334155;">₹${item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; font-weight: 700; font-size: 12px; color: #0f172a;">₹${itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-size: 11px; color: #334155;">${item.quantity}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; font-size: 11px; color: #334155;">₹${item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; font-weight: 700; font-size: 11px; color: #0B1A2E;">₹${itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       </tr>
     `;
   }).join('');
 
   const payments = invoice?.payments || [];
   const paymentsSection = payments.length > 0 ? `
-    <div style="margin-top: 24px;">
-      <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; margin-bottom: 8px;">Payment & Transaction History</div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+    <div style="margin-top: 12px;">
+      <div style="font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 5px;">Payment History</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
         <thead>
           <tr style="background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; text-align: left;">
-            <th style="padding: 6px 10px; font-weight: 700; color: #475569;">#</th>
-            <th style="padding: 6px 10px; font-weight: 700; color: #475569;">Date & Time</th>
-            <th style="padding: 6px 10px; font-weight: 700; color: #475569;">Payment Method</th>
-            <th style="padding: 6px 10px; font-weight: 700; color: #475569;">Type / Reference</th>
-            <th style="padding: 6px 10px; font-weight: 700; color: #475569; text-align: right;">Amount Paid</th>
+            <th style="padding: 5px 8px; font-weight: 700; color: #334155; width: 30px; text-align: center;">#</th>
+            <th style="padding: 5px 8px; font-weight: 700; color: #334155;">Date & Time</th>
+            <th style="padding: 5px 8px; font-weight: 700; color: #334155;">Method</th>
+            <th style="padding: 5px 8px; font-weight: 700; color: #334155;">Type / Reference</th>
+            <th style="padding: 5px 8px; font-weight: 700; color: #334155; text-align: right;">Amount Paid</th>
           </tr>
         </thead>
         <tbody>
           ${payments.map((p, idx) => `
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 6px 10px; color: #64748b;">${idx + 1}</td>
-              <td style="padding: 6px 10px; color: #334155;">${new Date(p.date || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-              <td style="padding: 6px 10px; font-weight: 600; color: #0f172a;">${capitalizeWords(p.method || 'Cash')}</td>
-              <td style="padding: 6px 10px; color: #64748b; font-style: italic;">${capitalizeWords(p.reason || p.type || 'Payment Received')}</td>
-              <td style="padding: 6px 10px; text-align: right; font-family: monospace; font-weight: 700; color: #047857;">₹${(Number(p.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+              <td style="padding: 5px 8px; color: #64748b; text-align: center;">${idx + 1}</td>
+              <td style="padding: 5px 8px; color: #334155;">${new Date(p.date || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+              <td style="padding: 5px 8px; font-weight: 600; color: #0B1A2E;">${capitalizeWords(p.method || 'Cash')}</td>
+              <td style="padding: 5px 8px; color: #64748b;">${capitalizeWords(p.reason || p.type || 'Payment Received')}</td>
+              <td style="padding: 5px 8px; text-align: right; font-family: monospace; font-weight: 700; color: #0B1A2E;">₹${(Number(p.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -129,44 +121,51 @@ export function generateBillHTML(params = {}) {
       <style>
         @page {
           size: A4 portrait;
-          margin: 0;
+          margin: 8mm 12mm 8mm 12mm;
         }
         * {
           box-sizing: border-box;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          color: #0f172a;
-          background: #f8fafc;
+        html, body {
           margin: 0;
           padding: 0;
-          font-size: 12px;
-          line-height: 1.45;
+          background: #cbd5e1;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          color: #0f172a;
+          font-size: 11px;
+          line-height: 1.4;
         }
+        body {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        /* SCREEN TOOLBAR */
         .screen-toolbar {
-          position: sticky;
+          position: fixed;
           top: 0;
           left: 0;
           right: 0;
           background: #0f172a;
           color: #ffffff;
-          padding: 10px 20px;
+          padding: 10px 24px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          z-index: 9999;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          z-index: 99999;
         }
         .toolbar-btn {
-          background: #0d9488;
+          background: #1E64EA;
           color: #ffffff;
           border: none;
           padding: 8px 18px;
           border-radius: 8px;
           font-weight: 700;
-          font-size: 13px;
+          font-size: 12px;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
@@ -174,28 +173,109 @@ export function generateBillHTML(params = {}) {
           transition: background 0.15s ease;
         }
         .toolbar-btn:hover {
-          background: #0f766e;
+          background: #1550c0;
         }
         .toolbar-close {
           background: #334155;
           color: #f1f5f9;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 12px;
+          cursor: pointer;
         }
         .toolbar-close:hover {
           background: #475569;
         }
-        .invoice-container {
-          max-width: 820px;
-          margin: 20px auto 40px auto;
+
+        /* A4 PAGE CONTAINER */
+        .a4-page {
+          width: 210mm;
+          min-height: 297mm;
+          margin: 56px auto 20px auto;
           background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-          padding: 32px 36px;
+          border-radius: 4px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08);
+          padding: 12mm 14mm 10mm 14mm;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          box-sizing: border-box;
+          position: relative;
         }
+
+        .page-content {
+          flex: 1 1 auto;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+
+        .page-footer {
+          margin-top: auto;
+          flex-shrink: 0;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          border-bottom: 2.5px solid #0f172a;
+          padding-bottom: 10px;
+          margin-bottom: 12px;
+        }
+
+        .patient-card {
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          padding: 10px 14px;
+          margin-bottom: 12px;
+          background: #ffffff;
+        }
+        .patient-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+        }
+        .patient-label {
+          font-size: 9.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #64748b;
+          margin-bottom: 2px;
+        }
+        .patient-value {
+          font-size: 11.5px;
+          font-weight: 800;
+          color: #0B1A2E;
+        }
+
+        .bill-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 12px;
+          border-radius: 6px;
+          overflow: hidden;
+          border: 1px solid #cbd5e1;
+        }
+        .bill-table th {
+          background-color: #f1f5f9;
+          color: #334155;
+          text-align: left;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          padding: 6px 10px;
+          border-bottom: 1px solid #cbd5e1;
+          font-weight: 700;
+        }
+
+        /* PRINT STYLES */
         @media print {
           @page {
             size: A4 portrait;
-            margin: 0;
+            margin: 8mm 12mm 8mm 12mm;
           }
           html, body {
             margin: 0 !important;
@@ -203,19 +283,31 @@ export function generateBillHTML(params = {}) {
             background: #ffffff !important;
             color: #000000 !important;
             width: 100% !important;
+            height: auto !important;
           }
           .screen-toolbar, .no-print {
             display: none !important;
           }
-          .invoice-container {
+          .a4-page {
+            width: 100% !important;
+            min-height: 270mm !important;
+            height: 270mm !important;
+            max-height: 270mm !important;
             border: none !important;
             box-shadow: none !important;
-            padding: 12mm 14mm !important;
+            padding: 0 !important;
             margin: 0 !important;
-            max-width: 100% !important;
-            width: 100% !important;
             border-radius: 0 !important;
             background: #ffffff !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            box-sizing: border-box !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            position: relative !important;
           }
         }
       </style>
@@ -223,176 +315,140 @@ export function generateBillHTML(params = {}) {
     <body>
       <div class="screen-toolbar no-print">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-weight: 700; font-size: 14px;">🧾 Medical Bill / Invoice Preview</span>
+          <span style="font-weight: 700; font-size: 14px;">🧾 Medical Bill / Invoice Preview (A4 Format)</span>
           <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 6px; font-family: monospace; font-size: 11px;">${invoiceNo}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="toolbar-btn toolbar-close" onclick="window.close()">Close Window</button>
+          <button class="toolbar-close" onclick="window.close()">Close Preview</button>
           <button class="toolbar-btn" onclick="window.print()">🖨️ Print Bill / Save PDF</button>
         </div>
       </div>
 
-      <div class="invoice-container">
-        <!-- HEADER: CLINIC BRANDING & BILL BADGE -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 18px; margin-bottom: 20px;">
-          <div style="max-width: 60%;">
-            <div style="font-size: 22px; font-weight: 900; color: #0f172a; letter-spacing: -0.02em; line-height: 1.2;">
-              ${safeClinicName}
+      <div class="a4-page last-page">
+        <div class="page-content">
+          <!-- HEADER: CLINIC BRANDING (TOP LOGO, BOTTOM ADDRESS) & BILL BADGE -->
+          <div class="header">
+            <div style="max-width: 60%;">
+              <img src="https://res.cloudinary.com/rlokioxu/image/upload/v1787051057/Sai-dental_logo_xkwusa.png" alt="Sai Dental Logo" style="height: 46px; width: auto; object-fit: contain; border-radius: 6px; display: block; margin-bottom: 5px;" />
+              <div style="font-size: 10px; color: #475569; line-height: 1.35;">
+                <div>${safeAddress}</div>
+                <div style="margin-top: 1px;">Phone: <strong>${safePhone}</strong> | Email: <strong>${safeEmail}</strong></div>
+                ${safeTaxId ? `<div style="font-size: 9px; color: #64748b; margin-top: 1px; font-family: monospace;">GSTIN / Reg No: <strong>${safeTaxId}</strong></div>` : ''}
+              </div>
             </div>
-            <div style="font-size: 11px; font-weight: 600; color: #0d9488; margin-top: 3px;">
-              ${safeTagline}
+
+            <div style="text-align: right;">
+              <div style="font-size: 14px; font-weight: 800; color: #0B1A2E; letter-spacing: 0.5px;">
+                INVOICE / BILL
+              </div>
+              <div style="font-size: 12px; font-weight: 700; font-family: monospace; color: #1E64EA; margin-top: 2px;">
+                ${invoiceNo}
+              </div>
+              <div style="font-size: 10px; color: #475569; margin-top: 2px;">
+                Date: <strong>${billDate}</strong> | Time: ${billTime}
+              </div>
+              <div style="margin-top: 4px;">
+                <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
+                  Status: ${paymentStatus}
+                </span>
+              </div>
             </div>
-            <div style="font-size: 11px; color: #475569; margin-top: 6px; line-height: 1.4;">
-              ${safeAddress}
-            </div>
-            <div style="font-size: 11px; color: #475569; margin-top: 2px;">
-              Phone: <strong>${safePhone}</strong> | Email: <strong>${safeEmail}</strong>
-            </div>
-            ${safeTaxId ? `<div style="font-size: 10px; color: #64748b; margin-top: 2px; font-family: monospace;">GSTIN / Reg No: <strong>${safeTaxId}</strong></div>` : ''}
           </div>
 
-          <div style="text-align: right;">
-            <div style="display: inline-block; background: #0f172a; color: #ffffff; padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">
-              Tax Invoice / Bill
+          <!-- PATIENT INFORMATION CARD -->
+          <div class="patient-card">
+            <div class="patient-grid">
+              <div>
+                <div class="patient-label">Patient Name</div>
+                <div class="patient-value">${patientName}</div>
+              </div>
+              <div>
+                <div class="patient-label">Patient ID (OP#)</div>
+                <div class="patient-value" style="color: #1E64EA; font-family: monospace;">#${patient?.opNumber || invoice?.opNumber || 'N/A'}</div>
+              </div>
+              <div>
+                <div class="patient-label">Age / Gender</div>
+                <div class="patient-value">${patient?.age !== undefined && patient?.age !== null ? `${formatAge(patient.age)} yrs` : 'N/A'} ${patient?.sex ? `/ ${patient.sex}` : ''}</div>
+              </div>
+              <div>
+                <div class="patient-label">Phone Number</div>
+                <div class="patient-value" style="font-family: monospace;">${patient?.primaryPhone || patient?.phone || 'N/A'}</div>
+              </div>
             </div>
-            <div style="font-size: 14px; font-weight: 800; font-family: monospace; color: #0f172a;">
-              ${invoiceNo}
-            </div>
-            <div style="font-size: 11px; color: #475569; margin-top: 4px;">
-              Date: <strong>${billDate}</strong>
-            </div>
-            <div style="font-size: 11px; color: #64748b;">
-              Time: ${billTime}
-            </div>
-            <div style="margin-top: 8px;">
-              <span style="display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; background-color: ${statusTheme.bg}; color: ${statusTheme.text}; border: 1px solid ${statusTheme.border};">
-                ● ${paymentStatus}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2-COLUMN INFO BOX: PATIENT & DOCTOR / VISIT -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px;">
-          <!-- Patient Box -->
-          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
-            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #0d9488; margin-bottom: 6px;">
-              Billed To (Patient Information)
-            </div>
-            <div style="font-size: 14px; font-weight: 800; color: #0f172a;">
-              ${patientName}
-            </div>
-            <div style="font-size: 11px; color: #334155; margin-top: 3px;">
-              OP Number: <strong style="font-family: monospace; color: #0d9488;">#${patient?.opNumber || invoice?.opNumber || 'N/A'}</strong>
-            </div>
-            <div style="font-size: 11px; color: #475569; margin-top: 2px;">
-              Age / Sex: <strong>${patient?.age !== undefined && patient?.age !== null ? `${formatAge(patient.age)} yrs` : 'N/A'}</strong> / <strong>${patient?.sex || 'N/A'}</strong>
-            </div>
-            <div style="font-size: 11px; color: #475569; margin-top: 2px;">
-              Contact: <strong>${patient?.primaryPhone || patient?.phone || 'N/A'}</strong>
-            </div>
-            ${patient?.address ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Address: ${capitalizeWords(patient.address)}</div>` : ''}
-          </div>
-
-          <!-- Doctor & Visit Box -->
-          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
-            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #0d9488; margin-bottom: 6px;">
-              Attending Doctor & Consultation
-            </div>
-            <div style="font-size: 14px; font-weight: 800; color: #0f172a;">
-              ${doctorName}
-            </div>
-            <div style="font-size: 11px; color: #334155; margin-top: 3px;">
-              ${doctorSpec}
-            </div>
-            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
-              Qualification: <strong>${doctorQual}</strong>
-            </div>
-            <div style="font-size: 11px; color: #475569; margin-top: 4px; border-top: 1px dashed #cbd5e1; pt-1;">
-              Payment Method: <strong>${capitalizeWords(invoice?.payments?.[0]?.method || invoice?.paymentMethod || 'Cash')}</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- ITEMIZED SERVICES TABLE -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
-          <thead>
-            <tr style="background-color: #0f172a; color: #ffffff; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">
-              <th style="padding: 10px 12px; width: 45px; text-align: center;">#</th>
-              <th style="padding: 10px 12px;">Service / Procedure Description</th>
-              <th style="padding: 10px 12px; width: 60px; text-align: center;">Qty</th>
-              <th style="padding: 10px 12px; width: 120px; text-align: right;">Unit Rate (₹)</th>
-              <th style="padding: 10px 12px; width: 130px; text-align: right;">Total (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsRows}
-          </tbody>
-        </table>
-
-        <!-- TOTALS & FINANCIAL SUMMARY -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
-          <!-- Left side: Terms / Notes -->
-          <div style="flex: 1; padding: 12px 14px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 10.5px; color: #64748b; line-height: 1.5;">
-            <div style="font-weight: 700; color: #334155; margin-bottom: 4px; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em;">Terms & Notes:</div>
-            <p style="margin: 0 0 4px 0;">1. This is a computer-generated official billing statement.</p>
-            <p style="margin: 0 0 4px 0;">2. Prescribed medicines and dental services are subject to clinical guidelines.</p>
-            <p style="margin: 0;">3. For any invoice queries or follow-up appointments, please quote the Invoice Ref <strong>#${invoiceNo}</strong>.</p>
-          </div>
-
-          <!-- Right side: Amount calculation block -->
-          <div style="width: 320px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
-            <div style="padding: 10px 14px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; border-bottom: 1px solid #f1f5f9;">
-              <span>Subtotal:</span>
-              <span style="font-family: monospace; font-weight: 600; color: #0f172a;">₹${subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            </div>
-
-            ${discount > 0 ? `
-              <div style="padding: 8px 14px; display: flex; justify-content: space-between; font-size: 11px; color: #047857; border-bottom: 1px solid #f1f5f9;">
-                <span>Discount:</span>
-                <span style="font-family: monospace; font-weight: 600;">-₹${discount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            ${patient?.address ? `
+              <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0; font-size: 9.5px; color: #475569;">
+                <strong>Address:</strong> ${capitalizeWords(patient.address)}
               </div>
             ` : ''}
+          </div>
 
-            ${tax > 0 ? `
-              <div style="padding: 8px 14px; display: flex; justify-content: space-between; font-size: 11px; color: #475569; border-bottom: 1px solid #f1f5f9;">
-                <span>Tax / GST:</span>
-                <span style="font-family: monospace; font-weight: 600; color: #0f172a;">+₹${tax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <!-- ITEMIZED SERVICES TABLE -->
+          <table class="bill-table">
+            <thead>
+              <tr>
+                <th style="width: 35px; text-align: center;">#</th>
+                <th>Service / Procedure Description</th>
+                <th style="width: 50px; text-align: center;">Qty</th>
+                <th style="width: 100px; text-align: right;">Unit Rate (₹)</th>
+                <th style="width: 110px; text-align: right;">Total (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+
+          <!-- TOTALS & FINANCIAL SUMMARY -->
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+            <!-- Amount calculation block -->
+            <div style="width: 280px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden;">
+              <div style="padding: 5px 12px; display: flex; justify-content: space-between; font-size: 10.5px; color: #475569; border-bottom: 1px solid #f1f5f9;">
+                <span>Subtotal:</span>
+                <span style="font-family: monospace; font-weight: 600; color: #0B1A2E;">₹${subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-            ` : ''}
 
-            <div style="padding: 12px 14px; display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; background-color: #f1f5f9; color: #0f172a; border-bottom: 1px solid #e2e8f0;">
-              <span>Total Bill Amount:</span>
-              <span style="font-family: monospace; font-size: 14px; color: #0f766e;">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            </div>
+              ${discount > 0 ? `
+                <div style="padding: 5px 12px; display: flex; justify-content: space-between; font-size: 10.5px; color: #475569; border-bottom: 1px solid #f1f5f9;">
+                  <span>Discount:</span>
+                  <span style="font-family: monospace; font-weight: 600; color: #0B1A2E;">-₹${discount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ` : ''}
 
-            <div style="padding: 10px 14px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #047857; border-bottom: 1px solid #f1f5f9;">
-              <span>Amount Paid:</span>
-              <span style="font-family: monospace;">₹${amountPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            </div>
+              ${tax > 0 ? `
+                <div style="padding: 5px 12px; display: flex; justify-content: space-between; font-size: 10.5px; color: #475569; border-bottom: 1px solid #f1f5f9;">
+                  <span>Tax / GST:</span>
+                  <span style="font-family: monospace; font-weight: 600; color: #0B1A2E;">+₹${tax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ` : ''}
 
-            <div style="padding: 10px 14px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; background-color: ${balance > 0 ? '#fef2f2' : '#f0fdf4'}; color: ${balance > 0 ? '#b91c1c' : '#15803d'};">
-              <span>Balance Due:</span>
-              <span style="font-family: monospace; font-size: 13px;">₹${balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <div style="padding: 6px 12px; display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 800; background-color: #f1f5f9; color: #0B1A2E; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
+                <span>Total Bill Amount:</span>
+                <span style="font-family: monospace; font-size: 12px; color: #0B1A2E;">₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+
+              <div style="padding: 5px 12px; display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: #334155; border-bottom: 1px solid #f1f5f9;">
+                <span>Amount Paid:</span>
+                <span style="font-family: monospace; color: #0B1A2E;">₹${amountPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+
+              <div style="padding: 5px 12px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; color: #0B1A2E; background-color: #ffffff;">
+                <span>Balance Due:</span>
+                <span style="font-family: monospace; font-size: 11.5px; color: #0B1A2E;">₹${balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
             </div>
           </div>
+
+          ${paymentsSection}
         </div>
 
-        ${paymentsSection}
-
-        <!-- FOOTER: SIGNATURE AND CLINIC SALUTATION -->
-        <div style="margin-top: 36px; padding-top: 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: flex-end;">
-          <div>
-            <div style="font-size: 12px; font-weight: 700; color: #0d9488;">Thank you for trusting ${safeClinicName}!</div>
-            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">For appointments & queries, reach us at ${safePhone}</div>
-          </div>
-
-          <div style="text-align: center; min-width: 180px;">
-            <div style="height: 40px;"></div>
-            <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-size: 11px; font-weight: 800; color: #0f172a;">
-              Authorized Signatory
+        <!-- FOOTER: CLINIC SALUTATION (PINNED TO BOTTOM OF A4) -->
+        <div class="page-footer">
+          <div style="padding-top: 10px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 10.5px; font-weight: 700; color: #0B1A2E;">Thank you for trusting Sai Dental Clinic!</div>
+              <div style="font-size: 9px; color: #64748b; margin-top: 1px;">For appointments & queries, reach us at ${safePhone}</div>
+              <div style="font-size: 8.5px; color: #94a3b8; margin-top: 1px; font-style: italic;">Computer generated official invoice receipt.</div>
             </div>
-            <div style="font-size: 10px; color: #64748b;">${safeClinicName}</div>
           </div>
         </div>
       </div>
@@ -418,17 +474,21 @@ export async function openBillPrintWindow(params = {}, autoPrint = true) {
 
   // Determine doctor object
   let docObj = doctor || invoice?.doctor || {};
-  const docId = typeof docObj === 'string' ? docObj : (docObj?._id || docObj?.id);
+  const docId = typeof docObj === 'string' ? docObj : (docObj?._id || docObj?.id || docObj?.user?._id || docObj?.user);
 
-  if (docId && (!docObj.qualification || !docObj.specialization)) {
+  // Fetch latest doctor profile from My Account to ensure up-to-date name, specialization, qualification, phone
+  if (docId) {
     try {
       const docRes = await api.get(`/doctor-profiles/${docId}`);
       if (docRes.data?.profile) {
         const prof = docRes.data.profile;
+        const u = prof.user || {};
         docObj = {
           ...docObj,
-          specialization: prof.specialization || docObj.specialization,
+          name: u.name || prof.name || docObj.name,
+          specialization: prof.specialization || u.specialization || docObj.specialization,
           qualification: prof.qualification || docObj.qualification,
+          phone: u.phone || prof.phone || docObj.phone,
         };
       }
     } catch (err) {

@@ -7,7 +7,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import TreatmentPlanTab from './consultation/TreatmentPlanTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
-import { formatPatientFullName } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 
 const STATUS_BADGES = {
   Planned: 'bg-slate-100 text-slate-800 border-slate-200',
@@ -94,7 +94,7 @@ export default function TreatmentPlansPage() {
                 </span>
               </div>
               <p className="text-xs text-ink-soft mt-0.5">
-                Doctor: <strong>Dr. {selectedConsultation.doctor?.name || 'Staff Doctor'}</strong> • Plan Created:{' '}
+                Doctor: <strong>{formatDoctorName(selectedConsultation.doctor?.name, 'Dr. Staff Doctor')}</strong> • Plan Created:{' '}
                 <strong>{new Date(selectedConsultation.visitDate || selectedConsultation.startedAt || selectedConsultation.createdAt).toLocaleDateString()}</strong>
               </p>
             </div>

@@ -9,7 +9,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
-import { formatPatientFullName } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 
 const STATUS_OPTIONS = [
   'Scheduled',
@@ -177,7 +177,7 @@ export default function AdminAppointments() {
                 const docId = d._id || d.id;
                 return (
                   <option key={docId} value={docId}>
-                    Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                    {formatDoctorName(d.name)} {d.specialization ? `(${d.specialization})` : ''}
                   </option>
                 );
               })}
@@ -280,7 +280,7 @@ export default function AdminAppointments() {
                   const docId = d._id || d.id;
                   return (
                     <option key={docId} value={docId}>
-                      Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                      {formatDoctorName(d.name)} {d.specialization ? `(${d.specialization})` : ''}
                     </option>
                   );
                 })}
@@ -350,7 +350,7 @@ export default function AdminAppointments() {
               <strong className="text-ink font-bold">
                 {formatPatientFullName(cancellingAppointment.patient)}
               </strong>{' '}
-              with Dr. {cancellingAppointment.doctor?.name}?
+              with {formatDoctorName(cancellingAppointment.doctor?.name, 'Dr. Doctor')}?
             </p>
           ) : (
             'Are you sure you want to cancel this appointment?'

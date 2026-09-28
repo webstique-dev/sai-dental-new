@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { capitalizeWords } from '../../utils/formatters.js';
+import { capitalizeWords, formatDoctorName } from '../../utils/formatters.js';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -247,7 +247,7 @@ export default function ClinicSettings() {
                 const docId = doc._id || doc.id;
                 return (
                   <option key={docId} value={docId}>
-                    Dr. {doc.name} {doc.specialization ? `(${doc.specialization})` : ''} {doc.isPrimary ? '★ [Current Primary]' : ''}
+                    {formatDoctorName(doc.name)} {doc.specialization ? `(${doc.specialization})` : ''} {doc.isPrimary ? '★ [Current Primary]' : ''}
                   </option>
                 );
               })}

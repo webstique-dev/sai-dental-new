@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertCircle, CreditCard, Clock, UserSquare2,
   ChevronDown, ChevronUp, Stethoscope, Printer
 } from 'lucide-react';
-import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 import api from '../../api/axios.js';
 import StatCard from '../../components/common/StatCard.jsx';
@@ -311,7 +311,7 @@ export default function DoctorBilling() {
                     const invId = inv._id || inv.id || idx;
                     const patient = inv.patient || {};
                     const patientName = formatPatientFullName(patient) || 'Unknown Patient';
-                    const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
+                    const docName = formatDoctorName(inv.doctor, 'Unassigned');
                     const itemsSummary = (inv.items || [])
                       .map((item) => (item.service || item.treatment || '').trim())
                       .filter(Boolean)
@@ -399,7 +399,7 @@ export default function DoctorBilling() {
                 const invId = inv._id || inv.id || idx;
                 const patient = inv.patient || {};
                 const patientName = formatPatientFullName(patient) || 'Unknown Patient';
-                const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned';
+                const docName = formatDoctorName(inv.doctor, 'Unassigned');
                 const itemsSummary = (inv.items || [])
                   .map((item) => (item.service || item.treatment || '').trim())
                   .filter(Boolean)
@@ -543,7 +543,7 @@ export default function DoctorBilling() {
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block">Visit & Doctor Details</span>
                   <div className="font-bold text-ink text-sm">
-                    {selectedInvoice.doctor ? `Dr. ${selectedInvoice.doctor.name}` : 'Unassigned Doctor'}
+                    {selectedInvoice.doctor ? formatDoctorName(selectedInvoice.doctor) : 'Unassigned Doctor'}
                   </div>
                   <div className="text-xs text-ink-soft">
                     Date: {formatReadableDate(selectedInvoice.createdAt)}

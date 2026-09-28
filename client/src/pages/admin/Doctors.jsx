@@ -5,8 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
-import { capitalizeWords } from '../../utils/formatters.js';
+import { capitalizeWords, formatDoctorName } from '../../utils/formatters.js';
 
 const DEFAULT_DAYS = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
@@ -293,7 +292,7 @@ export default function AdminDoctors() {
                           </div>
                           <div>
                             <div className="font-bold text-ink text-sm group-hover:text-brand transition-colors flex items-center gap-2">
-                              Dr. {doc.name}
+                              {formatDoctorName(doc.name)}
                               <span className="text-[10px] font-normal text-ink-soft bg-bg px-1.5 py-0.5 rounded border border-border">
                                 {prof.qualification || 'BDS'}
                               </span>
@@ -380,7 +379,7 @@ export default function AdminDoctors() {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-ink text-sm truncate">Dr. {doc.name}</span>
+                          <span className="font-bold text-ink text-sm truncate">{formatDoctorName(doc.name)}</span>
                           <span className="text-[10px] font-normal text-ink-soft bg-bg px-1.5 py-0.5 rounded border border-border shrink-0">
                             {prof.qualification || 'BDS'}
                           </span>
@@ -455,7 +454,7 @@ export default function AdminDoctors() {
                 <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
                   <Stethoscope size={18} className="text-brand" /> Edit Doctor Profile Details
                 </h3>
-                <p className="text-xs text-ink-soft">View and update practitioner details for Dr. {editingDoctor.name}</p>
+                <p className="text-xs text-ink-soft">View and update practitioner details for {formatDoctorName(editingDoctor.name)}</p>
               </div>
               <button onClick={() => setEditingDoctor(null)} className="p-1 text-ink-soft hover:text-ink">
                 <X size={18} />

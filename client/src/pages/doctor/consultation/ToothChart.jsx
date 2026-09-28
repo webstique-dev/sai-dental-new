@@ -23,7 +23,7 @@ import api from '../../../api/axios.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 import UnsavedChangesModal from '../../../components/common/UnsavedChangesModal.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
-import { capitalizeWords } from '../../../utils/formatters.js';
+import { capitalizeWords, formatDoctorName } from '../../../utils/formatters.js';
 
 // Permanent (Adult) Teeth Quadrants (32 teeth)
 const QUAD_UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -1311,7 +1311,7 @@ export default function ToothChart({
     try {
       setIsDeletingHistory(true);
       await api.delete(`/tooth-chart/${patientId}/${toothNumber}/history/${historyId}`);
-      setSuccessMessage(`Removed most recent history entry for Tooth #${toothNumber}`);
+      setSuccessMessage(`Removed history entry for Tooth #${toothNumber}`);
       setIsConfirmHistoryDeleteOpen(false);
       setHistoryItemToDelete(null);
       await fetchToothChart();
@@ -2461,13 +2461,13 @@ export default function ToothChart({
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                          {!isReadOnly && h.isToothLatest && (
+                          {!isReadOnly && (
                             <button
                               type="button"
                               onClick={() => handleRequestDeleteHistory(h.toothNumber, h)}
                               className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
-                              title={`Delete last entry for Tooth #${h.toothNumber}`}
-                              aria-label={`Delete last entry for Tooth #${h.toothNumber}`}
+                              title={`Delete entry for Tooth #${h.toothNumber}`}
+                              aria-label={`Delete entry for Tooth #${h.toothNumber}`}
                             >
                               <Trash2 size={13} />
                             </button>
@@ -2490,7 +2490,7 @@ export default function ToothChart({
                       )}
 
                       <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                        Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                        Recorded by: {formatDoctorName(h.doctor?.name, 'Dr. Doctor')}
                       </div>
                     </div>
                   );
@@ -2607,7 +2607,7 @@ export default function ToothChart({
                         )}
 
                         <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                          Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                          Recorded by: {formatDoctorName(h.doctor?.name, 'Dr. Doctor')}
                         </div>
                       </div>
                     );
@@ -2736,7 +2736,7 @@ export default function ToothChart({
                                 )}
 
                                 <div className="text-[10px] text-ink-soft/70 text-right pt-0.5">
-                                  Recorded by: Dr. {h.doctor?.name || 'Doctor'}
+                                  Recorded by: {formatDoctorName(h.doctor?.name, 'Dr. Doctor')}
                                 </div>
                               </div>
                             );
@@ -2756,13 +2756,13 @@ export default function ToothChart({
         )}
       </div>
 
-      {/* DELETE CONFIRMATION POPUP FOR MOST RECENT TOOTH HISTORY ENTRY */}
+      {/* DELETE CONFIRMATION POPUP FOR TOOTH HISTORY ENTRY */}
       <ConfirmModal
         isOpen={isConfirmHistoryDeleteOpen}
-        title="Delete Last Entry"
+        title="Delete History Entry"
         message={
           historyItemToDelete
-            ? `Remove the most recent entry for Tooth #${historyItemToDelete.toothNumber} — ${historyItemToDelete.condition} on ${historyItemToDelete.date
+            ? `Remove the history entry for Tooth #${historyItemToDelete.toothNumber} — ${historyItemToDelete.condition} on ${historyItemToDelete.date
               ? new Date(historyItemToDelete.date).toLocaleDateString(undefined, {
                 day: 'numeric',
                 month: 'short',
@@ -2770,7 +2770,7 @@ export default function ToothChart({
               })
               : 'today'
             }? This cannot be undone.`
-            : 'Remove the most recent entry for this tooth? This cannot be undone.'
+            : 'Remove the history entry for this tooth? This cannot be undone.'
         }
         confirmText="Delete"
         cancelText="Cancel"

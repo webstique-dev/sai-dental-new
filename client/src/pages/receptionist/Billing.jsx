@@ -7,8 +7,7 @@ import {
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
-import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName, capitalizeWords } from '../../utils/formatters.js';
 import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 
 const STATUS_BADGE_CLASSES = {
@@ -380,7 +379,7 @@ export default function Billing() {
               <option value="">All Doctors</option>
               {doctors.map((d) => (
                 <option key={d._id || d.id} value={d._id || d.id}>
-                  Dr. {d.name}
+                  {formatDoctorName(d.name)}
                 </option>
               ))}
             </select>
@@ -455,7 +454,7 @@ export default function Billing() {
                       const invId = inv._id || inv.id;
                       const patient = inv.patient || {};
                       const patientName = formatPatientFullName(patient) || 'Patient';
-                      const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
+                      const docName = formatDoctorName(inv.doctor, 'Unassigned Doctor');
                       const visitDateStr = inv.createdAt
                         ? new Date(inv.createdAt).toLocaleDateString(undefined, {
                             month: 'short',
@@ -547,7 +546,7 @@ export default function Billing() {
                   const invId = inv._id || inv.id;
                   const patient = inv.patient || {};
                   const patientName = formatPatientFullName(patient) || 'Patient';
-                  const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Unassigned Doctor';
+                  const docName = formatDoctorName(inv.doctor, 'Unassigned Doctor');
                   const visitDateStr = inv.createdAt
                     ? new Date(inv.createdAt).toLocaleDateString(undefined, {
                         month: 'short',
@@ -670,7 +669,7 @@ export default function Billing() {
                 <div>
                   <span className="text-[10px] font-bold uppercase text-ink-soft block">Attending Doctor</span>
                   <span className="font-bold text-ink">
-                    {selectedInvoiceDetail.doctor ? `Dr. ${selectedInvoiceDetail.doctor.name}` : 'Unassigned'}
+                    {selectedInvoiceDetail.doctor ? formatDoctorName(selectedInvoiceDetail.doctor) : 'Unassigned'}
                   </span>
                   <span className="text-xs text-ink-soft block">
                     {selectedInvoiceDetail.createdAt ? new Date(selectedInvoiceDetail.createdAt).toLocaleDateString() : ''}
@@ -846,7 +845,7 @@ export default function Billing() {
                     <option value="">Select Doctor</option>
                     {doctors.map((d) => (
                       <option key={d._id || d.id} value={d._id || d.id}>
-                        Dr. {d.name} ({d.specialization || 'Dental Specialist'})
+                        {formatDoctorName(d.name)} ({d.specialization || 'Dental Specialist'})
                       </option>
                     ))}
                   </select>
@@ -966,7 +965,7 @@ export default function Billing() {
                   <div>
                     <span className="text-[10px] font-bold uppercase text-ink-soft block">Doctor</span>
                     <span className="font-bold text-ink text-xs">
-                      {activePaymentInvoice.doctor ? `Dr. ${activePaymentInvoice.doctor.name}` : 'Unassigned'}
+                      {activePaymentInvoice.doctor ? formatDoctorName(activePaymentInvoice.doctor) : 'Unassigned'}
                     </span>
                     <span className="text-[11px] text-ink-soft block mt-0.5">
                       Visit: {activePaymentInvoice.createdAt ? new Date(activePaymentInvoice.createdAt).toLocaleDateString() : ''}

@@ -8,7 +8,7 @@ import InvoiceList from '../../components/common/InvoiceList.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName, capitalizeWords } from '../../utils/formatters.js';
 import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 
 export default function AdminBilling() {
@@ -183,7 +183,7 @@ export default function AdminBilling() {
               <option value="">All Doctors</option>
               {doctors.map((d) => (
                 <option key={d._id || d.id} value={d._id || d.id}>
-                  Dr. {d.name}
+                  {formatDoctorName(d.name)}
                 </option>
               ))}
             </select>
@@ -294,7 +294,7 @@ export default function AdminBilling() {
                 <option value="">All Doctors</option>
                 {doctors.map((d) => (
                   <option key={d._id || d.id} value={d._id || d.id}>
-                    Dr. {d.name}
+                    {formatDoctorName(d.name)}
                   </option>
                 ))}
               </select>
@@ -454,7 +454,7 @@ export default function AdminBilling() {
                 </div>
                 <div className="flex justify-between border-b border-border/60 pb-2">
                   <span className="text-ink-soft font-semibold">Doctor:</span>
-                  <span className="font-bold text-ink">Dr. {selectedInvoiceDetail.doctor?.name || 'Unassigned'}</span>
+                  <span className="font-bold text-ink">{selectedInvoiceDetail.doctor ? formatDoctorName(selectedInvoiceDetail.doctor) : 'Unassigned'}</span>
                 </div>
                 <div className="flex justify-between border-b border-border/60 pb-2">
                   <span className="text-ink-soft font-semibold">Payment Status:</span>

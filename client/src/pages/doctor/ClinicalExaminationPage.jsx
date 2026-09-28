@@ -6,7 +6,7 @@ import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import ExaminationTab from './consultation/ExaminationTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
-import { formatPatientFullName } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 
 export default function ClinicalExaminationPage() {
   const [consultations, setConsultations] = useState([]);
@@ -86,7 +86,7 @@ export default function ClinicalExaminationPage() {
                 </span>
               </div>
               <p className="text-xs text-ink-soft mt-0.5">
-                Doctor: <strong>Dr. {selectedConsultation.doctor?.name || 'Staff Doctor'}</strong> • Exam Date:{' '}
+                Doctor: <strong>{formatDoctorName(selectedConsultation.doctor?.name, 'Dr. Staff Doctor')}</strong> • Exam Date:{' '}
                 <strong>{new Date(selectedConsultation.visitDate || selectedConsultation.startedAt || selectedConsultation.createdAt).toLocaleDateString()}</strong>
               </p>
             </div>
@@ -205,7 +205,7 @@ export default function ClinicalExaminationPage() {
                     : 'N/A';
 
                   const chiefComplaint = c.examination?.overallNotes || c.notes || c.reason || 'Routine Dental Examination';
-                  const doctorName = c.doctor?.name ? `Dr. ${c.doctor.name}` : 'Staff Doctor';
+                  const doctorName = formatDoctorName(c.doctor?.name, 'Dr. Staff Doctor');
                   const isCompleted = c.status === 'Completed';
 
                   return (

@@ -4,7 +4,7 @@ import {
   Calendar, CalendarDays, List, Plus, Clock, UserPlus, Filter, Search, Eye, Edit3, X, Check,
   AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, UserSquare2, Sparkles, CheckCircle2, ShieldAlert, Loader2, UserCheck
 } from 'lucide-react';
-import { formatAge, formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName, capitalizeWords } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 import AppointmentList from '../../components/common/AppointmentList.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
@@ -545,7 +545,7 @@ export default function Appointments() {
                 const docId = d._id || d.id;
                 return (
                   <option key={docId} value={docId}>
-                    Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                    {formatDoctorName(d.name)} {d.specialization ? `(${d.specialization})` : ''}
                   </option>
                 );
               })}
@@ -666,7 +666,7 @@ export default function Appointments() {
                       const isPrimaryDoc = primaryDoctor && (primaryDoctor._id || primaryDoctor.id)?.toString() === docId?.toString();
                       return (
                         <option key={docId} value={docId}>
-                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''} {isPrimaryDoc ? '• Primary Doctor' : ''}
+                          {formatDoctorName(d.name)} {d.specialization ? `(${d.specialization})` : ''} {isPrimaryDoc ? '• Primary Doctor' : ''}
                         </option>
                       );
                     })}
@@ -852,7 +852,7 @@ export default function Appointments() {
                       const docId = d._id || d.id;
                       return (
                         <option key={docId} value={docId}>
-                          Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}
+                          {formatDoctorName(d.name)} {d.specialization ? `(${d.specialization})` : ''}
                         </option>
                       );
                     })}

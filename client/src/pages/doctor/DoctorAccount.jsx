@@ -4,10 +4,10 @@ import api from '../../api/axios.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { DoctorAccountSkeleton } from '../../components/common/TableSkeleton.jsx';
-import { capitalizeWords } from '../../utils/formatters.js';
+import { capitalizeWords, formatDoctorName } from '../../utils/formatters.js';
 
 export default function DoctorAccount() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { showSuccess, showError } = useNotification();
 
   const [loading, setLoading] = useState(true);
@@ -72,13 +72,25 @@ export default function DoctorAccount() {
 
     try {
       setSubmitting(true);
+      const updatedName = capitalizeWords(formData.name.trim());
+      const updatedSpec = capitalizeWords(formData.specialization.trim());
+      const updatedQual = capitalizeWords(formData.qualification.trim());
+
       await api.patch(`/doctor-profiles/${userId}`, {
-        name: capitalizeWords(formData.name.trim()),
+        name: updatedName,
         phone: formData.phone,
-        specialization: capitalizeWords(formData.specialization.trim()),
-        qualification: capitalizeWords(formData.qualification.trim()),
+        specialization: updatedSpec,
+        qualification: updatedQual,
         consultationFee: Number(formData.consultationFee),
       });
+
+      if (updateUser) {
+        updateUser({
+          name: updatedName,
+          phone: formData.phone,
+          specialization: updatedSpec,
+        });
+      }
 
       showSuccess('Your account & prescription profile details have been updated!');
     } catch (err) {
@@ -93,7 +105,7 @@ export default function DoctorAccount() {
     return <DoctorAccountSkeleton />;
   }
 
-  const docDisplayName = formData.name.startsWith('Dr.') ? formData.name : `Dr. ${formData.name}`;
+  const docDisplayName = formatDoctorName(formData.name);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">

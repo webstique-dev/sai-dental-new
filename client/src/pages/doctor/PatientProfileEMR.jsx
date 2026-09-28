@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, AlertCircle, Sparkles, ExternalLink, ArrowRight, X,
   Receipt, Wallet, CreditCard
 } from 'lucide-react';
-import { formatAge, formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName, capitalizeWords } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 
 import ToothChart from './consultation/ToothChart.jsx';
@@ -69,11 +69,9 @@ function getAppointmentStatusBadge(status) {
 }
 
 function getCleanDoctorName(doctorObj, fallbackObj) {
-  const name = doctorObj?.name || fallbackObj?.name;
-  if (!name || !name.trim()) return 'Assigned Doctor';
-  const clean = name.replace(/^Dr\.?\s*/i, '').trim();
-  if (!clean || clean.toLowerCase() === 'doctor') return 'Assigned Doctor';
-  return `Dr. ${clean}`;
+  const doc = doctorObj || fallbackObj;
+  if (!doc) return 'Assigned Doctor';
+  return formatDoctorName(doc, 'Assigned Doctor');
 }
 
 function formatReadableDate(dateInput) {
@@ -974,11 +972,7 @@ export default function PatientProfileEMR() {
                       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
                     })
                     : 'N/A';
-                  const docName = c.doctor?.name
-                    ? `Dr. ${c.doctor.name}`
-                    : c.examination?.recordedBy?.name
-                    ? `Dr. ${c.examination.recordedBy.name}`
-                    : 'Doctor';
+                  const docName = formatDoctorName(c.doctor || c.examination?.recordedBy, 'Dr. Doctor');
 
                   const exam = c.examination || {};
                   const extraoralList = Array.isArray(exam.extraoral) ? exam.extraoral : [];
@@ -1196,7 +1190,7 @@ export default function PatientProfileEMR() {
                       )}
 
                       <div className="flex items-center justify-between text-[11px] text-ink-soft pt-1 border-t border-border/50">
-                        <span>{tp.doctorName ? `Dr. ${tp.doctorName}` : ''}</span>
+                        <span>{tp.doctorName ? formatDoctorName(tp.doctorName) : ''}</span>
                         {tp.cost ? <span className="font-bold font-mono text-ink">₹{tp.cost}</span> : null}
                       </div>
                     </div>

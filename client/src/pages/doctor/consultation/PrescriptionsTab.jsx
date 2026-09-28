@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Pill, Plus, Trash2, Printer, FileText, X, Stethoscope, Save,
-  Calendar, Clock, CalendarDays, CheckCircle2, AlertTriangle, Sparkles, Check, ChevronDown, ChevronUp, Lock, Edit3
+  Calendar, Clock, CalendarDays, CheckCircle2, AlertTriangle, Sparkles, Check, ChevronDown, ChevronUp, Lock, Edit3, Droplets
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { openPrescriptionPDFWindow } from '../../../utils/prescriptionPdfGenerator.js';
-import { formatPatientFullName, capitalizeWords } from '../../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName, capitalizeWords } from '../../../utils/formatters.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 import PrescriptionEditModal from '../../../components/common/PrescriptionEditModal.jsx';
 import DatePicker from '../../../components/common/DatePicker.jsx';
@@ -42,23 +42,26 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
   const [deletingRx, setDeletingRx] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deletingMedicineIndex, setDeletingMedicineIndex] = useState(null);
+  const [deletingSyrupIndex, setDeletingSyrupIndex] = useState(null);
 
   // Print Modal State
   const [printingRx, setPrintingRx] = useState(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-  // Dynamic Medicine Rows State
+  // Dynamic Medicine & Syrup Rows State
   const [medicines, setMedicines] = useState([]);
+  const [syrups, setSyrups] = useState([]);
   const [prescriptionNotes, setPrescriptionNotes] = useState('');
   const [selectedPrescriptionForEdit, setSelectedPrescriptionForEdit] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const isDirty = useMemo(() => {
     if (isReadOnly) return false;
-    const hasDraftMedicines = medicines.some((m) => (m.name || '').trim() || (m.instructions || '').trim() || (m.dosage || '').trim());
+    const hasDraftMedicines = medicines.some((m) => (m.medicine || '').trim() || (m.instructions || '').trim() || (m.dosage || '').trim());
+    const hasDraftSyrups = syrups.some((s) => (s.medicine || '').trim() || (s.instructions || '').trim() || (s.dosage || '').trim());
     const hasDraftNotes = Boolean((prescriptionNotes || '').trim());
-    return hasDraftMedicines || hasDraftNotes;
-  }, [isReadOnly, medicines, prescriptionNotes]);
+    return hasDraftMedicines || hasDraftSyrups || hasDraftNotes;
+  }, [isReadOnly, medicines, syrups, prescriptionNotes]);
 
   useUnsavedChanges(isDirty, 'consultation-prescriptions');
 
@@ -168,7 +171,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
     if (isReadOnly) return;
     setMedicines((prev) => [
       ...prev,
-      { medicine: '', dosage: '', frequency: '0-0-0', duration: '', instructions: 'After food' },
+      { medicine: '', dosage: '', frequency: '0-0-0', duration: '', instructions: 'After food', type: 'medicine' },
     ]);
   };
 
@@ -207,25 +210,98 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
       frequency: suggestion.defaultFrequency || current.frequency || '1-0-1',
       duration: suggestion.defaultDuration ? capitalizeWords(suggestion.defaultDuration) : (current.duration || '3 Days'),
       instructions: suggestion.defaultInstructions ? capitalizeWords(suggestion.defaultInstructions) : (current.instructions || 'After food'),
+      type: 'medicine',
     };
     setMedicines(updated);
+  };
+
+  // Syrup Specific Handlers
+  const handleToggleSyrupFreqSlot = (idx, slotIndex) => {
+    if (isReadOnly) return;
+    const current = parseFrequencyPattern(syrups[idx]?.frequency);
+    current[slotIndex] = current[slotIndex] === 1 ? 0 : 1;
+    const newFreqStr = `${current[0]}-${current[1]}-${current[2]}`;
+    handleSyrupRowChange(idx, 'frequency', newFreqStr);
+  };
+
+  const handleAddSyrupRow = () => {
+    if (isReadOnly) return;
+    setSyrups((prev) => [
+      ...prev,
+      { medicine: '', dosage: '5 ml', frequency: '1-0-1', duration: '3 Days', instructions: 'After food', type: 'syrup' },
+    ]);
+  };
+
+  const handleInitiateRemoveSyrupRow = (index) => {
+    if (isReadOnly) return;
+    const item = syrups[index];
+    if (item && (item.medicine?.trim() || item.dosage?.trim() || item.duration?.trim())) {
+      setDeletingSyrupIndex(index);
+    } else {
+      setSyrups((prev) => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const confirmDeleteSyrupRow = () => {
+    if (deletingSyrupIndex !== null) {
+      setSyrups((prev) => prev.filter((_, i) => i !== deletingSyrupIndex));
+      setDeletingSyrupIndex(null);
+    }
+  };
+
+  const handleSyrupRowChange = (index, field, value) => {
+    if (isReadOnly) return;
+    const updated = [...syrups];
+    updated[index][field] = (field === 'medicine' || field === 'dosage' || field === 'duration') ? capitalizeWords(value) : value;
+    setSyrups(updated);
+  };
+
+  const handleSelectSyrupSuggestion = (index, suggestion) => {
+    if (isReadOnly || !suggestion) return;
+    const updated = [...syrups];
+    const current = updated[index] || {};
+    updated[index] = {
+      ...current,
+      medicine: capitalizeWords(suggestion.name || ''),
+      dosage: suggestion.dosage ? capitalizeWords(suggestion.dosage) : (current.dosage || '5 ml'),
+      frequency: suggestion.defaultFrequency || current.frequency || '1-0-1',
+      duration: suggestion.defaultDuration ? capitalizeWords(suggestion.defaultDuration) : (current.duration || '3 Days'),
+      instructions: suggestion.defaultInstructions ? capitalizeWords(suggestion.defaultInstructions) : (current.instructions || 'After food'),
+      type: 'syrup',
+    };
+    setSyrups(updated);
   };
 
   const handleSavePrescription = async (e) => {
     e.preventDefault();
     if (isReadOnly) return;
+
     const validMedicines = medicines
       .filter((m) => m.medicine && m.medicine.trim())
       .map((m) => ({
         ...m,
+        type: 'medicine',
         medicine: capitalizeWords(m.medicine.trim()),
         dosage: m.dosage ? capitalizeWords(m.dosage.trim()) : '',
         duration: m.duration ? capitalizeWords(m.duration.trim()) : '',
         instructions: m.instructions ? capitalizeWords(m.instructions) : 'After food',
       }));
 
-    if (validMedicines.length === 0) {
-      showError('Please add at least one medicine name.');
+    const validSyrups = syrups
+      .filter((s) => s.medicine && s.medicine.trim())
+      .map((s) => ({
+        ...s,
+        type: 'syrup',
+        medicine: capitalizeWords(s.medicine.trim()),
+        dosage: s.dosage ? capitalizeWords(s.dosage.trim()) : '',
+        duration: s.duration ? capitalizeWords(s.duration.trim()) : '',
+        instructions: s.instructions ? capitalizeWords(s.instructions) : 'After food',
+      }));
+
+    const combined = [...validMedicines, ...validSyrups];
+
+    if (combined.length === 0) {
+      showError('Please add at least one medicine or syrup name.');
       return;
     }
 
@@ -234,7 +310,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
       const payload = {
         consultation: consultationId,
         patient: patientId,
-        medicines: validMedicines,
+        medicines: combined,
         notes: prescriptionNotes ? capitalizeWords(prescriptionNotes.trim()) : '',
       };
 
@@ -242,6 +318,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
       showSuccess('Prescription recorded successfully!');
 
       setMedicines([]);
+      setSyrups([]);
       setPrescriptionNotes('');
 
       fetchData();
@@ -393,17 +470,34 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleAddRow}
-              className="btn-secondary text-xs flex items-center gap-1"
-            >
-              <Plus size={14} /> Add Medicine Row
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="btn-secondary text-xs flex items-center gap-1 font-semibold"
+              >
+                <Plus size={14} /> Add Medicine Row
+              </button>
+              <button
+                type="button"
+                onClick={handleAddSyrupRow}
+                className="btn-secondary text-xs flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-800 border-teal-300 hover:border-teal-400 bg-teal-50/50 hover:bg-teal-50"
+              >
+                <Plus size={14} /> Add Syrup
+              </button>
+            </div>
           </div>
 
           <form onSubmit={handleSavePrescription} className="space-y-4">
+            {/* REGULAR MEDICINES TABLE */}
             <div className="border border-border rounded-xl bg-surface overflow-hidden shadow-2xs">
+              <div className="bg-bg/40 px-3 py-2 border-b border-border/60 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-ink uppercase tracking-wider flex items-center gap-1.5 text-brand">
+                  <Pill size={14} /> Tablets / Capsules / Regular Medicines
+                </span>
+                <span className="text-[11px] text-ink-soft font-semibold">{medicines.length} item{medicines.length === 1 ? '' : 's'}</span>
+              </div>
+
               {/* Desktop / Tablet Table View (≥768px) */}
               <div className="hidden md:block overflow-x-auto scrollbar-none no-scrollbar">
                 <table className="w-full text-left text-xs border-collapse">
@@ -422,7 +516,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                     {medicines.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-6 text-center text-xs text-ink-soft italic">
-                          No medicines added yet. Click the <span className="font-bold text-brand">+ Add Medicine Row</span> button below to add medicine.
+                          No regular medicines added. Click <span className="font-bold text-brand">+ Add Medicine Row</span> below to add tablet/capsule items.
                         </td>
                       </tr>
                     ) : (
@@ -534,7 +628,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
               <div className="block md:hidden p-3 space-y-3">
                 {medicines.length === 0 ? (
                   <div className="py-6 text-center text-xs text-ink-soft italic">
-                    No medicines added yet. Click the <span className="font-bold text-brand">+ Add Medicine Row</span> button below to add medicine.
+                    No regular medicines added. Click <span className="font-bold text-brand">+ Add Medicine Row</span> below to add medicine.
                   </div>
                 ) : (
                   medicines.map((item, idx) => {
@@ -674,6 +768,311 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
               </div>
             </div>
 
+            {/* SYRUP MEDICINES SECTION (SPECIFIC TO ORAL SYRUPS / SUSPENSIONS) */}
+            {syrups.length > 0 ? (
+              <div className="border border-teal-200/80 rounded-xl bg-surface overflow-hidden shadow-2xs">
+                <div className="bg-teal-50/70 px-3 py-2 border-b border-teal-200/80 flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Droplets size={14} className="text-teal-600" /> Syrup Medicines (Oral Liquids &amp; Suspensions)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddSyrupRow}
+                    className="btn-secondary text-[11px] py-1 px-2.5 flex items-center gap-1 text-teal-700 hover:text-teal-800 border-teal-300 hover:border-teal-400 bg-surface font-semibold"
+                  >
+                    <Plus size={13} /> Add Syrup
+                  </button>
+                </div>
+
+                {/* Desktop / Tablet View for Syrups */}
+                <div className="hidden md:block overflow-x-auto scrollbar-none no-scrollbar">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-teal-100 bg-teal-50/30 text-teal-900 font-semibold uppercase tracking-wider text-[11px]">
+                        <th className="py-2.5 px-3 text-center w-10">#</th>
+                        <th className="py-2.5 px-3 min-w-[160px]">Syrup Name *</th>
+                        <th className="py-2.5 px-3 min-w-[120px]">Dose (ML) *</th>
+                        <th className="py-2.5 px-3 text-center min-w-[150px]">Frequency (1 - 0 - 1)</th>
+                        <th className="py-2.5 px-3 min-w-[110px]">Duration</th>
+                        <th className="py-2.5 px-3 min-w-[130px]">Instructions</th>
+                        <th className="py-2.5 px-3 text-center w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-teal-100/60">
+                      {syrups.map((item, idx) => {
+                        const freqPattern = parseFrequencyPattern(item.frequency);
+                        return (
+                          <tr key={idx} className="hover:bg-teal-50/20 transition-colors">
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="h-6 w-6 rounded-md bg-teal-100 text-teal-800 font-mono font-bold inline-flex items-center justify-center text-xs">
+                                S{idx + 1}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <MedicineSuggestionInput
+                                value={item.medicine}
+                                dosage={item.dosage}
+                                suggestions={medicineSuggestions}
+                                onChange={(val) => handleSyrupRowChange(idx, 'medicine', val)}
+                                onSelect={(suggestion) => handleSelectSyrupSuggestion(idx, suggestion)}
+                                placeholder="e.g. Moxikind-CV Syrup"
+                                required
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                list="syrup-dosage-options"
+                                autoComplete="off"
+                                className="input-field py-1.5 px-2.5 text-xs w-full"
+                                placeholder="e.g. 5 ml"
+                                value={item.dosage}
+                                onChange={(e) => handleSyrupRowChange(idx, 'dosage', e.target.value)}
+                                required
+                              />
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="inline-flex items-center justify-center gap-1 rounded-xl border border-teal-200 bg-surface px-2 py-1 text-xs font-bold shadow-2xs">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSyrupFreqSlot(idx, 0)}
+                                  title="Morning Slot (1 or 0)"
+                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[0] === 1 ? 'bg-teal-600 text-white shadow-xs' : 'text-ink-soft hover:text-ink bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[0]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSyrupFreqSlot(idx, 1)}
+                                  title="Afternoon Slot (1 or 0)"
+                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[1] === 1 ? 'bg-teal-600 text-white shadow-xs' : 'text-ink-soft hover:text-ink bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[1]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs select-none font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSyrupFreqSlot(idx, 2)}
+                                  title="Night Slot (1 or 0)"
+                                  className={`w-5 h-5 rounded flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[2] === 1 ? 'bg-teal-600 text-white shadow-xs' : 'text-ink-soft hover:text-ink bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[2]}
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                autoComplete="off"
+                                className="input-field py-1.5 px-2.5 text-xs w-full"
+                                placeholder="3 days"
+                                value={item.duration}
+                                onChange={(e) => handleSyrupRowChange(idx, 'duration', e.target.value)}
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <select
+                                className="input-field py-1.5 px-2 text-xs font-semibold w-full"
+                                value={item.instructions || 'After food'}
+                                onChange={(e) => handleSyrupRowChange(idx, 'instructions', e.target.value)}
+                              >
+                                <option value="Before food">Before food</option>
+                                <option value="After food">After food</option>
+                              </select>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleInitiateRemoveSyrupRow(idx)}
+                                className="p-1 text-ink-soft hover:text-rose-600 rounded hover:bg-rose-50 transition-colors"
+                                title="Remove syrup"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Stacked Card View for Syrups */}
+                <div className="block md:hidden p-3 space-y-3">
+                  {syrups.map((item, idx) => {
+                    const freqPattern = parseFrequencyPattern(item.frequency);
+                    return (
+                      <div key={idx} className="p-3 bg-surface border border-teal-200 rounded-xl space-y-2.5 shadow-2xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-teal-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-md bg-teal-100 text-teal-800 flex items-center justify-center text-[11px] font-mono font-bold">
+                              S{idx + 1}
+                            </span>
+                            Syrup #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleInitiateRemoveSyrupRow(idx)}
+                            className="p-1 text-ink-soft hover:text-rose-600 rounded shrink-0"
+                            title="Remove syrup"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                              Syrup Name *
+                            </label>
+                            <MedicineSuggestionInput
+                              value={item.medicine}
+                              dosage={item.dosage}
+                              suggestions={medicineSuggestions}
+                              onChange={(val) => handleSyrupRowChange(idx, 'medicine', val)}
+                              onSelect={(suggestion) => handleSelectSyrupSuggestion(idx, suggestion)}
+                              placeholder="e.g. Moxikind-CV Syrup"
+                              required
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                Dose (ML) *
+                              </label>
+                              <input
+                                type="text"
+                                list="syrup-dosage-options"
+                                autoComplete="off"
+                                className="input-field py-1.5 text-xs w-full"
+                                placeholder="e.g. 5 ml"
+                                value={item.dosage}
+                                onChange={(e) => handleSyrupRowChange(idx, 'dosage', e.target.value)}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                Duration
+                              </label>
+                              <input
+                                type="text"
+                                autoComplete="off"
+                                className="input-field py-1.5 text-xs w-full"
+                                placeholder="3 days"
+                                value={item.duration}
+                                onChange={(e) => handleSyrupRowChange(idx, 'duration', e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 items-end">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase text-center">
+                                Frequency
+                              </label>
+                              <div className="inline-flex items-center justify-center w-full gap-1 rounded-xl border border-teal-200 bg-surface px-2 py-1 text-xs font-bold shadow-2xs">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSyrupFreqSlot(idx, 0)}
+                                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[0] === 1 ? 'bg-teal-600 text-white' : 'text-ink-soft bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[0]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSyrupFreqSlot(idx, 1)}
+                                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[1] === 1 ? 'bg-teal-600 text-white' : 'text-ink-soft bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[1]}
+                                </button>
+                                <span className="text-ink-soft/40 font-mono text-xs font-bold">-</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSyrupFreqSlot(idx, 2)}
+                                  className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs transition-all ${
+                                    freqPattern[2] === 1 ? 'bg-teal-600 text-white' : 'text-ink-soft bg-bg'
+                                  }`}
+                                >
+                                  {freqPattern[2]}
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-semibold text-ink-soft mb-0.5 uppercase">
+                                Instructions
+                              </label>
+                              <select
+                                className="input-field py-1.5 text-xs font-semibold w-full"
+                                value={item.instructions || 'After food'}
+                                onChange={(e) => handleSyrupRowChange(idx, 'instructions', e.target.value)}
+                              >
+                                <option value="Before food">Before food</option>
+                                <option value="After food">After food</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Fixed Bottom + Add Syrup Button */}
+                <div className="p-3 pt-2 bg-surface border-t border-teal-100">
+                  <button
+                    type="button"
+                    onClick={handleAddSyrupRow}
+                    className="w-full py-2.5 border-2 border-dashed border-teal-300 hover:border-teal-500 hover:bg-teal-50/50 text-teal-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                  >
+                    <Plus size={16} /> Add Syrup
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 bg-teal-50/30 border border-dashed border-teal-200/90 rounded-xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="h-8 w-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold shrink-0">
+                    <Droplets size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-ink">Need to prescribe oral syrup?</p>
+                    <p className="text-[11px] text-ink-soft truncate">Add syrup medicines with specific ML amounts per dose.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddSyrupRow}
+                  className="btn-secondary text-xs flex items-center gap-1.5 text-teal-700 hover:text-teal-800 border-teal-300 hover:border-teal-400 bg-surface font-semibold py-1.5 px-3 shrink-0"
+                >
+                  <Plus size={14} /> Add Syrup
+                </button>
+              </div>
+            )}
+
+            {/* Datalist for ML options */}
+            <datalist id="syrup-dosage-options">
+              <option value="2.5 ml" />
+              <option value="5 ml" />
+              <option value="7.5 ml" />
+              <option value="10 ml" />
+              <option value="15 ml" />
+            </datalist>
+
             <div>
               <label className="block text-xs font-semibold text-ink-soft mb-1">Prescription Notes</label>
               <textarea
@@ -727,6 +1126,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 })
                 : 'N/A';
 
+              const regularMeds = (rx.medicines || []).filter((m) => m.type !== 'syrup');
+              const syrupMeds = (rx.medicines || []).filter((m) => m.type === 'syrup');
+
               return (
                 <div
                   key={rxId}
@@ -739,7 +1141,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                         <span className="text-xs font-bold text-ink">Medical Prescription</span>
                       </div>
                       <p className="text-[11px] text-ink-soft">
-                        Issued by: <strong>Dr. {rx.recordedBy?.name || doctor.name}</strong>{' '}
+                        Issued by: <strong>{formatDoctorName(rx.recordedBy || doctor, 'Dr. Doctor')}</strong>{' '}
                         {rx.recordedBy?.specialization ? `(${rx.recordedBy.specialization})` : ''}
                       </p>
                     </div>
@@ -785,32 +1187,75 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                     </div>
                   </div>
 
-                  {/* Medicines Table */}
-                  <div className="overflow-x-auto scrollbar-none">
-                    <table className="w-full text-left text-xs">
-                      <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
-                        <tr>
-                          <th className="px-3 py-2">#</th>
-                          <th className="px-3 py-2">Medicine Name</th>
-                          <th className="px-3 py-2">Dosage</th>
-                          <th className="px-3 py-2">Frequency</th>
-                          <th className="px-3 py-2">Duration</th>
-                          <th className="px-3 py-2">Instructions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {rx.medicines?.map((m, idx) => (
-                          <tr key={idx} className="hover:bg-bg/40">
-                            <td className="px-3 py-2.5 font-bold text-ink-soft">{idx + 1}</td>
-                            <td className="px-3 py-2.5 font-bold text-ink">{m.medicine}</td>
-                            <td className="px-3 py-2.5 text-ink-soft">{m.dosage || '—'}</td>
-                            <td className="px-3 py-2.5 font-mono text-brand font-bold">{m.frequency || '—'}</td>
-                            <td className="px-3 py-2.5 text-ink-soft">{m.duration || '—'}</td>
-                            <td className="px-3 py-2.5 text-ink-soft italic">{m.instructions || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {/* Medicines Tables: Regular and Syrups separated */}
+                  <div className="space-y-3.5">
+                    {regularMeds.length > 0 && (
+                      <div className="overflow-x-auto scrollbar-none">
+                        {syrupMeds.length > 0 && (
+                          <div className="text-[11px] font-bold text-ink uppercase tracking-wider mb-1.5 flex items-center gap-1.5 text-brand">
+                            <Pill size={13} />
+                            <span>Tablets / Regular Medicines ({regularMeds.length})</span>
+                          </div>
+                        )}
+                        <table className="w-full text-left text-xs">
+                          <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft">
+                            <tr>
+                              <th className="px-3 py-2">#</th>
+                              <th className="px-3 py-2">Medicine Name</th>
+                              <th className="px-3 py-2">Dosage</th>
+                              <th className="px-3 py-2">Frequency</th>
+                              <th className="px-3 py-2">Duration</th>
+                              <th className="px-3 py-2">Instructions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/60">
+                            {regularMeds.map((m, idx) => (
+                              <tr key={idx} className="hover:bg-bg/40">
+                                <td className="px-3 py-2.5 font-bold text-ink-soft">{idx + 1}</td>
+                                <td className="px-3 py-2.5 font-bold text-ink">{m.medicine}</td>
+                                <td className="px-3 py-2.5 text-ink-soft">{m.dosage || '—'}</td>
+                                <td className="px-3 py-2.5 font-mono text-brand font-bold">{m.frequency || '—'}</td>
+                                <td className="px-3 py-2.5 text-ink-soft">{m.duration || '—'}</td>
+                                <td className="px-3 py-2.5 text-ink-soft italic">{m.instructions || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {syrupMeds.length > 0 && (
+                      <div className="overflow-x-auto scrollbar-none rounded-xl border border-teal-100 bg-teal-50/20 p-2.5 space-y-2">
+                        <div className="text-[11px] font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Droplets size={13} className="text-teal-600" />
+                          <span>Syrup Medications ({syrupMeds.length})</span>
+                        </div>
+                        <table className="w-full text-left text-xs bg-surface rounded-lg overflow-hidden border border-teal-100/60">
+                          <thead className="border-b border-teal-100 bg-teal-50/50 font-semibold text-teal-900">
+                            <tr>
+                              <th className="px-3 py-2">#</th>
+                              <th className="px-3 py-2">Syrup Name</th>
+                              <th className="px-3 py-2">Dose (ML)</th>
+                              <th className="px-3 py-2">Frequency</th>
+                              <th className="px-3 py-2">Duration</th>
+                              <th className="px-3 py-2">Instructions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-teal-100/60">
+                            {syrupMeds.map((m, idx) => (
+                              <tr key={idx} className="hover:bg-teal-50/30">
+                                <td className="px-3 py-2.5 font-bold text-teal-700">S{idx + 1}</td>
+                                <td className="px-3 py-2.5 font-bold text-ink">{m.medicine}</td>
+                                <td className="px-3 py-2.5 font-semibold text-teal-800">{m.dosage || '—'}</td>
+                                <td className="px-3 py-2.5 font-mono text-teal-700 font-bold">{m.frequency || '—'}</td>
+                                <td className="px-3 py-2.5 text-ink-soft">{m.duration || '—'}</td>
+                                <td className="px-3 py-2.5 text-ink-soft italic">{m.instructions || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   {rx.notes && (
@@ -1059,6 +1504,22 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
             : 'Are you sure you want to remove this medicine item from the prescription?'
         }
         confirmText="Delete Medicine"
+        cancelText="Cancel"
+        variant="delete"
+      />
+
+      {/* CONFIRM DELETE SYRUP ROW MODAL */}
+      <ConfirmModal
+        isOpen={deletingSyrupIndex !== null}
+        onClose={() => setDeletingSyrupIndex(null)}
+        onConfirm={confirmDeleteSyrupRow}
+        title="Confirm Delete Syrup"
+        message={
+          deletingSyrupIndex !== null && syrups[deletingSyrupIndex]?.medicine?.trim()
+            ? `Are you sure you want to remove "${syrups[deletingSyrupIndex].medicine.trim()}" from this prescription?`
+            : 'Are you sure you want to remove this syrup item from the prescription?'
+        }
+        confirmText="Delete Syrup"
         cancelText="Cancel"
         variant="delete"
       />

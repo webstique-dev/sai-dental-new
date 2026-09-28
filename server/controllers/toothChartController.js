@@ -324,15 +324,14 @@ async function deleteToothHistoryEntry(req, res, next) {
       return res.status(400).json({ message: `No active history entries found for Tooth #${toothNumber}.` });
     }
 
-    const latestEntry = sorted[0];
-    if (historyId && historyId !== 'last' && String(latestEntry._id) !== String(historyId)) {
-      return res.status(400).json({
-        message: `Only the most recently added history entry for Tooth #${toothNumber} can be removed.`,
-      });
+    let item;
+    if (!historyId || historyId === 'last') {
+      item = record.history.id(sorted[0]._id);
+    } else {
+      item = record.history.id(historyId);
     }
 
-    const item = record.history.id(latestEntry._id);
-    if (!item) {
+    if (!item || item.deleted) {
       return res.status(404).json({ message: 'Tooth history log entry not found' });
     }
 
@@ -354,7 +353,7 @@ async function deleteToothHistoryEntry(req, res, next) {
     await record.save();
 
     await logAction(req, {
-      action: `soft-deleted latest history entry for tooth ${toothNumber}`,
+      action: `soft-deleted history entry for tooth ${toothNumber}`,
       entityType: 'ToothRecord',
       entityId: record._id,
       patient: patientId,
@@ -371,7 +370,7 @@ async function deleteToothHistoryEntry(req, res, next) {
       .populate('history.deletedBy', 'name email');
 
     return res.json({
-      message: `Most recent history entry for Tooth #${toothNumber} removed successfully`,
+      message: `History entry for Tooth #${toothNumber} removed successfully`,
       record: populated,
     });
   } catch (err) {

@@ -3,9 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import {
   History, Search, UserSquare2, Calendar, Stethoscope, Activity, Pill,
   FileHeart, Filter, FileText, RefreshCw, X, Eye, Clock, CheckCircle2,
-  Printer, ChevronRight, User, ChevronDown, ChevronUp, ArrowLeft, AlertTriangle, Shield
+  Printer, ChevronRight, User, ChevronDown, ChevronUp, ArrowLeft, AlertTriangle, Shield, Droplets
 } from 'lucide-react';
-import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -280,7 +280,7 @@ export default function PatientHistory() {
               <option value="">All Attending Doctors</option>
               {doctors.map((d) => (
                 <option key={d._id || d.id} value={d._id || d.id}>
-                  Dr. {d.name} ({d.specialization || 'General'})
+                  {formatDoctorName(d.name)} ({d.specialization || 'General'})
                 </option>
               ))}
             </select>
@@ -351,7 +351,7 @@ export default function PatientHistory() {
                     const patient = visit.patient || {};
                     const doctor = visit.doctor || {};
                     const patientName = formatPatientFullName(patient) || 'Patient';
-                    const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
+                    const doctorName = formatDoctorName(doctor.name, 'Dr. Staff Doctor');
 
 
                     const dateStr = visit.visitDate
@@ -468,7 +468,7 @@ export default function PatientHistory() {
                 const patient = visit.patient || {};
                 const doctor = visit.doctor || {};
                 const patientName = formatPatientFullName(patient) || 'Patient';
-                const doctorName = doctor.name ? `Dr. ${doctor.name}` : 'Staff Doctor';
+                const doctorName = formatDoctorName(doctor.name, 'Dr. Staff Doctor');
 
                 const dateStr = visit.visitDate
                   ? new Date(visit.visitDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
@@ -614,7 +614,7 @@ export default function PatientHistory() {
                 <div className="sm:border-l sm:border-border sm:pl-4">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block mb-1">Encounter Metadata</span>
                   <div className="font-semibold text-ink">
-                    Attending Doctor: <strong>Dr. {selectedVisit.doctor?.name || 'Staff Doctor'}</strong>
+                    Attending Doctor: <strong>{formatDoctorName(selectedVisit.doctor?.name, 'Dr. Staff Doctor')}</strong>
                   </div>
                   <div className="text-xs text-ink-soft mt-1 space-y-0.5">
                     <div>
@@ -806,41 +806,90 @@ export default function PatientHistory() {
                 </h4>
                 {selectedVisit.prescriptions && selectedVisit.prescriptions.length > 0 ? (
                   <div className="space-y-3">
-                    {selectedVisit.prescriptions.map((rx, idx) => (
-                      <div key={rx._id || idx} className="p-3.5 rounded-xl border border-border bg-surface space-y-2">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
-                              <tr>
-                                <th className="py-1.5 px-2">#</th>
-                                <th className="py-1.5 px-2">Medicine Name</th>
-                                <th className="py-1.5 px-2">Dosage</th>
-                                <th className="py-1.5 px-2">Frequency</th>
-                                <th className="py-1.5 px-2">Duration</th>
-                                <th className="py-1.5 px-2">Instructions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                              {rx.medicines?.map((m, mIdx) => (
-                                <tr key={mIdx}>
-                                  <td className="py-1.5 px-2 font-bold text-ink-soft">{mIdx + 1}</td>
-                                  <td className="py-1.5 px-2 font-bold text-brand">{m.medicine}</td>
-                                  <td className="py-1.5 px-2">{m.dosage || '—'}</td>
-                                  <td className="py-1.5 px-2 font-mono font-bold text-ink">{m.frequency || '—'}</td>
-                                  <td className="py-1.5 px-2">{m.duration || '—'}</td>
-                                  <td className="py-1.5 px-2 text-ink-soft italic">{m.instructions || '—'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                    {selectedVisit.prescriptions.map((rx, idx) => {
+                      const regularMeds = (rx.medicines || []).filter((m) => m.type !== 'syrup');
+                      const syrupMeds = (rx.medicines || []).filter((m) => m.type === 'syrup');
+
+                      return (
+                        <div key={rx._id || idx} className="p-3.5 rounded-xl border border-border bg-surface space-y-2.5">
+                          {regularMeds.length > 0 && (
+                            <div className="space-y-1">
+                              {syrupMeds.length > 0 && (
+                                <div className="text-[10px] font-bold text-brand uppercase tracking-wider flex items-center gap-1">
+                                  <Pill size={11} /> Tablets / Regular Medicines
+                                </div>
+                              )}
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="bg-bg font-semibold text-ink-soft border-b border-border">
+                                    <tr>
+                                      <th className="py-1.5 px-2">#</th>
+                                      <th className="py-1.5 px-2">Medicine Name</th>
+                                      <th className="py-1.5 px-2">Dosage</th>
+                                      <th className="py-1.5 px-2">Frequency</th>
+                                      <th className="py-1.5 px-2">Duration</th>
+                                      <th className="py-1.5 px-2">Instructions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border">
+                                    {regularMeds.map((m, mIdx) => (
+                                      <tr key={mIdx}>
+                                        <td className="py-1.5 px-2 font-bold text-ink-soft">{mIdx + 1}</td>
+                                        <td className="py-1.5 px-2 font-bold text-brand">{m.medicine}</td>
+                                        <td className="py-1.5 px-2">{m.dosage || '—'}</td>
+                                        <td className="py-1.5 px-2 font-mono font-bold text-ink">{m.frequency || '—'}</td>
+                                        <td className="py-1.5 px-2">{m.duration || '—'}</td>
+                                        <td className="py-1.5 px-2 text-ink-soft italic">{m.instructions || '—'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {syrupMeds.length > 0 && (
+                            <div className="space-y-1 rounded-lg border border-teal-200 bg-teal-50/20 p-2">
+                              <div className="text-[10px] font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1">
+                                <Droplets size={11} className="text-teal-600" /> Syrup Medications ({syrupMeds.length})
+                              </div>
+                              <div className="overflow-x-auto bg-surface rounded border border-teal-100">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="bg-teal-50/50 font-semibold text-teal-900 border-b border-teal-100">
+                                    <tr>
+                                      <th className="py-1.5 px-2">#</th>
+                                      <th className="py-1.5 px-2">Syrup Name</th>
+                                      <th className="py-1.5 px-2">Dose (ML)</th>
+                                      <th className="py-1.5 px-2">Frequency</th>
+                                      <th className="py-1.5 px-2">Duration</th>
+                                      <th className="py-1.5 px-2">Instructions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-teal-50">
+                                    {syrupMeds.map((m, mIdx) => (
+                                      <tr key={mIdx}>
+                                        <td className="py-1.5 px-2 font-bold text-teal-700">S{mIdx + 1}</td>
+                                        <td className="py-1.5 px-2 font-bold text-ink">{m.medicine}</td>
+                                        <td className="py-1.5 px-2 font-semibold text-teal-800">{m.dosage || '—'}</td>
+                                        <td className="py-1.5 px-2 font-mono font-bold text-teal-700">{m.frequency || '—'}</td>
+                                        <td className="py-1.5 px-2 text-ink-soft">{m.duration || '—'}</td>
+                                        <td className="py-1.5 px-2 text-ink-soft italic">{m.instructions || '—'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {rx.notes && (
+                            <div className="text-[11px] text-ink-soft italic bg-bg p-2 rounded border border-border/50">
+                              Notes: {rx.notes}
+                            </div>
+                          )}
                         </div>
-                        {rx.notes && (
-                          <div className="text-[11px] text-ink-soft italic bg-bg p-2 rounded border border-border/50">
-                            Notes: {rx.notes}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-ink-soft/60 italic text-[11px] p-3 rounded-xl border border-border bg-bg/40">

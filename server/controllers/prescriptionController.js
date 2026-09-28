@@ -59,6 +59,7 @@ async function createPrescription(req, res, next) {
         frequency: m.frequency ? m.frequency.trim() : '',
         duration: m.duration ? m.duration.trim() : '',
         instructions: m.instructions ? m.instructions.trim() : '',
+        type: m.type === 'syrup' ? 'syrup' : 'medicine',
       })),
       notes: notes ? String(notes).trim() : '',
       recordedBy: req.user ? req.user._id : undefined,
@@ -104,6 +105,7 @@ async function updatePrescription(req, res, next) {
         frequency: m.frequency ? m.frequency.trim() : '',
         duration: m.duration ? m.duration.trim() : '',
         instructions: m.instructions ? m.instructions.trim() : '',
+        type: m.type === 'syrup' ? 'syrup' : 'medicine',
       }));
     }
 

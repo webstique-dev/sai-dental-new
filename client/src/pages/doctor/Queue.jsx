@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp, Plus, UserPlus, Loader2, Edit3
 } from 'lucide-react';
-import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -1252,7 +1252,7 @@ export default function DoctorQueue() {
                       <option value="">All Attending Doctors</option>
                       {doctors.map((d) => (
                         <option key={d._id || d.id} value={d._id || d.id}>
-                          Dr. {d.name}
+                          {formatDoctorName(d.name)}
                         </option>
                       ))}
                     </select>
@@ -1326,7 +1326,7 @@ export default function DoctorQueue() {
                         <option value="">All Attending Doctors</option>
                         {doctors.map((d) => (
                           <option key={d._id || d.id} value={d._id || d.id}>
-                            Dr. {d.name}
+                            {formatDoctorName(d.name)}
                           </option>
                         ))}
                       </select>
@@ -1550,7 +1550,7 @@ export default function DoctorQueue() {
                           const dId = doc._id || doc.id;
                           return (
                             <option key={dId} value={dId}>
-                              Dr. {doc.name}
+                              {formatDoctorName(doc.name)}
                             </option>
                           );
                         })}
@@ -1634,7 +1634,7 @@ export default function DoctorQueue() {
                           const dId = doc._id || doc.id;
                           return (
                             <option key={dId} value={dId}>
-                              Dr. {doc.name}
+                              {formatDoctorName(doc.name)}
                             </option>
                           );
                         })}
@@ -1914,7 +1914,7 @@ export default function DoctorQueue() {
                       <option value="">All Attending Doctors</option>
                       {doctors.map((d) => (
                         <option key={d._id || d.id} value={d._id || d.id}>
-                          Dr. {d.name}
+                          {formatDoctorName(d.name)}
                         </option>
                       ))}
                     </select>
@@ -2001,7 +2001,7 @@ export default function DoctorQueue() {
                         <option value="">All Attending Doctors</option>
                         {doctors.map((d) => (
                           <option key={d._id || d.id} value={d._id || d.id}>
-                            Dr. {d.name}
+                            {formatDoctorName(d.name)}
                           </option>
                         ))}
                       </select>
@@ -2090,7 +2090,7 @@ export default function DoctorQueue() {
                             const pType = p.patientType || (p.age !== undefined && p.age !== null && Number(p.age) < 12 ? 'child' : 'adult');
 
                             const docObj = item.doctor || item.appointment?.doctor;
-                            const docName = docObj?.name ? `Dr. ${docObj.name}` : 'Unassigned';
+                            const docName = formatDoctorName(docObj, 'Unassigned');
 
                             const dateStr = item.date
                               ? new Date(item.date).toLocaleDateString(undefined, {
@@ -2177,7 +2177,7 @@ export default function DoctorQueue() {
                         const p = item.patient || {};
                         const patientName = formatPatientFullName(p) || 'Patient';
                         const docObj = item.doctor || item.appointment?.doctor;
-                        const docName = docObj?.name ? `Dr. ${docObj.name}` : 'Unassigned';
+                        const docName = formatDoctorName(docObj, 'Unassigned');
                         const dateStr = item.date
                           ? new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
                           : 'N/A';

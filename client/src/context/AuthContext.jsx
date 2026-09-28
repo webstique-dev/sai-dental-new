@@ -117,6 +117,14 @@ export function AuthProvider({ children }) {
     }
   }, [user, fetchInitialClinicData]);
 
+  const updateUser = useCallback((userData) => {
+    setUser((prev) => {
+      const updated = typeof userData === 'function' ? userData(prev) : { ...prev, ...userData };
+      localStorage.setItem(USER_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -127,6 +135,7 @@ export function AuthProvider({ children }) {
         login,
         signup,
         logout,
+        updateUser,
         retryInitialLoad,
       }}
     >

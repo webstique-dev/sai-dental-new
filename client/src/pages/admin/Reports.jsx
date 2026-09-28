@@ -11,6 +11,7 @@ import StatCard from '../../components/common/StatCard.jsx';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import { ReportSkeleton } from '../../components/common/TableSkeleton.jsx';
 import { exportReportsToExcel } from '../../utils/excelExport.js';
+import { formatDoctorName } from '../../utils/formatters.js';
 
 const STATUS_BADGE_CLASSES = {
   'Scheduled': 'bg-blue-100 text-blue-800 border-blue-200',
@@ -296,7 +297,7 @@ export default function AdminReports() {
                   const dId = doc._id || doc.id;
                   return (
                     <option key={dId} value={dId}>
-                      Dr. {doc.name}
+                      {formatDoctorName(doc.name)}
                     </option>
                   );
                 })}
@@ -389,7 +390,7 @@ export default function AdminReports() {
                       const dId = doc._id || doc.id;
                       return (
                         <option key={dId} value={dId}>
-                          Dr. {doc.name}
+                          {formatDoctorName(doc.name)}
                         </option>
                       );
                     })}

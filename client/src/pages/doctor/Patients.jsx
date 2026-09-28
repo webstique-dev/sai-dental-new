@@ -4,7 +4,7 @@ import {
   UserSquare2, Search, Filter, Calendar, Eye, ArrowUpDown, ChevronLeft, ChevronRight,
   RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3, UserPlus
 } from 'lucide-react';
-import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -243,7 +243,7 @@ export default function DoctorPatients() {
                 <option value="">All Doctors</option>
                 {doctorsList.map((doc) => (
                   <option key={doc._id || doc.id} value={doc._id || doc.id}>
-                    Dr. {doc.name}
+                    {formatDoctorName(doc.name)}
                   </option>
                 ))}
               </select>
@@ -376,7 +376,7 @@ export default function DoctorPatients() {
                             <span className="font-bold text-ink">{lastVisitStr}</span>
                             {p.lastVisitDoctor?.name && (
                               <span className="text-[11px] block text-ink-soft">
-                                Dr. {p.lastVisitDoctor.name}
+                                {formatDoctorName(p.lastVisitDoctor.name)}
                               </span>
                             )}
                           </div>
@@ -488,7 +488,7 @@ export default function DoctorPatients() {
                         <div className="col-span-2">
                           <span className="block text-[10px] font-semibold uppercase text-ink-soft">Last Visit</span>
                           <span className="font-semibold text-ink">
-                            {lastVisitStr} {p.lastVisitDoctor?.name ? `(Dr. ${p.lastVisitDoctor.name})` : ''}
+                            {lastVisitStr} {p.lastVisitDoctor?.name ? `(${formatDoctorName(p.lastVisitDoctor.name)})` : ''}
                           </span>
                         </div>
                       </div>

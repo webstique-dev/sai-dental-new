@@ -6,7 +6,7 @@ import {
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
-import { formatAge, capitalizeWords } from '../../../utils/formatters.js';
+import { formatAge, formatDoctorName, capitalizeWords } from '../../../utils/formatters.js';
 import { openBillPrintWindow } from '../../../utils/billPdfGenerator.js';
 import InvoiceEditModal from '../../../components/common/InvoiceEditModal.jsx';
 
@@ -892,7 +892,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                         inv.consultation === consultationId ||
                         inv.consultation?._id === consultationId ||
                         inv._id === invoiceId;
-                      const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Clinic Visit';
+                      const docName = formatDoctorName(inv.doctor, 'Clinic Visit');
                       const itemsSummary = (inv.items || [])
                         .map((item) => (item.service || item.treatment || '').trim())
                         .filter(Boolean)
@@ -989,7 +989,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                   inv.consultation === consultationId ||
                   inv.consultation?._id === consultationId ||
                   inv._id === invoiceId;
-                const docName = inv.doctor ? `Dr. ${inv.doctor.name}` : 'Clinic Visit';
+                const docName = formatDoctorName(inv.doctor, 'Clinic Visit');
                 const itemsSummary = (inv.items || [])
                   .map((item) => (item.service || item.treatment || '').trim())
                   .filter(Boolean)
@@ -1113,7 +1113,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-ink-soft block">Doctor / Provider</span>
                   <div className="font-bold text-ink text-sm">
-                    {selectedHistoryInvoice.doctor ? `Dr. ${selectedHistoryInvoice.doctor.name}` : 'Clinic Provider'}
+                    {selectedHistoryInvoice.doctor ? formatDoctorName(selectedHistoryInvoice.doctor) : 'Clinic Provider'}
                   </div>
                 </div>
                 <div>

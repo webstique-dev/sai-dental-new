@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Users, Calendar, CalendarDays, Clock, CheckCircle2, AlertCircle, ArrowRight, Play, RefreshCw, Stethoscope, Sparkles, UserSquare2, ClipboardList, UserPlus
 } from 'lucide-react';
-import { formatAge, formatPatientFullName } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 
 import StatCard from '../../components/common/StatCard.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
@@ -151,7 +151,7 @@ export default function DoctorDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
           <h1 className="font-display text-xl sm:text-2xl font-bold text-ink">
-            Welcome, Dr. {user?.name ? user.name.split(' ').pop() : 'Doctor'}
+            Welcome, {formatDoctorName(user?.name, 'Dr. Doctor')}
           </h1>
           <p className="text-xs text-ink-soft mt-0.5">
             Clinical workspace — manage patient intake queue, active consultations, and treatment plans.

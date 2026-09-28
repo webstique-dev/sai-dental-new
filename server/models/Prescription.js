@@ -8,6 +8,7 @@ const medicineItemSchema = new mongoose.Schema(
     frequency: { type: String, trim: true, default: '' },
     duration: { type: String, trim: true, default: '', set: capitalizeWords },
     instructions: { type: String, trim: true, default: '', set: capitalizeWords },
+    type: { type: String, trim: true, default: 'medicine', set: (v) => (v ? v.toLowerCase() : 'medicine') },
   },
   { _id: true }
 );

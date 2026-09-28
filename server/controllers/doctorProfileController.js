@@ -54,9 +54,13 @@ async function listDoctorProfiles(req, res, next) {
 async function getDoctorProfileByUserId(req, res, next) {
   try {
     const { userId } = req.params;
-    const userDoc = await User.findById(userId).select('name email phone status role specialization');
+    let userDoc = await User.findById(userId).select('name email phone status role specialization');
 
-    if (!userDoc || userDoc.role !== 'doctor') {
+    if (!userDoc) {
+      const profileById = await DoctorProfile.findById(userId).populate('user', 'name email phone status role specialization');
+      if (profileById) {
+        return res.json({ profile: profileById });
+      }
       return res.status(404).json({ message: 'Doctor user account not found.' });
     }
 
@@ -66,7 +70,7 @@ async function getDoctorProfileByUserId(req, res, next) {
         _id: null,
         user: userDoc,
         specialization: userDoc.specialization || 'General Dentistry',
-        qualification: 'BDS',
+        qualification: 'BDS, MDS',
         workingHours: defaultWorkingHours,
         consultationFee: 500,
       };

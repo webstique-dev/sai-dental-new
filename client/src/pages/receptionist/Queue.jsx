@@ -13,7 +13,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { useSocketEvent } from '../../context/SocketContext.jsx';
 import { validateName, validatePhone, validateAge } from '../../utils/validators.js';
-import { formatAge, capitalizeName, capitalizeWords, formatPatientFullName } from '../../utils/formatters.js';
+import { formatAge, capitalizeName, capitalizeWords, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
 
 
@@ -506,7 +506,7 @@ export default function Queue() {
                     <tbody className="divide-y divide-border">
                       {queueEntries.map((entry) => {
                         const patientName = formatPatientFullName(entry.patient) || 'Walk-in Patient';
-                        const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
+                        const docName = formatDoctorName(entry.doctor, 'Unassigned');
 
                         const timeStr = (entry.checked_in_at || entry.checkInTime)
                           ? new Date(entry.checked_in_at || entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -597,7 +597,7 @@ export default function Queue() {
                 <div className="block md:hidden divide-y divide-border">
                   {queueEntries.map((entry) => {
                     const patientName = formatPatientFullName(entry.patient) || 'Walk-in Patient';
-                    const docName = entry.doctor ? `Dr. ${entry.doctor.name}` : 'Unassigned';
+                    const docName = formatDoctorName(entry.doctor, 'Unassigned');
 
                     const timeStr = (entry.checked_in_at || entry.checkInTime)
                       ? new Date(entry.checked_in_at || entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -741,7 +741,7 @@ export default function Queue() {
                     <option value="">All Attending Doctors</option>
                     {doctors.map((d) => (
                       <option key={d._id || d.id} value={d._id || d.id}>
-                        Dr. {d.name}
+                        {formatDoctorName(d.name)}
                       </option>
                     ))}
                   </select>
@@ -818,7 +818,7 @@ export default function Queue() {
                         {filteredCompletedEntries.map((item) => {
                           const p = item.patient || {};
                           const patientName = formatPatientFullName(p) || 'Patient';
-                          const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : 'Staff Doctor';
+                          const docName = formatDoctorName(item.doctor?.name, 'Dr. Staff Doctor');
 
 
                           const checkInTimeStr = item.checkInTime
@@ -909,7 +909,7 @@ export default function Queue() {
                     {filteredCompletedEntries.map((item) => {
                       const p = item.patient || {};
                       const patientName = formatPatientFullName(p) || 'Patient';
-                      const docName = item.doctor?.name ? `Dr. ${item.doctor.name}` : 'Staff Doctor';
+                      const docName = formatDoctorName(item.doctor?.name, 'Dr. Staff Doctor');
 
                       const isExpanded = expandedCompletedId === item.id;
 
@@ -1068,7 +1068,7 @@ export default function Queue() {
 
                 <div>
                   <span className="text-[10px] font-bold text-ink-soft uppercase tracking-wider block mb-0.5">Assigned Doctor</span>
-                  <span className="font-semibold text-ink block">Dr. {selectedVisitSummary.doctor?.name || 'Staff Doctor'}</span>
+                  <span className="font-semibold text-ink block">{formatDoctorName(selectedVisitSummary.doctor?.name, 'Dr. Staff Doctor')}</span>
                 </div>
 
                 <div>
@@ -1298,7 +1298,7 @@ export default function Queue() {
                         const docId = d._id || d.id;
                         return (
                           <option key={docId} value={docId}>
-                            Dr. {d.name} {d.specialization ? `— ${d.specialization}` : ''}
+                            {formatDoctorName(d.name)} {d.specialization ? `— ${d.specialization}` : ''}
                           </option>
                         );
                       })}
@@ -1357,7 +1357,7 @@ export default function Queue() {
                       <div>
                         <span className="text-ink-soft block font-medium">Assigned Doctor</span>
                         <span className="font-semibold text-brand">
-                          Dr. {doctors.find((d) => (d._id || d.id) === selectedDoctorId)?.name || 'Selected Doctor'}
+                          {formatDoctorName(doctors.find((d) => (d._id || d.id) === selectedDoctorId)?.name, 'Dr. Selected Doctor')}
                         </span>
                       </div>
 
@@ -1389,7 +1389,7 @@ export default function Queue() {
                       Token #{issuedToken.queue_token || issuedToken.token} Issued!
                     </h4>
                     <p className="text-xs text-ink-soft mt-1">
-                      Patient <span className="font-semibold text-ink">{formatPatientFullName(issuedToken.patient)}</span> has been checked in for <span className="font-semibold text-brand">Dr. {issuedToken.doctor?.name}</span>.
+                      Patient <span className="font-semibold text-ink">{formatPatientFullName(issuedToken.patient)}</span> has been checked in for <span className="font-semibold text-brand">{formatDoctorName(issuedToken.doctor?.name, 'Dr. Doctor')}</span>.
                     </p>
                   </div>
                 </div>

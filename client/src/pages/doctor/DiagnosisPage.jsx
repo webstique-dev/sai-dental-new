@@ -7,7 +7,7 @@ import DatePicker from '../../components/common/DatePicker.jsx';
 import DiagnosisTab from './consultation/DiagnosisTab.jsx';
 import DoctorPatientHeader from '../../components/common/DoctorPatientHeader.jsx';
 import { TableSkeleton } from '../../components/common/TableSkeleton.jsx';
-import { formatPatientFullName } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 
 export default function DiagnosisPage() {
   const [consultations, setConsultations] = useState([]);
@@ -87,7 +87,7 @@ export default function DiagnosisPage() {
                 </span>
               </div>
               <p className="text-xs text-ink-soft mt-0.5">
-                Doctor: <strong>Dr. {selectedConsultation.doctor?.name || 'Staff Doctor'}</strong> • Diagnosis Date:{' '}
+                Doctor: <strong>{formatDoctorName(selectedConsultation.doctor?.name, 'Dr. Staff Doctor')}</strong> • Diagnosis Date:{' '}
                 <strong>{new Date(selectedConsultation.visitDate || selectedConsultation.startedAt || selectedConsultation.createdAt).toLocaleDateString()}</strong>
               </p>
             </div>
@@ -209,7 +209,7 @@ export default function DiagnosisPage() {
                     ? diagnosesList.map((d) => `${d.diagnosis}${d.relatedTeeth?.length ? ` (#${d.relatedTeeth.join(', #')})` : ''}`).join(' • ')
                     : 'No specific diagnosis logged yet';
 
-                  const doctorName = c.doctor?.name ? `Dr. ${c.doctor.name}` : 'Staff Doctor';
+                  const doctorName = formatDoctorName(c.doctor?.name, 'Dr. Staff Doctor');
 
                   return (
                     <tr
