@@ -356,7 +356,11 @@ async function generateBackupWorkbook(data, adminUser) {
   const prescriptionsSheet = workbook.addWorksheet('Prescriptions');
   const rxColDefs = [
     { header: 'Patient Name', key: 'patientName' },
+    { header: 'Diagnosis', key: 'diagnosis' },
+    { header: 'Treatment Plan', key: 'treatmentPlan' },
+    { header: 'Treatment', key: 'treatment' },
     { header: 'Medicines List', key: 'medicines' },
+    { header: 'Notes', key: 'notes' },
   ];
   prescriptionsSheet.columns = rxColDefs.map((c) => ({ header: c.header, key: c.key }));
 
@@ -372,7 +376,11 @@ async function generateBackupWorkbook(data, adminUser) {
 
     prescriptionsSheet.addRow({
       patientName: pName,
+      diagnosis: rx.diagnosis || '—',
+      treatmentPlan: rx.treatmentPlan || '—',
+      treatment: rx.treatment || '—',
       medicines: medStr || '—',
+      notes: rx.notes || '—',
     });
   });
   styleDataSheet(prescriptionsSheet, rxColDefs);

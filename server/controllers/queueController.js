@@ -37,7 +37,9 @@ async function getTodayQueue(req, res, next) {
       ],
     };
 
-    if (doctor) {
+    if (req.user && req.user.role === 'doctor') {
+      filter.doctor = req.user._id;
+    } else if (doctor) {
       filter.doctor = doctor;
     }
 
@@ -95,7 +97,12 @@ async function createWalkIn(req, res, next) {
   try {
     const { patientId, doctorId, patientData, reason } = req.body;
 
-    if (!doctorId) {
+    let targetDoctorId = doctorId;
+    if (req.user && req.user.role === 'doctor') {
+      targetDoctorId = req.user._id;
+    }
+
+    if (!targetDoctorId) {
       return res.status(400).json({ message: 'Doctor is required for walk-in check-in.' });
     }
 
@@ -142,7 +149,7 @@ async function createWalkIn(req, res, next) {
     // Create a Walk-in Appointment record so it serves as single source of truth
     const newAppointment = new Appointment({
       patient: targetPatientId,
-      doctor: doctorId,
+      doctor: targetDoctorId,
       date: now,
       time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       reason: reason || 'Walk-in Consultation',
@@ -157,7 +164,7 @@ async function createWalkIn(req, res, next) {
       token: nextToken,
       queue_token: nextToken,
       patient: targetPatientId,
-      doctor: doctorId,
+      doctor: targetDoctorId,
       appointment: newAppointment._id,
       type: 'Walk-in',
       status: 'Checked-In',
@@ -202,6 +209,14 @@ async function checkInAppointment(req, res, next) {
     // Check if id belongs to an Appointment
     const appointment = await Appointment.findById(id);
     if (appointment) {
+      // Doctor authorization check
+      if (req.user && req.user.role === 'doctor') {
+        const docId = appointment.doctor?._id || appointment.doctor;
+        if (docId && docId.toString() !== req.user._id.toString()) {
+          return res.status(403).json({ message: 'Access denied. You can only check in your own appointments.' });
+        }
+      }
+
       appointment.status = 'Checked-In';
       await appointment.save();
 
@@ -255,6 +270,14 @@ async function checkInAppointment(req, res, next) {
       return res.status(404).json({ message: 'Queue entry or appointment not found' });
     }
 
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = queueEntry.doctor?._id || queueEntry.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You can only check in your own patients.' });
+      }
+    }
+
     queueEntry.status = 'Checked-In';
     if (!queueEntry.checked_in_at) queueEntry.checked_in_at = now;
     if (!queueEntry.checkInTime) queueEntry.checkInTime = now;
@@ -302,6 +325,14 @@ async function updateQueueStatus(req, res, next) {
     const queueEntry = await QueueEntry.findById(req.params.id);
     if (!queueEntry) {
       return res.status(404).json({ message: 'Queue entry not found' });
+    }
+
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = queueEntry.doctor?._id || queueEntry.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You can only update queue status for your own patients.' });
+      }
     }
 
     const now = new Date();

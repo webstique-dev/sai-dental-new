@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Receipt, CreditCard, CheckCircle2, AlertCircle, Calendar, Printer, Edit3 } from 'lucide-react';
+import { Receipt, CreditCard, CheckCircle2, AlertCircle, Calendar, Printer, Edit3, Plus, Trash2 } from 'lucide-react';
 import StatCard from './StatCard.jsx';
 import api from '../../api/axios.js';
 import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 import InvoiceEditModal from './InvoiceEditModal.jsx';
+import ConfirmModal from './ConfirmModal.jsx';
+import { useNotification } from '../../context/NotificationContext.jsx';
+import { formatDateTimeDisplay } from '../../utils/formatters.js';
 
 function getInvoiceStatusBadge(status) {
   switch (status) {
@@ -21,15 +24,7 @@ function getInvoiceStatusBadge(status) {
 }
 
 function formatReadableDate(dateInput) {
-  if (!dateInput) return 'N/A';
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return 'N/A';
-  return d.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return formatDateTimeDisplay(dateInput);
 }
 
 export default function PatientBillingSummary({
@@ -39,11 +34,17 @@ export default function PatientBillingSummary({
   className = '',
   onInvoiceUpdated,
 }) {
+  const { showSuccess, showError } = useNotification();
   const [fetchedBilling, setFetchedBilling] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedInvoiceForEdit, setSelectedInvoiceForEdit] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Delete invoice confirmation state
+  const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch billing data if not directly provided via props or when refreshed
   const loadBilling = async () => {
@@ -83,6 +84,11 @@ export default function PatientBillingSummary({
 
   const invoices = billing.invoices || [];
 
+  const handleOpenAdd = () => {
+    setSelectedInvoiceForEdit(null);
+    setIsEditModalOpen(true);
+  };
+
   const handleOpenEdit = (inv) => {
     setSelectedInvoiceForEdit(inv);
     setIsEditModalOpen(true);
@@ -90,6 +96,36 @@ export default function PatientBillingSummary({
 
   const handlePrintBill = (inv) => {
     openBillPrintWindow({ invoice: inv }, true);
+  };
+
+  const handleRequestDelete = (inv) => {
+    setInvoiceToDelete(inv);
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!invoiceToDelete) return;
+    const invId = invoiceToDelete._id || invoiceToDelete.id;
+
+    try {
+      setIsDeleting(true);
+      await api.delete(`/invoices/${invId}`);
+      showSuccess('Invoice record deleted successfully.');
+      setIsConfirmDeleteOpen(false);
+      setInvoiceToDelete(null);
+
+      if (patientId) {
+        await loadBilling();
+      }
+      if (onInvoiceUpdated) {
+        onInvoiceUpdated({ _id: invId, isDeleted: true });
+      }
+    } catch (err) {
+      console.error('Failed to delete invoice:', err);
+      showError(err.response?.data?.message || 'Failed to delete invoice.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleInvoiceSaved = async (updated) => {
@@ -124,18 +160,29 @@ export default function PatientBillingSummary({
     <div className={`space-y-6 ${className}`}>
       {/* Header / Summary */}
       {showHeader && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
           <div>
             <h3 className="font-display text-sm font-bold text-ink flex items-center gap-2">
               <Receipt size={16} className="text-brand" /> Financial & Billing Summary
             </h3>
             <p className="text-xs text-ink-soft">
-              Read-only financial overview of charges, collected revenue, and invoice records.
+              Financial overview of charges, collected revenue, and invoice records.
             </p>
           </div>
-          <span className="badge bg-slate-100 text-slate-700 font-mono text-xs border border-slate-200">
-            {invoices.length} Invoice(s)
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="badge bg-slate-100 text-slate-700 font-mono text-xs border border-slate-200 font-semibold">
+              {invoices.length} {invoices.length === 1 ? 'Invoice' : 'Invoices'}
+            </span>
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="btn-primary py-1.5 px-3 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+              title="Add New Billing Record"
+            >
+              <Plus size={14} />
+              <span>Add Billing</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -231,11 +278,19 @@ export default function PatientBillingSummary({
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(inv)}
-                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-brand hover:underline cursor-pointer"
+                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-amber-700 hover:text-amber-800 hover:border-amber-300 shadow-2xs cursor-pointer"
                               title="Edit Bill Details"
                             >
                               <Edit3 size={13} />
                               <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRequestDelete(inv)}
+                              className="p-1.5 text-ink-soft hover:text-rose-600 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                              title="Delete Invoice"
+                            >
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>
@@ -291,10 +346,18 @@ export default function PatientBillingSummary({
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(inv)}
-                        className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-brand"
+                        className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-amber-700 hover:text-amber-800 hover:border-amber-300"
                       >
                         <Edit3 size={13} />
                         <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRequestDelete(inv)}
+                        className="p-1 text-ink-soft hover:text-rose-600 rounded hover:bg-rose-50 border border-transparent hover:border-rose-200"
+                        title="Delete Invoice"
+                      >
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -303,23 +366,51 @@ export default function PatientBillingSummary({
             </div>
           </div>
         ) : (
-          <div className="card p-8 text-center text-xs text-ink-soft space-y-2 border-dashed bg-bg/20">
-            <Receipt size={30} className="mx-auto text-ink-soft/40" />
+          <div className="card p-8 text-center text-xs text-ink-soft space-y-3 border-dashed bg-bg/20">
+            <Receipt size={32} className="mx-auto text-ink-soft/40" />
             <p className="font-semibold text-ink text-sm">No billing history for this patient yet</p>
             <p className="text-xs">Generated invoices and payment receipts will be reflected here.</p>
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="btn-primary py-1.5 px-3 text-xs font-bold inline-flex items-center gap-1.5 mx-auto cursor-pointer"
+            >
+              <Plus size={13} /> Add First Billing Record
+            </button>
           </div>
         )}
       </div>
 
-      {/* INVOICE EDIT MODAL */}
+      {/* INVOICE EDIT / CREATE MODAL */}
       <InvoiceEditModal
         isOpen={isEditModalOpen}
         invoice={selectedInvoiceForEdit}
+        patientId={patientId}
         onClose={() => {
           setIsEditModalOpen(false);
           setSelectedInvoiceForEdit(null);
         }}
         onSuccess={handleInvoiceSaved}
+      />
+
+      {/* CONFIRM DELETE INVOICE MODAL */}
+      <ConfirmModal
+        isOpen={isConfirmDeleteOpen}
+        title="Confirm Delete Invoice"
+        message={
+          invoiceToDelete
+            ? `Are you sure you want to delete this invoice (${invoiceToDelete.itemsSummary || 'Dental Treatment'} - ₹${(invoiceToDelete.total || 0).toLocaleString()})? This will update the patient's billing totals immediately.`
+            : 'Are you sure you want to delete this invoice?'
+        }
+        confirmText="Delete Invoice"
+        cancelText="Cancel"
+        variant="delete"
+        loading={isDeleting}
+        onClose={() => {
+          setIsConfirmDeleteOpen(false);
+          setInvoiceToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Pill, Plus, Trash2, Save, AlertTriangle, Loader2, Droplets } from 'lucide-react';
+import { X, Pill, Plus, Trash2, Save, AlertTriangle, Loader2, Droplets, Calendar, Clock } from 'lucide-react';
 import api from '../../api/axios.js';
 import ConfirmModal from './ConfirmModal.jsx';
 import MedicineSuggestionInput from './MedicineSuggestionInput.jsx';
 import { useMedicineSuggestions } from '../../hooks/useMedicineSuggestions.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { capitalizeWords } from '../../utils/formatters.js';
+import { capitalizeWords, combineDateAndTime, formatTime12Hour } from '../../utils/formatters.js';
+import DatePicker, { formatToDateString } from './DatePicker.jsx';
+import SplitTimeInput from './SplitTimeInput.jsx';
 
 const COMMON_DURATIONS = ['3 Days', '5 Days', '7 Days', '10 Days', '14 Days', '1 Month'];
 const COMMON_DOSAGES = ['500 mg', '650 mg', '250 mg', '100 mg', '10 ml', '5 ml', '1 tablet', '1 drop'];
@@ -26,9 +28,15 @@ export default function PrescriptionEditModal({
   const [errorMessage, setErrorMessage] = useState('');
   const [deletingMedicineIndex, setDeletingMedicineIndex] = useState(null);
 
+  const [prescriptionDate, setPrescriptionDate] = useState(() => formatToDateString(new Date()));
+  const [prescriptionTime, setPrescriptionTime] = useState('09:00 AM');
+
   const [medicines, setMedicines] = useState([
     { medicine: '', dosage: '', frequency: '1-0-1', duration: '5 Days', instructions: 'After Food', type: 'medicine' },
   ]);
+  const [diagnosis, setDiagnosis] = useState('');
+  const [treatmentPlan, setTreatmentPlan] = useState('');
+  const [treatment, setTreatment] = useState('');
   const [notes, setNotes] = useState('');
 
   const parseFrequencyPattern = (freqStr) => {
@@ -74,6 +82,9 @@ export default function PrescriptionEditModal({
   useEffect(() => {
     if (prescription) {
       const allMeds = Array.isArray(prescription.medicines) ? prescription.medicines : [];
+      const rawDate = prescription.createdAt || prescription.recordedAt || prescription.date || new Date();
+      setPrescriptionDate(formatToDateString(new Date(rawDate)));
+      setPrescriptionTime(formatTime12Hour(rawDate));
 
       setMedicines(
         allMeds.length > 0
@@ -88,11 +99,19 @@ export default function PrescriptionEditModal({
           : [{ medicine: '', dosage: '', frequency: '1-0-1', duration: '5 Days', instructions: 'After Food', type: 'medicine' }]
       );
 
+      setDiagnosis(prescription.diagnosis || '');
+      setTreatmentPlan(prescription.treatmentPlan || '');
+      setTreatment(prescription.treatment || '');
       setNotes(prescription.notes || '');
     } else {
+      setPrescriptionDate(formatToDateString(new Date()));
+      setPrescriptionTime(formatTime12Hour(new Date()));
       setMedicines([
         { medicine: '', dosage: '', frequency: '1-0-1', duration: '5 Days', instructions: 'After Food', type: 'medicine' },
       ]);
+      setDiagnosis('');
+      setTreatmentPlan('');
+      setTreatment('');
       setNotes('');
     }
     setErrorMessage('');
@@ -194,11 +213,26 @@ export default function PrescriptionEditModal({
       return;
     }
 
+    if (!prescriptionDate || !prescriptionDate.trim()) {
+      setErrorMessage('Prescription Date is required.');
+      showError('Prescription Date is required.');
+      setSaving(false);
+      return;
+    }
+
     try {
+      const combinedDateObj = combineDateAndTime(prescriptionDate, prescriptionTime);
+      const isoDate = combinedDateObj.toISOString();
+
       if (isEditMode) {
         const res = await api.put(`/prescriptions/${rxId}`, {
           medicines: validMedicines,
-          notes: capitalizeWords(notes.trim()),
+          diagnosis: diagnosis ? capitalizeWords(diagnosis.trim()) : '',
+          treatmentPlan: treatmentPlan ? capitalizeWords(treatmentPlan.trim()) : '',
+          treatment: treatment ? capitalizeWords(treatment.trim()) : '',
+          notes: notes ? capitalizeWords(notes.trim()) : '',
+          date: isoDate,
+          recordedAt: isoDate,
         });
         showSuccess('Prescription record updated successfully!');
         refreshMedicines();
@@ -208,7 +242,12 @@ export default function PrescriptionEditModal({
           patient: patientId,
           consultation: consultationId,
           medicines: validMedicines,
-          notes: capitalizeWords(notes.trim()),
+          diagnosis: diagnosis ? capitalizeWords(diagnosis.trim()) : '',
+          treatmentPlan: treatmentPlan ? capitalizeWords(treatmentPlan.trim()) : '',
+          treatment: treatment ? capitalizeWords(treatment.trim()) : '',
+          notes: notes ? capitalizeWords(notes.trim()) : '',
+          date: isoDate,
+          recordedAt: isoDate,
         });
         showSuccess('New prescription added successfully!');
         refreshMedicines();
@@ -264,6 +303,85 @@ export default function PrescriptionEditModal({
                 <span>{errorMessage}</span>
               </div>
             )}
+
+            {/* Date & Time Row */}
+            <div className="card p-3.5 bg-bg/50 border border-border space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5 flex items-center gap-1.5">
+                    <Calendar size={13} className="text-brand" />
+                    <span>Prescription Date</span>
+                    <span className="text-rose-600 font-bold">*</span>
+                  </label>
+                  <DatePicker
+                    required
+                    value={prescriptionDate}
+                    maxDate={new Date()}
+                    onChange={(d, dStr) => setPrescriptionDate(dStr)}
+                    inputClassName="py-1.5 text-xs h-[38px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5 flex items-center gap-1.5">
+                    <Clock size={13} className="text-brand" />
+                    <span>Prescription Time</span>
+                    <span className="text-rose-600 font-bold">*</span>
+                  </label>
+                  <SplitTimeInput
+                    label=""
+                    value={prescriptionTime}
+                    onChange={(time12) => setPrescriptionTime(time12)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 3 TOP FIELDS: DIAGNOSIS, TREATMENT PLAN, TREATMENT (Single row on desktop/tablet, stacked on mobile) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">Diagnosis</label>
+                <input
+                  type="text"
+                  className="input-field text-xs w-full"
+                  placeholder="e.g. Dental Caries, Pulpitis..."
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(capitalizeWords(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">Treatment Plan</label>
+                <input
+                  type="text"
+                  className="input-field text-xs w-full"
+                  placeholder="e.g. RCT, Crown Placement..."
+                  value={treatmentPlan}
+                  onChange={(e) => setTreatmentPlan(capitalizeWords(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">Treatment</label>
+                <input
+                  type="text"
+                  className="input-field text-xs w-full"
+                  placeholder="e.g. Root Canal Treatment..."
+                  value={treatment}
+                  onChange={(e) => setTreatment(capitalizeWords(e.target.value))}
+                />
+              </div>
+            </div>
+
+            {/* PRESCRIPTION NOTES (Below the three fields) */}
+            <div>
+              <label className="block text-xs font-bold text-ink mb-1">Prescription Notes</label>
+              <textarea
+                rows={2}
+                className="input-field text-xs w-full"
+                placeholder="General instructions for the patient..."
+                value={notes}
+                onChange={(e) => setNotes(capitalizeWords(e.target.value))}
+              />
+            </div>
 
             {/* Repeatable Medicines & Syrups Rows */}
             <div className="space-y-3">
@@ -532,20 +650,6 @@ export default function PrescriptionEditModal({
                 <option value="10 ml" />
                 <option value="15 ml" />
               </datalist>
-            </div>
-
-            {/* Prescription Notes */}
-            <div className="card p-3.5 bg-bg/40 space-y-2 border border-border">
-              <label className="block font-bold text-ink text-xs uppercase tracking-wider text-brand">
-                Clinical Notes / General Instructions
-              </label>
-              <textarea
-                rows={2}
-                className="input-field text-xs"
-                placeholder="Additional advice, dietary precautions, follow-up timeline..."
-                value={notes}
-                onChange={(e) => setNotes(capitalizeWords(e.target.value))}
-              />
             </div>
           </div>
 

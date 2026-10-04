@@ -85,7 +85,7 @@ async function upsertExamination(req, res, next) {
 async function updateExaminationById(req, res, next) {
   try {
     const { id } = req.params;
-    const { extraoral, softTissue, gingivalFindings, periodontalDetails, overallNotes, chiefComplaints } = req.body;
+    const { extraoral, softTissue, gingivalFindings, periodontalDetails, overallNotes, chiefComplaints, date, recordedAt } = req.body;
 
     let exam = await Examination.findById(id);
     if (!exam) {
@@ -99,15 +99,25 @@ async function updateExaminationById(req, res, next) {
     if (periodontalDetails !== undefined) exam.periodontalDetails = String(periodontalDetails).trim();
     if (overallNotes !== undefined) exam.overallNotes = String(overallNotes).trim();
 
+    const targetDate = date || recordedAt ? new Date(date || recordedAt) : null;
+    if (targetDate && !isNaN(targetDate.getTime())) {
+      exam.recordedAt = targetDate;
+      exam.createdAt = targetDate;
+    }
+
     exam.recordedBy = req.user ? req.user._id : exam.recordedBy;
     await exam.save();
 
-    // If chiefComplaints or overallNotes were updated and consultation exists, update Consultation record too
+    // If chiefComplaints, overallNotes, or date were updated and consultation exists, update Consultation record too
     if (exam.consultation) {
       const Consultation = require('../models/Consultation');
       const updateFields = {};
       if (chiefComplaints !== undefined) updateFields.chiefComplaints = String(chiefComplaints).trim();
       if (overallNotes !== undefined) updateFields.clinicalNotes = String(overallNotes).trim();
+      if (targetDate && !isNaN(targetDate.getTime())) {
+        updateFields.startedAt = targetDate;
+        updateFields.createdAt = targetDate;
+      }
       if (Object.keys(updateFields).length > 0) {
         await Consultation.findByIdAndUpdate(exam.consultation, updateFields);
       }

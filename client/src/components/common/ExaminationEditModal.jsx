@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Stethoscope, Plus, Trash2, Save, AlertTriangle, Loader2 } from 'lucide-react';
+import { X, Stethoscope, Plus, Trash2, Save, AlertTriangle, Loader2, Calendar, Clock } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { capitalizeWords } from '../../utils/formatters.js';
+import { capitalizeWords, combineDateAndTime, formatTime12Hour } from '../../utils/formatters.js';
+import DatePicker, { formatToDateString } from './DatePicker.jsx';
+import SplitTimeInput from './SplitTimeInput.jsx';
 
 const EXTRAORAL_OPTIONS = ['Facial Symmetry', 'TMJ', 'Lymph Nodes', 'Swelling', 'Muscle Tenderness'];
 const SOFT_TISSUE_OPTIONS = ['Labial/Buccal Mucosa', 'Tongue', 'Floor of Mouth', 'Gingiva', 'Hard Palate', 'Soft Palate', 'Tonsillar Area'];
@@ -18,6 +20,9 @@ export default function ExaminationEditModal({
   const { showSuccess, showError } = useNotification();
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const [examinationDate, setExaminationDate] = useState(() => formatToDateString(new Date()));
+  const [examinationTime, setExaminationTime] = useState('09:00 AM');
 
   const [formData, setFormData] = useState({
     chiefComplaints: '',
@@ -37,6 +42,10 @@ export default function ExaminationEditModal({
   useEffect(() => {
     if (consultation) {
       const exam = consultation.examination || {};
+      const rawDate = consultation.visitDate || consultation.date || consultation.startedAt || consultation.createdAt || exam.recordedAt || exam.createdAt || new Date();
+      setExaminationDate(formatToDateString(new Date(rawDate)));
+      setExaminationTime(formatTime12Hour(rawDate));
+
       setFormData({
         chiefComplaints: consultation.chiefComplaints || consultation.reason || exam.chiefComplaints || '',
         extraoral: Array.isArray(exam.extraoral) ? JSON.parse(JSON.stringify(exam.extraoral)) : [],
@@ -103,11 +112,23 @@ export default function ExaminationEditModal({
     setSaving(true);
     setErrorMessage('');
 
+    if (!examinationDate || !examinationDate.trim()) {
+      setErrorMessage('Examination Date is required.');
+      showError('Examination Date is required.');
+      setSaving(false);
+      return;
+    }
+
     try {
       const targetPatientId = consultation.patient?._id || consultation.patient?.id || consultation.patient || consultation.patientId;
+      const combinedDateObj = combineDateAndTime(examinationDate, examinationTime);
+      const isoDate = combinedDateObj.toISOString();
+
       const payload = {
         consultation: consultationId,
         patient: targetPatientId || undefined,
+        date: isoDate,
+        recordedAt: isoDate,
         chiefComplaints: capitalizeWords(formData.chiefComplaints.trim()),
         extraoral: formData.extraoral,
         softTissue: formData.softTissue,
@@ -150,7 +171,7 @@ export default function ExaminationEditModal({
                 Edit Doctor Examination Record
               </h3>
               <p className="text-[11px] text-ink-soft truncate">
-                Update clinical examination findings, complaints, soft tissue, and periodontal records
+                Update examination date & time, clinical findings, complaints, soft tissue, and periodontal records
               </p>
             </div>
           </div>
@@ -175,6 +196,39 @@ export default function ExaminationEditModal({
                 <span>{errorMessage}</span>
               </div>
             )}
+
+            {/* Date & Time Row */}
+            <div className="card p-3.5 bg-bg/50 border border-border space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5 flex items-center gap-1.5">
+                    <Calendar size={13} className="text-brand" />
+                    <span>Examination Date</span>
+                    <span className="text-rose-600 font-bold">*</span>
+                  </label>
+                  <DatePicker
+                    required
+                    value={examinationDate}
+                    maxDate={new Date()}
+                    onChange={(d, dStr) => setExaminationDate(dStr)}
+                    inputClassName="py-1.5 text-xs h-[38px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5 flex items-center gap-1.5">
+                    <Clock size={13} className="text-brand" />
+                    <span>Examination Time</span>
+                    <span className="text-rose-600 font-bold">*</span>
+                  </label>
+                  <SplitTimeInput
+                    label=""
+                    value={examinationTime}
+                    onChange={(time12) => setExaminationTime(time12)}
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* Chief Complaints */}
             <div className="card p-3.5 bg-bg/40 space-y-2 border border-border">

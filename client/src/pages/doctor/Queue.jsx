@@ -790,6 +790,11 @@ export default function DoctorQueue() {
 
   const hasActiveHistoryFilters = Boolean(searchQuery || doctorFilter || statusFilter || dateFrom || dateTo);
 
+  // Merged and deduplicated appointments for Doctor Calendar View
+  const calendarAppointments = useMemo(() => {
+    return [...rawHistoryItems, ...upcomingAppointments, ...queueEntries];
+  }, [rawHistoryItems, upcomingAppointments, queueEntries]);
+
   return (
     <div className="space-y-6 max-w-7xl w-full max-w-full overflow-x-hidden min-w-0">
       {/* Header Banner */}
@@ -853,7 +858,7 @@ export default function DoctorQueue() {
         <AppointmentCalendar
           calendarDate={calendarDate}
           setCalendarDate={setCalendarDate}
-          appointments={rawHistoryItems.length > 0 ? rawHistoryItems : upcomingAppointments}
+          appointments={calendarAppointments}
           statusBadgeClasses={STATUS_BADGE_CLASSES}
         />
       ) : (

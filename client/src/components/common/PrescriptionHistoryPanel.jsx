@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Pill, Calendar, User, Clock, FileText, ChevronDown, ChevronUp, Printer, Plus, Edit3, Trash2, Droplets } from 'lucide-react';
 import api from '../../api/axios.js';
 import { openPrescriptionPDFWindow } from '../../utils/prescriptionPdfGenerator.js';
-import { formatDoctorName } from '../../utils/formatters.js';
+import { formatDoctorName, formatDateTimeDisplay } from '../../utils/formatters.js';
 import { PrescriptionCardSkeleton } from './TableSkeleton.jsx';
 import PrescriptionEditModal from './PrescriptionEditModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
@@ -132,14 +132,7 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
             const rxId = rx._id || rx.id;
             const isExpanded = expandedId === rxId;
 
-            const dateStr = rx.createdAt
-              ? new Date(rx.createdAt).toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-              : 'N/A';
+            const dateStr = formatDateTimeDisplay(rx.createdAt || rx.recordedAt || rx.date);
 
             const doctorName = formatDoctorName(rx.recordedBy, 'Attending Doctor');
 
@@ -217,6 +210,30 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="p-4 border-t border-border bg-surface space-y-3.5 text-xs">
+                    {/* Clinical Details: Diagnosis, Treatment Plan, Treatment */}
+                    {(rx.diagnosis || rx.treatmentPlan || rx.treatment) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-bg/60 border border-border text-xs">
+                        {rx.diagnosis && (
+                          <div>
+                            <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Diagnosis</span>
+                            <p className="font-semibold text-ink">{rx.diagnosis}</p>
+                          </div>
+                        )}
+                        {rx.treatmentPlan && (
+                          <div>
+                            <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Treatment Plan</span>
+                            <p className="font-semibold text-ink">{rx.treatmentPlan}</p>
+                          </div>
+                        )}
+                        {rx.treatment && (
+                          <div>
+                            <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Treatment</span>
+                            <p className="font-semibold text-ink">{rx.treatment}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Unified Medicines Table */}
                     {medicines.length > 0 && (
                       <div className="overflow-x-auto rounded-lg border border-border">

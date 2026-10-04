@@ -812,6 +812,30 @@ export default function PatientHistory() {
 
                       return (
                         <div key={rx._id || idx} className="p-3.5 rounded-xl border border-border bg-surface space-y-2.5">
+                          {/* Clinical Details: Diagnosis, Treatment Plan, Treatment */}
+                          {(rx.diagnosis || rx.treatmentPlan || rx.treatment) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-2.5 rounded-lg bg-bg/60 border border-border text-xs">
+                              {rx.diagnosis && (
+                                <div>
+                                  <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Diagnosis</span>
+                                  <p className="font-semibold text-ink">{rx.diagnosis}</p>
+                                </div>
+                              )}
+                              {rx.treatmentPlan && (
+                                <div>
+                                  <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Treatment Plan</span>
+                                  <p className="font-semibold text-ink">{rx.treatmentPlan}</p>
+                                </div>
+                              )}
+                              {rx.treatment && (
+                                <div>
+                                  <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Treatment</span>
+                                  <p className="font-semibold text-ink">{rx.treatment}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {regularMeds.length > 0 && (
                             <div className="space-y-1">
                               {syrupMeds.length > 0 && (

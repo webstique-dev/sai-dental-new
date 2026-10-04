@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   listAppointments,
+  getAppointmentById,
   createAppointment,
   updateAppointment,
   cancelAppointment,
@@ -14,6 +15,7 @@ const router = express.Router();
 router.use(protect, allowRoles('receptionist', 'admin', 'doctor'));
 
 router.get('/', listAppointments);
+router.get('/:id', getAppointmentById);
 router.post('/', createAppointment);
 router.patch('/:id', updateAppointment);
 router.delete('/:id', cancelAppointment);

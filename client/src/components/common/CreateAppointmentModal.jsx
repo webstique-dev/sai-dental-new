@@ -107,12 +107,12 @@ export default function CreateAppointmentModal({
         setDoctors(docList);
         setPrimaryDoctor(primDoc || null);
 
-        // Pre-fill doctor: prioritize initialDoctorId -> logged-in user if doctor -> primaryDoctor
+        // Pre-fill doctor: prioritize logged-in user if doctor -> initialDoctorId -> primaryDoctor
         const userDocId = user?.role === 'doctor' ? (user._id || user.id) : null;
-        const fallbackDocId = initialDoctorId || userDocId || (primDoc ? (primDoc._id || primDoc.id) : (docList[0]?._id || docList[0]?.id || ''));
+        const fallbackDocId = userDocId || initialDoctorId || (primDoc ? (primDoc._id || primDoc.id) : (docList[0]?._id || docList[0]?.id || ''));
 
         setFormData((prev) => {
-          const updatedDoc = prev.doctor || fallbackDocId;
+          const updatedDoc = userDocId || prev.doctor || fallbackDocId;
           if (initialSnapshotRef.current && !initialSnapshotRef.current.doctorId) {
             initialSnapshotRef.current.doctorId = updatedDoc;
           }
@@ -348,27 +348,34 @@ export default function CreateAppointmentModal({
               <label className="block text-xs font-semibold text-ink-soft mb-1">
                 Assigned Doctor <span className="text-rose-600">*</span>
               </label>
-              <select
-                className="input-field font-semibold bg-surface text-xs"
-                value={
-                  formData.doctor ||
-                  (initialDoctorId ||
-                    (primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || '')))
-                }
-                onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
-              >
-                {doctors.map((d) => {
-                  const docId = d._id || d.id;
-                  const isPrimaryDoc = primaryDoctor && (primaryDoctor._id || primaryDoctor.id)?.toString() === docId?.toString();
-                  const isCurrentDoc = user && (user._id || user.id)?.toString() === docId?.toString();
-                  return (
-                    <option key={docId} value={docId}>
-                      Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}{' '}
-                      {isCurrentDoc ? '• You' : isPrimaryDoc ? '• Primary Doctor' : ''}
-                    </option>
-                  );
-                })}
-              </select>
+              {user?.role === 'doctor' ? (
+                <div className="input-field bg-bg/70 text-xs font-semibold text-ink flex items-center justify-between cursor-not-allowed border-border">
+                  <span>Dr. {user.name} {user.specialization ? `(${user.specialization})` : ''}</span>
+                  <span className="badge bg-brand/10 text-brand text-[10px] font-bold">You (Assigned)</span>
+                </div>
+              ) : (
+                <select
+                  className="input-field font-semibold bg-surface text-xs"
+                  value={
+                    formData.doctor ||
+                    (initialDoctorId ||
+                      (primaryDoctor ? (primaryDoctor._id || primaryDoctor.id) : (doctors[0]?._id || doctors[0]?.id || '')))
+                  }
+                  onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
+                >
+                  {doctors.map((d) => {
+                    const docId = d._id || d.id;
+                    const isPrimaryDoc = primaryDoctor && (primaryDoctor._id || primaryDoctor.id)?.toString() === docId?.toString();
+                    const isCurrentDoc = user && (user._id || user.id)?.toString() === docId?.toString();
+                    return (
+                      <option key={docId} value={docId}>
+                        Dr. {d.name} {d.specialization ? `(${d.specialization})` : ''}{' '}
+                        {isCurrentDoc ? '• You' : isPrimaryDoc ? '• Primary Doctor' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
             </div>
 
             {/* Status / Initial Action Radio Group */}

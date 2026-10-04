@@ -18,12 +18,27 @@ import {
   Sparkles,
   Stethoscope,
   FileText,
+  Calendar,
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 import UnsavedChangesModal from '../../../components/common/UnsavedChangesModal.jsx';
+import DateTimePicker from '../../../components/common/DateTimePicker.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
 import { capitalizeWords, formatDoctorName } from '../../../utils/formatters.js';
+
+// Convert date to local datetime string format for input type="datetime-local" (YYYY-MM-DDTHH:mm)
+function toLocalDatetimeString(dateInput = new Date()) {
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 // Permanent (Adult) Teeth Quadrants (32 teeth)
 const QUAD_UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -487,6 +502,8 @@ function CompactConditionPopup({
   onClearSelection,
   onDeleteCustomCondition,
   isSaving,
+  isBackdateActive = false,
+  backdateValue = '',
 }) {
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [selectedConditions, setSelectedConditions] = useState([]);
@@ -541,7 +558,7 @@ function CompactConditionPopup({
   }, [isOpen, currentCondition, initialTreatment, initialNotes, targetTeeth]);
 
   // Viewport-aware position calculations: Right side of selected tooth
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 360, maxHeight: 520, isReady: false });
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 330, maxHeight: 480, isReady: false });
 
   useLayoutEffect(() => {
     if (!isOpen) {
@@ -557,19 +574,29 @@ function CompactConditionPopup({
         : null;
       const activeEl = anchorEl && anchorEl.isConnected ? anchorEl : domToothEl;
 
-      if (!activeEl) return;
+      const isMobile = window.innerWidth < 640;
+      const popupWidth = isMobile ? Math.min(330, window.innerWidth - 24) : 330;
+      const estimatedHeight = 390;
+
+      if (!activeEl) {
+        setCoords({
+          top: Math.round(Math.max(12, (window.innerHeight - estimatedHeight) / 2)),
+          left: Math.round(Math.max(12, (window.innerWidth - popupWidth) / 2)),
+          width: Math.round(popupWidth),
+          maxHeight: Math.round(Math.min(520, window.innerHeight - 24)),
+          isReady: true,
+        });
+        return;
+      }
+
       const rect = activeEl.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0) return;
-
-      const isMobile = window.innerWidth < 640;
-      const popupWidth = isMobile ? Math.min(360, window.innerWidth - 24) : 360;
-      const estimatedHeight = 460;
 
       let left = 0;
       let top = 0;
 
       if (isMobile) {
-        // Mobile: center horizontally, place below or above clicked tooth
+        // Mobile (< 640px): center horizontally, place below or above clicked tooth
         left = Math.max(12, (window.innerWidth - popupWidth) / 2);
         if (rect.bottom + estimatedHeight + 12 <= window.innerHeight) {
           top = rect.bottom + 8;
@@ -590,8 +617,8 @@ function CompactConditionPopup({
           // Flip to left of tooth if right side is too close to viewport edge
           left = rect.left - popupWidth - 12;
         } else {
-          // Center / clamp safely within viewport
-          left = Math.max(12, window.innerWidth - popupWidth - 16);
+          // Center safely within viewport
+          left = Math.max(12, (window.innerWidth - popupWidth) / 2);
         }
 
         // Align vertically around tooth center, clamped within viewport
@@ -599,13 +626,15 @@ function CompactConditionPopup({
         top = Math.max(12, Math.min(window.innerHeight - estimatedHeight - 16, top));
       }
 
-      const availableMaxHeight = Math.min(560, window.innerHeight - top - 16);
+      // Ensure left is clamped strictly within viewport
+      left = Math.max(12, Math.min(window.innerWidth - popupWidth - 12, left));
+      const availableMaxHeight = Math.min(540, window.innerHeight - top - 16);
 
       setCoords({
         top: Math.round(top),
         left: Math.round(left),
         width: Math.round(popupWidth),
-        maxHeight: Math.round(Math.max(380, availableMaxHeight)),
+        maxHeight: Math.round(Math.max(340, availableMaxHeight)),
         isReady: true,
       });
     }
@@ -854,7 +883,7 @@ function CompactConditionPopup({
 
   return (
     <>
-      {/* Compact Popover Box positioned to the RIGHT of selected tooth (No blocking overlay) */}
+      {/* Compact Popover Box positioned next to selected tooth (No blocking overlay) */}
       <div
         ref={popupRef}
         style={{
@@ -863,7 +892,7 @@ function CompactConditionPopup({
           width: `${coords.width}px`,
           maxHeight: `${coords.maxHeight}px`,
         }}
-        className="fixed z-50 bg-surface border border-border/90 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fadeIn text-xs"
+        className="fixed z-50 bg-surface border border-border/90 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fadeIn text-xs max-w-[calc(100vw-24px)]"
         role="dialog"
         aria-label="Tooth Condition Picker"
       >
@@ -883,6 +912,13 @@ function CompactConditionPopup({
                 className={`px-1.5 py-0.5 rounded text-[10px] font-bold border truncate ${currentCodeObj.color}`}
               >
                 {pendingParsed.formatted}
+              </span>
+            )}
+
+            {/* Backdating indicator */}
+            {isBackdateActive && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold border truncate bg-amber-50 text-amber-800 border-amber-300 flex items-center gap-1 shrink-0" title={`Backdating mode active (${backdateValue})`}>
+                <Calendar size={10} className="text-amber-600" /> Backdating
               </span>
             )}
 
@@ -1270,6 +1306,10 @@ export default function ToothChart({
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [popupAnchorEl, setPopupAnchorEl] = useState(null);
 
+  // Global Backdate Mode (Persists across multiple tooth selections until toggled OFF)
+  const [isBackdateMode, setIsBackdateMode] = useState(false);
+  const [globalBackdate, setGlobalBackdate] = useState(() => toLocalDatetimeString());
+
   // Notifications
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -1534,18 +1574,22 @@ export default function ToothChart({
     let chosenCondition = payload;
     let chosenTreatment = '';
     let chosenNotes = '';
+    let chosenDate = isBackdateMode ? globalBackdate : undefined;
 
     if (payload && typeof payload === 'object') {
       chosenCondition = payload.condition;
       chosenTreatment = payload.treatment || '';
       chosenNotes = payload.notes || '';
+      if (payload.date !== undefined) {
+        chosenDate = payload.date;
+      }
     }
 
     const parsed = sanitizeCondition(chosenCondition);
     const saveCondition = parsed.formatted;
 
-    // Check if target tooth already has identical condition and treatment/notes (skip only if not an explicit retry)
-    if (!payload?.isRetry && targetList.length === 1) {
+    // Check if target tooth already has identical condition and treatment/notes (skip only if not an explicit retry and no specific backdate)
+    if (!payload?.isRetry && !chosenDate && targetList.length === 1) {
       const tNum = targetList[0];
       const existing = teethMap[tNum];
       if (
@@ -1618,6 +1662,7 @@ export default function ToothChart({
           treatment: chosenTreatment,
           notes: chosenNotes,
           consultationId,
+          date: chosenDate,
         });
 
         // Only update if no newer save was triggered for this tooth while in-flight
@@ -1634,6 +1679,7 @@ export default function ToothChart({
           treatment: chosenTreatment,
           notes: chosenNotes,
           consultationId,
+          date: chosenDate,
         });
       }
 
@@ -1664,6 +1710,7 @@ export default function ToothChart({
           condition: saveCondition,
           treatment: chosenTreatment,
           notes: chosenNotes,
+          date: chosenDate,
           errorMsg: err.response?.data?.message || 'Failed to update tooth condition.',
           timestamp: Date.now(),
         },
@@ -1683,6 +1730,7 @@ export default function ToothChart({
         treatment: item.treatment,
         notes: item.notes,
         teethList: item.targetList,
+        date: item.date,
         isRetry: true,
       });
     }
@@ -1861,10 +1909,10 @@ export default function ToothChart({
         </div>
       )}
 
-      {/* Main Responsive Layout: Chart on Left, Update Tooth Panel on Right (stacked on smaller screens) */}
+      {/* Main Responsive Layout: Chart on Left, Update Tooth Panel on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (lg:col-span-7 xl:col-span-8): Chart Toolbar & FDI Chart Arches */}
-        <div className={`${isReadOnly ? 'lg:col-span-12' : 'lg:col-span-7 xl:col-span-8'} space-y-4`}>
+        {/* Left Column: When read-only, chart takes full 12 cols; otherwise 7/8 cols */}
+        <div className={`${isReadOnly ? 'lg:col-span-12' : 'lg:col-span-7 xl:col-span-8'} space-y-4 min-w-0 max-w-full transition-all duration-200`}>
           {/* Chart Toolbar & Dentition Summary */}
           <div className="card p-3.5 sm:p-4 space-y-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border pb-3">
@@ -1913,8 +1961,56 @@ export default function ToothChart({
                 </div>
               </div>
 
-              {/* Right: Actions (Multi-Select toggle + Done / Clear Action Group) */}
+              {/* Right: Actions (Backdate Mode Toggle + Multi-Select toggle + Done / Clear Action Group) */}
               <div className="flex items-center gap-2 flex-wrap self-start md:self-center">
+                {/* Global Backdate Mode Toggle & Date Picker */}
+                {!isReadOnly && (
+                  <div className={`flex items-center gap-2 rounded-xl px-2.5 py-1 min-h-[34px] border transition-all shrink-0 ${
+                    isBackdateMode
+                      ? 'bg-amber-50/90 border-amber-300 shadow-2xs ring-2 ring-amber-200/60'
+                      : 'bg-surface border-border hover:border-brand/40'
+                  }`}>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs font-bold text-ink">
+                      <input
+                        type="checkbox"
+                        checked={isBackdateMode}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setIsBackdateMode(checked);
+                          if (checked) {
+                            setGlobalBackdate(toLocalDatetimeString());
+                          }
+                        }}
+                        className="rounded border-border text-amber-600 focus:ring-amber-500 h-3.5 w-3.5 cursor-pointer accent-amber-600"
+                      />
+                      <span className="flex items-center gap-1">
+                        <Calendar size={13} className={isBackdateMode ? 'text-amber-600' : 'text-ink-soft'} />
+                        <span className={isBackdateMode ? 'text-amber-900 font-extrabold' : 'text-ink-soft'}>
+                          Backdate Entries
+                        </span>
+                      </span>
+                    </label>
+
+                    {isBackdateMode && (
+                      <DateTimePicker
+                        value={globalBackdate}
+                        max={toLocalDatetimeString()}
+                        onChange={(val) => {
+                          const maxVal = toLocalDatetimeString();
+                          if (val && val > maxVal) {
+                            setErrorMessage('Backdate treatment date cannot be in the future.');
+                            setGlobalBackdate(maxVal);
+                          } else {
+                            setErrorMessage('');
+                            setGlobalBackdate(val);
+                          }
+                        }}
+                        accent="amber"
+                      />
+                    )}
+                  </div>
+                )}
+
                 {/* Multi-Select Toggle */}
                 <button
                   type="button"
@@ -2178,9 +2274,9 @@ export default function ToothChart({
           </div>
         </div>
 
-        {/* Right Column (lg:col-span-5 xl:col-span-4): Update Tooth Panel */}
+        {/* Right Column (lg:col-span-5 xl:col-span-4): Update Tooth Panel - always visible when not read-only */}
         {!isReadOnly && (
-          <div className="lg:col-span-5 xl:col-span-4 card p-5 space-y-4 lg:sticky lg:top-6">
+          <div className="lg:col-span-5 xl:col-span-4 card p-5 space-y-4 lg:sticky lg:top-6 min-w-0 max-w-full overflow-hidden animate-fadeIn">
             <div className="border-b border-border pb-3 flex items-center justify-between">
               <div>
                 <h4 className="font-display text-sm font-bold text-ink flex items-center gap-2">
@@ -2264,8 +2360,9 @@ export default function ToothChart({
                   </div>
                   <ChevronDown
                     size={14}
-                    className={`text-ink-soft transition-transform duration-200 shrink-0 ${isPanelTreatmentOpen ? 'rotate-180' : ''
-                      }`}
+                    className={`text-ink-soft transition-transform duration-200 shrink-0 ${
+                      isPanelTreatmentOpen ? 'rotate-180' : ''
+                    }`}
                   />
                 </button>
 
@@ -2300,8 +2397,9 @@ export default function ToothChart({
                   </div>
                   <ChevronDown
                     size={14}
-                    className={`text-ink-soft transition-transform duration-200 shrink-0 ${isPanelNotesOpen ? 'rotate-180' : ''
-                      }`}
+                    className={`text-ink-soft transition-transform duration-200 shrink-0 ${
+                      isPanelNotesOpen ? 'rotate-180' : ''
+                    }`}
                   />
                 </button>
 
@@ -2363,6 +2461,8 @@ export default function ToothChart({
         onClearSelection={handleClearSelection}
         onDeleteCustomCondition={handleRequestDeleteCondition}
         isSaving={saveStatus === 'saving'}
+        isBackdateActive={isBackdateMode}
+        backdateValue={globalBackdate}
       />
 
       {/* Treatment History Log (Timeline / Card Activity Stream) */}
@@ -2578,13 +2678,13 @@ export default function ToothChart({
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                            {!isReadOnly && isMostRecent && (
+                            {!isReadOnly && (
                               <button
                                 type="button"
                                 onClick={() => handleRequestDeleteHistory(tNum, h)}
                                 className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
-                                title="Delete last entry"
-                                aria-label="Delete last entry"
+                                title={`Delete entry for Tooth #${tNum}`}
+                                aria-label={`Delete entry for Tooth #${tNum}`}
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -2707,13 +2807,13 @@ export default function ToothChart({
                                   </div>
 
                                   <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                                    {!isReadOnly && isMostRecent && (
+                                    {!isReadOnly && (
                                       <button
                                         type="button"
                                         onClick={() => handleRequestDeleteHistory(tNum, h)}
                                         className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 inline-flex items-center justify-center transition-colors shadow-xs"
-                                        title="Delete last entry"
-                                        aria-label="Delete last entry"
+                                        title={`Delete entry for Tooth #${tNum}`}
+                                        aria-label={`Delete entry for Tooth #${tNum}`}
                                       >
                                         <Trash2 size={13} />
                                       </button>

@@ -24,6 +24,24 @@ const prescriptionSchema = new mongoose.Schema(
       ref: 'Patient',
     },
     medicines: [medicineItemSchema],
+    diagnosis: {
+      type: String,
+      trim: true,
+      default: '',
+      set: capitalizeWords,
+    },
+    treatmentPlan: {
+      type: String,
+      trim: true,
+      default: '',
+      set: capitalizeWords,
+    },
+    treatment: {
+      type: String,
+      trim: true,
+      default: '',
+      set: capitalizeWords,
+    },
     notes: {
       type: String,
       trim: true,

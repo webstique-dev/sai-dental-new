@@ -57,6 +57,7 @@ async function listAppointments(req, res, next) {
       filter.date = { $gte: start, $lte: end };
     }
 
+    // Strict doctor isolation: Doctor role always sees ONLY their own appointments
     if (req.user && req.user.role === 'doctor') {
       filter.doctor = req.user._id;
     } else if (doctor) {
@@ -84,12 +85,49 @@ async function listAppointments(req, res, next) {
   }
 }
 
+// GET /api/appointments/:id
+async function getAppointmentById(req, res, next) {
+  try {
+    const rawId = req.params.id || '';
+    const cleanId = rawId.toString().replace(/^(apt|queue|q)-/, '');
+    if (!mongoose.Types.ObjectId.isValid(cleanId)) {
+      return res.status(400).json({ message: 'Invalid appointment ID format.' });
+    }
+
+    const appointment = await Appointment.findOne({ _id: cleanId, isDeleted: { $ne: true } })
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
+      .populate('doctor', 'name email role specialization')
+      .populate('createdBy', 'name email');
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = appointment.doctor?._id || appointment.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You can only view your own appointments.' });
+      }
+    }
+
+    return res.json({ appointment });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // POST /api/appointments
 async function createAppointment(req, res, next) {
   try {
     const data = { ...req.body };
     if (req.user && req.user._id) {
       data.createdBy = req.user._id;
+    }
+
+    // Strict doctor association: Doctor role always creates appointments assigned to themselves
+    if (req.user && req.user.role === 'doctor') {
+      data.doctor = req.user._id;
     }
 
     // Default status is Checked-In if not specified
@@ -182,6 +220,15 @@ async function updateAppointment(req, res, next) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = existing.doctor?._id || existing.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You can only modify your own appointments.' });
+      }
+      delete req.body.doctor;
+    }
+
     if (status && status !== existing.status) {
       if (existing.status === 'Completed') {
         return res.status(400).json({ message: 'Cannot modify status of a Completed appointment.' });
@@ -269,6 +316,19 @@ async function cancelAppointment(req, res, next) {
       return res.status(400).json({ message: 'Invalid appointment ID format.' });
     }
 
+    const existing = await Appointment.findOne({ _id: cleanId, isDeleted: { $ne: true } });
+    if (!existing) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = existing.doctor?._id || existing.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You can only cancel your own appointments.' });
+      }
+    }
+
     const cancelled = await Appointment.findOneAndUpdate(
       { _id: cleanId, isDeleted: { $ne: true } },
       {
@@ -301,6 +361,7 @@ async function cancelAppointment(req, res, next) {
 
 module.exports = {
   listAppointments,
+  getAppointmentById,
   createAppointment,
   updateAppointment,
   cancelAppointment,

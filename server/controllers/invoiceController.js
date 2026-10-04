@@ -100,7 +100,7 @@ async function getInvoiceById(req, res, next) {
 // POST /api/invoices (Generate or update invoice for consultation)
 async function createInvoice(req, res, next) {
   try {
-    const { patient, doctor, consultation, opNumber, items, discount, tax, amountPaid, paymentMethod } = req.body;
+    const { patient, doctor, consultation, opNumber, items, discount, tax, amountPaid, paymentMethod, date, createdAt } = req.body;
 
     const sanitizedItems = Array.isArray(items)
       ? items.map((it) => ({
@@ -110,6 +110,8 @@ async function createInvoice(req, res, next) {
           unitPrice: Math.max(0, Number(it.unitPrice) || 0),
         }))
       : [];
+
+    const targetDate = date || createdAt ? new Date(date || createdAt) : new Date();
 
     // Check if an invoice already exists for this consultation (Update, don't duplicate pattern)
     if (consultation) {
@@ -121,6 +123,10 @@ async function createInvoice(req, res, next) {
         if (items) existingInvoice.items = sanitizedItems;
         if (discount !== undefined) existingInvoice.discount = Math.max(0, Number(discount) || 0);
         if (tax !== undefined) existingInvoice.tax = Math.max(0, Number(tax) || 0);
+        if (targetDate && !isNaN(targetDate.getTime())) {
+          existingInvoice.date = targetDate;
+          existingInvoice.createdAt = targetDate;
+        }
 
         if (amountPaid !== undefined) {
           const targetPaid = Math.max(0, Number(amountPaid) || 0);
@@ -130,7 +136,7 @@ async function createInvoice(req, res, next) {
                 {
                   amount: targetPaid,
                   method: paymentMethod || 'Cash',
-                  date: new Date(),
+                  date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
                   recordedBy: req.user ? req.user._id : undefined,
                 },
               ];
@@ -147,7 +153,7 @@ async function createInvoice(req, res, next) {
                       {
                         amount: targetPaid,
                         method: paymentMethod || 'Cash',
-                        date: new Date(),
+                        date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
                         recordedBy: req.user ? req.user._id : undefined,
                       },
                     ]
@@ -202,7 +208,7 @@ async function createInvoice(req, res, next) {
             {
               amount: initialPaid,
               method: paymentMethod || 'Cash',
-              date: new Date(),
+              date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
               recordedBy: req.user ? req.user._id : undefined,
             },
           ]
@@ -213,6 +219,8 @@ async function createInvoice(req, res, next) {
       doctor,
       consultation: consultation || null,
       opNumber: targetOpNumber,
+      date: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
+      createdAt: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
       items: sanitizedItems,
       discount: Math.max(0, Number(discount) || 0),
       tax: Math.max(0, Number(tax) || 0),
@@ -256,7 +264,7 @@ async function createInvoice(req, res, next) {
 // PUT or PATCH /api/invoices/:id (Update existing invoice)
 async function updateInvoice(req, res, next) {
   try {
-    const { patient, doctor, consultation, opNumber, items, discount, tax, amountPaid, paymentMethod } = req.body;
+    const { patient, doctor, consultation, opNumber, items, discount, tax, amountPaid, paymentMethod, date, createdAt } = req.body;
 
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) {
@@ -280,6 +288,12 @@ async function updateInvoice(req, res, next) {
     if (discount !== undefined) invoice.discount = Math.max(0, Number(discount) || 0);
     if (tax !== undefined) invoice.tax = Math.max(0, Number(tax) || 0);
 
+    const targetDate = date || createdAt ? new Date(date || createdAt) : null;
+    if (targetDate && !isNaN(targetDate.getTime())) {
+      invoice.date = targetDate;
+      invoice.createdAt = targetDate;
+    }
+
     if (amountPaid !== undefined) {
       const targetPaid = Math.max(0, Number(amountPaid) || 0);
       if (!invoice.payments || invoice.payments.length === 0) {
@@ -288,7 +302,7 @@ async function updateInvoice(req, res, next) {
             {
               amount: targetPaid,
               method: paymentMethod || 'Cash',
-              date: new Date(),
+              date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
               recordedBy: req.user ? req.user._id : undefined,
             },
           ];
@@ -305,7 +319,7 @@ async function updateInvoice(req, res, next) {
                   {
                     amount: targetPaid,
                     method: paymentMethod || 'Cash',
-                    date: new Date(),
+                    date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
                     recordedBy: req.user ? req.user._id : undefined,
                   },
                 ]
@@ -464,11 +478,49 @@ async function refundInvoice(req, res, next) {
   }
 }
 
+// DELETE /api/invoices/:id (Delete invoice)
+async function deleteInvoice(req, res, next) {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found.' });
+    }
+
+    if (req.user && req.user.role === 'doctor') {
+      const invoiceDoctorId = invoice.doctor?._id?.toString() || invoice.doctor?.toString();
+      const userDoctorId = req.user._id ? req.user._id.toString() : req.user.id?.toString();
+      if (invoiceDoctorId && userDoctorId && invoiceDoctorId !== userDoctorId) {
+        return res.status(403).json({ message: 'Access denied: You cannot delete invoices belonging to other doctors.' });
+      }
+    }
+
+    const patientId = invoice.patient;
+    const invTotal = invoice.total;
+
+    await Invoice.findByIdAndDelete(req.params.id);
+
+    await logAction(req, {
+      action: 'deleted invoice',
+      entityType: 'Invoice',
+      entityId: req.params.id,
+      patient: patientId,
+      newValue: { deletedAmount: invTotal },
+    });
+
+    emitInvoiceUpdate({ _id: req.params.id, patient: patientId, isDeleted: true }, false);
+
+    return res.json({ message: 'Invoice deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listInvoices,
   getInvoiceById,
   createInvoice,
   updateInvoice,
+  deleteInvoice,
   recordPayment,
   refundInvoice,
 };

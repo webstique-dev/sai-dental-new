@@ -90,6 +90,10 @@ const invoiceSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
     items: [invoiceItemSchema],
     discount: {
       type: Number,

@@ -38,23 +38,47 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim());
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (
-        allowedOrigins.includes('*') ||
-        allowedOrigins.includes(origin) ||
-        origin.endsWith('.vercel.app') ||
-        process.env.NODE_ENV !== 'production'
-      ) {
-        return callback(null, true);
-      }
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes('*') ||
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.endsWith('.hostingersite.com') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      process.env.NODE_ENV !== 'production'
+    ) {
       return callback(null, true);
-    },
-    credentials: true,
-  })
-);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Extra CORS safety fallback headers
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json());
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
@@ -62,6 +86,15 @@ if (process.env.NODE_ENV !== 'test') {
 
 // Serve uploaded documents statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- Root endpoint ---
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'online',
+    service: 'Dental Clinic Management API',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // --- Health check ---
 app.get('/api/health', (req, res) => {
@@ -93,11 +126,6 @@ app.use('/api/treatments', treatmentRoutes);
 app.use('/api/treatment-records', treatmentRecordRoutes);
 app.use('/api/medicines', medicineRoutes);
 
-
-// Phase 2+ routes (patients, appointments, consultations, tooth chart,
-// billing, follow-ups, reports) get mounted here in the same pattern:
-//   app.use('/api/patients', patientRoutes);
-
 // --- 404 handler ---
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -117,26 +145,29 @@ const { initSocket } = require('./utils/socket');
 const { autoCheckInScheduledAppointments, checkAndMarkMissedAppointments } = require('./utils/statusSync');
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 const server = http.createServer(app);
 
 // Initialize Socket.IO
 initSocket(server);
 
-connectDB().then(() => {
-  // Ensure medicine suggestions catalog is initialized with reference database
-  seedInitialMedicines().catch((err) => console.error('Error seeding medicines:', err));
+// Start server immediately so cloud platforms/Hostinger health checks pass without delay
+server.listen(PORT, HOST, () => {
+  console.log(`Dental Clinic API & Socket.IO running on http://${HOST}:${PORT}`);
 
-  server.listen(PORT, () => {
-    console.log(`Dental Clinic API & Socket.IO running on port ${PORT}`);
-
-    // Run initial automatic status checks on startup
-    autoCheckInScheduledAppointments();
-    checkAndMarkMissedAppointments();
-
-    // Run automatic check-in & missed appointments check every 15 seconds
-    setInterval(() => {
+  // Connect to MongoDB asynchronously
+  connectDB()
+    .then(() => {
+      seedInitialMedicines().catch((err) => console.error('Error seeding medicines:', err));
       autoCheckInScheduledAppointments();
       checkAndMarkMissedAppointments();
-    }, 15 * 1000);
-  });
+
+      setInterval(() => {
+        autoCheckInScheduledAppointments();
+        checkAndMarkMissedAppointments();
+      }, 15 * 1000);
+    })
+    .catch((err) => {
+      console.error('MongoDB initialization error:', err);
+    });
 });

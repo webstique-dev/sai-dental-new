@@ -4,6 +4,7 @@ const {
   getInvoiceById,
   createInvoice,
   updateInvoice,
+  deleteInvoice,
   recordPayment,
   refundInvoice,
 } = require('../controllers/invoiceController');
@@ -20,6 +21,7 @@ router.get('/:id', protect, allowRoles('receptionist', 'admin', 'doctor'), getIn
 router.post('/', protect, allowRoles('receptionist', 'admin', 'doctor'), createInvoice);
 router.put('/:id', protect, allowRoles('receptionist', 'admin', 'doctor'), updateInvoice);
 router.patch('/:id', protect, allowRoles('receptionist', 'admin', 'doctor'), updateInvoice);
+router.delete('/:id', protect, allowRoles('receptionist', 'admin', 'doctor'), deleteInvoice);
 
 // Payment recording (Doctor, Receptionist, Admin)
 router.post('/:id/payments', protect, allowRoles('receptionist', 'admin', 'doctor'), recordPayment);

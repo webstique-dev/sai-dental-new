@@ -12,19 +12,13 @@ function initSocket(httpServer) {
   io = new Server(httpServer, {
     cors: {
       origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        if (
-          allowedOrigins.includes('*') ||
-          allowedOrigins.includes(origin) ||
-          origin.endsWith('.vercel.app') ||
-          process.env.NODE_ENV !== 'production'
-        ) {
-          return callback(null, true);
-        }
         return callback(null, true);
       },
+      methods: ['GET', 'POST'],
       credentials: true,
     },
+    transports: ['polling', 'websocket'],
+    allowEIO3: true,
   });
 
   // JWT Authentication middleware for Socket connections

@@ -30,7 +30,7 @@ async function listPrescriptions(req, res, next) {
 // POST /api/prescriptions
 async function createPrescription(req, res, next) {
   try {
-    const { consultation, patient, medicines, notes } = req.body;
+    const { consultation, patient, medicines, diagnosis, treatmentPlan, treatment, notes, date, recordedAt } = req.body;
 
     if (!consultation && !patient) {
       return res.status(400).json({ message: 'Either consultation or patient is required.' });
@@ -55,6 +55,8 @@ async function createPrescription(req, res, next) {
       if (latestConsult) targetConsultation = latestConsult._id;
     }
 
+    const targetDate = date || recordedAt ? new Date(date || recordedAt) : new Date();
+
     const newPrescription = new Prescription({
       consultation: targetConsultation || undefined,
       patient: targetPatient || undefined,
@@ -66,7 +68,12 @@ async function createPrescription(req, res, next) {
         instructions: m.instructions ? m.instructions.trim() : '',
         type: m.type === 'syrup' ? 'syrup' : 'medicine',
       })),
+      diagnosis: diagnosis ? String(diagnosis).trim() : '',
+      treatmentPlan: treatmentPlan ? String(treatmentPlan).trim() : '',
+      treatment: treatment ? String(treatment).trim() : '',
       notes: notes ? String(notes).trim() : '',
+      recordedAt: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
+      createdAt: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
       recordedBy: req.user ? req.user._id : undefined,
     });
 
@@ -93,7 +100,7 @@ async function createPrescription(req, res, next) {
 // PUT /api/prescriptions/:id & PATCH /api/prescriptions/:id
 async function updatePrescription(req, res, next) {
   try {
-    const { medicines, notes } = req.body;
+    const { medicines, diagnosis, treatmentPlan, treatment, notes, date, recordedAt } = req.body;
 
     const rx = await Prescription.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!rx) {
@@ -122,8 +129,23 @@ async function updatePrescription(req, res, next) {
       }));
     }
 
+    if (diagnosis !== undefined) {
+      rx.diagnosis = String(diagnosis).trim();
+    }
+    if (treatmentPlan !== undefined) {
+      rx.treatmentPlan = String(treatmentPlan).trim();
+    }
+    if (treatment !== undefined) {
+      rx.treatment = String(treatment).trim();
+    }
     if (notes !== undefined) {
       rx.notes = String(notes).trim();
+    }
+
+    const targetDate = date || recordedAt ? new Date(date || recordedAt) : null;
+    if (targetDate && !isNaN(targetDate.getTime())) {
+      rx.recordedAt = targetDate;
+      rx.createdAt = targetDate;
     }
 
     rx.recordedBy = req.user ? req.user._id : rx.recordedBy;

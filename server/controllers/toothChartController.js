@@ -62,10 +62,12 @@ async function getPatientToothChart(req, res, next) {
           item.currentCondition = sanitizeCondition(item.currentCondition).formatted;
         }
         if (Array.isArray(item.history)) {
-          item.history = item.history.map((h) => ({
-            ...h,
-            condition: h.condition ? sanitizeCondition(h.condition).formatted : 'Healthy [H]',
-          }));
+          item.history = item.history
+            .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+            .map((h) => ({
+              ...h,
+              condition: h.condition ? sanitizeCondition(h.condition).formatted : 'Healthy [H]',
+            }));
         }
         return item;
       }
@@ -85,7 +87,7 @@ async function getPatientToothChart(req, res, next) {
 
 // Helper to push history entry and update current condition
 async function applyToothUpdate(patientId, toothNum, body, userId) {
-  const { condition, treatment, notes, consultationId } = body;
+  const { condition, treatment, notes, consultationId, date } = body;
 
   const sanitized = sanitizeCondition(condition);
   const finalCondition = sanitized.formatted;
@@ -95,75 +97,81 @@ async function applyToothUpdate(patientId, toothNum, body, userId) {
     await checkConsultationNotClosed(consultationId);
   }
 
+  // Parse and validate entry date
+  let entryDate = new Date();
+  if (date !== undefined && date !== null && date !== '') {
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      const err = new Error('Invalid date/time provided for tooth record.');
+      err.status = 400;
+      throw err;
+    }
+    const now = new Date();
+    // Reject future dates (with 1-minute skew tolerance)
+    if (parsedDate.getTime() > now.getTime() + 60000) {
+      const err = new Error('Treatment date cannot be in the future.');
+      err.status = 400;
+      throw err;
+    }
+    entryDate = parsedDate;
+  }
+
   const historyItem = {
     condition: finalCondition,
     treatment: treatment || '',
-    date: new Date(),
+    date: entryDate,
     doctor: userId || undefined,
     notes: notes || '',
     consultation: consultationId || null,
   };
 
-  // Server-side deduplication guard: If tooth already has identical condition and latest history details, skip duplicate history entry
-  const existingRecord = await ToothRecord.findOne({
+  // Find or create ToothRecord document
+  let record = await ToothRecord.findOne({
     patient: patientId,
     toothNumber: Number(toothNum),
   });
 
-  if (existingRecord) {
-    const existingSanitized = sanitizeCondition(existingRecord.currentCondition);
-    const activeHistory = (existingRecord.history || []).filter((h) => !h.deleted);
-    const lastHistory = activeHistory.length > 0 ? activeHistory[activeHistory.length - 1] : null;
+  if (!record) {
+    record = new ToothRecord({
+      patient: patientId,
+      toothNumber: Number(toothNum),
+      currentCondition: finalCondition,
+      history: [historyItem],
+    });
+  } else {
+    // Server-side deduplication guard: If tooth already has identical condition, treatment, notes, and timestamp on an active entry
+    const activeHistory = (record.history || []).filter((h) => !h.deleted);
+    const isDuplicate = activeHistory.some((h) => {
+      const sameCond = sanitizeCondition(h.condition).name.toLowerCase() === sanitized.name.toLowerCase();
+      const sameTreat = (treatment || '').trim() === (h.treatment || '').trim();
+      const sameNotes = (notes || '').trim() === (h.notes || '').trim();
+      const sameTime = Math.abs(new Date(h.date || 0).getTime() - entryDate.getTime()) < 2000;
+      return sameCond && sameTreat && sameNotes && sameTime;
+    });
 
-    const isSameCondition = existingSanitized.name.toLowerCase() === sanitized.name.toLowerCase();
-    const isSameTreatment = (treatment || '').trim() === (lastHistory?.treatment || '').trim();
-    const isSameNotes = (notes || '').trim() === (lastHistory?.notes || '').trim();
-
-    if (isSameCondition && isSameTreatment && isSameNotes) {
-      return await ToothRecord.findById(existingRecord._id).populate('history.doctor', 'name email');
+    if (isDuplicate) {
+      return await ToothRecord.findById(record._id).populate('history.doctor', 'name email');
     }
+
+    record.history.push(historyItem);
   }
 
-  let updatedRecord;
-  try {
-    // Atomic findOneAndUpdate with upsert prevents race conditions on (patient, toothNumber)
-    updatedRecord = await ToothRecord.findOneAndUpdate(
-      {
-        patient: patientId,
-        toothNumber: Number(toothNum),
-      },
-      {
-        $set: { currentCondition: finalCondition },
-        $push: { history: historyItem },
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      }
-    ).populate('history.doctor', 'name email');
-  } catch (err) {
-    // If a rare concurrent race condition causes MongoDB duplicate key error E11000 during upsert, retry cleanly as update
-    if (err.code === 11000 || (err.message && err.message.includes('E11000'))) {
-      updatedRecord = await ToothRecord.findOneAndUpdate(
-        {
-          patient: patientId,
-          toothNumber: Number(toothNum),
-        },
-        {
-          $set: { currentCondition: finalCondition },
-          $push: { history: historyItem },
-        },
-        {
-          new: true,
-        }
-      ).populate('history.doctor', 'name email');
-    } else {
-      throw err;
-    }
+  // Sort history array by date descending (newest first)
+  record.history.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  // Recompute tooth's currentCondition based on the active entry with the LATEST date value across the history array
+  const activeEntries = record.history.filter((h) => !h.deleted);
+  if (activeEntries.length > 0) {
+    // Since history is sorted descending, activeEntries[0] is the latest treatment entry
+    record.currentCondition = activeEntries[0].condition || 'Healthy [H]';
+  } else {
+    record.currentCondition = 'Healthy [H]';
   }
 
-  return updatedRecord;
+  await record.save();
+
+  const populated = await ToothRecord.findById(record._id).populate('history.doctor', 'name email');
+  return populated;
 }
 
 // PATCH /api/tooth-chart/:patientId/:toothNumber
@@ -188,7 +196,7 @@ async function updateToothRecord(req, res, next) {
       entityType: 'ToothRecord',
       entityId: updated._id,
       patient: patientId,
-      newValue: { condition: req.body.condition, treatment: req.body.treatment, notes: req.body.notes },
+      newValue: { condition: req.body.condition, treatment: req.body.treatment, notes: req.body.notes, date: req.body.date },
     });
 
     return res.json({
@@ -204,7 +212,7 @@ async function updateToothRecord(req, res, next) {
 async function bulkUpdateTeeth(req, res, next) {
   try {
     const { patientId } = req.params;
-    const { teeth, condition, treatment, notes, consultationId } = req.body;
+    const { teeth, condition, treatment, notes, consultationId, date } = req.body;
     const userId = req.user ? req.user._id : undefined;
 
     if (req.user && req.user.role === 'doctor') {
@@ -225,7 +233,7 @@ async function bulkUpdateTeeth(req, res, next) {
       const rec = await applyToothUpdate(
         patientId,
         tNum,
-        { condition, treatment, notes, consultationId },
+        { condition, treatment, notes, consultationId, date },
         userId
       );
       updatedRecords.push(rec);
@@ -235,7 +243,7 @@ async function bulkUpdateTeeth(req, res, next) {
       action: `bulk updated teeth #${teeth.join(', #')}`,
       entityType: 'ToothRecord',
       patient: patientId,
-      newValue: { teeth, condition, treatment, notes },
+      newValue: { teeth, condition, treatment, notes, date },
     });
 
     return res.json({

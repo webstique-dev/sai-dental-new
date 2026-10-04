@@ -1,16 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Receipt, Plus, Trash2, Save, X, RefreshCw, Tag, CreditCard, Printer, AlertCircle
+  Receipt, Plus, Trash2, Save, X, RefreshCw, Tag, CreditCard, Printer, AlertCircle, Calendar, Clock
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import { useNotification } from '../../context/NotificationContext.jsx';
 import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
-import { formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
+import { formatPatientFullName, capitalizeWords, combineDateAndTime, formatTime12Hour } from '../../utils/formatters.js';
+import DatePicker, { formatToDateString } from './DatePicker.jsx';
+import SplitTimeInput from './SplitTimeInput.jsx';
 
 export default function InvoiceEditModal({
   isOpen,
-  invoice,
+  invoice = null,
+  patientId = null,
+  patient = null,
   onClose,
   onSuccess,
 }) {
@@ -21,73 +25,111 @@ export default function InvoiceEditModal({
   const [error, setError] = useState('');
 
   // Editable Form state
-  const [items, setItems] = useState([]);
+  const [invoiceDate, setInvoiceDate] = useState(() => formatToDateString(new Date()));
+  const [invoiceTime, setInvoiceTime] = useState('09:00 AM');
+  const [items, setItems] = useState([{ service: '', treatment: '', quantity: 1, unitPrice: '' }]);
   const [discount, setDiscount] = useState('');
   const [tax, setTax] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [currentInvoice, setCurrentInvoice] = useState(null);
+  const [patientData, setPatientData] = useState(patient || null);
 
-  // Initialize or fetch latest invoice data when modal opens
+  const isEditMode = Boolean(invoice && (invoice._id || invoice.id));
+
+  // Initialize or fetch latest invoice / patient data when modal opens
   useEffect(() => {
-    if (!isOpen || !invoice) return;
+    if (!isOpen) return;
 
-    const invId = invoice._id || invoice.id;
     let isMounted = true;
 
-    async function loadFullInvoice() {
-      try {
-        setLoading(true);
-        setError('');
-        let fullData = invoice;
-
-        // Try to fetch full populated invoice if missing items or payments
-        if (invId && (!invoice.items || invoice.items.length === 0 || !invoice.doctor?.name)) {
-          try {
-            const res = await api.get(`/invoices/${invId}`);
-            if (res.data?.invoice) {
-              fullData = res.data.invoice;
-            }
-          } catch (e) {
-            console.warn('Using passed invoice object:', e);
+    if (patient) {
+      setPatientData(patient);
+    } else if (patientId && !invoice?.patient) {
+      api.get(`/patients/${patientId}`)
+        .then((res) => {
+          if (isMounted && res.data?.patient) {
+            setPatientData(res.data.patient);
           }
-        }
-
-        if (!isMounted) return;
-        setCurrentInvoice(fullData);
-
-        const loadedItems = (fullData.items && fullData.items.length > 0)
-          ? fullData.items.map((it) => ({
-              service: it.service || it.treatment || '',
-              treatment: it.treatment && it.treatment !== it.service ? it.treatment : '',
-              quantity: Math.max(1, Number(it.quantity) || 1),
-              unitPrice: it.unitPrice !== undefined && it.unitPrice !== null ? String(it.unitPrice) : '',
-            }))
-          : [{ service: '', treatment: '', quantity: 1, unitPrice: '' }];
-
-        setItems(loadedItems);
-        setDiscount(fullData.discount ? String(fullData.discount) : '');
-        setTax(fullData.tax ? String(fullData.tax) : '');
-        setAmountPaid(fullData.amountPaid !== undefined && fullData.amountPaid !== null ? String(fullData.amountPaid) : '');
-
-        if (fullData.payments && fullData.payments.length > 0) {
-          setPaymentMethod(fullData.payments[0].method || 'Cash');
-        } else {
-          setPaymentMethod('Cash');
-        }
-      } catch (err) {
-        if (isMounted) setError(err.response?.data?.message || 'Failed to load invoice details.');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+        })
+        .catch((e) => console.warn('Could not fetch patient info:', e));
     }
 
-    loadFullInvoice();
+    if (isEditMode) {
+      const invId = invoice._id || invoice.id;
+
+      async function loadFullInvoice() {
+        try {
+          setLoading(true);
+          setError('');
+          let fullData = invoice;
+
+          if (invId && (!invoice.items || invoice.items.length === 0 || !invoice.doctor?.name)) {
+            try {
+              const res = await api.get(`/invoices/${invId}`);
+              if (res.data?.invoice) {
+                fullData = res.data.invoice;
+              }
+            } catch (e) {
+              console.warn('Using passed invoice object:', e);
+            }
+          }
+
+          if (!isMounted) return;
+          setCurrentInvoice(fullData);
+          if (fullData.patient) {
+            setPatientData(fullData.patient);
+          }
+
+          const rawDate = fullData.date || fullData.createdAt || new Date();
+          setInvoiceDate(formatToDateString(new Date(rawDate)));
+          setInvoiceTime(formatTime12Hour(rawDate));
+
+          const loadedItems = (fullData.items && fullData.items.length > 0)
+            ? fullData.items.map((it) => ({
+                service: it.service || it.treatment || '',
+                treatment: it.treatment && it.treatment !== it.service ? it.treatment : '',
+                quantity: Math.max(1, Number(it.quantity) || 1),
+                unitPrice: it.unitPrice !== undefined && it.unitPrice !== null ? String(it.unitPrice) : '',
+              }))
+            : [{ service: '', treatment: '', quantity: 1, unitPrice: '' }];
+
+          setItems(loadedItems);
+          setDiscount(fullData.discount ? String(fullData.discount) : '');
+          setTax(fullData.tax ? String(fullData.tax) : '');
+          setAmountPaid(fullData.amountPaid !== undefined && fullData.amountPaid !== null ? String(fullData.amountPaid) : '');
+
+          if (fullData.payments && fullData.payments.length > 0) {
+            setPaymentMethod(fullData.payments[0].method || 'Cash');
+          } else {
+            setPaymentMethod('Cash');
+          }
+        } catch (err) {
+          if (isMounted) setError(err.response?.data?.message || 'Failed to load invoice details.');
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      }
+
+      loadFullInvoice();
+    } else {
+      // Create mode
+      setCurrentInvoice(null);
+      setInvoiceDate(formatToDateString(new Date()));
+      setInvoiceTime(formatTime12Hour(new Date()));
+      setItems([{ service: '', treatment: '', quantity: 1, unitPrice: '' }]);
+      setDiscount('');
+      setTax('');
+      setAmountPaid('');
+      setPaymentMethod('Cash');
+      setError('');
+      setLoading(false);
+    }
 
     return () => {
       isMounted = false;
     };
-  }, [isOpen, invoice]);
+  }, [isOpen, invoice, patientId, patient]);
 
   // Calculations
   const subtotal = useMemo(() => {
@@ -136,8 +178,6 @@ export default function InvoiceEditModal({
 
   const handleSave = async (e) => {
     if (e) e.preventDefault();
-    if (!invoice) return;
-    const invId = invoice._id || invoice.id;
 
     const validItems = items
       .map((it) => ({
@@ -153,11 +193,22 @@ export default function InvoiceEditModal({
       return;
     }
 
+    if (!invoiceDate || !invoiceDate.trim()) {
+      setError('Invoice Date is required.');
+      showError('Invoice Date is required.');
+      return;
+    }
+
     try {
       setSaving(true);
       setError('');
 
+      const combinedDateObj = combineDateAndTime(invoiceDate, invoiceTime);
+      const isoDate = combinedDateObj.toISOString();
+
       const payload = {
+        date: isoDate,
+        createdAt: isoDate,
         items: validItems,
         discount: numDiscount,
         tax: numTax,
@@ -165,22 +216,42 @@ export default function InvoiceEditModal({
         paymentMethod,
       };
 
-      const res = await api.put(`/invoices/${invId}`, payload);
-      const updated = res.data?.invoice || {
-        ...invoice,
-        ...payload,
-        total,
-        balance: liveBalance,
-        paymentStatus: liveStatus,
-      };
+      let updated;
+      if (isEditMode) {
+        const invId = invoice._id || invoice.id;
+        const res = await api.put(`/invoices/${invId}`, payload);
+        updated = res.data?.invoice || {
+          ...invoice,
+          ...payload,
+          total,
+          balance: liveBalance,
+          paymentStatus: liveStatus,
+        };
+        showSuccess('Bill / Invoice updated successfully.');
+      } else {
+        const targetPatientId = patientId || patientData?._id || patientData?.id;
+        if (!targetPatientId) {
+          setError('Patient ID is required to create a billing record.');
+          setSaving(false);
+          return;
+        }
 
-      showSuccess('Bill / Invoice updated successfully.');
+        const createPayload = {
+          patient: targetPatientId,
+          opNumber: patientData?.opNumber || '',
+          ...payload,
+        };
+        const res = await api.post('/invoices', createPayload);
+        updated = res.data?.invoice;
+        showSuccess('New billing record created successfully.');
+      }
+
       if (onSuccess) onSuccess(updated);
       onClose();
     } catch (err) {
-      console.error('Failed to update invoice:', err);
-      setError(err.response?.data?.message || 'Failed to update billing details.');
-      showError(err.response?.data?.message || 'Failed to update billing details.');
+      console.error('Failed to save invoice:', err);
+      setError(err.response?.data?.message || 'Failed to save billing details.');
+      showError(err.response?.data?.message || 'Failed to save billing details.');
     } finally {
       setSaving(false);
     }
@@ -189,7 +260,7 @@ export default function InvoiceEditModal({
   if (!isOpen) return null;
 
   const invId = invoice?._id || invoice?.id;
-  const patientObj = currentInvoice?.patient || invoice?.patient;
+  const patientObj = patientData || currentInvoice?.patient || invoice?.patient;
   const patientDisplayName = formatPatientFullName(patientObj) || 'Patient';
   const opNo = patientObj?.opNumber || invoice?.opNumber || 'N/A';
 
@@ -204,7 +275,9 @@ export default function InvoiceEditModal({
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-display text-base font-bold text-ink">Edit Bill / Invoice</h3>
+                <h3 className="font-display text-base font-bold text-ink">
+                  {isEditMode ? 'Edit Bill / Invoice' : 'Add New Billing / Invoice Record'}
+                </h3>
                 <span className="badge bg-brand/10 text-brand font-mono font-bold text-[10px]">
                   OP #{opNo}
                 </span>
@@ -239,6 +312,39 @@ export default function InvoiceEditModal({
             </div>
           ) : (
             <>
+              {/* Date & Time Row */}
+              <div className="card p-3.5 bg-bg/50 border border-border space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-ink mb-1.5 flex items-center gap-1.5">
+                      <Calendar size={13} className="text-brand" />
+                      <span>Billing / Invoice Date</span>
+                      <span className="text-rose-600 font-bold">*</span>
+                    </label>
+                    <DatePicker
+                      required
+                      value={invoiceDate}
+                      maxDate={new Date()}
+                      onChange={(d, dStr) => setInvoiceDate(dStr)}
+                      inputClassName="py-1.5 text-xs h-[38px]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-ink mb-1.5 flex items-center gap-1.5">
+                      <Clock size={13} className="text-brand" />
+                      <span>Invoice Time</span>
+                      <span className="text-rose-600 font-bold">*</span>
+                    </label>
+                    <SplitTimeInput
+                      label=""
+                      value={invoiceTime}
+                      onChange={(time12) => setInvoiceTime(time12)}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Itemized Procedures Table */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -529,7 +635,7 @@ export default function InvoiceEditModal({
               className="btn-primary py-1.5 px-5 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-              <span>{saving ? 'Saving...' : 'Save Changes'}</span>
+              <span>{saving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Bill / Invoice'}</span>
             </button>
           </div>
         </div>

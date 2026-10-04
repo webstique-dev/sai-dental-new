@@ -159,11 +159,17 @@ async function getDoctorTodayQueue(req, res, next) {
   try {
     const { start, end } = getDayBounds(new Date());
 
-    // First ensure all checked-in appointments for today have an active QueueEntry
-    const checkedInAppointments = await Appointment.find({
+    const checkedInApptFilter = {
       date: { $gte: start, $lte: end },
       status: { $in: ['Checked-In', 'In Consultation'] },
-    });
+      isDeleted: { $ne: true },
+    };
+    if (req.user && req.user.role === 'doctor') {
+      checkedInApptFilter.doctor = req.user._id;
+    }
+
+    // First ensure all checked-in appointments for today have an active QueueEntry
+    const checkedInAppointments = await Appointment.find(checkedInApptFilter);
 
     const { getFormattedDateString } = require('../utils/statusSync');
     const queueDateStr = getFormattedDateString(new Date());
@@ -255,6 +261,14 @@ async function startConsultation(req, res, next) {
     if (!queueEntry && appointmentId) {
       const apt = await Appointment.findById(appointmentId);
       if (apt) {
+        // Doctor authorization check
+        if (req.user && req.user.role === 'doctor') {
+          const docId = apt.doctor?._id || apt.doctor;
+          if (docId && docId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Access denied. You cannot start consultation for another doctor\'s patient.' });
+          }
+        }
+
         const { start, end } = getDayBounds(new Date());
         const lastEntry = await QueueEntry.findOne({ date: { $gte: start, $lte: end } }).sort({ token: -1 });
         const nextToken = lastEntry && lastEntry.token ? lastEntry.token + 1 : 1;
@@ -274,6 +288,14 @@ async function startConsultation(req, res, next) {
 
     if (!queueEntry) {
       return res.status(404).json({ message: 'Queue entry not found.' });
+    }
+
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = queueEntry.doctor?._id || queueEntry.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You cannot start consultation for another doctor\'s patient.' });
+      }
     }
 
     // Check if consultation is already in progress for this queue entry
@@ -332,6 +354,14 @@ async function getConsultationById(req, res, next) {
       return res.status(404).json({ message: 'Consultation not found.' });
     }
 
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = consultation.doctor?._id || consultation.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You can only view your own consultations.' });
+      }
+    }
+
     return res.json({ consultation });
   } catch (err) {
     next(err);
@@ -344,6 +374,14 @@ async function closeConsultation(req, res, next) {
     const consultation = await Consultation.findById(req.params.id);
     if (!consultation) {
       return res.status(404).json({ message: 'Consultation not found.' });
+    }
+
+    // Doctor authorization check
+    if (req.user && req.user.role === 'doctor') {
+      const docId = consultation.doctor?._id || consultation.doctor;
+      if (docId && docId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied. You can only close your own consultations.' });
+      }
     }
 
     const { closeNotes, followUp } = req.body || {};
@@ -563,18 +601,24 @@ async function closeConsultation(req, res, next) {
 // GET /api/consultations/doctor-summary?doctorId=
 async function getDoctorSummary(req, res, next) {
   try {
-    let targetDoctorId = req.user ? req.user._id : null;
+    let targetDoctorId = req.user && req.user.role === 'doctor' ? req.user._id : (req.user ? req.user._id : null);
     if (req.user && req.user.role === 'admin' && req.query.doctorId) {
       targetDoctorId = req.query.doctorId;
     }
 
     const { start, end } = getDayBounds(new Date());
 
-    // Ensure all checked-in/in-consultation appointments for today have an active QueueEntry before calculating counts
-    const checkedInAppointments = await Appointment.find({
+    const checkedInApptFilter = {
       date: { $gte: start, $lte: end },
       status: { $in: ['Checked-In', 'In Consultation'] },
-    });
+      isDeleted: { $ne: true },
+    };
+    if (targetDoctorId) {
+      checkedInApptFilter.doctor = targetDoctorId;
+    }
+
+    // Ensure all checked-in/in-consultation appointments for today have an active QueueEntry before calculating counts
+    const checkedInAppointments = await Appointment.find(checkedInApptFilter);
 
     const { getFormattedDateString } = require('../utils/statusSync');
     const queueDateStr = getFormattedDateString(new Date());
@@ -721,14 +765,19 @@ async function findOrCreateConsultation(req, res, next) {
 
     const patientId = rawPatientId;
 
-    let consultation = await Consultation.findOne({
+    const queryFilter = {
       patient: patientId,
       status: 'In Progress',
-    })
+    };
+    if (req.user && req.user.role === 'doctor') {
+      queryFilter.doctor = req.user._id;
+    }
+
+    let consultation = await Consultation.findOne(queryFilter)
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth occupation address medicalHistory currentMedications vitals habits dentalHistory')
       .populate('doctor', 'name email role specialization');
 
-    if (!consultation) {
+    if (!consultation && req.user && req.user.role !== 'doctor') {
       consultation = await Consultation.findOne({
         patient: patientId,
       })

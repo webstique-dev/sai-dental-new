@@ -30,6 +30,11 @@ export function generatePrescriptionHTML(params = {}) {
     ? diagnoses.map((d) => `${capitalizeWords(d?.diagnosis || '')}${d?.relatedTeeth?.length ? ` (Teeth: #${d.relatedTeeth.join(', #')})` : ''}`).filter(Boolean).join(', ')
     : '';
 
+  const rxDiagnosis = capitalizeWords(rx?.diagnosis || diagnosisList || '');
+  const rxTreatmentPlan = capitalizeWords(rx?.treatmentPlan || '');
+  const rxTreatment = capitalizeWords(rx?.treatment || '');
+  const hasClinicalDetails = Boolean(rxDiagnosis || rxTreatmentPlan || rxTreatment);
+
   const safeClinicName = capitalizeWords(clinicSettings?.clinicName || 'Sai Dental Clinic');
   const safeAddress = capitalizeWords(clinicSettings?.address || '123 Healthcare Avenue, Medical District, City');
   const safePhone = clinicSettings?.phone || '+91 98765 43210';
@@ -492,11 +497,29 @@ export function generatePrescriptionHTML(params = {}) {
             ` : ''}
           </div>
 
-          <!-- CLINICAL DIAGNOSIS -->
-          ${diagnosisList ? `
+          <!-- CLINICAL DETAILS: DIAGNOSIS, TREATMENT PLAN, TREATMENT -->
+          ${hasClinicalDetails ? `
             <div class="diagnosis-box">
-              <div style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #92400e; margin-bottom: 2px;">Clinical Diagnosis & Findings:</div>
-              <div style="font-weight: 700; color: #0f172a;">${diagnosisList}</div>
+              <div style="display: grid; grid-template-columns: ${rxDiagnosis && (rxTreatmentPlan || rxTreatment) ? (rxTreatmentPlan && rxTreatment ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)') : '1fr'}; gap: 10px;">
+                ${rxDiagnosis ? `
+                  <div>
+                    <div style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #92400e; margin-bottom: 2px;">Diagnosis:</div>
+                    <div style="font-weight: 700; color: #0f172a; font-size: 11px;">${rxDiagnosis}</div>
+                  </div>
+                ` : ''}
+                ${rxTreatmentPlan ? `
+                  <div>
+                    <div style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #92400e; margin-bottom: 2px;">Treatment Plan:</div>
+                    <div style="font-weight: 700; color: #0f172a; font-size: 11px;">${rxTreatmentPlan}</div>
+                  </div>
+                ` : ''}
+                ${rxTreatment ? `
+                  <div>
+                    <div style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #92400e; margin-bottom: 2px;">Treatment:</div>
+                    <div style="font-weight: 700; color: #0f172a; font-size: 11px;">${rxTreatment}</div>
+                  </div>
+                ` : ''}
+              </div>
             </div>
           ` : ''}
 

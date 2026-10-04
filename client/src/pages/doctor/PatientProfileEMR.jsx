@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, AlertCircle, Sparkles, ExternalLink, ArrowRight, X,
   Receipt, Wallet, CreditCard
 } from 'lucide-react';
-import { formatAge, formatPatientFullName, formatDoctorName, capitalizeWords } from '../../utils/formatters.js';
+import { formatAge, formatPatientFullName, formatDoctorName, capitalizeWords, formatDateTimeDisplay } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 
 import ToothChart from './consultation/ToothChart.jsx';
@@ -967,11 +967,7 @@ export default function PatientProfileEMR() {
                 {allConsultations.map((c) => {
                   const cId = c._id || c.id || c.consultationId;
                   const rawDate = c.visitDate || c.date || c.startedAt || c.createdAt || c.examination?.recordedAt || c.examination?.createdAt;
-                  const consultDateStr = rawDate
-                    ? new Date(rawDate).toLocaleDateString(undefined, {
-                      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-                    })
-                    : 'N/A';
+                  const consultDateStr = formatDateTimeDisplay(rawDate);
                   const docName = formatDoctorName(c.doctor || c.examination?.recordedBy, 'Dr. Doctor');
 
                   const exam = c.examination || {};

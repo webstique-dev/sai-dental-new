@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { openPrescriptionPDFWindow } from '../../../utils/prescriptionPdfGenerator.js';
-import { formatPatientFullName, formatDoctorName, capitalizeWords } from '../../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName, capitalizeWords, formatDateTimeDisplay } from '../../../utils/formatters.js';
 import ConfirmModal from '../../../components/common/ConfirmModal.jsx';
 import PrescriptionEditModal from '../../../components/common/PrescriptionEditModal.jsx';
 import DatePicker from '../../../components/common/DatePicker.jsx';
@@ -44,6 +44,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
 
   // Dynamic Medicine & Syrup Rows State (single list)
   const [medicines, setMedicines] = useState([]);
+  const [diagnosis, setDiagnosis] = useState('');
+  const [treatmentPlan, setTreatmentPlan] = useState('');
+  const [treatment, setTreatment] = useState('');
   const [prescriptionNotes, setPrescriptionNotes] = useState('');
   const [selectedPrescriptionForEdit, setSelectedPrescriptionForEdit] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -52,8 +55,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
     if (isReadOnly) return false;
     const hasDraftMedicines = medicines.some((m) => (m.medicine || '').trim() || (m.instructions || '').trim() || (m.dosage || '').trim());
     const hasDraftNotes = Boolean((prescriptionNotes || '').trim());
-    return hasDraftMedicines || hasDraftNotes;
-  }, [isReadOnly, medicines, prescriptionNotes]);
+    const hasDraftClinical = Boolean((diagnosis || '').trim() || (treatmentPlan || '').trim() || (treatment || '').trim());
+    return hasDraftMedicines || hasDraftNotes || hasDraftClinical;
+  }, [isReadOnly, medicines, prescriptionNotes, diagnosis, treatmentPlan, treatment]);
 
   useUnsavedChanges(isDirty, 'consultation-prescriptions');
 
@@ -263,6 +267,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
         consultation: consultationId,
         patient: patientId,
         medicines: validMedicines,
+        diagnosis: diagnosis ? capitalizeWords(diagnosis.trim()) : '',
+        treatmentPlan: treatmentPlan ? capitalizeWords(treatmentPlan.trim()) : '',
+        treatment: treatment ? capitalizeWords(treatment.trim()) : '',
         notes: prescriptionNotes ? capitalizeWords(prescriptionNotes.trim()) : '',
       };
 
@@ -270,6 +277,9 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
       showSuccess('Prescription recorded successfully!');
 
       setMedicines([]);
+      setDiagnosis('');
+      setTreatmentPlan('');
+      setTreatment('');
       setPrescriptionNotes('');
 
       fetchData();
@@ -440,6 +450,52 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
           </div>
 
           <form onSubmit={handleSavePrescription} className="space-y-4">
+            {/* 3 TOP FIELDS: DIAGNOSIS, TREATMENT PLAN, TREATMENT (Single row on desktop/tablet, stacked on mobile) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">Diagnosis</label>
+                <input
+                  type="text"
+                  className="input-field text-xs w-full"
+                  placeholder="e.g. Dental Caries, Pulpitis..."
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(capitalizeWords(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">Treatment Plan</label>
+                <input
+                  type="text"
+                  className="input-field text-xs w-full"
+                  placeholder="e.g. RCT, Crown Placement..."
+                  value={treatmentPlan}
+                  onChange={(e) => setTreatmentPlan(capitalizeWords(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">Treatment</label>
+                <input
+                  type="text"
+                  className="input-field text-xs w-full"
+                  placeholder="e.g. Root Canal Treatment..."
+                  value={treatment}
+                  onChange={(e) => setTreatment(capitalizeWords(e.target.value))}
+                />
+              </div>
+            </div>
+
+            {/* PRESCRIPTION NOTES (Below the three fields) */}
+            <div>
+              <label className="block text-xs font-bold text-ink mb-1">Prescription Notes</label>
+              <textarea
+                rows={2}
+                className="input-field text-xs w-full"
+                placeholder="General instructions for the patient..."
+                value={prescriptionNotes}
+                onChange={(e) => setPrescriptionNotes(capitalizeWords(e.target.value))}
+              />
+            </div>
+
             {/* MEDICINES & SYRUPS TABLE */}
             <div className="border border-border rounded-xl bg-surface overflow-hidden shadow-2xs">
               <div className="bg-bg/40 px-3 py-2 border-b border-border/60 flex items-center justify-between">
@@ -890,17 +946,6 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
               <option value="SOS (As needed)" />
             </datalist>
 
-            <div>
-              <label className="block text-xs font-semibold text-ink-soft mb-1">Prescription Notes</label>
-              <textarea
-                rows={2}
-                className="input-field text-xs"
-                placeholder="General instructions for the patient..."
-                value={prescriptionNotes}
-                onChange={(e) => setPrescriptionNotes(capitalizeWords(e.target.value))}
-              />
-            </div>
-
             <div className="flex justify-end pt-1">
               <button type="submit" disabled={submitting} className="btn-primary">
                 <Save size={16} />
@@ -935,13 +980,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
           <div className="space-y-6">
             {prescriptions.map((rx) => {
               const rxId = rx._id || rx.id;
-              const dateStr = rx.createdAt
-                ? new Date(rx.createdAt).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-                : 'N/A';
+              const dateStr = formatDateTimeDisplay(rx.createdAt || rx.recordedAt || rx.date);
 
               const regularMeds = (rx.medicines || []).filter((m) => m.type !== 'syrup');
               const syrupMeds = (rx.medicines || []).filter((m) => m.type === 'syrup');
@@ -1003,6 +1042,30 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                       )}
                     </div>
                   </div>
+
+                  {/* Clinical Details: Diagnosis, Treatment Plan, Treatment */}
+                  {(rx.diagnosis || rx.treatmentPlan || rx.treatment) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-bg/60 border border-border text-xs">
+                      {rx.diagnosis && (
+                        <div>
+                          <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Diagnosis</span>
+                          <p className="font-semibold text-ink">{rx.diagnosis}</p>
+                        </div>
+                      )}
+                      {rx.treatmentPlan && (
+                        <div>
+                          <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Treatment Plan</span>
+                          <p className="font-semibold text-ink">{rx.treatmentPlan}</p>
+                        </div>
+                      )}
+                      {rx.treatment && (
+                        <div>
+                          <span className="text-[10px] font-bold text-ink-soft uppercase block mb-0.5">Treatment</span>
+                          <p className="font-semibold text-ink">{rx.treatment}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Medicines Tables: Regular and Syrups separated */}
                   <div className="space-y-3.5">
