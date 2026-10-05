@@ -60,7 +60,7 @@ export default function CreateAppointmentModal({
       time: timeStr,
       type: 'Walk-In',
       reason: '',
-      action: defaultAction || 'Check-in',
+      action: defaultAction || 'Schedule',
     };
   });
 
@@ -77,7 +77,7 @@ export default function CreateAppointmentModal({
         time: timeStr,
         type: 'Walk-In',
         reason: '',
-        action: defaultAction || 'Check-in',
+        action: defaultAction || 'Schedule',
       };
       setFormData(initForm);
       initialSnapshotRef.current = {
@@ -481,7 +481,7 @@ export default function CreateAppointmentModal({
               <label className="block text-xs font-semibold text-ink-soft mb-1">Reason for Visit</label>
               <EditableCombobox
                 options={TOOTH_CONDITIONS}
-                placeholder="e.g. Toothache, Scaling, Root Canal follow-up, Mobility..."
+                placeholder="Enter reason for visit..."
                 value={formData.reason}
                 onChange={(val) => setFormData((prev) => ({ ...prev, reason: capitalizeWords(val) }))}
                 inputClassName="text-xs"

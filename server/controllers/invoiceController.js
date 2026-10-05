@@ -100,7 +100,24 @@ async function getInvoiceById(req, res, next) {
 // POST /api/invoices (Generate or update invoice for consultation)
 async function createInvoice(req, res, next) {
   try {
-    const { patient, doctor, consultation, opNumber, items, discount, tax, amountPaid, paymentMethod, date, createdAt } = req.body;
+    const {
+      patient,
+      doctor,
+      consultation,
+      appointment,
+      opNumber,
+      items,
+      discount,
+      tax,
+      amountPaid,
+      paymentMethod,
+      paymentDate,
+      paymentTime,
+      paymentNotes,
+      newPayment,
+      date,
+      createdAt,
+    } = req.body;
 
     const sanitizedItems = Array.isArray(items)
       ? items.map((it) => ({
@@ -113,84 +130,78 @@ async function createInvoice(req, res, next) {
 
     const targetDate = date || createdAt ? new Date(date || createdAt) : new Date();
 
-    // Check if an invoice already exists for this consultation (Update, don't duplicate pattern)
+    // Check if an invoice already exists for this consultation or appointment
+    let existingInvoice = null;
     if (consultation) {
-      let existingInvoice = await Invoice.findOne({ consultation });
-      if (existingInvoice) {
-        if (patient) existingInvoice.patient = patient;
-        if (doctor) existingInvoice.doctor = doctor;
-        if (opNumber) existingInvoice.opNumber = opNumber;
-        if (items) existingInvoice.items = sanitizedItems;
-        if (discount !== undefined) existingInvoice.discount = Math.max(0, Number(discount) || 0);
-        if (tax !== undefined) existingInvoice.tax = Math.max(0, Number(tax) || 0);
-        if (targetDate && !isNaN(targetDate.getTime())) {
-          existingInvoice.date = targetDate;
-          existingInvoice.createdAt = targetDate;
-        }
+      existingInvoice = await Invoice.findOne({ consultation });
+    }
+    if (!existingInvoice && appointment) {
+      existingInvoice = await Invoice.findOne({ appointment });
+    }
 
-        if (amountPaid !== undefined) {
-          const targetPaid = Math.max(0, Number(amountPaid) || 0);
-          if (!existingInvoice.payments || existingInvoice.payments.length === 0) {
-            if (targetPaid > 0) {
-              existingInvoice.payments = [
-                {
-                  amount: targetPaid,
-                  method: paymentMethod || 'Cash',
-                  date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
-                  recordedBy: req.user ? req.user._id : undefined,
-                },
-              ];
-            }
-          } else if (existingInvoice.payments.length === 1) {
-            existingInvoice.payments[0].amount = targetPaid;
-            if (paymentMethod) existingInvoice.payments[0].method = paymentMethod;
-          } else {
-            const sumPayments = existingInvoice.payments.reduce((s, p) => s + (p.amount || 0), 0);
-            if (targetPaid !== sumPayments) {
-              existingInvoice.payments =
-                targetPaid > 0
-                  ? [
-                      {
-                        amount: targetPaid,
-                        method: paymentMethod || 'Cash',
-                        date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
-                        recordedBy: req.user ? req.user._id : undefined,
-                      },
-                    ]
-                  : [];
-            }
-          }
-        }
+    if (existingInvoice) {
+      if (patient) existingInvoice.patient = patient;
+      if (doctor) existingInvoice.doctor = doctor;
+      if (opNumber) existingInvoice.opNumber = opNumber;
+      if (items) existingInvoice.items = sanitizedItems;
+      if (discount !== undefined) existingInvoice.discount = Math.max(0, Number(discount) || 0);
+      if (tax !== undefined) existingInvoice.tax = Math.max(0, Number(tax) || 0);
+      if (targetDate && !isNaN(targetDate.getTime())) {
+        existingInvoice.date = targetDate;
+        existingInvoice.createdAt = targetDate;
+      }
 
-        await existingInvoice.save();
+      // Record new payment if provided
+      const payToRecord = newPayment || (Number(amountPaid) > 0 && (!existingInvoice.payments || existingInvoice.payments.length === 0) ? {
+        amount: Number(amountPaid),
+        method: paymentMethod || 'Cash',
+        date: paymentDate || targetDate,
+        time: paymentTime || '',
+        notes: paymentNotes || '',
+      } : null);
 
-        await logAction(req, {
-          action: 'updated invoice',
-          entityType: 'Invoice',
-          entityId: existingInvoice._id,
-          patient: existingInvoice.patient,
-          newValue: {
-            totalAmount: existingInvoice.total,
-            paidAmount: existingInvoice.amountPaid,
-            balance: existingInvoice.balance,
-            status: existingInvoice.paymentStatus,
-          },
-        });
-
-        const populated = await Invoice.findById(existingInvoice._id)
-          .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
-          .populate('doctor', 'name email role specialization')
-          .populate('consultation')
-          .populate('createdBy', 'name email')
-          .populate('payments.recordedBy', 'name email');
-
-        emitInvoiceUpdate(populated, false);
-
-        return res.status(200).json({
-          message: 'Invoice updated successfully',
-          invoice: populated,
+      if (payToRecord && Number(payToRecord.amount) > 0) {
+        if (!existingInvoice.payments) existingInvoice.payments = [];
+        existingInvoice.payments.push({
+          amount: Number(payToRecord.amount),
+          method: payToRecord.method || 'Cash',
+          type: 'payment',
+          date: payToRecord.date ? new Date(payToRecord.date) : new Date(),
+          time: payToRecord.time || '',
+          notes: payToRecord.notes || payToRecord.reason || '',
+          reason: payToRecord.reason || payToRecord.notes || '',
+          recordedBy: req.user ? req.user._id : undefined,
         });
       }
+
+      await existingInvoice.save();
+
+      await logAction(req, {
+        action: 'updated invoice',
+        entityType: 'Invoice',
+        entityId: existingInvoice._id,
+        patient: existingInvoice.patient,
+        newValue: {
+          totalAmount: existingInvoice.total,
+          paidAmount: existingInvoice.amountPaid,
+          balance: existingInvoice.balance,
+          status: existingInvoice.paymentStatus,
+        },
+      });
+
+      const populated = await Invoice.findById(existingInvoice._id)
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
+        .populate('doctor', 'name email role specialization')
+        .populate('consultation')
+        .populate('createdBy', 'name email')
+        .populate('payments.recordedBy', 'name email');
+
+      emitInvoiceUpdate(populated, false);
+
+      return res.status(200).json({
+        message: 'Invoice updated successfully',
+        invoice: populated,
+      });
     }
 
     let targetOpNumber = opNumber || '';
@@ -201,14 +212,18 @@ async function createInvoice(req, res, next) {
       }
     }
 
-    const initialPaid = Math.max(0, Number(amountPaid) || 0);
+    const initialPaid = Number(newPayment?.amount || amountPaid) || 0;
     const initialPayments =
       initialPaid > 0
         ? [
             {
               amount: initialPaid,
-              method: paymentMethod || 'Cash',
-              date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
+              method: newPayment?.method || paymentMethod || 'Cash',
+              type: 'payment',
+              date: newPayment?.date ? new Date(newPayment.date) : (paymentDate ? new Date(paymentDate) : (!isNaN(targetDate.getTime()) ? targetDate : new Date())),
+              time: newPayment?.time || paymentTime || '',
+              notes: newPayment?.notes || paymentNotes || '',
+              reason: newPayment?.reason || paymentNotes || '',
               recordedBy: req.user ? req.user._id : undefined,
             },
           ]
@@ -218,6 +233,7 @@ async function createInvoice(req, res, next) {
       patient,
       doctor,
       consultation: consultation || null,
+      appointment: appointment || null,
       opNumber: targetOpNumber,
       date: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
       createdAt: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
@@ -264,7 +280,24 @@ async function createInvoice(req, res, next) {
 // PUT or PATCH /api/invoices/:id (Update existing invoice)
 async function updateInvoice(req, res, next) {
   try {
-    const { patient, doctor, consultation, opNumber, items, discount, tax, amountPaid, paymentMethod, date, createdAt } = req.body;
+    const {
+      patient,
+      doctor,
+      consultation,
+      appointment,
+      opNumber,
+      items,
+      discount,
+      tax,
+      amountPaid,
+      paymentMethod,
+      paymentDate,
+      paymentTime,
+      paymentNotes,
+      newPayment,
+      date,
+      createdAt,
+    } = req.body;
 
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) {
@@ -274,6 +307,7 @@ async function updateInvoice(req, res, next) {
     if (patient) invoice.patient = patient;
     if (doctor) invoice.doctor = doctor;
     if (consultation !== undefined) invoice.consultation = consultation || null;
+    if (appointment !== undefined) invoice.appointment = appointment || null;
     if (opNumber) invoice.opNumber = opNumber;
     if (items) {
       invoice.items = Array.isArray(items)
@@ -294,37 +328,35 @@ async function updateInvoice(req, res, next) {
       invoice.createdAt = targetDate;
     }
 
-    if (amountPaid !== undefined) {
-      const targetPaid = Math.max(0, Number(amountPaid) || 0);
-      if (!invoice.payments || invoice.payments.length === 0) {
-        if (targetPaid > 0) {
-          invoice.payments = [
-            {
-              amount: targetPaid,
-              method: paymentMethod || 'Cash',
-              date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
-              recordedBy: req.user ? req.user._id : undefined,
-            },
-          ];
-        }
-      } else if (invoice.payments.length === 1) {
-        invoice.payments[0].amount = targetPaid;
-        if (paymentMethod) invoice.payments[0].method = paymentMethod;
-      } else {
-        const sumPayments = invoice.payments.reduce((s, p) => s + (p.amount || 0), 0);
-        if (targetPaid !== sumPayments) {
-          invoice.payments =
-            targetPaid > 0
-              ? [
-                  {
-                    amount: targetPaid,
-                    method: paymentMethod || 'Cash',
-                    date: targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date(),
-                    recordedBy: req.user ? req.user._id : undefined,
-                  },
-                ]
-              : [];
-        }
+    // Append new payment if passed via newPayment
+    if (newPayment && Number(newPayment.amount) > 0) {
+      if (!invoice.payments) invoice.payments = [];
+      invoice.payments.push({
+        amount: Number(newPayment.amount),
+        method: newPayment.method || 'Cash',
+        type: 'payment',
+        date: newPayment.date ? new Date(newPayment.date) : new Date(),
+        time: newPayment.time || '',
+        notes: newPayment.notes || newPayment.reason || '',
+        reason: newPayment.reason || newPayment.notes || '',
+        recordedBy: req.user ? req.user._id : undefined,
+      });
+    } else if (amountPaid !== undefined && (!invoice.payments || invoice.payments.length === 0)) {
+      // First payment on an unpaid invoice
+      const initialPaid = Math.max(0, Number(amountPaid) || 0);
+      if (initialPaid > 0) {
+        invoice.payments = [
+          {
+            amount: initialPaid,
+            method: paymentMethod || 'Cash',
+            type: 'payment',
+            date: paymentDate ? new Date(paymentDate) : (targetDate && !isNaN(targetDate.getTime()) ? targetDate : new Date()),
+            time: paymentTime || '',
+            notes: paymentNotes || '',
+            reason: paymentNotes || '',
+            recordedBy: req.user ? req.user._id : undefined,
+          },
+        ];
       }
     }
 
@@ -365,9 +397,10 @@ async function updateInvoice(req, res, next) {
 // POST /api/invoices/:id/payments (Record a payment)
 async function recordPayment(req, res, next) {
   try {
-    const { amount, method, discount } = req.body;
+    const { amount, method, date, time, notes, reason, discount } = req.body;
 
-    if (!amount || Number(amount) <= 0) {
+    const paymentAmt = Number(amount);
+    if (isNaN(paymentAmt) || paymentAmt <= 0) {
       return res.status(400).json({ message: 'Payment amount must be greater than zero.' });
     }
 
@@ -380,11 +413,18 @@ async function recordPayment(req, res, next) {
       invoice.discount = Math.max(0, Number(discount) || 0);
     }
 
+    if (!invoice.payments) {
+      invoice.payments = [];
+    }
+
     invoice.payments.push({
-      amount: Number(amount),
+      amount: paymentAmt,
       method: method || 'Cash',
       type: 'payment',
-      date: new Date(),
+      date: date ? new Date(date) : new Date(),
+      time: time || '',
+      notes: notes || reason || '',
+      reason: reason || notes || '',
       recordedBy: req.user ? req.user._id : undefined,
     });
 
@@ -397,7 +437,7 @@ async function recordPayment(req, res, next) {
       entityId: invoice._id,
       patient: invoice.patient,
       newValue: {
-        paymentAmount: Number(amount),
+        paymentAmount: paymentAmt,
         method: method || 'Cash',
         status: invoice.paymentStatus,
         balance: invoice.balance,

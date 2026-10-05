@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
-  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp, Plus, UserPlus, Loader2, Edit3
+  ClipboardList, Play, Clock, UserSquare2, RefreshCw, Calendar, Search, Filter, X, Eye, FileText, CheckCircle2, UserCheck, UserX, XCircle, User, CalendarDays, AlertTriangle, List, ChevronDown, ChevronUp, Plus, UserPlus, Loader2, Edit3, PauseCircle
 } from 'lucide-react';
 import { formatAge, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 
 import api from '../../api/axios.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
+import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
 import AppointmentCalendar from '../../components/common/AppointmentCalendar.jsx';
 import PatientDetailsEditModal from '../../components/common/PatientDetailsEditModal.jsx';
 import ConfirmModal from '../../components/common/ConfirmModal.jsx';
@@ -26,6 +27,7 @@ const STATUS_BADGE_CLASSES = {
   'No Show': 'bg-slate-100 text-slate-800 border-slate-200',
   Missed: 'bg-rose-100 text-rose-800 border-rose-200',
   Pending: 'bg-amber-100 text-amber-800 border-amber-200',
+  'Hold On': 'bg-amber-100 text-amber-900 border-amber-300',
 };
 
 export default function DoctorQueue() {
@@ -37,11 +39,11 @@ export default function DoctorQueue() {
 
   const [isCreateAppointmentOpen, setIsCreateAppointmentOpen] = useState(false);
 
-  // Active Tab: 'today' (default) | 'upcoming' | 'history'
-  const [activeTab, setActiveTab] = useState(() => (tabParam && ['today', 'upcoming', 'history'].includes(tabParam) ? tabParam : 'today'));
+  // Active Tab: 'today' (default) | 'hold-on' | 'upcoming' | 'completed-today' | 'history'
+  const [activeTab, setActiveTab] = useState(() => (tabParam && ['today', 'hold-on', 'upcoming', 'completed-today', 'history'].includes(tabParam) ? tabParam : 'today'));
 
   useEffect(() => {
-    if (tabParam && ['today', 'upcoming', 'history'].includes(tabParam)) {
+    if (tabParam && ['today', 'hold-on', 'upcoming', 'completed-today', 'history'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -52,18 +54,21 @@ export default function DoctorQueue() {
 
   // DATA STATES
   const [queueEntries, setQueueEntries] = useState([]);
+  const [holdOnAppointments, setHoldOnAppointments] = useState([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [rawHistoryItems, setRawHistoryItems] = useState([]);
   const [doctors, setDoctors] = useState([]);
 
   // LOADING STATES
   const [loadingToday, setLoadingToday] = useState(true);
+  const [loadingHoldOn, setLoadingHoldOn] = useState(true);
   const [loadingUpcoming, setLoadingUpcoming] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [submittingId, setSubmittingId] = useState(null);
 
   // SEARCH & FILTER STATES
   const [todaySearch, setTodaySearch] = useState('');
+  const [holdOnSearch, setHoldOnSearch] = useState('');
   const [upcomingSearch, setUpcomingSearch] = useState('');
   const [upcomingDateFrom, setUpcomingDateFrom] = useState('');
   const [upcomingDateTo, setUpcomingDateTo] = useState('');
@@ -82,9 +87,17 @@ export default function DoctorQueue() {
 
   // MOBILE ACCORDION FILTER TOGGLE STATES
   const [isMobileTodayFilterOpen, setIsMobileTodayFilterOpen] = useState(false);
+  const [isMobileHoldOnFilterOpen, setIsMobileHoldOnFilterOpen] = useState(false);
   const [isMobileUpcomingFilterOpen, setIsMobileUpcomingFilterOpen] = useState(false);
   const [isMobileCompletedTodayFilterOpen, setIsMobileCompletedTodayFilterOpen] = useState(false);
   const [isMobileHistoryFilterOpen, setIsMobileHistoryFilterOpen] = useState(false);
+
+  // HOLD ON CHECK-IN MODAL STATES
+  const [checkInModalAppointment, setCheckInModalAppointment] = useState(null);
+  const [checkInDate, setCheckInDate] = useState('');
+  const [checkInTime, setCheckInTime] = useState('');
+  const [checkInReason, setCheckInReason] = useState('');
+  const [isSubmittingHoldOnCheckIn, setIsSubmittingHoldOnCheckIn] = useState(false);
 
   const handleResetUpcomingFilters = () => {
     setUpcomingSearch('');
@@ -135,6 +148,10 @@ export default function DoctorQueue() {
     if (e) e.stopPropagation();
     setExpandedTodayId((prev) => (prev === id ? null : id));
   };
+  const toggleExpandHoldOn = (id, e) => {
+    if (e) e.stopPropagation();
+    setExpandedHoldOnId((prev) => (prev === id ? null : id));
+  };
   const toggleExpandUpcoming = (id, e) => {
     if (e) e.stopPropagation();
     setExpandedUpcomingId((prev) => (prev === id ? null : id));
@@ -168,14 +185,14 @@ export default function DoctorQueue() {
 
       const combinedToday = [];
       queueList.forEach((q) => {
-        if (q.status !== 'Completed') {
+        if (q.status !== 'Completed' && q.status !== 'Hold On') {
           combinedToday.push(q);
         }
       });
 
       todayApts.forEach((apt) => {
         const aptId = (apt._id || apt.id).toString();
-        if (!checkedInAptIds.has(aptId) && apt.status !== 'Completed') {
+        if (!checkedInAptIds.has(aptId) && apt.status !== 'Completed' && apt.status !== 'Hold On') {
           combinedToday.push({
             id: apt._id || apt.id,
             _id: apt._id || apt.id,
@@ -201,7 +218,20 @@ export default function DoctorQueue() {
     }
   };
 
-  // 2. Fetch Upcoming Appointments
+  // 2. Fetch Hold On Appointments
+  const fetchHoldOnAppointments = async () => {
+    try {
+      setLoadingHoldOn(true);
+      const res = await api.get('/appointments?dateFilterPreset=hold-on');
+      setHoldOnAppointments(res.data?.appointments || []);
+    } catch (err) {
+      console.error('Failed to fetch hold on appointments:', err);
+    } finally {
+      setLoadingHoldOn(false);
+    }
+  };
+
+  // 3. Fetch Upcoming Appointments
   const fetchUpcomingAppointments = async () => {
     try {
       setLoadingUpcoming(true);
@@ -214,7 +244,7 @@ export default function DoctorQueue() {
     }
   };
 
-  // 3. Fetch Appointment History & Doctors List
+  // 4. Fetch Appointment History & Doctors List
   const fetchAppointmentHistory = async () => {
     try {
       setLoadingHistory(true);
@@ -315,6 +345,7 @@ export default function DoctorQueue() {
   const refreshAll = async () => {
     await Promise.all([
       fetchDoctorToday().catch(() => {}),
+      fetchHoldOnAppointments().catch(() => {}),
       fetchUpcomingAppointments().catch(() => {}),
       fetchAppointmentHistory().catch(() => {}),
     ]);
@@ -352,6 +383,133 @@ export default function DoctorQueue() {
     const str = typeof val === 'object' ? (val._id || val.id || '') : String(val);
     const cleaned = str.replace(/^(apt|queue|q|con|pat)-/, '').trim();
     return cleaned || null;
+  };
+
+  // Action Handler: Open Hold On Date/Time Management Popup (Pre-fills existing appointment date & time)
+  const handleOpenHoldOnCheckIn = (item) => {
+    let initialDate = '';
+    if (item.date) {
+      const d = new Date(item.date);
+      if (!isNaN(d.getTime())) {
+        initialDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+    }
+    if (!initialDate) {
+      const today = new Date();
+      initialDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+
+    let initialTime = item.time || item.appointment?.time || '';
+    if (!initialTime && item.checkInTime) {
+      const d = new Date(item.checkInTime);
+      if (!isNaN(d.getTime())) {
+        let rawHours = d.getHours();
+        let mins = d.getMinutes();
+        const period = rawHours >= 12 ? 'PM' : 'AM';
+        let h12 = rawHours % 12 === 0 ? 12 : rawHours % 12;
+        initialTime = `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${period}`;
+      }
+    }
+    if (!initialTime) {
+      const now = new Date();
+      let rawHours = now.getHours();
+      let mins = now.getMinutes();
+      const period = rawHours >= 12 ? 'PM' : 'AM';
+      let h12 = rawHours % 12 === 0 ? 12 : rawHours % 12;
+      initialTime = `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${period}`;
+    }
+
+    setCheckInModalAppointment(item);
+    setCheckInDate(initialDate);
+    setCheckInTime(initialTime);
+    setCheckInReason(item.reason || item.appointment?.reason || 'Consultation Visit');
+  };
+
+  // Action Handler: Confirm Check In from Hold On Popup
+  const handleConfirmHoldOnCheckIn = async () => {
+    if (!checkInModalAppointment) return;
+    if (!checkInDate) {
+      showError('Please select an appointment date.');
+      return;
+    }
+    if (!checkInTime) {
+      showError('Please select an appointment time.');
+      return;
+    }
+
+    const rawId = checkInModalAppointment._id || checkInModalAppointment.id || checkInModalAppointment.appointmentId;
+    const aptId = cleanObjectId(rawId);
+    if (!aptId) return;
+
+    try {
+      setIsSubmittingHoldOnCheckIn(true);
+      await api.patch(`/queue/${aptId}/check-in`, {
+        date: checkInDate,
+        time: checkInTime,
+        reason: checkInReason,
+      });
+      showSuccess('Patient successfully checked in! Appointment date and time updated.');
+      setCheckInModalAppointment(null);
+      await refreshAll();
+      setActiveTab('today');
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to check in patient from Hold On.');
+    } finally {
+      setIsSubmittingHoldOnCheckIn(false);
+    }
+  };
+
+  // Action Handler: Confirm Start Consultation directly from Hold On Popup
+  const handleConfirmHoldOnStartConsultation = async () => {
+    if (!checkInModalAppointment) return;
+    if (!checkInDate) {
+      showError('Please select an appointment date.');
+      return;
+    }
+    if (!checkInTime) {
+      showError('Please select an appointment time.');
+      return;
+    }
+
+    const rawId = checkInModalAppointment._id || checkInModalAppointment.id || checkInModalAppointment.appointmentId;
+    const aptId = cleanObjectId(rawId);
+    if (!aptId) return;
+
+    try {
+      setIsSubmittingHoldOnCheckIn(true);
+      // 1. Check in / update date & time on appointment
+      const checkInRes = await api.patch(`/queue/${aptId}/check-in`, {
+        date: checkInDate,
+        time: checkInTime,
+        reason: checkInReason,
+      });
+
+      const queueEntryId = checkInRes.data?.queueEntry?._id || checkInRes.data?.queueEntry?.id;
+
+      // 2. Launch consultation immediately
+      const consultRes = await api.post('/consultations/start', {
+        queueEntryId: cleanObjectId(queueEntryId),
+        appointmentId: aptId,
+        date: checkInDate,
+        time: checkInTime,
+        reason: checkInReason,
+      });
+
+      const consultation = consultRes?.data?.consultation;
+      setCheckInModalAppointment(null);
+      await refreshAll();
+
+      if (consultation && (consultation._id || consultation.id)) {
+        navigate(`/doctor/consultation/${consultation._id || consultation.id}`);
+      } else {
+        showSuccess('Consultation started.');
+        setActiveTab('today');
+      }
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to start consultation.');
+    } finally {
+      setIsSubmittingHoldOnCheckIn(false);
+    }
   };
 
   // Action Handler: Start or Continue Consultation (Launches consultation flow directly)
@@ -542,6 +700,44 @@ export default function DoctorQueue() {
           </button>
         )}
 
+        {/* WORKFLOW 5: HOLD ON -> Manage Date/Time Popup with Check In & Start Consultation */}
+        {displayStatus === 'Hold On' && (
+          <>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => handleOpenHoldOnCheckIn(item)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Check in patient with managed date & time"
+            >
+              <UserCheck size={13} />
+              <span>Check In</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => handleOpenHoldOnCheckIn(item)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Start consultation with managed date & time"
+            >
+              <Play size={13} fill="currentColor" />
+              <span>Start Consultation</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => setCancellingAppointment(item)}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-rose-300 text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Cancel appointment"
+            >
+              <XCircle size={13} />
+              <span>Cancel</span>
+            </button>
+          </>
+        )}
+
         {/* WORKFLOW 4: COMPLETED OR HISTORY SUMMARY */}
         {(displayStatus === 'Completed' || options.alwaysShowSummary) && (
           <button
@@ -556,9 +752,9 @@ export default function DoctorQueue() {
     );
   };
 
-  // Filtered Today Entries (STRICTLY NON-COMPLETED STATUS ONLY)
+  // Filtered Today Entries (STRICTLY NON-COMPLETED & NON-HOLD-ON STATUS ONLY)
   const filteredTodayEntries = useMemo(() => {
-    let entries = queueEntries.filter((item) => item.status !== 'Completed');
+    let entries = queueEntries.filter((item) => item.status !== 'Completed' && item.status !== 'Hold On');
     if (!todaySearch.trim()) return entries;
     const q = todaySearch.trim().toLowerCase();
     return entries.filter((item) => {
@@ -571,6 +767,22 @@ export default function DoctorQueue() {
       return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q) || reason.includes(q);
     });
   }, [queueEntries, todaySearch]);
+
+  // Filtered Hold On Entries (STRICTLY HOLD ON STATUS ONLY)
+  const filteredHoldOnEntries = useMemo(() => {
+    let entries = holdOnAppointments.filter((item) => item.status === 'Hold On' || item.status === 'Checked-In');
+    if (!holdOnSearch.trim()) return entries;
+    const q = holdOnSearch.trim().toLowerCase();
+    return entries.filter((item) => {
+      const p = item.patient || {};
+      const fullName = [p.firstName, p.lastName].filter(Boolean).join(' ').toLowerCase();
+      const primaryPhone = (p.primaryPhone || p.phone || '').toLowerCase();
+      const secondaryPhone = (p.secondaryPhone || '').toLowerCase();
+      const op = (p.opNumber || '').toLowerCase();
+      const reason = (item.reason || '').toLowerCase();
+      return fullName.includes(q) || op.includes(q) || primaryPhone.includes(q) || secondaryPhone.includes(q) || reason.includes(q);
+    });
+  }, [holdOnAppointments, holdOnSearch]);
 
   // Filtered Upcoming Entries (STRICTLY SCHEDULED STATUS ONLY)
   const filteredUpcomingEntries = useMemo(() => {
@@ -885,7 +1097,25 @@ export default function DoctorQueue() {
                 )}
               </button>
 
-              {/* TAB 2: Upcoming Appointments */}
+              {/* TAB 2: Hold On */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('hold-on')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'hold-on'
+                  ? 'border-brand text-brand font-bold bg-brand-light/20 rounded-t-lg'
+                  : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+                  }`}
+              >
+                <PauseCircle size={16} className={activeTab === 'hold-on' ? 'text-amber-600' : 'text-amber-500'} />
+                <span>Hold On</span>
+                {filteredHoldOnEntries.length > 0 && (
+                  <span className="badge bg-amber-100 text-amber-900 font-mono text-[10px] font-bold border border-amber-300">
+                    {filteredHoldOnEntries.length}
+                  </span>
+                )}
+              </button>
+
+              {/* TAB 3: Upcoming Appointments */}
               <button
                 type="button"
                 onClick={() => setActiveTab('upcoming')}
@@ -903,7 +1133,7 @@ export default function DoctorQueue() {
                 )}
               </button>
 
-              {/* TAB 3: Completed Today */}
+              {/* TAB 4: Completed Today */}
               <button
                 type="button"
                 onClick={() => setActiveTab('completed-today')}
@@ -921,7 +1151,7 @@ export default function DoctorQueue() {
                 )}
               </button>
 
-              {/* TAB 4: All Appointments Log */}
+              {/* TAB 5: All Appointments Log */}
               <button
                 type="button"
                 onClick={() => setActiveTab('history')}
@@ -1182,6 +1412,343 @@ export default function DoctorQueue() {
                                 {/* Action Controls */}
                                 <div className="pt-1 flex items-center justify-end">
                                   {renderRowActions(entry)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 2: HOLD ON */}
+          {/* ========================================================================= */}
+          {activeTab === 'hold-on' && (
+            <div className="space-y-4">
+              {/* Desktop Filter Bar (≥768px) */}
+              <div className="hidden md:flex card p-3.5 bg-surface border-border flex-row items-center justify-between gap-2.5">
+                <div className="relative flex-1 max-w-md">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                  <input
+                    type="text"
+                    className="input-field pl-9 py-1.5 text-xs w-full"
+                    placeholder="Filter hold-on patients by name, OP#, phone..."
+                    value={holdOnSearch}
+                    onChange={(e) => setHoldOnSearch(e.target.value)}
+                  />
+                  {holdOnSearch && (
+                    <button onClick={() => setHoldOnSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                <span className="text-xs text-ink-soft font-medium">
+                  Showing {filteredHoldOnEntries.length} patient(s) on hold
+                </span>
+              </div>
+
+              {/* Mobile Collapsible Filter Accordion (<768px down to 320px) */}
+              <div className="block md:hidden card p-3 bg-surface border border-border shadow-xs space-y-3 rounded-2xl max-w-full overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileHoldOnFilterOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-xs font-bold text-ink gap-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center font-bold text-xs shrink-0">
+                      <Filter size={14} />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="font-bold text-ink">Filters & Search</span>
+                      {holdOnSearch && (
+                        <span className="badge bg-amber-600 text-white text-[10px] py-0.5 px-2 font-bold shrink-0 truncate max-w-[120px]">
+                          "{holdOnSearch}"
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-xs text-ink-soft font-semibold shrink-0">
+                    <span>{isMobileHoldOnFilterOpen ? 'Hide' : 'Filter'}</span>
+                    {isMobileHoldOnFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+
+                {isMobileHoldOnFilterOpen && (
+                  <div className="pt-2 border-t border-border/70 space-y-3 animate-in fade-in duration-150 text-xs">
+                    <div className="relative w-full">
+                      <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                      <input
+                        type="text"
+                        className="input-field pl-9 py-1.5 text-xs w-full"
+                        placeholder="Filter hold-on patients..."
+                        value={holdOnSearch}
+                        onChange={(e) => setHoldOnSearch(e.target.value)}
+                      />
+                      {holdOnSearch && (
+                        <button onClick={() => setHoldOnSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-ink-soft font-medium">
+                      Showing {filteredHoldOnEntries.length} patient(s) on hold
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="card overflow-hidden">
+                {loadingHoldOn ? (
+                  <TableSkeleton rows={5} cols={7} />
+                ) : filteredHoldOnEntries.length === 0 ? (
+                  <div className="p-8 sm:p-12 text-center space-y-3">
+                    <PauseCircle size={36} className="mx-auto text-amber-500/50" />
+                    <p className="font-display text-base font-semibold text-ink">No patients on hold</p>
+                    <p className="text-sm text-ink-soft">
+                      Patients checked in on past dates who did not proceed to consultation will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop Table View (≥768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="border-b border-border bg-bg/50 text-xs font-semibold text-ink-soft uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3.5">Patient Details</th>
+                            <th className="px-5 py-3.5">OP Number</th>
+                            <th className="px-5 py-3.5">Reason / Visit Type</th>
+                            <th className="px-5 py-3.5">Original Check-In / Date</th>
+                            <th className="px-5 py-3.5">Status</th>
+                            <th className="px-5 py-3.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {filteredHoldOnEntries.map((entry) => {
+                            const entryId = entry._id || entry.id;
+                            const patientName = formatPatientFullName(entry.patient) || 'Patient';
+                            const dateStr = entry.date
+                              ? new Date(entry.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+                              : 'Past Date';
+                            const timeDisplay = entry.time || (entry.checkInTime ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
+
+                            return (
+                              <tr
+                                key={entryId}
+                                className="hover:bg-bg/60 transition-colors"
+                              >
+                                <td className="px-5 py-4">
+                                  <div className="font-bold text-ink flex items-center gap-1.5">
+                                    <span>{patientName}</span>
+                                    <span className={`badge font-semibold text-[10px] px-1.5 py-0.5 border ${
+                                      (entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12))
+                                        ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                        : 'bg-blue-50 text-blue-800 border-blue-200'
+                                    }`}>
+                                      {(entry.patient?.patientType === 'child' || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12)) ? 'Child' : 'Adult'}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-ink-soft">
+                                    {entry.patient?.age !== undefined && entry.patient?.age !== null && entry.patient?.age !== '' ? `${formatAge(entry.patient.age)}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} {(entry.patient?.primaryPhone || entry.patient?.phone) ? `• ${entry.patient.primaryPhone || entry.patient.phone}${entry.patient.secondaryPhone ? ` / ${entry.patient.secondaryPhone}` : ''}` : ''}
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4 font-mono font-bold text-brand text-xs">
+                                  {entry.patient?.opNumber ? `#${entry.patient.opNumber}` : '—'}
+                                </td>
+
+                                <td className="px-5 py-4 text-xs font-medium text-ink">
+                                  <span className="badge bg-amber-50 text-amber-900 border border-amber-200">
+                                    {entry.reason || entry.type || 'Consultation Visit'}
+                                  </span>
+                                </td>
+
+                                <td className="px-5 py-4 text-xs text-ink-soft whitespace-nowrap">
+                                  <div className="flex items-center gap-1 font-medium text-ink">
+                                    <Clock size={13} className="text-amber-600" /> {dateStr}{timeDisplay ? ` at ${timeDisplay}` : ''}
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-4">
+                                  <span className="badge border bg-amber-100 text-amber-900 border-amber-300 font-semibold">
+                                    Hold On
+                                  </span>
+                                </td>
+
+                                {/* STATUS-BASED ACTIONS */}
+                                <td className="px-5 py-4 text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      disabled={isSubmittingHoldOnCheckIn}
+                                      onClick={() => handleOpenHoldOnCheckIn(entry)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Check in patient with managed date & time"
+                                    >
+                                      <UserCheck size={13} />
+                                      <span>Check In</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={isSubmittingHoldOnCheckIn}
+                                      onClick={() => handleOpenHoldOnCheckIn(entry)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Start consultation with managed date & time"
+                                    >
+                                      <Play size={13} fill="currentColor" />
+                                      <span>Start Consultation</span>
+                                    </button>
+
+                                    {entry.patient && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedPatientForEdit(entry.patient);
+                                          setAppointmentForEdit(entry._id || entry.id);
+                                        }}
+                                        className="btn-secondary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-brand hover:text-brand transition-colors"
+                                        title="Edit Patient Registration Details"
+                                      >
+                                        <Edit3 size={13} className="text-amber-600" />
+                                        <span>Edit</span>
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setCancellingAppointment(entry)}
+                                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-rose-300 text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors"
+                                      title="Cancel appointment"
+                                    >
+                                      <XCircle size={13} />
+                                      <span>Cancel</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Accordion Cards View (<768px down to 320px) */}
+                    <div className="block md:hidden divide-y divide-border">
+                      {filteredHoldOnEntries.map((entry) => {
+                        const entryId = entry._id || entry.id;
+                        const patientName = formatPatientFullName(entry.patient) || 'Patient';
+                        const dateStr = entry.date
+                          ? new Date(entry.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                          : 'Past Date';
+                        const timeDisplay = entry.time || (entry.checkInTime ? new Date(entry.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
+
+                        const pType = entry.patient?.patientType || (entry.patient?.age !== undefined && entry.patient?.age !== null && Number(entry.patient.age) < 12 ? 'child' : 'adult');
+                        const isExpanded = expandedHoldOnId === entryId;
+
+                        return (
+                          <div key={entryId} className="p-3.5 space-y-3 hover:bg-bg/40 transition-colors">
+                            {/* Collapsed Header */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-ink text-sm truncate">{patientName}</span>
+                                  <span className="badge border bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-bold py-0.5 px-2 shrink-0">
+                                    Hold On
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs font-mono text-ink-soft flex-wrap">
+                                  {entry.patient?.opNumber && <span className="font-bold text-brand">#{entry.patient.opNumber}</span>}
+                                  <span className="text-ink font-sans font-medium">• {dateStr}{timeDisplay ? ` at ${timeDisplay}` : ''}</span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => toggleExpandHoldOn(entryId, e)}
+                                className="p-1.5 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-bg shrink-0 mt-0.5"
+                                aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
+                              >
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </button>
+                            </div>
+
+                            {/* Expanded Content */}
+                            {isExpanded && (
+                              <div className="pt-2 border-t border-border/70 space-y-3 text-xs animate-in fade-in duration-150">
+                                <div className="grid grid-cols-2 gap-2 text-ink-soft bg-bg/50 p-2.5 rounded-xl border border-border">
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Demographics</span>
+                                    <span className="font-medium text-ink">
+                                      {entry.patient?.age !== undefined && entry.patient?.age !== null && entry.patient?.age !== '' ? `${formatAge(entry.patient.age)}y` : ''} {entry.patient?.sex ? `/ ${entry.patient.sex}` : ''} ({pType === 'child' ? 'Child' : 'Adult'})
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Phone</span>
+                                    <span className="font-mono font-medium text-ink">{entry.patient?.primaryPhone || entry.patient?.phone || '—'}{entry.patient?.secondaryPhone ? ` / ${entry.patient.secondaryPhone}` : ''}</span>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <span className="block text-[10px] font-semibold uppercase text-ink-soft">Reason / Visit Type</span>
+                                    <span className="font-medium text-ink">{entry.reason || entry.type || 'Consultation Visit'}</span>
+                                  </div>
+                                </div>
+
+                                {/* Action Controls */}
+                                <div className="pt-1 flex items-center justify-end gap-1.5 flex-wrap">
+                                  <button
+                                    type="button"
+                                    disabled={isSubmittingHoldOnCheckIn}
+                                    onClick={() => handleOpenHoldOnCheckIn(entry)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Check in patient with managed date & time"
+                                  >
+                                    <UserCheck size={13} />
+                                    <span>Check In</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={isSubmittingHoldOnCheckIn}
+                                    onClick={() => handleOpenHoldOnCheckIn(entry)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Start consultation with managed date & time"
+                                  >
+                                    <Play size={13} fill="currentColor" />
+                                    <span>Start Consultation</span>
+                                  </button>
+
+                                  {entry.patient && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPatientForEdit(entry.patient);
+                                        setAppointmentForEdit(entry._id || entry.id);
+                                      }}
+                                      className="btn-secondary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-brand hover:text-brand transition-colors"
+                                      title="Edit Patient Registration Details"
+                                    >
+                                      <Edit3 size={13} className="text-amber-600" />
+                                      <span>Edit</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setCancellingAppointment(entry)}
+                                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold border border-rose-300 text-rose-800 bg-rose-50 hover:bg-rose-100 transition-colors"
+                                    title="Cancel appointment"
+                                  >
+                                    <XCircle size={13} />
+                                    <span>Cancel</span>
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -2404,6 +2971,124 @@ export default function DoctorQueue() {
         cancelText="Keep Appointment"
         variant="danger"
       />
+
+      {/* ========================================================================= */}
+      {/* MODAL: HOLD ON MANAGE DATE/TIME -> CHECK-IN OR START CONSULTATION */}
+      {/* ========================================================================= */}
+      {checkInModalAppointment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="card w-full max-w-lg bg-surface p-6 space-y-4 shadow-2xl border-brand-light/60">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-3 text-brand">
+                <div className="h-10 w-10 rounded-full bg-brand-light/30 flex items-center justify-center font-bold text-brand">
+                  <CalendarDays size={20} />
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-bold text-ink">Manage Appointment & Action</h3>
+                  <p className="text-xs text-ink-soft">Verify or modify the appointment date & time before proceeding.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCheckInModalAppointment(null)}
+                className="p-1 rounded-lg text-ink-soft hover:text-ink hover:bg-bg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Patient Details Summary */}
+            <div className="bg-bg/50 p-3.5 rounded-xl border border-border space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-ink text-sm">
+                  {formatPatientFullName(checkInModalAppointment.patient) || 'Patient'}
+                </span>
+                {checkInModalAppointment.patient?.opNumber && (
+                  <span className="badge bg-brand/10 text-brand font-mono font-bold text-xs">
+                    #{checkInModalAppointment.patient.opNumber}
+                  </span>
+                )}
+              </div>
+              <div className="text-ink-soft flex items-center gap-2 flex-wrap">
+                {checkInModalAppointment.patient?.age && <span>{formatAge(checkInModalAppointment.patient.age)}y</span>}
+                {checkInModalAppointment.patient?.sex && <span>/ {checkInModalAppointment.patient.sex}</span>}
+                {(checkInModalAppointment.patient?.primaryPhone || checkInModalAppointment.patient?.phone) && (
+                  <span>• {checkInModalAppointment.patient?.primaryPhone || checkInModalAppointment.patient?.phone}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Form Fields: Date, Time, Reason */}
+            <div className="space-y-3.5 pt-1">
+              <div>
+                <DatePicker
+                  label="Appointment Date"
+                  placeholder="Select Date"
+                  value={checkInDate}
+                  onChange={(d, dStr) => setCheckInDate(dStr)}
+                  isRequired={true}
+                />
+              </div>
+
+              <div>
+                <SplitTimeInput
+                  label="Appointment Time"
+                  value={checkInTime}
+                  onChange={(t12) => setCheckInTime(t12)}
+                  isRequired={true}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1 mb-1">
+                  Reason / Visit Type
+                </label>
+                <input
+                  type="text"
+                  className="input-field py-1.5 text-xs w-full"
+                  placeholder="Reason for visit..."
+                  value={checkInReason}
+                  onChange={(e) => setCheckInReason(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Dual Actions Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-3 border-t border-border">
+              <button
+                type="button"
+                disabled={isSubmittingHoldOnCheckIn}
+                onClick={() => setCheckInModalAppointment(null)}
+                className="btn-secondary py-1.5 px-3.5 text-xs font-semibold w-full sm:w-auto"
+              >
+                Cancel (Keep on Hold)
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  disabled={isSubmittingHoldOnCheckIn || !checkInDate || !checkInTime}
+                  onClick={handleConfirmHoldOnCheckIn}
+                  className="btn-primary py-1.5 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 flex-1 sm:flex-initial justify-center"
+                >
+                  <UserCheck size={13} />
+                  <span>{isSubmittingHoldOnCheckIn ? 'Updating...' : 'Check In'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmittingHoldOnCheckIn || !checkInDate || !checkInTime}
+                  onClick={handleConfirmHoldOnStartConsultation}
+                  className="btn-primary py-1.5 px-3.5 text-xs font-semibold bg-brand hover:bg-brand-dark text-white disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 flex-1 sm:flex-initial justify-center shadow-sm"
+                >
+                  <Play size={13} fill="currentColor" />
+                  <span>{isSubmittingHoldOnCheckIn ? 'Starting...' : 'Start Consultation'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CREATE APPOINTMENT MODAL */}
       <CreateAppointmentModal

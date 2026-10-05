@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   Pill, Search, ArrowLeft, Eye, UserSquare2, RefreshCw, X, Calendar, Printer, FileText, ChevronRight, ChevronDown, ChevronUp
 } from 'lucide-react';
@@ -9,15 +10,59 @@ import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistor
 import { TableSkeleton, PrescriptionDirectorySkeleton } from '../../components/common/TableSkeleton.jsx';
 
 export default function PrescriptionsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const patientIdParam = searchParams.get('patientId') || searchParams.get('patient');
+
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(location.state?.patient || null);
 
   // Mobile Accordion expand state
   const [expandedPatientId, setExpandedPatientId] = useState(null);
   const toggleExpandPatient = (id, e) => {
     if (e) e.stopPropagation();
     setExpandedPatientId((prev) => (prev === id ? null : id));
+  };
+
+  // Sync selected patient with URL query params or location state
+  useEffect(() => {
+    if (location.state?.patient) {
+      setSelectedPatient(location.state.patient);
+    } else if (patientIdParam) {
+      if (!selectedPatient || (selectedPatient._id !== patientIdParam && selectedPatient.id !== patientIdParam)) {
+        api.get(`/patients/${patientIdParam}`)
+          .then((res) => {
+            if (res.data?.patient) {
+              setSelectedPatient(res.data.patient);
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to load patient for prescription history:', err);
+          });
+      }
+    } else {
+      setSelectedPatient(null);
+    }
+  }, [patientIdParam, location.state]);
+
+  const handleBackToDirectory = () => {
+    setSelectedPatient(null);
+    if (patientIdParam) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('patientId');
+      nextParams.delete('patient');
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
+
+  const handleSelectPatient = (p) => {
+    setSelectedPatient(p);
+    const pId = p._id || p.id;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('patientId', pId);
+    setSearchParams(nextParams);
   };
 
   // Filter controls
@@ -100,7 +145,7 @@ export default function PrescriptionsPage() {
       <div className="space-y-6 max-w-6xl">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => setSelectedPatient(null)}
+            onClick={handleBackToDirectory}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline"
           >
             <ArrowLeft size={16} /> Back to Prescriptions Directory
@@ -244,7 +289,7 @@ export default function PrescriptionsPage() {
                     return (
                       <tr
                         key={pId}
-                        onClick={() => setSelectedPatient(p)}
+                        onClick={() => handleSelectPatient(p)}
                         className="hover:bg-bg/60 cursor-pointer transition-colors group"
                       >
                         <td className="px-5 py-4 font-bold text-ink">
@@ -282,7 +327,7 @@ export default function PrescriptionsPage() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedPatient(p);
+                              handleSelectPatient(p);
                             }}
                             className="btn-secondary py-1 px-3 text-xs font-semibold inline-flex items-center gap-1.5"
                           >
@@ -360,7 +405,7 @@ export default function PrescriptionsPage() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedPatient(p);
+                              handleSelectPatient(p);
                             }}
                             className="btn-secondary text-xs py-1.5 px-3 w-full justify-center inline-flex items-center gap-1.5 font-semibold"
                           >

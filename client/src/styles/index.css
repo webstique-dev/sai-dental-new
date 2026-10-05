@@ -126,7 +126,10 @@
   border-width: 2px 2px 0 0 !important;
 }
 
-/* Hide scrollbars in all popup modals, drawers, dialogs, dropdowns, and utility classes across browsers */
+/* Hide scrollbars globally across all tables, containers, drawers, dialogs, dropdowns, and views while preserving smooth scrolling */
+.overflow-x-auto,
+.overflow-y-auto,
+.overflow-auto,
 .fixed .overflow-y-auto,
 .fixed .overflow-x-auto,
 .fixed .overflow-auto,
@@ -141,6 +144,9 @@
   scrollbar-width: none !important;
 }
 
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar,
 .fixed .overflow-y-auto::-webkit-scrollbar,
 .fixed .overflow-x-auto::-webkit-scrollbar,
 .fixed .overflow-auto::-webkit-scrollbar,

@@ -344,7 +344,7 @@ export default function PrescriptionEditModal({
                 <input
                   type="text"
                   className="input-field text-xs w-full"
-                  placeholder="e.g. Dental Caries, Pulpitis..."
+                  placeholder="Enter diagnosis..."
                   value={diagnosis}
                   onChange={(e) => setDiagnosis(capitalizeWords(e.target.value))}
                 />
@@ -354,7 +354,7 @@ export default function PrescriptionEditModal({
                 <input
                   type="text"
                   className="input-field text-xs w-full"
-                  placeholder="e.g. RCT, Crown Placement..."
+                  placeholder="Enter treatment plan..."
                   value={treatmentPlan}
                   onChange={(e) => setTreatmentPlan(capitalizeWords(e.target.value))}
                 />
@@ -364,7 +364,7 @@ export default function PrescriptionEditModal({
                 <input
                   type="text"
                   className="input-field text-xs w-full"
-                  placeholder="e.g. Root Canal Treatment..."
+                  placeholder="Enter treatment..."
                   value={treatment}
                   onChange={(e) => setTreatment(capitalizeWords(e.target.value))}
                 />
@@ -377,7 +377,7 @@ export default function PrescriptionEditModal({
               <textarea
                 rows={2}
                 className="input-field text-xs w-full"
-                placeholder="General instructions for the patient..."
+                placeholder="Enter prescription notes or instructions..."
                 value={notes}
                 onChange={(e) => setNotes(capitalizeWords(e.target.value))}
               />
@@ -456,7 +456,7 @@ export default function PrescriptionEditModal({
                               suggestions={medicineSuggestions}
                               onChange={(val) => handleMedicineChange(idx, 'medicine', val)}
                               onSelect={(suggestion) => handleSelectSuggestion(idx, suggestion)}
-                              placeholder={isSyrup ? "e.g. Moxikind-CV Syrup" : "e.g. Augmentin"}
+                              placeholder={isSyrup ? "Syrup name..." : "Medicine name..."}
                               required
                             />
                           </div>
@@ -470,7 +470,7 @@ export default function PrescriptionEditModal({
                               type="text"
                               list={isSyrup ? "syrup-edit-dosage-options" : "dosage-options"}
                               className="input-field py-1.5 px-2.5 text-xs w-full"
-                              placeholder={isSyrup ? "e.g. 5 ml" : "e.g. 500 mg"}
+                              placeholder={isSyrup ? "Dose (ml)..." : "Dosage..."}
                               value={item.dosage || ''}
                               onChange={(e) => handleMedicineChange(idx, 'dosage', e.target.value)}
                             />
@@ -487,7 +487,7 @@ export default function PrescriptionEditModal({
                                   <input
                                     type="text"
                                     placeholder="M"
-                                    title="Morning (e.g. 5ml, 10ml, 1)"
+                                    title="Morning"
                                     className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                     value={syrupFreq[0]}
                                     onChange={(e) => handleSyrupFreqSlotChange(idx, 0, e.target.value)}
@@ -496,7 +496,7 @@ export default function PrescriptionEditModal({
                                   <input
                                     type="text"
                                     placeholder="A"
-                                    title="Afternoon (e.g. 0, 5ml, 10ml)"
+                                    title="Afternoon"
                                     className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                     value={syrupFreq[1]}
                                     onChange={(e) => handleSyrupFreqSlotChange(idx, 1, e.target.value)}
@@ -505,7 +505,7 @@ export default function PrescriptionEditModal({
                                   <input
                                     type="text"
                                     placeholder="N"
-                                    title="Night (e.g. 5ml, 10ml, 1)"
+                                    title="Night"
                                     className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                     value={syrupFreq[2]}
                                     onChange={(e) => handleSyrupFreqSlotChange(idx, 2, e.target.value)}
@@ -599,7 +599,7 @@ export default function PrescriptionEditModal({
                               type="text"
                               list="duration-options"
                               className="input-field py-1.5 px-2.5 text-xs w-full"
-                              placeholder={isSyrup ? "e.g. 3 Days" : "e.g. 5 Days"}
+                              placeholder="Duration..."
                               value={item.duration}
                               onChange={(e) => handleMedicineChange(idx, 'duration', e.target.value)}
                             />

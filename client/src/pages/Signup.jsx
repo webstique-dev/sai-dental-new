@@ -160,7 +160,7 @@ export default function Signup() {
                 type="text"
                 required
                 autoComplete="off"
-                placeholder="e.g. Dr. Sarah Jenkins or John Smith"
+                placeholder="Enter full name"
                 value={name}
                 onChange={(e) => setName(capitalizeWords(e.target.value.replace(/[^a-zA-Z\s'.-]/g, '')))}
                 className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400"
@@ -178,7 +178,7 @@ export default function Signup() {
                   type="email"
                   required
                   autoComplete="off"
-                  placeholder="name@clinic.com"
+                  placeholder="Enter email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400"
@@ -194,7 +194,7 @@ export default function Signup() {
                   type="tel"
                   maxLength={10}
                   autoComplete="off"
-                  placeholder="9876543210"
+                  placeholder="Enter 10-digit phone number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-xs text-[#0B1A2E] font-medium focus:outline-none focus:border-[#1E64EA] focus:ring-4 focus:ring-[#1E64EA]/15 transition-all placeholder:text-slate-400 font-mono"

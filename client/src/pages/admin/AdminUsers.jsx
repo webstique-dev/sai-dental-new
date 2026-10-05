@@ -291,7 +291,7 @@ export default function AdminUsers() {
                 type="text"
                 required
                 className="input-field mt-1 text-xs"
-                placeholder="Dr. Jane Smith"
+                placeholder="Enter full name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: capitalizeWords(e.target.value.replace(/[^a-zA-Z\s'.-]/g, '')) })}
               />
@@ -302,7 +302,7 @@ export default function AdminUsers() {
                 type="email"
                 required
                 className="input-field mt-1 text-xs"
-                placeholder="jane@dental.com"
+                placeholder="Enter email address"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
@@ -313,7 +313,7 @@ export default function AdminUsers() {
                 type="tel"
                 maxLength={10}
                 className="input-field mt-1 text-xs font-mono"
-                placeholder="9876543210"
+                placeholder="Enter 10-digit phone number"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
               />
@@ -676,7 +676,7 @@ export default function AdminUsers() {
                   type="tel"
                   maxLength={10}
                   className="input-field py-1.5 font-mono"
-                  placeholder="9876543210"
+                  placeholder="Enter 10-digit phone number"
                   value={editForm.phone}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                 />

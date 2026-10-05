@@ -12,6 +12,7 @@ export default function SplitTimeInput({
   value = '',
   onChange = () => {},
   isRequired = false,
+  showIcon = true,
   className = '',
   labelClassName = '',
   inputClassName = '',
@@ -150,15 +151,19 @@ export default function SplitTimeInput({
       )}
 
       <div
-        className={`relative flex items-center justify-between w-full h-[38px] rounded-xl border bg-white text-xs font-medium text-slate-800 transition-all duration-150 border-slate-200 hover:border-slate-300 focus-within:border-[#1E64EA] focus-within:ring-2 focus-within:ring-[#1E64EA]/20 pl-9 pr-1.5 py-0 ${inputClassName}`}
+        className={`relative flex items-center justify-between w-full min-w-[190px] h-[36px] rounded-xl border bg-white text-xs font-medium text-slate-800 transition-all duration-150 border-slate-200 hover:border-slate-300 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 ${
+          showIcon ? 'pl-8' : 'pl-2'
+        } pr-1.5 py-0 ${inputClassName}`}
       >
-        {/* Left Clock Icon (identical placement to DatePicker's Calendar icon) */}
-        <div className="absolute left-3 text-slate-400 flex items-center justify-center pointer-events-none">
-          <Clock className="w-4 h-4 text-[#1E64EA]" />
-        </div>
+        {/* Left Clock Icon */}
+        {showIcon && (
+          <div className="absolute left-2.5 text-slate-400 flex items-center justify-center pointer-events-none">
+            <Clock className="w-3.5 h-3.5 text-brand" />
+          </div>
+        )}
 
         {/* Hour & Minute Inputs */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <input
             type="text"
             autoComplete="off"
@@ -167,7 +172,7 @@ export default function SplitTimeInput({
             value={timeState.hour}
             onChange={handleHourChange}
             onBlur={handleHourBlur}
-            className="w-8 h-7 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none border border-slate-200/80 focus:border-[#1E64EA] transition-all"
+            className="w-7 h-6 text-center font-mono font-bold text-xs text-ink bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-brand rounded-md outline-none border border-slate-200/80 focus:border-brand transition-all"
             placeholder="10"
             aria-label="Hour"
           />
@@ -180,20 +185,20 @@ export default function SplitTimeInput({
             value={timeState.minute}
             onChange={handleMinuteChange}
             onBlur={handleMinuteBlur}
-            className="w-8 h-7 text-center font-mono font-bold text-xs text-[#0B1A2E] bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-[#1E64EA] rounded-md outline-none border border-slate-200/80 focus:border-[#1E64EA] transition-all"
+            className="w-full max-w-[28px] w-7 h-6 text-center font-mono font-bold text-xs text-ink bg-slate-50 hover:bg-slate-100 focus:bg-blue-50 focus:text-brand rounded-md outline-none border border-slate-200/80 focus:border-brand transition-all"
             placeholder="00"
             aria-label="Minute"
           />
         </div>
 
         {/* AM / PM Toggle Pair */}
-        <div className="flex items-center bg-slate-100/80 p-0.5 rounded-lg border border-slate-200/70 ml-auto gap-0.5">
+        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 ml-auto gap-0.5 shrink-0">
           <button
             type="button"
             onClick={() => handlePeriodToggle('AM')}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all leading-none ${
+            className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider transition-all leading-none ${
               timeState.period === 'AM'
-                ? 'bg-gradient-to-r from-[#1E64EA] to-[#2090F0] text-white shadow-xs'
+                ? 'bg-brand text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
             }`}
           >
@@ -202,9 +207,9 @@ export default function SplitTimeInput({
           <button
             type="button"
             onClick={() => handlePeriodToggle('PM')}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all leading-none ${
+            className={`px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider transition-all leading-none ${
               timeState.period === 'PM'
-                ? 'bg-gradient-to-r from-[#1E64EA] to-[#2090F0] text-white shadow-xs'
+                ? 'bg-brand text-white shadow-xs'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
             }`}
           >

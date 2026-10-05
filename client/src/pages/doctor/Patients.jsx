@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   UserSquare2, Search, Filter, Calendar, Eye, ArrowUpDown, ChevronLeft, ChevronRight,
-  RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3, UserPlus
+  RefreshCw, X, Stethoscope, Clock, Shield, ChevronDown, ChevronUp, Edit3, UserPlus, Pill, Wallet
 } from 'lucide-react';
 import { formatAge, formatPatientFullName, formatDoctorName } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
@@ -272,7 +272,7 @@ export default function DoctorPatients() {
       ) : (
         <div className="card overflow-hidden">
           {/* DESKTOP / TABLET TABLE VIEW */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto no-scrollbar scrollbar-none">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="border-b border-border bg-bg/60 font-semibold text-ink-soft text-[11px] uppercase tracking-wider">
               <tr>
@@ -402,10 +402,30 @@ export default function DoctorPatients() {
                           <Link
                             to={`/doctor/patients/${pId}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold hover:border-brand hover:text-brand"
+                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold hover:border-brand hover:text-brand transition-colors"
                             title="View Patient EMR"
                           >
                             <Eye size={13} /> View
+                          </Link>
+                          <Link
+                            to={`/doctor/prescriptions?patientId=${pId}`}
+                            state={{ patient: p }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold text-brand hover:bg-brand-light/30 border-brand/30 transition-colors"
+                            title="View Patient Prescription History"
+                          >
+                            <Pill size={13} className="text-brand" />
+                            <span>Prescriptions ({p.prescriptionCount !== undefined ? p.prescriptionCount : (p.prescriptions ? p.prescriptions.length : 0)})</span>
+                          </Link>
+                          <Link
+                            to={`/doctor/billing?patientId=${pId}`}
+                            state={{ patient: p }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="btn-secondary text-xs py-1.5 px-2.5 inline-flex items-center gap-1.5 font-semibold text-emerald-700 hover:bg-emerald-50 border-emerald-300 transition-colors"
+                            title="View & Edit Patient Billing"
+                          >
+                            <Wallet size={13} className="text-emerald-700" />
+                            <span>Billing</span>
                           </Link>
                         </div>
                       </td>
@@ -494,23 +514,39 @@ export default function DoctorPatients() {
                       </div>
 
                       {/* Primary Action Buttons */}
-                      <div className="pt-1 flex items-center justify-end gap-2">
+                      <div className="pt-1 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedPatientForEdit(p);
                           }}
-                          className="btn-secondary text-xs py-1.5 px-3 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold text-ink hover:text-brand"
+                          className="btn-secondary text-xs py-1.5 px-2.5 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold text-ink hover:text-brand"
                         >
-                          <Edit3 size={14} className="text-amber-600" /> Edit
+                          <Edit3 size={13} className="text-amber-600" /> Edit Patient
                         </button>
                         <Link
                           to={`/doctor/patients/${pId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="btn-secondary text-xs py-1.5 px-3 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold"
+                          className="btn-secondary text-xs py-1.5 px-2.5 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold"
                         >
-                          <Eye size={14} /> View Profile & EMR
+                          <Eye size={13} /> View EMR
+                        </Link>
+                        <Link
+                          to={`/doctor/prescriptions?patientId=${pId}`}
+                          state={{ patient: p }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="btn-secondary text-xs py-1.5 px-2.5 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold text-brand border-brand/30 hover:bg-brand-light/30"
+                        >
+                          <Pill size={13} className="text-brand" /> Prescriptions ({p.prescriptionCount !== undefined ? p.prescriptionCount : (p.prescriptions ? p.prescriptions.length : 0)})
+                        </Link>
+                        <Link
+                          to={`/doctor/billing?patientId=${pId}`}
+                          state={{ patient: p }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="btn-secondary text-xs py-1.5 px-2.5 flex-1 justify-center inline-flex items-center gap-1.5 font-semibold text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                        >
+                          <Wallet size={13} className="text-emerald-700" /> Billing
                         </Link>
                       </div>
                     </div>

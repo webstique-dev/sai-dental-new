@@ -283,7 +283,7 @@ export default function ExaminationEditModal({
                     type="text"
                     list="extraoral-options"
                     className="input-field text-xs py-1.5"
-                    placeholder="Finding (e.g. Swelling, TMJ)..."
+                    placeholder="Enter finding..."
                     value={newExtraoralFinding}
                     onChange={(e) => setNewExtraoralFinding(capitalizeWords(e.target.value))}
                   />
@@ -354,7 +354,7 @@ export default function ExaminationEditModal({
                     type="text"
                     list="soft-tissue-options"
                     className="input-field text-xs py-1.5"
-                    placeholder="Area (e.g. Labial Mucosa, Tongue)..."
+                    placeholder="Enter area..."
                     value={newSoftTissueArea}
                     onChange={(e) => setNewSoftTissueArea(capitalizeWords(e.target.value))}
                   />

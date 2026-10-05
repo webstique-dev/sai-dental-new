@@ -151,7 +151,7 @@ export default function DoctorAccount() {
                   type="text"
                   required
                   className="input-field font-semibold"
-                  placeholder="e.g. Dr. John Doe"
+                  placeholder="Enter full name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: capitalizeWords(e.target.value) })}
                 />
@@ -180,7 +180,7 @@ export default function DoctorAccount() {
                 <input
                   type="text"
                   className="input-field font-medium font-mono"
-                  placeholder="+91 98765 43210"
+                  placeholder="Enter phone number"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
@@ -209,7 +209,7 @@ export default function DoctorAccount() {
                 <input
                   type="text"
                   className="input-field font-semibold"
-                  placeholder="e.g. General Dentistry, Orthodontics & Oral Surgery"
+                  placeholder="Enter clinical specialization"
                   value={formData.specialization}
                   onChange={(e) => setFormData({ ...formData, specialization: capitalizeWords(e.target.value) })}
                 />
@@ -223,7 +223,7 @@ export default function DoctorAccount() {
                 <input
                   type="text"
                   className="input-field font-semibold"
-                  placeholder="e.g. BDS, MDS - Oral & Maxillofacial Surgeon"
+                  placeholder="Enter qualifications and degrees"
                   value={formData.qualification}
                   onChange={(e) => setFormData({ ...formData, qualification: capitalizeWords(e.target.value) })}
                 />

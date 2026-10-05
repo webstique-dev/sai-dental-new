@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Receipt, Plus, Trash2, Save, RefreshCw, Tag, History,
-  Eye, X, Stethoscope, Clock, CreditCard, UserSquare2, ChevronRight, Printer, Edit3
+  Eye, X, Stethoscope, Clock, CreditCard, UserSquare2, ChevronRight, Printer, Edit3,
+  CheckCircle2, Banknote, QrCode
 } from 'lucide-react';
 import api from '../../../api/axios.js';
 import { useNotification } from '../../../context/NotificationContext.jsx';
 import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges.js';
-import { formatAge, formatDoctorName, capitalizeWords } from '../../../utils/formatters.js';
+import { formatAge, formatDoctorName, capitalizeWords, combineDateAndTime, formatTime12Hour } from '../../../utils/formatters.js';
 import { openBillPrintWindow } from '../../../utils/billPdfGenerator.js';
 import InvoiceEditModal from '../../../components/common/InvoiceEditModal.jsx';
+import DatePicker, { formatToDateString } from '../../../components/common/DatePicker.jsx';
+import SplitTimeInput from '../../../components/common/SplitTimeInput.jsx';
 
 const STATUS_BADGE_CLASSES = {
   Paid: 'bg-emerald-50 text-emerald-800 border-emerald-200',
@@ -47,8 +50,16 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
   const [items, setItems] = useState([]);
   const [discount, setDiscount] = useState('');
   const [tax, setTax] = useState('');
-  const [amountPaid, setAmountPaid] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
+
+  // Payments History for the active consultation invoice
+  const [payments, setPayments] = useState([]);
+
+  // New payment entry state
+  const [newPaymentAmount, setNewPaymentAmount] = useState('');
+  const [newPaymentMethod, setNewPaymentMethod] = useState('Cash');
+  const [newPaymentDate, setNewPaymentDate] = useState(() => formatToDateString(new Date()));
+  const [newPaymentTime, setNewPaymentTime] = useState(() => formatTime12Hour(new Date()));
+  const [newPaymentNotes, setNewPaymentNotes] = useState('');
 
   // Patient History State
   const [historyInvoices, setHistoryInvoices] = useState([]);
@@ -68,11 +79,10 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
       })),
       discount: String(discount || '').trim(),
       tax: String(tax || '').trim(),
-      amountPaid: String(amountPaid || '').trim(),
-      paymentMethod,
+      newPaymentAmount: String(newPaymentAmount || '').trim(),
     });
     return currentSnapshot !== initialSnapshotRef.current;
-  }, [loading, isReadOnly, items, discount, tax, amountPaid, paymentMethod]);
+  }, [loading, isReadOnly, items, discount, tax, newPaymentAmount]);
 
   useUnsavedChanges(isDirty, 'consultation-billing');
 
@@ -110,12 +120,14 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
           setInvoiceStatus(inv.paymentStatus || 'Pending');
           setDiscount(inv.discount !== undefined && inv.discount !== null && inv.discount !== 0 ? String(inv.discount) : '');
           setTax(inv.tax !== undefined && inv.tax !== null && inv.tax !== 0 ? String(inv.tax) : '');
-          setAmountPaid(inv.amountPaid !== undefined && inv.amountPaid !== null && inv.amountPaid !== 0 ? String(inv.amountPaid) : '');
           setLastSavedAt(inv.date || inv.createdAt);
+          setPayments(Array.isArray(inv.payments) ? inv.payments : []);
 
-          if (inv.payments && inv.payments.length > 0) {
-            setPaymentMethod(inv.payments[0].method || 'Cash');
-          }
+          setNewPaymentAmount('');
+          setNewPaymentDate(formatToDateString(new Date()));
+          setNewPaymentTime(formatTime12Hour(new Date()));
+          setNewPaymentMethod('Cash');
+          setNewPaymentNotes('');
 
           const loadedItems = (inv.items && inv.items.length > 0)
             ? inv.items.map((it) => ({
@@ -130,8 +142,6 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
 
           const initDiscount = inv.discount !== undefined && inv.discount !== null && inv.discount !== 0 ? String(inv.discount) : '';
           const initTax = inv.tax !== undefined && inv.tax !== null && inv.tax !== 0 ? String(inv.tax) : '';
-          const initAmountPaid = inv.amountPaid !== undefined && inv.amountPaid !== null && inv.amountPaid !== 0 ? String(inv.amountPaid) : '';
-          const initPayMethod = (inv.payments && inv.payments.length > 0) ? (inv.payments[0].method || 'Cash') : 'Cash';
 
           initialSnapshotRef.current = JSON.stringify({
             items: loadedItems.map((it) => ({
@@ -142,8 +152,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
             })),
             discount: initDiscount,
             tax: initTax,
-            amountPaid: initAmountPaid,
-            paymentMethod: initPayMethod,
+            newPaymentAmount: '',
           });
         } else {
           // No invoice exists yet — check for treatment plans / records to pre-fill
@@ -151,8 +160,13 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
           setInvoiceStatus('Pending');
           setDiscount('');
           setTax('');
-          setAmountPaid('');
+          setPayments([]);
           setLastSavedAt(null);
+          setNewPaymentAmount('');
+          setNewPaymentDate(formatToDateString(new Date()));
+          setNewPaymentTime(formatTime12Hour(new Date()));
+          setNewPaymentMethod('Cash');
+          setNewPaymentNotes('');
 
           try {
             const [plansRes, recordsRes] = await Promise.all([
@@ -202,8 +216,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
               })),
               discount: '',
               tax: '',
-              amountPaid: '',
-              paymentMethod: 'Cash',
+              newPaymentAmount: '',
             });
           } catch {
             if (isMounted) {
@@ -213,8 +226,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                 items: emptyItems.map((it) => ({ service: '', treatment: '', quantity: 1, unitPrice: '' })),
                 discount: '',
                 tax: '',
-                amountPaid: '',
-                paymentMethod: 'Cash',
+                newPaymentAmount: '',
               });
             }
           }
@@ -262,7 +274,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
     });
   };
 
-  // Live client-side calculations for immediate feedback
+  // Live client-side calculations
   const subtotal = items.reduce((sum, it) => {
     const price = Math.max(0, Number(it.unitPrice) || 0);
     const qty = Math.max(1, Number(it.quantity) || 1);
@@ -272,20 +284,22 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
   const numDiscount = Math.max(0, Number(discount) || 0);
   const numTax = Math.max(0, Number(tax) || 0);
   const total = Math.max(0, subtotal - numDiscount + numTax);
-  const numAmountPaid = Math.max(0, Number(amountPaid) || 0);
-  const liveBalance = Math.max(0, total - numAmountPaid);
 
-  // Live status badge calculation
-  const computedPaymentStatus =
-    numAmountPaid >= total && total > 0
-      ? 'Paid'
-      : numAmountPaid > 0 && numAmountPaid < total
-      ? 'Partially Paid'
-      : 'Pending';
+  const existingPaidSum = useMemo(() => {
+    return (payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  }, [payments]);
 
-  const statusToDisplay = invoiceId ? invoiceStatus : computedPaymentStatus;
+  const enteredNewPaymentAmt = Math.max(0, Number(newPaymentAmount) || 0);
+  const liveTotalPaid = existingPaidSum + enteredNewPaymentAmt;
+  const liveBalance = Math.max(0, total - liveTotalPaid);
 
-  // Save handler (Create or Update)
+  const liveStatus = useMemo(() => {
+    if (liveTotalPaid >= total && total > 0) return 'Paid';
+    if (liveTotalPaid > 0 && liveTotalPaid < total) return 'Partially Paid';
+    return 'Pending';
+  }, [liveTotalPaid, total]);
+
+  // Save handler (Create or Update Single Invoice)
   const handleSaveInvoice = async (e) => {
     if (e) e.preventDefault();
     if (isReadOnly) return;
@@ -307,6 +321,18 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
 
     setSaving(true);
     try {
+      let newPaymentPayload = null;
+      if (enteredNewPaymentAmt > 0) {
+        const payDateObj = combineDateAndTime(newPaymentDate, newPaymentTime);
+        newPaymentPayload = {
+          amount: enteredNewPaymentAmt,
+          method: newPaymentMethod || 'Cash',
+          date: payDateObj.toISOString(),
+          time: newPaymentTime,
+          notes: capitalizeWords(newPaymentNotes.trim()),
+        };
+      }
+
       const payload = {
         consultation: consultationId,
         patient: patientId,
@@ -315,13 +341,12 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
         items: validItems,
         discount: numDiscount,
         tax: numTax,
-        amountPaid: numAmountPaid,
-        paymentMethod: paymentMethod || 'Cash',
+        ...(newPaymentPayload ? { newPayment: newPaymentPayload } : {}),
       };
 
       let res;
       if (invoiceId) {
-        // Update existing invoice
+        // Update existing single invoice linked to this consultation
         res = await api.put(`/invoices/${invoiceId}`, payload);
       } else {
         // Create new invoice linked to this consultation
@@ -334,8 +359,14 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
         setInvoiceStatus(savedInv.paymentStatus || 'Pending');
         setDiscount(savedInv.discount !== undefined && savedInv.discount !== null && savedInv.discount !== 0 ? String(savedInv.discount) : '');
         setTax(savedInv.tax !== undefined && savedInv.tax !== null && savedInv.tax !== 0 ? String(savedInv.tax) : '');
-        setAmountPaid(savedInv.amountPaid !== undefined && savedInv.amountPaid !== null && savedInv.amountPaid !== 0 ? String(savedInv.amountPaid) : '');
         setLastSavedAt(savedInv.date || savedInv.createdAt);
+        setPayments(Array.isArray(savedInv.payments) ? savedInv.payments : []);
+
+        // Reset new payment form fields
+        setNewPaymentAmount('');
+        setNewPaymentDate(formatToDateString(new Date()));
+        setNewPaymentTime(formatTime12Hour(new Date()));
+        setNewPaymentNotes('');
 
         const currentSavedItems = (savedInv.items && savedInv.items.length > 0)
           ? savedInv.items.map((it) => ({
@@ -355,12 +386,17 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
           })),
           discount: savedInv.discount !== undefined && savedInv.discount !== null && savedInv.discount !== 0 ? String(savedInv.discount) : '',
           tax: savedInv.tax !== undefined && savedInv.tax !== null && savedInv.tax !== 0 ? String(savedInv.tax) : '',
-          amountPaid: savedInv.amountPaid !== undefined && savedInv.amountPaid !== null && savedInv.amountPaid !== 0 ? String(savedInv.amountPaid) : '',
-          paymentMethod: (savedInv.payments && savedInv.payments.length > 0) ? (savedInv.payments[0].method || 'Cash') : 'Cash',
+          newPaymentAmount: '',
         });
       }
 
-      showSuccess(invoiceId ? 'Invoice updated successfully!' : 'Invoice generated successfully!');
+      showSuccess(
+        enteredNewPaymentAmt > 0
+          ? `Payment of ₹${enteredNewPaymentAmt.toLocaleString()} added and invoice updated!`
+          : invoiceId
+          ? 'Invoice updated successfully!'
+          : 'Invoice generated successfully!'
+      );
       fetchPatientBillingHistory();
     } catch (err) {
       console.error('Failed to save invoice:', err);
@@ -392,10 +428,10 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-display text-sm font-bold text-ink">
-                  Itemized Procedures & Charges
+                  Consultation Invoice & Payment Details
                 </h3>
-                <span className={`badge border text-[10px] font-bold py-0.5 px-2 ${STATUS_BADGE_CLASSES[statusToDisplay] || 'bg-slate-100 text-slate-800'}`}>
-                  {statusToDisplay}
+                <span className={`badge border text-[10px] font-bold py-0.5 px-2 ${STATUS_BADGE_CLASSES[liveStatus] || 'bg-slate-100 text-slate-800'}`}>
+                  {liveStatus}
                 </span>
                 {invoiceId && (
                   <span className="badge bg-brand/10 text-brand font-mono text-[10px] font-bold border border-brand/20">
@@ -405,7 +441,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
               </div>
               <p className="text-[11px] text-ink-soft mt-0.5">
                 {invoiceId
-                  ? `Saved Invoice linked to this visit • Last updated ${lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'recently'}`
+                  ? `Single invoice for this visit • Last updated ${lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'recently'}`
                   : 'Enter treatment procedures and pricing for this consultation.'}
               </p>
             </div>
@@ -428,7 +464,15 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                 className="btn-primary py-1.5 px-4 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                <span>{saving ? 'Saving...' : invoiceId ? 'Update Invoice' : 'Save Invoice'}</span>
+                <span>
+                  {saving
+                    ? 'Saving...'
+                    : enteredNewPaymentAmt > 0
+                    ? `Save & Record ₹${enteredNewPaymentAmt.toLocaleString()} Payment`
+                    : invoiceId
+                    ? 'Update Invoice'
+                    : 'Save Invoice'}
+                </span>
               </button>
             </div>
           )}
@@ -468,7 +512,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                             <input
                               type="text"
                               required
-                              placeholder="e.g. Scaling & Polishing, Root Canal"
+                              placeholder="Procedure name..."
                               value={row.service}
                               onChange={(e) => handleItemChange(idx, 'service', e.target.value)}
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-ink placeholder:text-slate-400 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition-all shadow-2xs"
@@ -483,7 +527,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                           ) : (
                             <input
                               type="text"
-                              placeholder="e.g. Tooth #16 or notes"
+                              placeholder="Tooth or notes..."
                               value={row.treatment}
                               onChange={(e) => handleItemChange(idx, 'treatment', e.target.value)}
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-ink placeholder:text-slate-400 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition-all shadow-2xs"
@@ -595,7 +639,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                       ) : (
                         <input
                           type="text"
-                          placeholder="e.g. Scaling & Polishing, Root Canal"
+                          placeholder="Procedure name..."
                           value={row.service}
                           onChange={(e) => handleItemChange(idx, 'service', e.target.value)}
                           className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-ink placeholder:text-slate-400 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none"
@@ -613,7 +657,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                         ) : (
                           <input
                             type="text"
-                            placeholder="e.g. Tooth #16"
+                            placeholder="Tooth or notes..."
                             value={row.treatment}
                             onChange={(e) => handleItemChange(idx, 'treatment', e.target.value)}
                             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-ink placeholder:text-slate-400 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none"
@@ -649,62 +693,15 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
             </div>
           </div>
 
-          {/* Financial Details & Calculations Responsive Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-2">
-            {/* Left Column: Payment Collection Method & Real-Time Sync Info (5 cols) */}
-            <div className="lg:col-span-5 space-y-3.5">
-              <div className="p-4 rounded-xl bg-bg/40 border border-border space-y-2.5">
-                <label className="block font-bold text-ink text-xs uppercase tracking-wider">
-                  Payment Collection Method
-                </label>
-                {isReadOnly ? (
-                  <div className="font-semibold text-ink font-mono bg-surface p-2 rounded-lg border border-border inline-block">
-                    {paymentMethod}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Cash', 'Card', 'UPI'].map((method) => {
-                      const isSelected = paymentMethod === method;
-                      return (
-                        <button
-                          key={method}
-                          type="button"
-                          onClick={() => setPaymentMethod(method)}
-                          className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                            isSelected
-                              ? 'bg-brand text-white border-brand shadow-sm'
-                              : 'bg-surface border-slate-200 text-ink-soft hover:text-ink hover:bg-bg/80'
-                          }`}
-                        >
-                          {method}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-brand-soft/20 border border-brand/20 text-ink-soft text-[11px] leading-relaxed flex items-start gap-2.5">
-                <div className="h-5 w-5 rounded-md bg-brand-light text-brand flex items-center justify-center shrink-0 font-bold mt-0.5">
-                  i
-                </div>
-                <div>
-                  <span className="font-bold text-brand block mb-0.5">Real-time Financial Sync</span>
-                  Invoices saved here are automatically synchronized with the Patient EMR and the Clinic Billing dashboard.
-                </div>
-              </div>
+          {/* Financial Details & Live Calculations Card */}
+          <div className="p-4 sm:p-5 rounded-xl bg-bg/50 border border-border space-y-3">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-ink-soft">Items Subtotal:</span>
+              <span className="font-mono text-ink font-bold text-sm">₹{subtotal.toLocaleString()}</span>
             </div>
 
-            {/* Right Column: Calculations & Live Totals Breakdown (7 cols) */}
-            <div className="lg:col-span-7 p-4 sm:p-5 rounded-xl bg-bg/50 border border-border space-y-3">
-              {/* Items Subtotal */}
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-semibold text-ink-soft">Items Subtotal:</span>
-                <span className="font-mono text-ink font-bold text-sm">₹{subtotal.toLocaleString()}</span>
-              </div>
-
-              {/* Discount */}
-              <div className="flex items-center justify-between gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-ink-soft flex items-center gap-1.5">
                   <Tag size={13} className="text-emerald-700" /> Discount (₹):
                 </span>
@@ -727,8 +724,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                 )}
               </div>
 
-              {/* Tax */}
-              <div className="flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-ink-soft">Tax (₹):</span>
                 {isReadOnly ? (
                   <span className="font-mono font-medium text-ink">
@@ -748,78 +744,268 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Total Invoice Amount */}
-              <div className="flex justify-between items-center text-xs font-bold text-ink border-t border-border/80 pt-2.5">
-                <span className="uppercase tracking-wider text-[11px]">Total Invoice Amount:</span>
-                <span className="font-mono text-base font-bold text-brand">₹{total.toLocaleString()}</span>
+            {/* Totals Summary Row */}
+            <div className="grid grid-cols-3 gap-2 border-t border-border/80 pt-3 text-center">
+              <div className="p-2.5 rounded-xl bg-surface border border-border">
+                <span className="text-[10px] uppercase font-bold text-ink-soft block">Total Invoice Amount</span>
+                <span className="font-mono text-base font-bold text-brand block mt-0.5">
+                  ₹{total.toLocaleString()}
+                </span>
               </div>
-
-              {/* Amount Paid */}
-              <div className="flex items-center justify-between gap-3 text-xs border-t border-border/60 pt-2.5">
-                <span className="font-bold text-emerald-800">Amount Paid (₹):</span>
-                {isReadOnly ? (
-                  <span className="font-mono font-bold text-emerald-700 text-sm">
-                    ₹{numAmountPaid.toLocaleString()}
-                  </span>
-                ) : (
-                  <div className="relative inline-block w-28 sm:w-32">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600 font-mono text-xs font-bold">₹</span>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      value={amountPaid}
-                      onChange={(e) => setAmountPaid(e.target.value)}
-                      className="w-full rounded-lg border border-emerald-300 bg-white pl-6 pr-2.5 py-1.5 text-xs text-right font-mono font-bold text-emerald-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
-                )}
+              <div className="p-2.5 rounded-xl bg-surface border border-border">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 block">Total Amount Paid</span>
+                <span className="font-mono text-base font-bold text-emerald-700 block mt-0.5">
+                  ₹{liveTotalPaid.toLocaleString()}
+                </span>
               </div>
-
-              {/* Balance Due (Live-computed, READ-ONLY, NOT an input field) */}
-              <div className="flex justify-between items-center text-xs font-bold border-t border-border/80 pt-2.5">
-                <span className="uppercase tracking-wider text-[11px] text-ink">Balance Due:</span>
-                <span
-                  className={`font-mono text-base font-bold px-2 py-0.5 rounded-lg ${
-                    liveBalance > 0
-                      ? 'text-rose-600 bg-rose-50 border border-rose-200'
-                      : 'text-emerald-700 bg-emerald-50 border border-emerald-200'
-                  }`}
-                >
+              <div className={`p-2.5 rounded-xl border ${liveBalance > 0 ? 'bg-rose-50/50 border-rose-200' : 'bg-emerald-50/50 border-emerald-200'}`}>
+                <span className="text-[10px] uppercase font-bold text-ink block">Balance Due</span>
+                <span className={`font-mono text-base font-bold block mt-0.5 ${liveBalance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
                   ₹{liveBalance.toLocaleString()}
                 </span>
               </div>
             </div>
           </div>
 
+          {/* PAYMENT HISTORY FOR THIS CONSULTATION INVOICE */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+                <History size={14} className="text-brand" /> Payment History for this Visit ({payments.length})
+              </span>
+              {payments.length > 0 && (
+                <span className="text-[11px] text-emerald-800 font-bold font-mono">
+                  Collected so far: ₹{existingPaidSum.toLocaleString()}
+                </span>
+              )}
+            </div>
+
+            {payments.length > 0 ? (
+              <div className="card overflow-hidden border border-border shadow-2xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-bg/50 text-ink-soft font-semibold">
+                        <th className="py-2 px-3 text-center w-8">#</th>
+                        <th className="py-2 px-3">Date & Time</th>
+                        <th className="py-2 px-3">Method</th>
+                        <th className="py-2 px-3">Notes / Ref</th>
+                        <th className="py-2 px-3 text-right">Amount Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {payments.map((p, idx) => {
+                        const pDate = p.date ? new Date(p.date) : new Date();
+                        const formattedDate = pDate.toLocaleDateString(undefined, {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        });
+                        const formattedTime = p.time || pDate.toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+
+                        return (
+                          <tr key={p._id || idx} className="hover:bg-bg/25">
+                            <td className="py-2 px-3 text-center font-mono text-ink-soft">
+                              {idx + 1}
+                            </td>
+                            <td className="py-2 px-3 font-medium text-ink">
+                              <div className="flex items-center gap-1.5">
+                                <span>{formattedDate}</span>
+                                <span className="text-[10px] text-ink-soft font-mono">({formattedTime})</span>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="badge bg-slate-100 text-slate-800 font-semibold text-[10px] border border-slate-200">
+                                {p.method || 'Cash'}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-ink-soft">
+                              {p.notes || p.reason || '—'}
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-emerald-800">
+                              ₹{(Number(p.amount) || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-bg/30 border border-dashed border-border text-center text-ink-soft text-xs">
+                No payment installments recorded yet for this invoice.
+              </div>
+            )}
+          </div>
+
+          {/* RECORD / ADD PAYMENT SECTION (Inline) */}
+          {!isReadOnly && (
+            <div className="card p-4 bg-emerald-50/30 border border-emerald-200/80 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <CreditCard size={14} className="text-emerald-700" />
+                  {payments.length === 0 ? 'Collect Initial Payment' : 'Add Another Payment to this Invoice'}
+                </span>
+                {liveBalance > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNewPaymentAmount(String(liveBalance))}
+                    className="text-[11px] font-bold text-brand hover:underline cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <span>Pay Full Balance (₹{liveBalance.toLocaleString()})</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Amount to Pay */}
+                <div>
+                  <label className="block text-[11px] font-bold text-ink mb-1">
+                    Payment Amount (₹)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-700 font-mono text-xs font-bold">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="0"
+                      value={newPaymentAmount}
+                      onChange={(e) => setNewPaymentAmount(e.target.value)}
+                      className="w-full rounded-lg border border-emerald-300 bg-white pl-6 pr-2.5 py-1.5 text-xs text-right font-mono font-bold text-emerald-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Method */}
+                <div>
+                  <label className="block text-[11px] font-bold text-ink mb-1">
+                    Payment Method
+                  </label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {['Cash', 'Card', 'UPI'].map((method) => {
+                      const isSelected = newPaymentMethod === method;
+                      return (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => setNewPaymentMethod(method)}
+                          className={`py-1.5 px-1.5 rounded-lg border text-[11px] font-bold transition-all ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-white border-slate-200 text-ink-soft hover:text-ink hover:bg-slate-50'
+                          }`}
+                        >
+                          {method}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Payment Date */}
+                <div>
+                  <label className="block text-[11px] font-bold text-ink mb-1">
+                    Payment Date
+                  </label>
+                  <DatePicker
+                    value={newPaymentDate}
+                    maxDate={new Date()}
+                    onChange={(d, dStr) => setNewPaymentDate(dStr)}
+                    inputClassName="py-1 text-xs h-[34px]"
+                  />
+                </div>
+
+                {/* Payment Time */}
+                <div>
+                  <label className="block text-[11px] font-bold text-ink mb-1">
+                    Payment Time
+                  </label>
+                  <SplitTimeInput
+                    label=""
+                    value={newPaymentTime}
+                    onChange={(t12) => setNewPaymentTime(t12)}
+                  />
+                </div>
+              </div>
+
+              {/* Optional Notes / Reference */}
+              <div>
+                <label className="block text-[11px] font-bold text-ink mb-1">
+                  Payment Note / Reference (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. UPI Transaction ID, Card auth code, advance payment..."
+                  value={newPaymentNotes}
+                  onChange={(e) => setNewPaymentNotes(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-ink placeholder:text-slate-400 focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none"
+                />
+              </div>
+
+              {enteredNewPaymentAmt > 0 && (
+                <div className="p-2.5 rounded-lg bg-emerald-100/50 border border-emerald-300 text-emerald-900 text-[11px] font-medium flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-emerald-700" />
+                    Adding payment of <strong>₹{enteredNewPaymentAmt.toLocaleString()}</strong> via {newPaymentMethod}.
+                  </span>
+                  <span>
+                    New Balance: <strong>₹{liveBalance.toLocaleString()}</strong> ({liveStatus})
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Bottom Save Action Bar */}
           <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-border">
             {invoiceId && (
               <button
                 type="button"
-                onClick={() => openBillPrintWindow({
-                  invoice: {
-                    _id: invoiceId,
-                    patient: consultation?.patient,
-                    doctor: consultation?.doctor,
-                    opNumber: consultation?.patient?.opNumber,
-                    items: items.map((it) => ({
-                      service: it.service,
-                      treatment: it.treatment,
-                      quantity: Number(it.quantity) || 1,
-                      unitPrice: Number(it.unitPrice) || 0,
-                    })),
-                    discount: numDiscount,
-                    tax: numTax,
-                    total,
-                    amountPaid: numAmountPaid,
-                    balance: liveBalance,
-                    paymentStatus: statusToDisplay,
-                    date: lastSavedAt || new Date(),
-                    createdAt: lastSavedAt || new Date(),
+                onClick={() => {
+                  const allPayments = [...payments];
+                  if (enteredNewPaymentAmt > 0) {
+                    const payDateObj = combineDateAndTime(newPaymentDate, newPaymentTime);
+                    allPayments.push({
+                      amount: enteredNewPaymentAmt,
+                      method: newPaymentMethod || 'Cash',
+                      date: payDateObj.toISOString(),
+                      time: newPaymentTime,
+                      notes: newPaymentNotes,
+                      reason: newPaymentNotes,
+                    });
                   }
-                }, true)}
+
+                  openBillPrintWindow({
+                    invoice: {
+                      _id: invoiceId,
+                      patient: consultation?.patient,
+                      doctor: consultation?.doctor,
+                      opNumber: consultation?.patient?.opNumber,
+                      items: items.map((it) => ({
+                        service: it.service,
+                        treatment: it.treatment,
+                        quantity: Number(it.quantity) || 1,
+                        unitPrice: Number(it.unitPrice) || 0,
+                      })),
+                      discount: numDiscount,
+                      tax: numTax,
+                      total,
+                      amountPaid: liveTotalPaid,
+                      balance: liveBalance,
+                      paymentStatus: liveStatus,
+                      payments: allPayments,
+                      date: lastSavedAt || new Date(),
+                      createdAt: lastSavedAt || new Date(),
+                    }
+                  }, true);
+                }}
                 className="btn-secondary w-full sm:w-auto py-2.5 px-5 text-xs font-bold inline-flex items-center justify-center gap-2 hover:border-brand/50 hover:text-brand cursor-pointer"
               >
                 <Printer size={15} />
@@ -835,7 +1021,15 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                 className="btn-primary w-full sm:w-auto py-2.5 px-7 text-xs font-bold inline-flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
                 {saving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
-                <span>{saving ? 'Saving Invoice...' : invoiceId ? 'Update Invoice & Balance' : 'Save Invoice & Record'}</span>
+                <span>
+                  {saving
+                    ? 'Saving Invoice...'
+                    : enteredNewPaymentAmt > 0
+                    ? `Save & Record ₹${enteredNewPaymentAmt.toLocaleString()} Payment`
+                    : invoiceId
+                    ? 'Update Invoice & Balance'
+                    : 'Save Invoice & Record'}
+                </span>
               </button>
             )}
           </div>
@@ -958,10 +1152,10 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                                   setIsEditModalOpen(true);
                                 }}
                                 className="btn-secondary py-1 px-2 text-xs font-semibold inline-flex items-center gap-1 text-brand hover:underline cursor-pointer"
-                                title="Edit Invoice Details"
+                                title="Edit / Add Payment to Invoice"
                               >
                                 <Edit3 size={13} />
-                                <span>Edit</span>
+                                <span>Edit / Pay</span>
                               </button>
                               <button
                                 type="button"
@@ -1054,7 +1248,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                         className="btn-secondary py-1 px-2.5 text-xs font-semibold text-brand inline-flex items-center gap-1"
                       >
                         <Edit3 size={13} />
-                        <span>Edit</span>
+                        <span>Edit / Pay</span>
                       </button>
                       <button
                         type="button"
@@ -1164,24 +1358,38 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                 </div>
               </div>
 
-              {/* Payment History Log (if any) */}
+              {/* Payment History Log */}
               {selectedHistoryInvoice.payments && selectedHistoryInvoice.payments.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-display text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
                     <Clock size={14} className="text-emerald-700" /> Payment Log
                   </h4>
                   <div className="space-y-1.5">
-                    {selectedHistoryInvoice.payments.map((p, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-bg/50 border border-border font-medium text-xs">
-                        <div>
-                          <span className="font-bold text-emerald-800">{p.method || 'Payment'}</span>
-                          <span className="text-[11px] text-ink-soft block mt-0.5">
-                            {new Date(p.date || Date.now()).toLocaleString()}
-                          </span>
+                    {selectedHistoryInvoice.payments.map((p, idx) => {
+                      const pDate = p.date ? new Date(p.date) : new Date();
+                      const formattedDate = pDate.toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      });
+                      const formattedTime = p.time || pDate.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
+
+                      return (
+                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-bg/50 border border-border font-medium text-xs">
+                          <div>
+                            <span className="font-bold text-emerald-800">{p.method || 'Payment'}</span>
+                            {p.notes && <span className="text-[11px] text-ink block">{p.notes}</span>}
+                            <span className="text-[10px] text-ink-soft block mt-0.5">
+                              {formattedDate} at {formattedTime}
+                            </span>
+                          </div>
+                          <span className="font-mono font-bold text-emerald-700 text-sm">₹{(Number(p.amount) || 0).toLocaleString()}</span>
                         </div>
-                        <span className="font-mono font-bold text-emerald-700 text-sm">₹{(p.amount || 0).toLocaleString()}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1239,7 +1447,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
         </div>
       )}
 
-      {/* EDIT INVOICE MODAL */}
+      {/* EDIT / PAY INVOICE MODAL */}
       <InvoiceEditModal
         isOpen={isEditModalOpen}
         invoice={selectedInvoiceForEdit}
@@ -1254,7 +1462,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
             setInvoiceStatus(updated.paymentStatus || 'Pending');
             setDiscount(updated.discount !== undefined && updated.discount !== null && updated.discount !== 0 ? String(updated.discount) : '');
             setTax(updated.tax !== undefined && updated.tax !== null && updated.tax !== 0 ? String(updated.tax) : '');
-            setAmountPaid(updated.amountPaid !== undefined && updated.amountPaid !== null && updated.amountPaid !== 0 ? String(updated.amountPaid) : '');
+            setPayments(Array.isArray(updated.payments) ? updated.payments : []);
             setLastSavedAt(updated.date || updated.createdAt || new Date());
             if (updated.items) {
               setItems(updated.items.map((it) => ({

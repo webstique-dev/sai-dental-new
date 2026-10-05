@@ -142,7 +142,7 @@ app.use((err, req, res, next) => {
 
 const http = require('http');
 const { initSocket } = require('./utils/socket');
-const { autoCheckInScheduledAppointments, checkAndMarkMissedAppointments } = require('./utils/statusSync');
+const { checkAndMarkMissedAppointments } = require('./utils/statusSync');
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -159,15 +159,14 @@ server.listen(PORT, HOST, () => {
   connectDB()
     .then(() => {
       seedInitialMedicines().catch((err) => console.error('Error seeding medicines:', err));
-      autoCheckInScheduledAppointments();
       checkAndMarkMissedAppointments();
 
       setInterval(() => {
-        autoCheckInScheduledAppointments();
         checkAndMarkMissedAppointments();
-      }, 15 * 1000);
+      }, 60 * 1000);
     })
     .catch((err) => {
       console.error('MongoDB initialization error:', err);
     });
 });
+

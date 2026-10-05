@@ -183,7 +183,7 @@ export default function ClinicSettings() {
                 required
                 type="text"
                 className="input-field"
-                placeholder="e.g. Sai Dental Clinic – Digital Platform"
+                placeholder="Enter clinic name"
                 value={clinicName}
                 onChange={(e) => setClinicName(capitalizeWords(e.target.value))}
               />
@@ -194,7 +194,7 @@ export default function ClinicSettings() {
               <input
                 type="text"
                 className="input-field"
-                placeholder="+91 98765 43210"
+                placeholder="Enter contact phone number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
@@ -205,7 +205,7 @@ export default function ClinicSettings() {
               <input
                 type="email"
                 className="input-field"
-                placeholder="contact@clinic.com"
+                placeholder="Enter email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />

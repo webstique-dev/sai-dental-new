@@ -276,7 +276,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                   type="text"
                   disabled={isReadOnly}
                   className="input-field py-1.5 text-xs"
-                  placeholder={`e.g. Additional details for ${item.finding}...`}
+                  placeholder={`Enter details for ${item.finding}...`}
                   value={item.notes || ''}
                   onChange={(e) => updateExtraoralNotes(item.finding, e.target.value)}
                 />
@@ -334,7 +334,7 @@ export default function ExaminationTab({ consultation, isReadOnly = false }) {
                   type="text"
                   disabled={isReadOnly}
                   className="input-field py-1.5 text-xs"
-                  placeholder={`e.g. Additional details for ${item.area}...`}
+                  placeholder={`Enter details for ${item.area}...`}
                   value={item.notes || ''}
                   onChange={(e) => updateSoftTissueNotes(item.area, e.target.value)}
                 />

@@ -9,6 +9,7 @@ const appointmentStatusOptions = [
   'Cancelled',
   'No Show',
   'Missed',
+  'Hold On',
 ];
 
 const appointmentTypeOptions = [

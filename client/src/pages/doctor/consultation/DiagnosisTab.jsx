@@ -197,7 +197,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="e.g. Irreversible Pulpitis, Dental Caries, Chronic Periodontitis"
+                  placeholder="Enter diagnosis or condition..."
                   value={diagnosisText}
                   onChange={(e) => setDiagnosisText(capitalizeWords(e.target.value))}
                 />
@@ -224,7 +224,7 @@ export default function DiagnosisTab({ consultation, isReadOnly = false }) {
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="e.g. Deep occlusal cavity, tenderness on percussion"
+                  placeholder="Enter clinical findings..."
                   value={clinicalFindings}
                   onChange={(e) => setClinicalFindings(capitalizeWords(e.target.value))}
                 />

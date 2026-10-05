@@ -46,6 +46,15 @@ async function listAppointments(req, res, next) {
     if (dateFilterPreset === 'today') {
       const { start, end } = getDayBounds(new Date());
       filter.date = { $gte: start, $lte: end };
+      if (!status) {
+        filter.status = { $ne: 'Hold On' };
+      }
+    } else if (dateFilterPreset === 'hold-on' || status === 'Hold On') {
+      const { minStart } = getDayBounds(new Date());
+      filter.$or = [
+        { status: 'Hold On' },
+        { status: 'Checked-In', date: { $lt: minStart } },
+      ];
     } else if (dateFilterPreset === 'upcoming') {
       const now = new Date();
       filter.date = { $gte: now };
@@ -130,9 +139,9 @@ async function createAppointment(req, res, next) {
       data.doctor = req.user._id;
     }
 
-    // Default status is Checked-In if not specified
+    // Default status is Scheduled if not specified
     if (!data.status) {
-      data.status = 'Checked-In';
+      data.status = 'Scheduled';
     }
 
     // Normalize Check-in to Checked-In

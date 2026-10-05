@@ -568,7 +568,7 @@ export default function PatientDetailsEditModal({
                     min="0"
                     max="130"
                     className="input-field py-1.5 text-xs font-mono"
-                    placeholder="e.g. 4.5 or 35"
+                    placeholder="Enter age"
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                   />
@@ -636,7 +636,7 @@ export default function PatientDetailsEditModal({
                   <input
                     type="text"
                     className="input-field py-1.5 text-xs"
-                    placeholder="e.g. Engineer, Business"
+                    placeholder="Enter occupation"
                     value={formData.occupation}
                     onChange={(e) => setFormData({ ...formData, occupation: capitalizeWords(e.target.value) })}
                   />
@@ -768,7 +768,7 @@ export default function PatientDetailsEditModal({
                   <input
                     type="text"
                     className="input-field py-1.5 text-xs max-w-sm"
-                    placeholder="Type custom condition (e.g. GERD, Penicillin Allergy)..."
+                    placeholder="Enter custom condition..."
                     value={customMedicalInput}
                     onChange={(e) => setCustomMedicalInput(capitalizeWords(e.target.value))}
                     onKeyDown={(e) => {
@@ -813,7 +813,7 @@ export default function PatientDetailsEditModal({
                   <input
                     type="text"
                     className="input-field py-1.5 text-xs"
-                    placeholder="e.g. 120/80 mmHg"
+                    placeholder="Blood pressure"
                     value={formData.vitals?.bp || ''}
                     onChange={(e) =>
                       setFormData({
@@ -829,7 +829,7 @@ export default function PatientDetailsEditModal({
                   <input
                     type="text"
                     className="input-field py-1.5 text-xs"
-                    placeholder="e.g. 110 mg/dL"
+                    placeholder="Blood sugar"
                     value={formData.vitals?.rbs || ''}
                     onChange={(e) =>
                       setFormData({
@@ -949,7 +949,7 @@ export default function PatientDetailsEditModal({
                   <input
                     type="text"
                     className="input-field py-1.5 text-xs max-w-sm"
-                    placeholder="Type custom habit (e.g. Betel nut, Vaping)..."
+                    placeholder="Enter custom habit..."
                     value={customHabitInput}
                     onChange={(e) => setCustomHabitInput(capitalizeWords(e.target.value))}
                     onKeyDown={(e) => {

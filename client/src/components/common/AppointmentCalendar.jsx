@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext.jsx';
 import {
   CalendarDays,
   Calendar,
@@ -10,6 +12,7 @@ import {
   Stethoscope,
   FileText,
   X,
+  ExternalLink,
 } from 'lucide-react';
 import { formatPatientFullName } from '../../utils/formatters.js';
 
@@ -38,7 +41,42 @@ export default function AppointmentCalendar({
   appointments = [],
   statusBadgeClasses = DEFAULT_STATUS_CLASSES,
 }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+
+  const getPatientId = (apt) => {
+    if (!apt) return null;
+    if (apt.patient && typeof apt.patient === 'object') {
+      return apt.patient._id || apt.patient.id || null;
+    }
+    if (typeof apt.patient === 'string' && apt.patient.length > 0) {
+      return apt.patient;
+    }
+    return apt.patientId || null;
+  };
+
+  const getPatientProfileUrl = (apt) => {
+    const patientId = getPatientId(apt);
+    if (!patientId) return null;
+    const role = user?.role || 'doctor';
+    if (role === 'receptionist') {
+      return `/reception/patients/${patientId}`;
+    }
+    if (role === 'admin') {
+      return `/admin/patients/${patientId}`;
+    }
+    return `/doctor/patients/${patientId}`;
+  };
+
+  const handlePatientClick = (apt) => {
+    const url = getPatientProfileUrl(apt);
+    if (url) {
+      navigate(url);
+    } else {
+      setSelectedAppointment(apt);
+    }
+  };
 
   // Deduplicate appointments by primary ID, linked appointment ID, or composite patient+date+time key
   const uniqueAppointments = useMemo(() => {
@@ -168,19 +206,21 @@ export default function AppointmentCalendar({
                     return (
                       <div
                         key={aptId}
-                        onClick={() => setSelectedAppointment(apt)}
-                        className="rounded-lg border border-border bg-bg/80 hover:bg-brand-light/20 p-2 text-xs transition-all cursor-pointer hover:border-brand hover:shadow-xs select-none"
-                        title="Click to view appointment details"
+                        onClick={() => handlePatientClick(apt)}
+                        className="rounded-lg border border-border bg-bg/80 hover:bg-brand-light/25 p-2 text-xs transition-all cursor-pointer hover:border-brand hover:shadow-sm select-none group"
+                        title="Click to view patient directory"
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
-                            setSelectedAppointment(apt);
+                            e.preventDefault();
+                            handlePatientClick(apt);
                           }
                         }}
                       >
-                        <div className="font-semibold text-ink truncate">
-                          {apt.time || '—'} {patientName}
+                        <div className="font-semibold text-ink group-hover:text-brand transition-colors flex items-center justify-between gap-1 truncate">
+                          <span className="truncate">{apt.time || '—'} {patientName}</span>
+                          <ExternalLink size={11} className="text-ink-soft group-hover:text-brand shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-[10px] text-ink-soft truncate">
                           Dr. {docName}
@@ -269,9 +309,21 @@ export default function AppointmentCalendar({
 
               {/* Patient Information Section */}
               <div className="space-y-2 p-3.5 rounded-xl border border-border bg-surface">
-                <div className="flex items-center gap-2 text-ink font-bold text-xs">
-                  <User size={14} className="text-brand shrink-0" />
-                  <span>Patient Information</span>
+                <div className="flex items-center justify-between text-ink font-bold text-xs">
+                  <div className="flex items-center gap-2">
+                    <User size={14} className="text-brand shrink-0" />
+                    <span>Patient Information</span>
+                  </div>
+                  {getPatientProfileUrl(selectedAppointment) && (
+                    <button
+                      type="button"
+                      onClick={() => handlePatientClick(selectedAppointment)}
+                      className="text-[11px] text-brand hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <span>Open Profile</span>
+                      <ExternalLink size={12} />
+                    </button>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 pl-5">
                   <div>
@@ -402,14 +454,24 @@ export default function AppointmentCalendar({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end px-5 py-3 border-t border-border bg-bg/30">
+            <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-border bg-bg/30">
               <button
                 type="button"
                 onClick={() => setSelectedAppointment(null)}
-                className="btn-secondary py-1.5 px-5 text-xs font-semibold"
+                className="btn-secondary py-1.5 px-4 text-xs font-semibold"
               >
                 Close
               </button>
+              {getPatientProfileUrl(selectedAppointment) && (
+                <button
+                  type="button"
+                  onClick={() => handlePatientClick(selectedAppointment)}
+                  className="btn-primary py-1.5 px-4 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                >
+                  <ExternalLink size={13} />
+                  <span>View Patient Directory</span>
+                </button>
+              )}
             </div>
           </div>
         </div>,

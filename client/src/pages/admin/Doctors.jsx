@@ -522,7 +522,7 @@ export default function AdminDoctors() {
                       type="text"
                       required
                       className="input-field py-1.5"
-                      placeholder="e.g. Orthodontics, Endodontics"
+                      placeholder="Enter specialization"
                       value={profileForm.specialization}
                       onChange={(e) => setProfileForm({ ...profileForm, specialization: capitalizeWords(e.target.value) })}
                     />
@@ -532,7 +532,7 @@ export default function AdminDoctors() {
                     <input
                       type="text"
                       className="input-field py-1.5"
-                      placeholder="e.g. BDS, MDS, DNB"
+                      placeholder="Enter qualifications and degrees"
                       value={profileForm.qualification}
                       onChange={(e) => setProfileForm({ ...profileForm, qualification: capitalizeWords(e.target.value) })}
                     />

@@ -62,96 +62,14 @@ function getDayBounds(dateInput = new Date()) {
 }
 
 /**
- * Automatically checks in Scheduled appointments when their exact scheduled date & time is reached.
- * Generates a QueueEntry so the patient appears in the live doctor queue,
- * and emits Socket.IO real-time events.
+ * Manual check-in policy: appointments should never be checked in automatically.
+ * Kept as safe no-op function for backwards compatibility.
  */
 async function autoCheckInScheduledAppointments() {
-  try {
-    const now = new Date();
-
-    const scheduledAppointments = await Appointment.find({
-      status: 'Scheduled',
-      isDeleted: { $ne: true },
-    })
-      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
-      .populate('doctor', 'name email role specialization');
-
-    for (const appt of scheduledAppointments) {
-      if (!appt.date) continue;
-      const scheduledDateTime = parseAppointmentDateTime(appt.date, appt.time);
-      if (!scheduledDateTime) continue;
-
-      // End of local & UTC appointment day cutoff
-      const apptDate = new Date(appt.date);
-      const localEnd = new Date(
-        apptDate.getFullYear(),
-        apptDate.getMonth(),
-        apptDate.getDate(),
-        23,
-        59,
-        59,
-        999
-      );
-      const utcEnd = new Date(
-        Date.UTC(
-          apptDate.getUTCFullYear(),
-          apptDate.getUTCMonth(),
-          apptDate.getUTCDate(),
-          23,
-          59,
-          59,
-          999
-        )
-      );
-      const dateEndCutoff = new Date(Math.max(localEnd.getTime(), utcEnd.getTime()));
-
-      // If scheduled time has arrived AND the appointment date has not expired (end of day)
-      if (now >= scheduledDateTime && now <= dateEndCutoff) {
-        appt.status = 'Checked-In';
-        await appt.save();
-
-        // Ensure QueueEntry exists so it shows in live doctor queue
-        let qEntry = await QueueEntry.findOne({ appointment: appt._id });
-        if (!qEntry) {
-          const { minStart, maxEnd } = getDayBounds(now);
-          const queueDateStr = getFormattedDateString(now);
-          const lastEntry = await QueueEntry.findOne({ date: { $gte: minStart, $lte: maxEnd } }).sort({ token: -1 });
-          const nextToken = lastEntry && (lastEntry.token || lastEntry.queue_token) ? (lastEntry.token || lastEntry.queue_token) + 1 : 1;
-
-          qEntry = new QueueEntry({
-            token: nextToken,
-            queue_token: nextToken,
-            patient: appt.patient?._id || appt.patient,
-            doctor: appt.doctor?._id || appt.doctor,
-            appointment: appt._id,
-            type: appt.type || 'Appointment',
-            status: 'Checked-In',
-            checked_in_at: now,
-            checkInTime: now,
-            queue_date: queueDateStr,
-            date: now,
-          });
-          await qEntry.save();
-        }
-
-        await syncVisitStatus({ appointmentId: appt._id, status: 'Checked-In' });
-
-        // Lazy require socket module to avoid circular dependency
-        const { emitAppointmentUpdate, emitQueueUpdate } = require('./socket');
-        emitAppointmentUpdate(appt);
-        if (qEntry) {
-          const populatedQ = await QueueEntry.findById(qEntry._id)
-            .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
-            .populate('doctor', 'name email role specialization');
-          emitQueueUpdate(populatedQ || qEntry);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error auto checking-in scheduled appointments:', err);
-  }
+  // No automatic check-in. All appointments must be checked in manually by the user.
+  return;
 }
+
 
 /**
  * Automatically marks any Scheduled or Checked-In / In Consultation appointments and queue entries
@@ -219,8 +137,9 @@ async function checkAndMarkMissedAppointments() {
           continue;
         }
 
-        // Set status to Missed across all models
-        await syncVisitStatus({ appointmentId: appt._id, status: 'Missed' });
+        // Set status to Hold On for checked-in appointments that didn't complete, Missed for un-checked-in Scheduled
+        const targetStatus = (appt.status === 'Checked-In' || appt.status === 'Waiting') ? 'Hold On' : 'Missed';
+        await syncVisitStatus({ appointmentId: appt._id, status: targetStatus });
 
         const populatedAppt = await Appointment.findById(appt._id)
           .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
@@ -262,7 +181,8 @@ async function checkAndMarkMissedAppointments() {
           continue;
         }
 
-        await syncVisitStatus({ queueEntryId: qEntry._id, status: 'Missed' });
+        const targetStatus = (qEntry.status === 'Checked-In' || qEntry.status === 'Waiting') ? 'Hold On' : 'Missed';
+        await syncVisitStatus({ queueEntryId: qEntry._id, status: targetStatus });
 
         const populatedQ = await QueueEntry.findById(qEntry._id)
           .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex patientType dateOfBirth')
@@ -271,7 +191,7 @@ async function checkAndMarkMissedAppointments() {
       }
     }
   } catch (err) {
-    console.error('Error auto-flagging missed appointments:', err);
+    console.error('Error auto-flagging missed/hold-on appointments:', err);
   }
 }
 

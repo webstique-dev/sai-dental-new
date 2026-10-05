@@ -297,7 +297,7 @@ export default function DocumentsPanel({ patientId, consultationId, title = 'Pat
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="e.g. IOPAR wrt #16 Upper Right"
+                    placeholder="Enter document title or remarks..."
                     value={customName}
                     onChange={(e) => setCustomName(capitalizeWords(e.target.value))}
                   />

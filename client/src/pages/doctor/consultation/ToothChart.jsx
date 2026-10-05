@@ -1109,7 +1109,7 @@ function CompactConditionPopup({
               <div className="grid grid-cols-3 gap-1.5">
                 <input
                   type="text"
-                  placeholder="Name (e.g. Veneer)"
+                  placeholder="Condition name"
                   className="col-span-2 input-field py-1 text-xs"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
@@ -1117,7 +1117,7 @@ function CompactConditionPopup({
                 />
                 <input
                   type="text"
-                  placeholder="Code (VN)"
+                  placeholder="Code"
                   maxLength={4}
                   className="input-field uppercase font-mono py-1 text-xs"
                   value={customCode}
@@ -1161,7 +1161,7 @@ function CompactConditionPopup({
               <div className="p-2.5 pt-1 border-t border-border/60 space-y-2 bg-surface animate-fadeIn">
                 <input
                   type="text"
-                  placeholder="e.g. Composite Restoration, Root Canal, Crown..."
+                  placeholder="Enter treatment performed or planned..."
                   className="input-field py-1.5 text-xs"
                   value={treatment}
                   onChange={(e) => setTreatment(e.target.value)}
@@ -2331,7 +2331,7 @@ export default function ToothChart({
                       type="text"
                       maxLength={4}
                       className="input-field uppercase font-mono text-xs"
-                      placeholder="e.g. FL, FR, F1 (1-3 letters)"
+                      placeholder="Enter 1-3 letter code"
                       value={iconicCode}
                       onChange={(e) => setIconicCode(e.target.value.toUpperCase())}
                     />
@@ -2371,7 +2371,7 @@ export default function ToothChart({
                     <input
                       type="text"
                       className="input-field py-1.5 text-xs"
-                      placeholder="e.g. Composite Restoration, Pulpectomy"
+                      placeholder="Enter treatment performed or planned..."
                       value={formTreatment}
                       onChange={(e) => setFormTreatment(e.target.value)}
                     />

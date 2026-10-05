@@ -9,7 +9,7 @@ export default function MedicineSuggestionInput({
   onChange = () => {},
   onSelect = () => {},
   suggestions = [],
-  placeholder = 'e.g. Augmentin',
+  placeholder = 'Enter medicine name...',
   required = false,
   disabled = false,
   className = '',

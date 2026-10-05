@@ -464,7 +464,7 @@ export default function PatientRegistration() {
                     className={`input-field ${
                       errors.firstName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                     }`}
-                    placeholder="e.g. John"
+                    placeholder="Enter first name"
                     autoComplete="off"
                     autoCapitalize="words"
                     value={formData.firstName}
@@ -489,7 +489,7 @@ export default function PatientRegistration() {
                     className={`input-field ${
                       errors.lastName ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                     }`}
-                    placeholder="e.g. Doe"
+                    placeholder="Enter last name"
                     value={formData.lastName}
                     onChange={(e) => handleChange('lastName', capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')))}
                   />
@@ -514,7 +514,7 @@ export default function PatientRegistration() {
                       className={`input-field font-mono ${
                         errors.primaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                       }`}
-                      placeholder="9876543210"
+                      placeholder="Enter 10-digit phone number"
                       value={formData.primaryPhone}
                       onChange={(e) => handleChange('primaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                     />
@@ -538,7 +538,7 @@ export default function PatientRegistration() {
                     className={`input-field font-mono ${
                       errors.secondaryPhone ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                     }`}
-                    placeholder="9123456789"
+                    placeholder="Enter alternate phone number"
                     value={formData.secondaryPhone}
                     onChange={(e) => handleChange('secondaryPhone', e.target.value.replace(/\D/g, '').slice(0, 10))}
                   />
@@ -572,7 +572,7 @@ export default function PatientRegistration() {
                     className={`input-field font-mono ${
                       errors.age ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-500 focus:ring-rose-500/20' : ''
                     }`}
-                    placeholder="e.g. 28"
+                    placeholder="Enter age"
                     value={formData.age}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -658,7 +658,7 @@ export default function PatientRegistration() {
                     type="text"
                     autoComplete="off"
                     className="input-field"
-                    placeholder="e.g. Teacher, Engineer"
+                    placeholder="Enter occupation"
                     value={formData.occupation}
                     onChange={(e) => handleChange('occupation', e.target.value)}
                   />
@@ -753,7 +753,7 @@ export default function PatientRegistration() {
                     type="text"
                     autoComplete="off"
                     className="input-field font-mono text-sm py-2"
-                    placeholder="120/80"
+                    placeholder="Blood pressure"
                     value={formData.vitals?.bp || ''}
                     onChange={(e) => handleVitalsChange('bp', e.target.value)}
                   />
@@ -766,7 +766,7 @@ export default function PatientRegistration() {
                     type="text"
                     autoComplete="off"
                     className="input-field font-mono text-sm py-2"
-                    placeholder="110"
+                    placeholder="Blood sugar"
                     value={formData.vitals?.rbs || ''}
                     onChange={(e) => handleVitalsChange('rbs', e.target.value)}
                   />
@@ -809,14 +809,14 @@ export default function PatientRegistration() {
                   <input
                     type="text"
                     className="input-field text-xs py-1.5 col-span-6"
-                    placeholder="Name (e.g. Pulse)"
+                    placeholder="Vital name"
                     value={customVitalLabel}
                     onChange={(e) => setCustomVitalLabel(e.target.value)}
                   />
                   <input
                     type="text"
                     className="input-field text-xs py-1.5 col-span-4"
-                    placeholder="Value (72 bpm)"
+                    placeholder="Vital value"
                     value={customVitalValue}
                     onChange={(e) => setCustomVitalValue(e.target.value)}
                     onKeyDown={(e) => {
@@ -982,7 +982,7 @@ export default function PatientRegistration() {
                     type="text"
                     autoComplete="off"
                     className="input-field text-xs py-1.5 flex-1"
-                    placeholder="e.g. Vaping..."
+                    placeholder="Enter habit..."
                     value={customHabitInput}
                     onChange={(e) => setCustomHabitInput(capitalizeWords(e.target.value))}
                     onKeyDown={(e) => {

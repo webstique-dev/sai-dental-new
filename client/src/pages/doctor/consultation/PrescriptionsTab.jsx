@@ -464,7 +464,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 <input
                   type="text"
                   className="input-field text-xs w-full"
-                  placeholder="e.g. Dental Caries, Pulpitis..."
+                  placeholder="Enter diagnosis..."
                   value={diagnosis}
                   onChange={(e) => setDiagnosis(capitalizeWords(e.target.value))}
                 />
@@ -474,7 +474,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 <input
                   type="text"
                   className="input-field text-xs w-full"
-                  placeholder="e.g. RCT, Crown Placement..."
+                  placeholder="Enter treatment plan..."
                   value={treatmentPlan}
                   onChange={(e) => setTreatmentPlan(capitalizeWords(e.target.value))}
                 />
@@ -484,7 +484,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 <input
                   type="text"
                   className="input-field text-xs w-full"
-                  placeholder="e.g. Root Canal Treatment..."
+                  placeholder="Enter treatment..."
                   value={treatment}
                   onChange={(e) => setTreatment(capitalizeWords(e.target.value))}
                 />
@@ -553,7 +553,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                 suggestions={medicineSuggestions}
                                 onChange={(val) => handleRowChange(idx, 'medicine', val)}
                                 onSelect={(suggestion) => handleSelectSuggestion(idx, suggestion)}
-                                placeholder={isSyrup ? "e.g. Moxikind-CV Syrup" : "e.g. Augmentin"}
+                                placeholder={isSyrup ? "Syrup name..." : "Medicine name..."}
                                 required
                               />
                             </td>
@@ -563,7 +563,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                 list={isSyrup ? "syrup-dosage-options" : undefined}
                                 autoComplete="off"
                                 className="input-field py-1.5 px-2.5 text-xs w-full"
-                                placeholder={isSyrup ? "e.g. 5 ml" : "500 mg"}
+                                placeholder={isSyrup ? "Dose (ml)..." : "Dosage..."}
                                 value={item.dosage}
                                 onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
                               />
@@ -575,7 +575,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                     <input
                                       type="text"
                                       placeholder="M"
-                                      title="Morning (e.g. 5ml, 10ml, 1)"
+                                      title="Morning"
                                       className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                       value={syrupFreq[0]}
                                       onChange={(e) => handleSyrupFreqSlotChange(idx, 0, e.target.value)}
@@ -584,7 +584,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                     <input
                                       type="text"
                                       placeholder="A"
-                                      title="Afternoon (e.g. 0, 5ml, 10ml)"
+                                      title="Afternoon"
                                       className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                       value={syrupFreq[1]}
                                       onChange={(e) => handleSyrupFreqSlotChange(idx, 1, e.target.value)}
@@ -593,7 +593,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                     <input
                                       type="text"
                                       placeholder="N"
-                                      title="Night (e.g. 5ml, 10ml, 1)"
+                                      title="Night"
                                       className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                       value={syrupFreq[2]}
                                       onChange={(e) => handleSyrupFreqSlotChange(idx, 2, e.target.value)}
@@ -676,7 +676,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                 type="text"
                                 autoComplete="off"
                                 className="input-field py-1.5 px-2.5 text-xs w-full"
-                                placeholder={isSyrup ? "3 days" : "5 days"}
+                                placeholder="Duration..."
                                 value={item.duration}
                                 onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
                               />
@@ -751,7 +751,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                               suggestions={medicineSuggestions}
                               onChange={(val) => handleRowChange(idx, 'medicine', val)}
                               onSelect={(suggestion) => handleSelectSuggestion(idx, suggestion)}
-                              placeholder={isSyrup ? "e.g. Moxikind-CV Syrup" : "e.g. Augmentin"}
+                              placeholder={isSyrup ? "Syrup name..." : "Medicine name..."}
                               required
                             />
                           </div>
@@ -766,7 +766,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                 list={isSyrup ? "syrup-dosage-options" : undefined}
                                 autoComplete="off"
                                 className="input-field py-1.5 text-xs w-full"
-                                placeholder={isSyrup ? "e.g. 5 ml" : "500 mg"}
+                                placeholder={isSyrup ? "Dose (ml)..." : "Dosage..."}
                                 value={item.dosage}
                                 onChange={(e) => handleRowChange(idx, 'dosage', e.target.value)}
                               />
@@ -779,7 +779,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                 type="text"
                                 autoComplete="off"
                                 className="input-field py-1.5 text-xs w-full"
-                                placeholder={isSyrup ? "3 days" : "5 days"}
+                                placeholder="Duration..."
                                 value={item.duration}
                                 onChange={(e) => handleRowChange(idx, 'duration', e.target.value)}
                               />
@@ -797,7 +797,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                     <input
                                       type="text"
                                       placeholder="M"
-                                      title="Morning (e.g. 5ml, 10ml, 1)"
+                                      title="Morning"
                                       className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                       value={syrupFreq[0]}
                                       onChange={(e) => handleSyrupFreqSlotChange(idx, 0, e.target.value)}
@@ -806,7 +806,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                     <input
                                       type="text"
                                       placeholder="A"
-                                      title="Afternoon (e.g. 0, 5ml, 10ml)"
+                                      title="Afternoon"
                                       className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                       value={syrupFreq[1]}
                                       onChange={(e) => handleSyrupFreqSlotChange(idx, 1, e.target.value)}
@@ -815,7 +815,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                                     <input
                                       type="text"
                                       placeholder="N"
-                                      title="Night (e.g. 5ml, 10ml, 1)"
+                                      title="Night"
                                       className="w-10 h-6 text-center text-xs font-mono font-bold bg-white text-teal-900 rounded-md border border-teal-200/80 hover:border-teal-400 focus:border-teal-500 focus:bg-white focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all px-0.5 shadow-2xs"
                                       value={syrupFreq[2]}
                                       onChange={(e) => handleSyrupFreqSlotChange(idx, 2, e.target.value)}
@@ -1307,7 +1307,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 </label>
                 <EditableCombobox
                   options={[...FOLLOW_UP_REASONS, ...TOOTH_CONDITIONS]}
-                  placeholder="e.g. Suture Removal, RCT Next Step, Crown Fit..."
+                  placeholder="Enter reason or procedure..."
                   value={followUpForm.reason}
                   onChange={(val) => setFollowUpForm((prev) => ({ ...prev, reason: val }))}
                 />
@@ -1320,7 +1320,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                 </label>
                 <EditableCombobox
                   options={PROCEDURE_TREATMENT_STATUSES}
-                  placeholder="e.g. RCT Step 1 Done, Temp Crown Placed..."
+                  placeholder="Enter procedure or status note..."
                   value={followUpForm.treatmentStatus}
                   onChange={(val) => setFollowUpForm((prev) => ({ ...prev, treatmentStatus: val }))}
                 />
@@ -1334,7 +1334,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
               <textarea
                 rows={3}
                 className="input-field text-xs py-2 min-h-[64px] resize-y"
-                placeholder="e.g. Continue warm saline rinses. Avoid hard chewing on the left side until next sitting..."
+                placeholder="Enter patient instructions or clinical notes..."
                 value={followUpForm.instructions}
                 onChange={(e) => setFollowUpForm((prev) => ({ ...prev, instructions: capitalizeWords(e.target.value) }))}
               />

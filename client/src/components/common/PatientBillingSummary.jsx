@@ -278,11 +278,11 @@ export default function PatientBillingSummary({
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(inv)}
-                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-amber-700 hover:text-amber-800 hover:border-amber-300 shadow-2xs cursor-pointer"
-                              title="Edit Bill Details"
+                              className="btn-secondary py-1 px-2.5 text-xs font-semibold inline-flex items-center gap-1 text-brand hover:underline shadow-2xs cursor-pointer"
+                              title="Edit invoice or record installment payment"
                             >
                               <Edit3 size={13} />
-                              <span>Edit</span>
+                              <span>Edit / Pay</span>
                             </button>
                             <button
                               type="button"

@@ -7,6 +7,7 @@ const queueStatusOptions = [
   'Completed',
   'Cancelled',
   'No Show',
+  'Hold On',
 ];
 const queueTypeOptions = ['Appointment', 'Walk-in', 'Walk-In', 'Phone Booking', 'Online Booking'];
 

@@ -680,7 +680,7 @@ export default function PatientDetail() {
                         min="0"
                         max="130"
                         className="input-field py-1.5 font-mono"
-                        placeholder="e.g. 4.5 or 30"
+                        placeholder="Enter age"
                         value={editForm.age}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -755,7 +755,7 @@ export default function PatientDetail() {
                       <input
                         type="text"
                         className="input-field py-1.5 text-xs flex-1"
-                        placeholder="Enter additional condition (e.g. Penicillin Allergy)..."
+                        placeholder="Enter additional condition..."
                         value={editCustomMedicalInput}
                         onChange={(e) => setEditCustomMedicalInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -827,7 +827,7 @@ export default function PatientDetail() {
                       <input
                         type="text"
                         className="input-field py-1.5"
-                        placeholder="e.g. 120/80"
+                        placeholder="Blood pressure"
                         value={editForm.vitals?.bp || ''}
                         onChange={(e) => handleVitalsChange('bp', e.target.value)}
                       />
@@ -837,7 +837,7 @@ export default function PatientDetail() {
                       <input
                         type="text"
                         className="input-field py-1.5"
-                        placeholder="e.g. 110"
+                        placeholder="Blood sugar"
                         value={editForm.vitals?.rbs || ''}
                         onChange={(e) => handleVitalsChange('rbs', e.target.value)}
                       />
@@ -879,14 +879,14 @@ export default function PatientDetail() {
                       <input
                         type="text"
                         className="input-field py-1.5 text-xs sm:col-span-2"
-                        placeholder="Vital Name (e.g. Pulse)..."
+                        placeholder="Vital name..."
                         value={editCustomVitalLabel}
                         onChange={(e) => setEditCustomVitalLabel(e.target.value)}
                       />
                       <input
                         type="text"
                         className="input-field py-1.5 text-xs sm:col-span-2"
-                        placeholder="Value (e.g. 72 bpm)..."
+                        placeholder="Vital value..."
                         value={editCustomVitalValue}
                         onChange={(e) => setEditCustomVitalValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -942,7 +942,7 @@ export default function PatientDetail() {
                       <input
                         type="text"
                         className="input-field py-1.5 text-xs flex-1"
-                        placeholder="Enter additional habit (e.g. Vaping, Betel Nut)..."
+                        placeholder="Enter additional habit..."
                         value={editCustomHabitInput}
                         onChange={(e) => setEditCustomHabitInput(capitalizeWords(e.target.value))}
                         onKeyDown={(e) => {

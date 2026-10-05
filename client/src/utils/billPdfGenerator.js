@@ -102,15 +102,19 @@ export function generateBillHTML(params = {}) {
           </tr>
         </thead>
         <tbody>
-          ${payments.map((p, idx) => `
+          ${payments.map((p, idx) => {
+            const pDate = p.date ? new Date(p.date) : new Date();
+            const dateStr = pDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const timeStr = p.time || pDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            return `
             <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
               <td style="padding: 5px 8px; color: #64748b; text-align: center;">${idx + 1}</td>
-              <td style="padding: 5px 8px; color: #334155;">${new Date(p.date || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+              <td style="padding: 5px 8px; color: #334155;">${dateStr} <span style="font-size: 9px; color: #64748b;">(${timeStr})</span></td>
               <td style="padding: 5px 8px; font-weight: 600; color: #0B1A2E;">${capitalizeWords(p.method || 'Cash')}</td>
-              <td style="padding: 5px 8px; color: #64748b;">${capitalizeWords(p.reason || p.type || 'Payment Received')}</td>
+              <td style="padding: 5px 8px; color: #64748b;">${capitalizeWords(p.notes || p.reason || p.type || 'Payment Received')}</td>
               <td style="padding: 5px 8px; text-align: right; font-family: monospace; font-weight: 700; color: #0B1A2E;">₹${(Number(p.amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
-          `).join('')}
+          `;}).join('')}
         </tbody>
       </table>
     </div>

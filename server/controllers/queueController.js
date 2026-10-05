@@ -203,8 +203,10 @@ async function createWalkIn(req, res, next) {
 async function checkInAppointment(req, res, next) {
   try {
     const { id } = req.params;
+    const { date, time, reason } = req.body || {};
     const now = new Date();
-    const todayDateStr = getFormattedDateString(now);
+    const targetDate = date ? new Date(date) : now;
+    const todayDateStr = getFormattedDateString(targetDate);
 
     // Check if id belongs to an Appointment
     const appointment = await Appointment.findById(id);
@@ -218,13 +220,21 @@ async function checkInAppointment(req, res, next) {
       }
 
       appointment.status = 'Checked-In';
+      if (date) {
+        appointment.date = targetDate;
+      }
+      if (time) {
+        appointment.time = time;
+      }
+      if (reason) {
+        appointment.reason = reason;
+      }
       await appointment.save();
 
-      // Find or create QueueEntry for today
+      // Find or create QueueEntry for target date
       let existingQueue = await QueueEntry.findOne({ appointment: appointment._id });
+      const nextToken = await getNextTokenForDate(todayDateStr);
       if (!existingQueue) {
-        const nextToken = await getNextTokenForDate(todayDateStr);
-
         existingQueue = new QueueEntry({
           token: nextToken,
           queue_token: nextToken,
@@ -236,14 +246,19 @@ async function checkInAppointment(req, res, next) {
           checked_in_at: now,
           checkInTime: now,
           queue_date: todayDateStr,
-          date: now,
+          date: targetDate,
         });
         await existingQueue.save();
       } else {
         existingQueue.status = 'Checked-In';
-        if (!existingQueue.checked_in_at) existingQueue.checked_in_at = now;
-        if (!existingQueue.checkInTime) existingQueue.checkInTime = now;
-        if (!existingQueue.queue_date) existingQueue.queue_date = todayDateStr;
+        existingQueue.checked_in_at = now;
+        existingQueue.checkInTime = now;
+        existingQueue.queue_date = todayDateStr;
+        existingQueue.date = targetDate;
+        if (!existingQueue.token) {
+          existingQueue.token = nextToken;
+          existingQueue.queue_token = nextToken;
+        }
         await existingQueue.save();
       }
 

@@ -658,7 +658,7 @@ export default function PatientSectionEditModal({
                   <input
                     type="text"
                     className="input-field text-xs"
-                    placeholder="e.g. Teacher, Engineer, Student"
+                    placeholder="Enter occupation"
                     value={formData.occupation}
                     onChange={(e) => handleChange('occupation', e.target.value)}
                   />
@@ -686,7 +686,7 @@ export default function PatientSectionEditModal({
                     <input
                       type="text"
                       className="input-field font-mono text-xs"
-                      placeholder="e.g. 120/80 mmHg"
+                      placeholder="Blood pressure"
                       value={formData.vitals?.bp || ''}
                       onChange={(e) => handleVitalsChange('bp', e.target.value)}
                     />
@@ -696,7 +696,7 @@ export default function PatientSectionEditModal({
                     <input
                       type="text"
                       className="input-field font-mono text-xs"
-                      placeholder="e.g. 110 mg/dL"
+                      placeholder="Blood sugar"
                       value={formData.vitals?.rbs || ''}
                       onChange={(e) => handleVitalsChange('rbs', e.target.value)}
                     />
@@ -786,14 +786,14 @@ export default function PatientSectionEditModal({
                     <input
                       type="text"
                       className="input-field text-xs py-1.5 col-span-6"
-                      placeholder="Name (e.g. SpO2)"
+                      placeholder="Vital name"
                       value={customVitalLabel}
                       onChange={(e) => setCustomVitalLabel(e.target.value)}
                     />
                     <input
                       type="text"
                       className="input-field text-xs py-1.5 col-span-4"
-                      placeholder="Value (e.g. 99%)"
+                      placeholder="Vital value"
                       value={customVitalValue}
                       onChange={(e) => setCustomVitalValue(e.target.value)}
                       onKeyDown={(e) => {
@@ -908,7 +908,7 @@ export default function PatientSectionEditModal({
                   <input
                     type="text"
                     className="input-field text-xs"
-                    placeholder="e.g. Penicillin, NSAIDs, Sulfa drugs, Latex..."
+                    placeholder="Enter known drug allergies..."
                     value={formData.allergies}
                     onChange={(e) => handleChange('allergies', e.target.value)}
                   />
@@ -983,7 +983,7 @@ export default function PatientSectionEditModal({
                     <input
                       type="text"
                       className="input-field text-xs py-1.5 flex-1"
-                      placeholder="e.g. Vaping, Betel nut..."
+                      placeholder="Enter habit..."
                       value={customHabitInput}
                       onChange={(e) => setCustomHabitInput(capitalizeWords(e.target.value))}
                       onKeyDown={(e) => {

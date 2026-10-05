@@ -5,13 +5,14 @@ import {
   FileHeart, HeartPulse, ShieldAlert, Phone, MapPin, Briefcase, UserCheck, CheckCircle2,
   ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, Eye, Edit3, CalendarClock, CalendarDays, CalendarCheck,
   CheckCircle, XCircle, AlertCircle, Sparkles, ExternalLink, ArrowRight, X,
-  Receipt, Wallet, CreditCard
+  Receipt, Wallet, CreditCard, ClipboardList
 } from 'lucide-react';
 import { formatAge, formatPatientFullName, formatDoctorName, capitalizeWords, formatDateTimeDisplay } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
 
 import ToothChart from './consultation/ToothChart.jsx';
 import PrescriptionHistoryPanel from '../../components/common/PrescriptionHistoryPanel.jsx';
+import TreatmentHistoryPanel from '../../components/common/TreatmentHistoryPanel.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import PatientBillingSummary from '../../components/common/PatientBillingSummary.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
@@ -23,6 +24,7 @@ import FollowUpEditModal from '../../components/common/FollowUpEditModal.jsx';
 const PROFILE_TABS = [
   { id: 'examination', label: 'Doctor Examination History', icon: Stethoscope },
   { id: 'tooth-chart', label: 'FDI Tooth Chart & Conditions', icon: Activity },
+  { id: 'treatment-history', label: 'Treatment History', icon: ClipboardList },
   { id: 'prescriptions', label: 'Prescription History', icon: Pill },
   // { id: 'treatment-plan', label: 'Treatment Plans & Diagnoses', icon: FileHeart },
   { id: 'billing', label: 'Billing Summary', icon: Receipt },
@@ -918,6 +920,7 @@ export default function PatientProfileEMR() {
             const isActive = activeTab === tab.id;
             let badgeCount = null;
             if (tab.id === 'examination') badgeCount = emrData?.consultations?.length;
+            if (tab.id === 'treatment-history') badgeCount = emrData?.treatmentRecords?.length > 0 ? emrData.treatmentRecords.length : null;
             if (tab.id === 'treatment-plan') badgeCount = allTreatmentPlans.length > 0 ? allTreatmentPlans.length : null;
             if (tab.id === 'followups-appointments') badgeCount = combinedUpcoming.length > 0 ? combinedUpcoming.length : null;
             if (tab.id === 'billing') badgeCount = billingInvoices.length > 0 ? billingInvoices.length : null;
@@ -1135,6 +1138,11 @@ export default function PatientProfileEMR() {
             </div>
 
             <ToothChart patientId={patientId} patient={patient} isReadOnly={false} />
+          </div>
+
+          {/* TAB: TREATMENT HISTORY */}
+          <div className={activeTab === 'treatment-history' ? 'block space-y-4 animate-fadeIn' : 'hidden'}>
+            <TreatmentHistoryPanel patientId={patientId} onRecordChanged={() => fetchEMR()} />
           </div>
 
           {/* TAB 3: PRESCRIPTIONS HISTORY */}
@@ -1633,7 +1641,7 @@ export default function PatientProfileEMR() {
                   required
                   rows={3}
                   className="input-field w-full text-xs py-2"
-                  placeholder="e.g. Patient called to cancel, patient relocated, condition resolved..."
+                  placeholder="Enter reason for cancellation..."
                   value={cancellationReason}
                   onChange={(e) => {
                     setCancellationReason(capitalizeWords(e.target.value));

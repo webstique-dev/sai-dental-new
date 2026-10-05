@@ -258,6 +258,25 @@ async function startConsultation(req, res, next) {
       queueEntry = await QueueEntry.findOne({ appointment: appointmentId });
     }
 
+    if (appointmentId) {
+      const apt = await Appointment.findById(appointmentId);
+      if (apt) {
+        if (req.body.date) {
+          const parsedD = new Date(req.body.date);
+          if (!isNaN(parsedD.getTime())) {
+            apt.date = parsedD;
+          }
+        }
+        if (req.body.time) {
+          apt.time = req.body.time;
+        }
+        if (req.body.reason) {
+          apt.reason = req.body.reason;
+        }
+        await apt.save();
+      }
+    }
+
     if (!queueEntry && appointmentId) {
       const apt = await Appointment.findById(appointmentId);
       if (apt) {
@@ -288,6 +307,14 @@ async function startConsultation(req, res, next) {
 
     if (!queueEntry) {
       return res.status(404).json({ message: 'Queue entry not found.' });
+    }
+
+    if (queueEntry && req.body.date) {
+      const parsedD = new Date(req.body.date);
+      if (!isNaN(parsedD.getTime())) {
+        queueEntry.date = parsedD;
+        await queueEntry.save();
+      }
     }
 
     // Doctor authorization check

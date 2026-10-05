@@ -45,7 +45,15 @@ async function listPatients(req, res, next) {
     }
     pipeline.push({ $match: matchStage });
 
-    // 2. Lookup consultations, appointments, and queue entries for each patient
+    // 2. Lookup consultations, appointments, queue entries, and prescriptions for each patient
+    const rxMatchExpr = [
+      { $eq: ['$patient', '$$patientId'] },
+      { $ne: ['$isDeleted', true] }
+    ];
+    if (effectiveDoctorId && mongoose.Types.ObjectId.isValid(effectiveDoctorId)) {
+      rxMatchExpr.push({ $eq: ['$recordedBy', new mongoose.Types.ObjectId(effectiveDoctorId)] });
+    }
+
     pipeline.push(
       {
         $lookup: {
@@ -69,6 +77,23 @@ async function listPatients(req, res, next) {
           localField: '_id',
           foreignField: 'patient',
           as: 'queueEntries',
+        },
+      },
+      {
+        $lookup: {
+          from: 'prescriptions',
+          let: { patientId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: rxMatchExpr,
+                },
+              },
+            },
+            { $sort: { date: -1, recordedAt: -1, createdAt: -1 } },
+          ],
+          as: 'prescriptions',
         },
       }
     );
@@ -120,6 +145,8 @@ async function listPatients(req, res, next) {
           $ifNull: ['$lastVisitDoc.startedAt', '$lastVisitDoc.createdAt'],
         },
         lastVisitDoctorId: '$lastVisitDoc.doctor',
+        prescriptionCount: { $size: '$prescriptions' },
+        latestPrescription: { $arrayElemAt: ['$prescriptions', 0] },
         effectiveRecentDate: {
           $max: [
             { $ifNull: [{ $ifNull: ['$lastVisitDoc.startedAt', '$lastVisitDoc.createdAt'] }, new Date(0)] },
@@ -483,10 +510,17 @@ async function getPatientEMR(req, res, next) {
 
     // 7. Fetch Invoices and calculate read-only billing summary
     const Invoice = require('../models/Invoice');
-    const rawInvoices = await Invoice.find({ patient: patientId })
-      .sort({ date: -1, createdAt: -1 })
-      .populate('doctor', 'name email specialization')
-      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address');
+    const TreatmentRecord = require('../models/TreatmentRecord');
+
+    const [rawInvoices, treatmentRecords] = await Promise.all([
+      Invoice.find({ patient: patientId })
+        .sort({ date: -1, createdAt: -1 })
+        .populate('doctor', 'name email specialization')
+        .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address'),
+      TreatmentRecord.find({ patient: patientId, isDeleted: { $ne: true } })
+        .sort({ date: -1, createdAt: -1 })
+        .populate('recordedBy', 'name email role'),
+    ]);
 
     let totalCharges = 0;
     let totalPaid = 0;
@@ -536,6 +570,7 @@ async function getPatientEMR(req, res, next) {
       followUps,
       appointments,
       billing,
+      treatmentRecords: treatmentRecords || [],
     });
   } catch (err) {
     next(err);

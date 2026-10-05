@@ -6,7 +6,8 @@ const treatmentRecordSchema = new mongoose.Schema(
     consultation: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Consultation',
-      required: true,
+      required: false,
+      default: null,
     },
     patient: {
       type: mongoose.Schema.Types.ObjectId,
@@ -68,7 +69,16 @@ const treatmentRecordSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
+treatmentRecordSchema.virtual('treatment').get(function () {
+  return this.procedure;
+}).set(function (v) {
+  this.procedure = v;
+});
+
 module.exports = mongoose.model('TreatmentRecord', treatmentRecordSchema);
+

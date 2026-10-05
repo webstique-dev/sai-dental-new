@@ -324,7 +324,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                   type="text"
                   required
                   className="input-field py-1 text-xs"
-                  placeholder="Diagnosis Title (e.g. Irreversible Pulpitis, Dental Caries)"
+                  placeholder="Enter diagnosis title..."
                   value={diagText}
                   onChange={(e) => setDiagText(capitalizeWords(e.target.value))}
                 />
@@ -408,7 +408,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                   <input
                     type="number"
                     className="input-field font-mono text-xs"
-                    placeholder="e.g. 16"
+                    placeholder="Tooth no."
                     value={planToothNumber}
                     onChange={(e) => setPlanToothNumber(e.target.value)}
                   />
@@ -433,7 +433,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                   <input
                     type="text"
                     className="input-field text-xs"
-                    placeholder="e.g. Root Canal Therapy, Scaling, Crown Fit"
+                    placeholder="Enter planned procedure..."
                     value={planProcedure}
                     onChange={(e) => setPlanProcedure(capitalizeWords(e.target.value))}
                   />
@@ -445,7 +445,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                     type="number"
                     min="0"
                     className="input-field font-mono text-xs"
-                    placeholder="e.g. 8000"
+                    placeholder="Estimated charges"
                     value={planEstimatedCost}
                     onChange={(e) => setPlanEstimatedCost(e.target.value)}
                   />
@@ -640,7 +640,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                   <input
                     type="number"
                     className="input-field font-mono text-xs"
-                    placeholder="e.g. 16"
+                    placeholder="Tooth no."
                     value={recordToothNumber}
                     onChange={(e) => setRecordToothNumber(e.target.value)}
                   />
@@ -651,7 +651,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                   <input
                     type="text"
                     className="input-field text-xs"
-                    placeholder="e.g. RCT Access & Preparation, Scaling"
+                    placeholder="Enter procedure performed..."
                     value={recordProcedure}
                     onChange={(e) => setRecordProcedure(capitalizeWords(e.target.value))}
                   />
@@ -663,7 +663,7 @@ export default function TreatmentPlanTab({ consultation, isReadOnly = false }) {
                     type="number"
                     min="0"
                     className="input-field font-mono text-xs"
-                    placeholder="e.g. 8000"
+                    placeholder="Charges"
                     value={recordCharges}
                     onChange={(e) => setRecordCharges(e.target.value)}
                   />

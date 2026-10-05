@@ -398,7 +398,7 @@ export default function AdminBilling() {
                     rows={2}
                     required
                     className="input-field py-1.5"
-                    placeholder="State reason (e.g. Service cancellation, billing correction)..."
+                    placeholder="Enter reason for refund..."
                     value={refundForm.reason}
                     onChange={(e) => setRefundForm({ ...refundForm, reason: capitalizeWords(e.target.value) })}
                   />

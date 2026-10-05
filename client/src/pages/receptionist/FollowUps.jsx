@@ -887,7 +887,7 @@ export default function FollowUps() {
                   <EditableCombobox
                     required
                     options={TOOTH_CONDITIONS}
-                    placeholder="e.g. Caries, RCT, Crown, Mobility..."
+                    placeholder="Enter reason or procedure..."
                     value={addFormData.reason}
                     onChange={(val) => setAddFormData((prev) => ({ ...prev, reason: val }))}
                     inputClassName="text-xs"
@@ -994,7 +994,7 @@ export default function FollowUps() {
                   <label className="block font-semibold text-ink-soft mb-1">Reason / Notes</label>
                   <EditableCombobox
                     options={TOOTH_CONDITIONS}
-                    placeholder="e.g. Suture removal, RCT follow-up, Mobility..."
+                    placeholder="Enter reason or notes..."
                     value={scheduleFormData.reason}
                     onChange={(val) => setScheduleFormData((prev) => ({ ...prev, reason: val }))}
                     inputClassName="text-xs"
@@ -1061,7 +1061,7 @@ export default function FollowUps() {
                   required
                   rows={3}
                   className="input-field w-full text-xs py-2"
-                  placeholder="e.g. Patient called to cancel, patient rescheduled, symptoms resolved..."
+                  placeholder="Enter reason for cancellation..."
                   value={cancellationReason}
                   onChange={(e) => {
                     setCancellationReason(capitalizeWords(e.target.value));

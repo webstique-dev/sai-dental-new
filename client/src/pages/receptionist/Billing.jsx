@@ -6,8 +6,10 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios.js';
 import PatientSearchInput from '../../components/common/PatientSearchInput.jsx';
+import DatePicker, { formatToDateString } from '../../components/common/DatePicker.jsx';
+import SplitTimeInput from '../../components/common/SplitTimeInput.jsx';
 import { useNotification } from '../../context/NotificationContext.jsx';
-import { formatPatientFullName, formatDoctorName, capitalizeWords } from '../../utils/formatters.js';
+import { formatPatientFullName, formatDoctorName, capitalizeWords, combineDateAndTime, formatTime12Hour } from '../../utils/formatters.js';
 import { openBillPrintWindow } from '../../utils/billPdfGenerator.js';
 
 const STATUS_BADGE_CLASSES = {
@@ -57,6 +59,9 @@ export default function Billing() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paymentDiscount, setPaymentDiscount] = useState(0);
+  const [paymentDate, setPaymentDate] = useState(() => formatToDateString(new Date()));
+  const [paymentTime, setPaymentTime] = useState(() => formatTime12Hour(new Date()));
+  const [paymentNotes, setPaymentNotes] = useState('');
 
   const [catalogItems, setCatalogItems] = useState([]);
 
@@ -226,6 +231,9 @@ export default function Billing() {
     setPaymentDiscount(inv.discount || 0);
     setPaymentAmount(inv.balance > 0 ? inv.balance : inv.total || '');
     setPaymentMethod('Cash');
+    setPaymentDate(formatToDateString(new Date()));
+    setPaymentTime(formatTime12Hour(new Date()));
+    setPaymentNotes('');
     setShowConfirmSettlement(false);
     setErrorMessage('');
   };
@@ -264,9 +272,14 @@ export default function Billing() {
     setErrorMessage('');
     try {
       const invId = activePaymentInvoice._id || activePaymentInvoice.id;
+      const payDateObj = combineDateAndTime(paymentDate, paymentTime);
       await api.post(`/invoices/${invId}/payments`, {
         amount: Number(paymentAmount),
         method: paymentMethod,
+        date: payDateObj.toISOString(),
+        time: paymentTime,
+        notes: capitalizeWords(paymentNotes.trim()),
+        reason: capitalizeWords(paymentNotes.trim()),
         discount: Number(paymentDiscount) || 0,
       });
 
@@ -1054,6 +1067,39 @@ export default function Billing() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Payment Date & Time */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Payment Date *</label>
+                    <DatePicker
+                      value={paymentDate}
+                      maxDate={new Date()}
+                      onChange={(d, str) => setPaymentDate(str)}
+                      inputClassName="py-1 text-xs h-[34px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-ink-soft mb-1">Payment Time *</label>
+                    <SplitTimeInput
+                      label=""
+                      value={paymentTime}
+                      onChange={(t12) => setPaymentTime(t12)}
+                    />
+                  </div>
+                </div>
+
+                {/* Optional Payment Note / Reference */}
+                <div>
+                  <label className="block font-semibold text-ink-soft mb-1">Payment Note / Reference (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UPI Ref #123456, Card Transaction ID, Advance..."
+                    className="input-field text-xs"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                  />
                 </div>
 
                 {/* Settlement Summary & Expected Status */}

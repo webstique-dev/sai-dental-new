@@ -167,7 +167,7 @@ export default function InvestigationsTab({ consultation, isReadOnly = false }) 
                   type="text"
                   disabled={isReadOnly}
                   className="input-field py-1.5 text-xs"
-                  placeholder={`e.g. Details for ${type}...`}
+                  placeholder={`Enter details for ${type}...`}
                   value={investigationDetails[type] || ''}
                   onChange={(e) => handleDetailChange(type, e.target.value)}
                 />

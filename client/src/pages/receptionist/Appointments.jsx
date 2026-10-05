@@ -107,7 +107,7 @@ export default function Appointments() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Create Form state (Status defaults to Check-in / Checked-In)
+  // Create Form state (Status defaults to Schedule / Scheduled)
   const [patientSearch, setPatientSearch] = useState('');
   const [patientOptions, setPatientOptions] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -118,7 +118,7 @@ export default function Appointments() {
     time: '09:30',
     type: 'Walk-In',
     reason: '',
-    action: 'Check-in',
+    action: 'Schedule',
   });
 
   // Edit Form state
@@ -178,7 +178,7 @@ export default function Appointments() {
         time: timeStr,
         type: 'Walk-In',
         reason: '',
-        action: 'Check-in',
+        action: 'Schedule',
       });
       setShowCreateModal(true);
       navigate(location.pathname, { replace: true, state: {} });
@@ -264,7 +264,7 @@ export default function Appointments() {
       time: timeStr,
       type: 'Walk-In',
       reason: '',
-      action: 'Check-in',
+      action: 'Schedule',
     });
     setShowCreateModal(true);
   };
@@ -778,7 +778,7 @@ export default function Appointments() {
                     type="text"
                     autoComplete="off"
                     className="input-field"
-                    placeholder="e.g. Toothache, Scaling, Root Canal follow-up"
+                    placeholder="Enter reason for visit..."
                     value={formData.reason}
                     onChange={(e) => setFormData({ ...formData, reason: capitalizeWords(e.target.value) })}
                   />

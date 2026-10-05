@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Users, Search, Filter, Edit3, ArrowUpDown, ChevronLeft, ChevronRight,
-  ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye, History, ChevronDown, ChevronUp
+  ExternalLink, X, Save, ShieldAlert, CheckCircle2, User, Phone, Calendar, Hash, Eye, History, ChevronDown, ChevronUp, Pill
 } from 'lucide-react';
 import { formatAge, capitalizeName, formatPatientFullName } from '../../utils/formatters.js';
 import { Link } from 'react-router-dom';
@@ -367,7 +367,7 @@ export default function AdminPatients() {
         ) : (
           <>
             {/* Desktop Table View (≥768px) */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto no-scrollbar scrollbar-none">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-border bg-bg/50 font-semibold text-ink-soft uppercase tracking-wider">
                   <tr>
@@ -453,6 +453,14 @@ export default function AdminPatients() {
                                 title="View Patient EMR & Visit Timeline"
                               >
                                 <History size={13} /> View EMR
+                              </Link>
+                              <Link
+                                to={`/doctor/prescriptions?patientId=${p._id}`}
+                                state={{ patient: p }}
+                                className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold hover:bg-brand-light/30"
+                                title="View Patient Prescription History"
+                              >
+                                <Pill size={13} /> Prescriptions ({p.prescriptionCount !== undefined ? p.prescriptionCount : (p.prescriptions ? p.prescriptions.length : 0)})
                               </Link>
                               <button
                                 onClick={() => setSelectedPatient(p)}
@@ -549,21 +557,28 @@ export default function AdminPatients() {
                           <div className="flex items-center justify-end gap-1.5 pt-1 flex-wrap">
                             <Link
                               to={`/admin/patients/${p._id}`}
-                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold"
+                              className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold"
                             >
-                              <History size={13} /> View EMR
+                              <History size={12} /> View EMR
+                            </Link>
+                            <Link
+                              to={`/doctor/prescriptions?patientId=${p._id}`}
+                              state={{ patient: p }}
+                              className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1 border-brand/30 text-brand font-semibold"
+                            >
+                              <Pill size={12} /> Prescriptions ({p.prescriptionCount !== undefined ? p.prescriptionCount : (p.prescriptions ? p.prescriptions.length : 0)})
                             </Link>
                             <button
                               onClick={() => setSelectedPatient(p)}
-                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1"
+                              className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1"
                             >
-                              <Eye size={13} /> Profile
+                              <Eye size={12} /> Profile
                             </button>
                             <button
                               onClick={(e) => handleOpenEdit(e, p)}
-                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1 border-amber-300 text-amber-800"
+                              className="btn-secondary py-1 px-2 text-[11px] flex items-center gap-1 border-amber-300 text-amber-800"
                             >
-                              <Edit3 size={13} /> Edit
+                              <Edit3 size={12} /> Edit
                             </button>
                           </div>
                         </div>
@@ -833,7 +848,7 @@ export default function AdminPatients() {
                       min="0"
                       max="130"
                       className="input-field py-1.5 font-mono"
-                      placeholder="e.g. 4.5 or 30"
+                      placeholder="Enter age"
                       value={editForm.age}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -894,7 +909,7 @@ export default function AdminPatients() {
                     <input
                       type="text"
                       className="input-field py-1.5"
-                      placeholder="e.g. 120/80"
+                      placeholder="Blood pressure"
                       value={editForm.bp}
                       onChange={(e) => setEditForm({ ...editForm, bp: e.target.value })}
                     />
@@ -904,7 +919,7 @@ export default function AdminPatients() {
                     <input
                       type="text"
                       className="input-field py-1.5"
-                      placeholder="e.g. 110"
+                      placeholder="Blood sugar"
                       value={editForm.rbs}
                       onChange={(e) => setEditForm({ ...editForm, rbs: e.target.value })}
                     />
@@ -918,7 +933,7 @@ export default function AdminPatients() {
                   <input
                     type="text"
                     className="input-field py-1.5"
-                    placeholder="e.g. Diabetes Mellitus, Hypertension, Asthma"
+                    placeholder="Enter medical conditions..."
                     value={editForm.medicalHistory}
                     onChange={(e) => setEditForm({ ...editForm, medicalHistory: e.target.value })}
                   />
@@ -931,7 +946,7 @@ export default function AdminPatients() {
                   <input
                     type="text"
                     className="input-field py-1.5"
-                    placeholder="e.g. Smoking, Alcohol"
+                    placeholder="Enter habits..."
                     value={editForm.habits}
                     onChange={(e) => setEditForm({ ...editForm, habits: e.target.value })}
                   />

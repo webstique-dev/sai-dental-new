@@ -5,7 +5,7 @@ import {
   ArrowLeft, UserSquare2, Phone, Calendar, Stethoscope, FileText,
   Activity, Grid3x3, FileHeart, Pill, AlertTriangle, CheckCircle2, Search,
   Check, Lock, X, LogOut, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, HeartPulse, ShieldAlert, MapPin, Briefcase,
-  Wallet, Receipt, Info, Edit3
+  Wallet, Receipt, Info, Edit3, ClipboardList
 } from 'lucide-react';
 import { formatAge, formatPatientFullName, capitalizeWords } from '../../utils/formatters.js';
 import api from '../../api/axios.js';
@@ -18,10 +18,12 @@ import InvestigationsTab from './consultation/InvestigationsTab.jsx';
 import BillingTab from './consultation/BillingTab.jsx';
 import PatientBillingSummary from '../../components/common/PatientBillingSummary.jsx';
 import PatientSectionEditModal from '../../components/common/PatientSectionEditModal.jsx';
+import TreatmentHistoryPanel from '../../components/common/TreatmentHistoryPanel.jsx';
 
 const CLINICAL_TABS = [
   { id: 'examination', label: 'Examination', icon: FileHeart },
   { id: 'tooth-chart', label: 'Tooth Chart', icon: Grid3x3 },
+  { id: 'treatment-history', label: 'Treatment History', icon: ClipboardList },
   { id: 'prescriptions', label: 'Prescription', icon: Pill },
   // { id: 'diagnosis', label: 'Diagnosis', icon: Stethoscope },
   // { id: 'investigations', label: 'Investigations', icon: Search },
@@ -689,6 +691,14 @@ export default function Consultation() {
             consultationId={consultation._id || consultation.id}
             isReadOnly={isCompleted}
             patient={consultation.patient}
+          />
+        </div>
+
+        <div className={activeTab === 'treatment-history' ? 'block' : 'hidden'}>
+          <TreatmentHistoryPanel
+            patientId={consultation.patient?._id || consultation.patient?.id || consultation.patient}
+            consultationId={consultation._id || consultation.id}
+            isReadOnly={isCompleted}
           />
         </div>
 

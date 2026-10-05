@@ -39,7 +39,7 @@ export function validateEmail(email, required = false) {
   const cleanEmail = email.toString().trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(cleanEmail)) {
-    return 'Please enter a valid email address (e.g. name@example.com).';
+    return 'Please enter a valid email address.';
   }
   return null;
 }

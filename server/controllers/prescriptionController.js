@@ -1,6 +1,7 @@
 const Prescription = require('../models/Prescription');
 const { checkConsultationNotClosed } = require('./consultationController');
 const { registerMedicinesFromPrescription } = require('../utils/seedMedicines');
+const { emitPatientUpdate } = require('../utils/socket');
 
 // GET /api/prescriptions?consultation=
 async function listPrescriptions(req, res, next) {
@@ -90,6 +91,10 @@ async function createPrescription(req, res, next) {
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
       .populate('recordedBy', 'name email role specialization');
 
+    if (populated?.patient) {
+      emitPatientUpdate(populated.patient, false);
+    }
+
     return res.status(201).json({
       message: 'Prescription recorded successfully',
       prescription: populated,
@@ -165,6 +170,10 @@ async function updatePrescription(req, res, next) {
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
       .populate('recordedBy', 'name email role specialization');
 
+    if (populated?.patient) {
+      emitPatientUpdate(populated.patient, false);
+    }
+
     return res.json({
       message: 'Prescription updated successfully',
       prescription: populated,
@@ -194,6 +203,10 @@ async function deletePrescription(req, res, next) {
     rx.deletedAt = new Date();
     rx.deletedBy = req.user ? req.user._id : undefined;
     await rx.save();
+
+    if (rx.patient) {
+      emitPatientUpdate({ _id: rx.patient }, false);
+    }
 
     return res.json({ message: 'Prescription deleted successfully.' });
   } catch (err) {

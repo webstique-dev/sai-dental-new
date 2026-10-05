@@ -1184,7 +1184,7 @@ export default function Queue() {
                           required
                           autoCapitalize="words"
                           className="input-field"
-                          placeholder="e.g. Alex"
+                          placeholder="Enter first name"
                           value={newPatientData.firstName}
                           onChange={(e) => setNewPatientData({ ...newPatientData, firstName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                         />
@@ -1195,7 +1195,7 @@ export default function Queue() {
                           type="text"
                           autoCapitalize="words"
                           className="input-field"
-                          placeholder="e.g. Smith"
+                          placeholder="Enter last name"
                           value={newPatientData.lastName}
                           onChange={(e) => setNewPatientData({ ...newPatientData, lastName: capitalizeName(e.target.value.replace(/[^a-zA-Z\s'-]/g, '')) })}
                         />
@@ -1207,7 +1207,7 @@ export default function Queue() {
                           type="tel"
                           maxLength={10}
                           className="input-field font-mono"
-                          placeholder="e.g. 9876543210"
+                          placeholder="Enter 10-digit phone number"
                           value={newPatientData.primaryPhone}
                           onChange={(e) => setNewPatientData({ ...newPatientData, primaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                         />
@@ -1218,7 +1218,7 @@ export default function Queue() {
                           type="tel"
                           maxLength={10}
                           className="input-field font-mono"
-                          placeholder="e.g. 9123456780"
+                          placeholder="Enter alternate phone number"
                           value={newPatientData.secondaryPhone}
                           onChange={(e) => setNewPatientData({ ...newPatientData, secondaryPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                         />
@@ -1244,7 +1244,7 @@ export default function Queue() {
                           min={0}
                           max={130}
                           className="input-field font-mono"
-                          placeholder="e.g. 4.5 or 28"
+                          placeholder="Enter age"
                           value={newPatientData.age}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -1273,7 +1273,7 @@ export default function Queue() {
                         <input
                           type="text"
                           className="input-field"
-                          placeholder="e.g. 123 Main St, City"
+                          placeholder="Enter address"
                           value={newPatientData.address || ''}
                           onChange={(e) => setNewPatientData({ ...newPatientData, address: capitalizeWords(e.target.value) })}
                         />
@@ -1310,7 +1310,7 @@ export default function Queue() {
                     <input
                       type="text"
                       className="input-field py-2.5 text-xs"
-                      placeholder="e.g. Toothache, Urgent scaling, Walk-in consultation"
+                      placeholder="Enter reason for visit..."
                       value={visitReason}
                       onChange={(e) => setVisitReason(capitalizeWords(e.target.value))}
                     />

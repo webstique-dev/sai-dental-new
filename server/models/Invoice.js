@@ -53,9 +53,20 @@ const paymentRecordSchema = new mongoose.Schema(
       default: '',
       set: capitalizeWords,
     },
+    notes: {
+      type: String,
+      trim: true,
+      default: '',
+      set: capitalizeWords,
+    },
     date: {
       type: Date,
       default: Date.now,
+    },
+    time: {
+      type: String,
+      trim: true,
+      default: '',
     },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,

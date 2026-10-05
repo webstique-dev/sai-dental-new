@@ -184,7 +184,7 @@ export default function FollowUpEditModal({
               options={FOLLOW_UP_REASONS}
               value={formData.reason}
               onChange={(val) => setFormData((prev) => ({ ...prev, reason: capitalizeWords(val) }))}
-              placeholder="e.g. Suture Removal, Crown Fitting, Routine Review..."
+              placeholder="Enter reason or procedure..."
               inputClassName="py-1.5 text-xs"
             />
           </div>

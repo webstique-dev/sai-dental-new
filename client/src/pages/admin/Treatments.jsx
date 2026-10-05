@@ -508,7 +508,7 @@ export default function AdminTreatments() {
                     type="text"
                     required
                     className="input-field py-1.5"
-                    placeholder="e.g. Root Canal Treatment"
+                    placeholder="Enter procedure name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: capitalizeWords(e.target.value) })}
                   />
@@ -520,7 +520,7 @@ export default function AdminTreatments() {
                     <input
                       type="text"
                       className="input-field py-1.5 font-mono"
-                      placeholder="e.g. RCT"
+                      placeholder="Enter short code"
                       value={formData.code}
                       onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     />
@@ -530,7 +530,7 @@ export default function AdminTreatments() {
                     <input
                       type="text"
                       className="input-field py-1.5"
-                      placeholder="e.g. Endodontics, Surgical"
+                      placeholder="Enter category"
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: capitalizeWords(e.target.value) })}
                     />
