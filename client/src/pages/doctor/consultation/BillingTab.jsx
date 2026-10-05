@@ -111,7 +111,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
           setDiscount(inv.discount !== undefined && inv.discount !== null && inv.discount !== 0 ? String(inv.discount) : '');
           setTax(inv.tax !== undefined && inv.tax !== null && inv.tax !== 0 ? String(inv.tax) : '');
           setAmountPaid(inv.amountPaid !== undefined && inv.amountPaid !== null && inv.amountPaid !== 0 ? String(inv.amountPaid) : '');
-          setLastSavedAt(inv.updatedAt || inv.createdAt);
+          setLastSavedAt(inv.date || inv.createdAt);
 
           if (inv.payments && inv.payments.length > 0) {
             setPaymentMethod(inv.payments[0].method || 'Cash');
@@ -335,7 +335,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
         setDiscount(savedInv.discount !== undefined && savedInv.discount !== null && savedInv.discount !== 0 ? String(savedInv.discount) : '');
         setTax(savedInv.tax !== undefined && savedInv.tax !== null && savedInv.tax !== 0 ? String(savedInv.tax) : '');
         setAmountPaid(savedInv.amountPaid !== undefined && savedInv.amountPaid !== null && savedInv.amountPaid !== 0 ? String(savedInv.amountPaid) : '');
-        setLastSavedAt(savedInv.updatedAt || savedInv.createdAt);
+        setLastSavedAt(savedInv.date || savedInv.createdAt);
 
         const currentSavedItems = (savedInv.items && savedInv.items.length > 0)
           ? savedInv.items.map((it) => ({
@@ -816,6 +816,7 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
                     amountPaid: numAmountPaid,
                     balance: liveBalance,
                     paymentStatus: statusToDisplay,
+                    date: lastSavedAt || new Date(),
                     createdAt: lastSavedAt || new Date(),
                   }
                 }, true)}
@@ -1248,20 +1249,24 @@ export default function BillingTab({ consultation, isReadOnly = false }) {
         }}
         onSuccess={(updated) => {
           fetchPatientBillingHistory();
-          const targetId = updated._id || updated.id;
+          const targetId = updated?._id || updated?.id;
           if (targetId === invoiceId) {
             setInvoiceStatus(updated.paymentStatus || 'Pending');
-            setDiscount(updated.discount ? String(updated.discount) : '');
-            setTax(updated.tax ? String(updated.tax) : '');
-            setAmountPaid(updated.amountPaid ? String(updated.amountPaid) : '');
+            setDiscount(updated.discount !== undefined && updated.discount !== null && updated.discount !== 0 ? String(updated.discount) : '');
+            setTax(updated.tax !== undefined && updated.tax !== null && updated.tax !== 0 ? String(updated.tax) : '');
+            setAmountPaid(updated.amountPaid !== undefined && updated.amountPaid !== null && updated.amountPaid !== 0 ? String(updated.amountPaid) : '');
+            setLastSavedAt(updated.date || updated.createdAt || new Date());
             if (updated.items) {
               setItems(updated.items.map((it) => ({
                 service: it.service || it.treatment || '',
                 treatment: it.treatment && it.treatment !== it.service ? it.treatment : '',
                 quantity: Math.max(1, Number(it.quantity) || 1),
-                unitPrice: String(it.unitPrice || ''),
+                unitPrice: it.unitPrice !== undefined && it.unitPrice !== null ? String(it.unitPrice) : '',
               })));
             }
+          }
+          if (selectedHistoryInvoice && (selectedHistoryInvoice._id === targetId || selectedHistoryInvoice.id === targetId)) {
+            setSelectedHistoryInvoice(updated);
           }
         }}
       />

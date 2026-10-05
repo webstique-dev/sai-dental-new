@@ -82,7 +82,7 @@ export default function PrescriptionEditModal({
   useEffect(() => {
     if (prescription) {
       const allMeds = Array.isArray(prescription.medicines) ? prescription.medicines : [];
-      const rawDate = prescription.createdAt || prescription.recordedAt || prescription.date || new Date();
+      const rawDate = prescription.date || prescription.recordedAt || prescription.createdAt || new Date();
       setPrescriptionDate(formatToDateString(new Date(rawDate)));
       setPrescriptionTime(formatTime12Hour(rawDate));
 

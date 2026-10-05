@@ -484,7 +484,9 @@ async function getPatientEMR(req, res, next) {
     // 7. Fetch Invoices and calculate read-only billing summary
     const Invoice = require('../models/Invoice');
     const rawInvoices = await Invoice.find({ patient: patientId })
-      .sort({ createdAt: -1 });
+      .sort({ date: -1, createdAt: -1 })
+      .populate('doctor', 'name email specialization')
+      .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address');
 
     let totalCharges = 0;
     let totalPaid = 0;
@@ -504,9 +506,14 @@ async function getPatientEMR(req, res, next) {
         .filter(Boolean)
         .join(', ') || 'Dental Service';
 
+      const invObj = inv.toObject ? inv.toObject() : inv;
+
       return {
+        ...invObj,
         _id: inv._id,
-        date: inv.createdAt,
+        id: inv._id,
+        date: inv.date || inv.createdAt,
+        createdAt: inv.date || inv.createdAt,
         itemsSummary,
         total: tot,
         amountPaid: paid,

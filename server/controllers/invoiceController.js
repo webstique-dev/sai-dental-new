@@ -56,7 +56,7 @@ async function listInvoices(req, res, next) {
     }
 
     const invoices = await Invoice.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ date: -1, createdAt: -1 })
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex')
       .populate('doctor', 'name email role specialization')
       .populate('consultation')

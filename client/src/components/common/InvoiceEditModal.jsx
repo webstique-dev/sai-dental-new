@@ -64,7 +64,7 @@ export default function InvoiceEditModal({
           setError('');
           let fullData = invoice;
 
-          if (invId && (!invoice.items || invoice.items.length === 0 || !invoice.doctor?.name)) {
+          if (invId) {
             try {
               const res = await api.get(`/invoices/${invId}`);
               if (res.data?.invoice) {
@@ -593,12 +593,16 @@ export default function InvoiceEditModal({
             type="button"
             className="btn-secondary py-1.5 px-3.5 text-xs font-bold inline-flex items-center gap-1.5 hover:border-brand/50 hover:text-brand cursor-pointer"
             onClick={() => {
+              const combinedDateObj = combineDateAndTime(invoiceDate, invoiceTime);
+              const isoDate = combinedDateObj.toISOString();
               openBillPrintWindow({
                 invoice: {
                   ...currentInvoice,
                   _id: invId,
                   patient: patientObj,
                   opNumber: opNo,
+                  date: isoDate,
+                  createdAt: isoDate,
                   items: items.map((it) => ({
                     service: it.service,
                     treatment: it.treatment,

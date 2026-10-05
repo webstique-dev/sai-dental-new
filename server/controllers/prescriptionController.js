@@ -17,7 +17,7 @@ async function listPrescriptions(req, res, next) {
     }
 
     const prescriptions = await Prescription.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ date: -1, recordedAt: -1, createdAt: -1 })
       .populate('patient', 'firstName lastName opNumber primaryPhone secondaryPhone phone age sex dateOfBirth address vitals medicalHistory currentMedications')
       .populate('recordedBy', 'name email role specialization');
 
@@ -56,6 +56,7 @@ async function createPrescription(req, res, next) {
     }
 
     const targetDate = date || recordedAt ? new Date(date || recordedAt) : new Date();
+    const finalDate = !isNaN(targetDate.getTime()) ? targetDate : new Date();
 
     const newPrescription = new Prescription({
       consultation: targetConsultation || undefined,
@@ -72,8 +73,9 @@ async function createPrescription(req, res, next) {
       treatmentPlan: treatmentPlan ? String(treatmentPlan).trim() : '',
       treatment: treatment ? String(treatment).trim() : '',
       notes: notes ? String(notes).trim() : '',
-      recordedAt: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
-      createdAt: !isNaN(targetDate.getTime()) ? targetDate : new Date(),
+      date: finalDate,
+      recordedAt: finalDate,
+      createdAt: finalDate,
       recordedBy: req.user ? req.user._id : undefined,
     });
 
@@ -144,6 +146,7 @@ async function updatePrescription(req, res, next) {
 
     const targetDate = date || recordedAt ? new Date(date || recordedAt) : null;
     if (targetDate && !isNaN(targetDate.getTime())) {
+      rx.date = targetDate;
       rx.recordedAt = targetDate;
       rx.createdAt = targetDate;
     }

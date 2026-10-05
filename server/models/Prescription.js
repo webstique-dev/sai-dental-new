@@ -48,6 +48,10 @@ const prescriptionSchema = new mongoose.Schema(
       default: '',
       set: capitalizeWords,
     },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

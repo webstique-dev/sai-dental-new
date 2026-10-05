@@ -132,7 +132,7 @@ export default function PrescriptionHistoryPanel({ patientId, title = "Prescript
             const rxId = rx._id || rx.id;
             const isExpanded = expandedId === rxId;
 
-            const dateStr = formatDateTimeDisplay(rx.createdAt || rx.recordedAt || rx.date);
+            const dateStr = formatDateTimeDisplay(rx.date || rx.recordedAt || rx.createdAt);
 
             const doctorName = formatDoctorName(rx.recordedBy, 'Attending Doctor');
 

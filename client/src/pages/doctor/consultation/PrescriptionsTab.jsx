@@ -313,11 +313,18 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
     }
   };
 
-  const handleQuickPresetDate = (daysToAdd) => {
+  const handleQuickPresetDate = (daysToAdd = 0, monthsToAdd = 0) => {
     if (isReadOnly) return;
     const d = new Date();
-    d.setDate(d.getDate() + daysToAdd);
-    const dateStr = d.toISOString().split('T')[0];
+    if (monthsToAdd) {
+      d.setMonth(d.getMonth() + monthsToAdd);
+    } else if (daysToAdd) {
+      d.setDate(d.getDate() + daysToAdd);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
     setFollowUpForm((prev) => ({ ...prev, recommendedDate: dateStr }));
     setEnableFollowUp(true);
   };
@@ -980,7 +987,7 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
           <div className="space-y-6">
             {prescriptions.map((rx) => {
               const rxId = rx._id || rx.id;
-              const dateStr = formatDateTimeDisplay(rx.createdAt || rx.recordedAt || rx.date);
+              const dateStr = formatDateTimeDisplay(rx.date || rx.recordedAt || rx.createdAt);
 
               const regularMeds = (rx.medicines || []).filter((m) => m.type !== 'syrup');
               const syrupMeds = (rx.medicines || []).filter((m) => m.type === 'syrup');
@@ -1255,14 +1262,15 @@ export default function PrescriptionsTab({ consultation, isReadOnly = false }) {
                   { label: '+3 Days', days: 3 },
                   { label: '+1 Week', days: 7 },
                   { label: '+2 Weeks', days: 14 },
-                  { label: '+1 Month', days: 30 },
-                  { label: '+3 Months', days: 90 },
+                  { label: '+1 Month', months: 1 },
+                  { label: '+3 Months', months: 3 },
+                  { label: '+6 Months', months: 6 },
                 ].map((preset) => (
                   <button
                     key={preset.label}
                     type="button"
-                    onClick={() => handleQuickPresetDate(preset.days)}
-                    className="flex-1 min-w-[70px] py-1.5 px-2 text-center text-xs font-bold rounded-lg border bg-surface hover:bg-brand-light/40 border-border hover:border-brand/40 text-ink transition-colors shadow-2xs whitespace-nowrap"
+                    onClick={() => handleQuickPresetDate(preset.days, preset.months)}
+                    className="flex-1 min-w-[70px] py-1.5 px-2 text-center text-xs font-bold rounded-lg border bg-surface hover:bg-brand-light/40 border-border hover:border-brand/40 text-ink transition-colors shadow-2xs whitespace-nowrap cursor-pointer"
                   >
                     {preset.label}
                   </button>

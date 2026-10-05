@@ -9,13 +9,18 @@ export function generateBillHTML(params = {}) {
 
   const patientName = formatPatientFullName(patient) || 'Patient';
 
-  const billDate = new Date(invoice?.createdAt || invoice?.date || Date.now()).toLocaleDateString('en-IN', {
+  const invoiceDateValue = invoice?.date || invoice?.createdAt || Date.now();
+  const invoiceDateObj = new Date(invoiceDateValue);
+  const isValidDate = !isNaN(invoiceDateObj.getTime());
+  const validInvoiceDate = isValidDate ? invoiceDateObj : new Date();
+
+  const billDate = validInvoiceDate.toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 
-  const billTime = new Date(invoice?.createdAt || invoice?.date || Date.now()).toLocaleTimeString('en-IN', {
+  const billTime = validInvoiceDate.toLocaleTimeString('en-IN', {
     hour: '2-digit',
     minute: '2-digit',
   });

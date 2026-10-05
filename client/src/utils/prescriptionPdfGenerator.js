@@ -20,7 +20,12 @@ export function generatePrescriptionHTML(params = {}) {
   }
   doctorSpec = capitalizeWords(doctorSpec);
 
-  const rxDate = new Date(rx?.createdAt || Date.now()).toLocaleDateString('en-IN', {
+  const rxDateValue = rx?.date || rx?.recordedAt || rx?.createdAt || Date.now();
+  const rxDateObj = new Date(rxDateValue);
+  const isValidRxDate = !isNaN(rxDateObj.getTime());
+  const validRxDate = isValidRxDate ? rxDateObj : new Date();
+
+  const rxDate = validRxDate.toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

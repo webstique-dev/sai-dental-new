@@ -159,18 +159,31 @@ export function formatTime12Hour(dateInput) {
  * @returns {Date}
  */
 export function combineDateAndTime(dateInput, timeInput) {
-  let d = dateInput instanceof Date ? new Date(dateInput) : null;
-  if (!d && typeof dateInput === 'string' && dateInput.trim()) {
-    if (/^\d{4}-\d{2}-\d{2}/.test(dateInput)) {
-      const parts = dateInput.split('T')[0].split('-');
+  let d = null;
+  if (dateInput instanceof Date && !isNaN(dateInput.getTime())) {
+    d = new Date(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate());
+  } else if (typeof dateInput === 'string' && dateInput.trim()) {
+    const trimmed = dateInput.trim();
+    if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(trimmed)) {
+      const parts = trimmed.split('T')[0].split(/[-/]/);
       d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    } else if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/.test(trimmed)) {
+      const parts = trimmed.split(/[-/]/);
+      const month = parseInt(parts[0], 10) - 1;
+      const day = parseInt(parts[1], 10);
+      const year = parseInt(parts[2], 10);
+      d = new Date(year, month, day);
     } else {
-      const parsed = Date.parse(dateInput);
-      if (!isNaN(parsed)) d = new Date(parsed);
+      const parsed = Date.parse(trimmed);
+      if (!isNaN(parsed)) {
+        const temp = new Date(parsed);
+        d = new Date(temp.getFullYear(), temp.getMonth(), temp.getDate());
+      }
     }
   }
   if (!d || isNaN(d.getTime())) {
-    d = new Date();
+    const now = new Date();
+    d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
 
   let hours = 9;
